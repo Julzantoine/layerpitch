@@ -435,6 +435,7 @@ function buildPreviewTrack(track) {
             transition: b.transition && b.transition.pendingFile ? { localFile: b.transition.pendingFile, bars: b.transition.bars || null } : b.transition && b.transition.remoteFile ? { file: b.transition.remoteFile, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
           skipIntro: !!sec.skipIntro,
+          freeReturn: !!sec.freeReturn,
         };
       })
     };

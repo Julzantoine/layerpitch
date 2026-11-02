@@ -7799,6 +7799,15 @@ function initHybridPlayer(track, wrapper, elementColors) {
   const indexOfSection = id => sections.findIndex(s => s.id === id);
   const branchesOf = i => (sections[i].branches || []).filter(b => b && (b.targetId === 'end' || indexOfSection(b.targetId) >= 0));
   let chosen = null, boundaryAt = null;
+  // Retour libre (réglage du morceau, rangé sur chaque section faute de colonne dédiée) : toute section déjà jouée est atteignable,
+  // en plus des embranchements prévus, sans changer le déroulement quand le visiteur ne choisit rien.
+  const freeReturn = sections.length > 0 && (track.sections || []).every(s => s && s.freeReturn);
+  const returnsOf = i => {
+    if (!freeReturn) return [];
+    const planned = new Set(branchesOf(i).map(b => b.targetId));
+    return [...visited].filter(j => j !== i && !planned.has(sections[j].id)).map(j => ({ id: 'retour:' + sections[j].id, targetId: sections[j].id, label: '', switchMode: 'end', isReturn: true }));
+  };
+  const choicesOf = i => branchesOf(i).concat(returnsOf(i));
   let transitionsLoaded = false;
   let transitionSrc = null, resumeFresh = false;
   let timer = null, endedCb = null;
@@ -7819,10 +7828,11 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (details.classList.contains('expanded')) setDetailsExpanded(details, true); // la hauteur suit celle de la section affichée
   }
   function renderBranches() {
-    const list = cur >= 0 ? branchesOf(cur) : (sections.length ? branchesOf(0) : []);
-    nextBtn.parentElement.style.display = list.length ? 'none' : '';
+    const planned = cur >= 0 ? branchesOf(cur) : (sections.length ? branchesOf(0) : []);
+    const list = cur >= 0 ? choicesOf(cur) : planned;
+    nextBtn.parentElement.style.display = planned.length ? 'none' : '';
     branchesBlock.style.display = list.length ? '' : 'none';
-    branchesEl.innerHTML = list.map(b => `<button type="button" class="voice-refresh-btn hybrid-branch-btn${chosen === b ? ' is-chosen' : ''}" data-branch="${escapeHtml(b.id)}" aria-pressed="${chosen === b}"${!playing || (pending && pending.given) ? ' disabled' : ''}>→ ${escapeHtml(b.label || (b.targetId === 'end' ? t('goToEndBtn') : (sections[indexOfSection(b.targetId)].label || sections[indexOfSection(b.targetId)].track.title || '')))}</button>`).join('');
+    branchesEl.innerHTML = list.map(b => `<button type="button" class="voice-refresh-btn hybrid-branch-btn${chosen && chosen.id === b.id ? ' is-chosen' : ''}" data-branch="${escapeHtml(b.id)}" aria-pressed="${chosen && chosen.id === b.id}"${!playing || (pending && pending.given) ? ' disabled' : ''}>${b.isReturn ? '↩' : '→'} ${escapeHtml(b.label || (b.targetId === 'end' ? t('hybridEndLabel') : (sections[indexOfSection(b.targetId)].label || sections[indexOfSection(b.targetId)].track.title || '')))}</button>`).join('');
   }
   function refreshNext() {
     const last = targetAfter(cur) < 0;
@@ -7852,7 +7862,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   mapCanvas.style.height = (Math.max(...mapPos.map(p => p.y)) + NODE_H + 24) + 'px';
   mapNodes.style.setProperty('--seq-map-node-w', NODE_W + 'px');
   mapNodes.style.setProperty('--seq-map-node-h', NODE_H + 'px');
-  function reachableFromCur() { return playing && cur >= 0 && !(pending && pending.given) ? edgesFrom(cur) : []; }
+  function reachableFromCur() { return playing && cur >= 0 && !(pending && pending.given) ? edgesFrom(cur).concat(returnsOf(cur).map(b => indexOfSection(b.targetId))) : []; }
   function renderMap() {
     const reach = reachableFromCur();
     const target = pending ? pending.to : (chosen && chosen.targetId !== 'end' ? indexOfSection(chosen.targetId) : -1);
@@ -7875,7 +7885,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     const node = e.target.closest('.seq-map-node.selectable');
     if (!node) return;
     const idx = Number(node.dataset.mapIdx);
-    const branch = branchesOf(cur).find(b => indexOfSection(b.targetId) === idx);
+    const branch = choicesOf(cur).find(b => indexOfSection(b.targetId) === idx);
     if (branch) branchesEl.querySelector(`[data-branch="${CSS.escape(branch.id)}"]`).click();
     else if (!nextBtn.disabled) nextBtn.click();
   });
@@ -8031,7 +8041,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   branchesEl.addEventListener('click', e => {
     const btn = e.target.closest('[data-branch]');
     if (!btn || !playing || cur < 0 || (pending && pending.given)) return;
-    const branch = branchesOf(cur).find(b => b.id === btn.dataset.branch);
+    const branch = choicesOf(cur).find(b => b.id === btn.dataset.branch);
     if (!branch) return;
     const first = !chosen && !pending && !ending;
     chosen = branch;

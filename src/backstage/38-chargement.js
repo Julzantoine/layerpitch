@@ -50,6 +50,7 @@ async function loadData(silent) {
             transition: b.transition ? { remoteFile: b.transition.file || null, originalFileName: b.transition.originalFileName || null, pendingFile: null, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
           skipIntro: !!sec.skipIntro,
+          freeReturn: !!sec.freeReturn,
         }));
       } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({

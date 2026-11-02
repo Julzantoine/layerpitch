@@ -106,6 +106,12 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.eval("library.find(l => l.id === 'vt').loopEngine = 'quantized'; library.find(l => l.id === 'vt').loopInBeat = 4; renderLibrary();");
   check('intro détectée : case proposée', !!q('.hybrid-skip-intro'));
 
+  // Retour libre : une case pour tout le morceau, rangée sur chaque section, gardée à la publication.
+  const fr = q('input[data-hybrid="freeReturn"]');
+  fr.checked = true; fr.dispatchEvent(new window.Event('change', { bubbles: true }));
+  check('retour libre : coché sur toutes les sections', window.eval("library.find(l => l.id === manageLibrarySelectedId).sections.every(s => s.freeReturn)"));
+  check('retour libre : publié', JSON.parse(window.eval("JSON.stringify(buildDataSnapshot({}, 1).library.find(l => l.id === manageLibrarySelectedId).sections)")).every(s => s.freeReturn === true));
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });
