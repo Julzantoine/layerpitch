@@ -112,6 +112,10 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('retour libre : coché sur toutes les sections', window.eval("library.find(l => l.id === manageLibrarySelectedId).sections.every(s => s.freeReturn)"));
   check('retour libre : publié', JSON.parse(window.eval("JSON.stringify(buildDataSnapshot({}, 1).library.find(l => l.id === manageLibrarySelectedId).sections)")).every(s => s.freeReturn === true));
 
+  // La frise s'arrête au point de sortie de boucle.
+  window.eval("library.push({ id: 'qz', title: 'Boucle', mode: 'vertical', loopEngine: 'quantized', bpm: 120, beatsPerBar: 4, loopOutBeat: 10, duration: 8, layers: [{ label: 'a', remoteFile: 'a' }] }, { id: 'h3', title: 'H3', mode: 'hybrid-sequential', layers: [], sfxIds: [], sections: [{ id: 'z', trackId: 'qz', switchMode: 'point', transitionPoints: [] }] }); manageLibrarySelectedId = 'h3'; renderLibrary();");
+  check('frise : pas au-delà de la sortie de boucle', window.document.querySelectorAll('.hybrid-point').length === 10);
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

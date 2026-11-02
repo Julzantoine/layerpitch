@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793620098141">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793621070450">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1993,18 +1993,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793620098141"></script>
-<script src="layerpitch-i18n.js?v=1793620098141"></script>
-<script src="layerpitch-import-engine.js?v=1793620098141"></script>
-<script src="layerpitch-appearance.js?v=1793620098141"></script>
-<script src="layerpitch-album-shared.js?v=1793620098141"></script>
-<script src="layerpitch-album-editor.js?v=1793620098141"></script>
-<script src="layerpitch-shell.js?v=1793620098141"></script>
-<script src="layerpitch-social-icons.js?v=1793620098141"></script>
-<script src="layerpitch-notify.js?v=1793620098141"></script>
-<script src="layerpitch-guide.js?v=1793620098141"></script>
-<script src="layerpitch-help.js?v=1793620098141"></script>
-<script src="player.js?v=1793620098141"></script>
+<script src="layerpitch-tuto.js?v=1793621070450"></script>
+<script src="layerpitch-i18n.js?v=1793621070450"></script>
+<script src="layerpitch-import-engine.js?v=1793621070450"></script>
+<script src="layerpitch-appearance.js?v=1793621070450"></script>
+<script src="layerpitch-album-shared.js?v=1793621070450"></script>
+<script src="layerpitch-album-editor.js?v=1793621070450"></script>
+<script src="layerpitch-shell.js?v=1793621070450"></script>
+<script src="layerpitch-social-icons.js?v=1793621070450"></script>
+<script src="layerpitch-notify.js?v=1793621070450"></script>
+<script src="layerpitch-guide.js?v=1793621070450"></script>
+<script src="layerpitch-help.js?v=1793621070450"></script>
+<script src="player.js?v=1793621070450"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -8296,7 +8296,11 @@ function hybridPointsTimeline(sec, source, changed) {
   const duration = source && source.duration;
   if (!duration) { wrap.innerHTML = `<div class="hint-inline">${tr('hybridPointsNeedTrack')}</div>`; return wrap; }
   if (!sec.transitionPoints) sec.transitionPoints = [];
-  const totalBeats = Math.max(1, Math.floor(duration * bpm / 60));
+  // Pas de point après la sortie de boucle : le lecteur y passerait de toute façon à la fin de la boucle.
+  const loopOutBeat = source.mode === 'embranchement-vertical'
+    ? (((source.loops || []).find(l => l.isInitial) || (source.loops || [])[0] || {}).loopOutBeat)
+    : (source.loopEngine === 'quantized' ? (source.loopOutBeat || beatsPerBar * 4) : null);
+  const totalBeats = Math.max(1, Math.min(Math.floor(duration * bpm / 60 + 1e-6), loopOutBeat || Infinity));
   wrap.className = 'hybrid-points';
   for (let beat = 0; beat < totalBeats; beat++) {
     const cell = document.createElement('button');
