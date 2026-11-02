@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793658642889">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793659163397">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1993,18 +1993,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793658642889"></script>
-<script src="layerpitch-i18n.js?v=1793658642889"></script>
-<script src="layerpitch-import-engine.js?v=1793658642889"></script>
-<script src="layerpitch-appearance.js?v=1793658642889"></script>
-<script src="layerpitch-album-shared.js?v=1793658642889"></script>
-<script src="layerpitch-album-editor.js?v=1793658642889"></script>
-<script src="layerpitch-shell.js?v=1793658642889"></script>
-<script src="layerpitch-social-icons.js?v=1793658642889"></script>
-<script src="layerpitch-notify.js?v=1793658642889"></script>
-<script src="layerpitch-guide.js?v=1793658642889"></script>
-<script src="layerpitch-help.js?v=1793658642889"></script>
-<script src="player.js?v=1793658642889"></script>
+<script src="layerpitch-tuto.js?v=1793659163397"></script>
+<script src="layerpitch-i18n.js?v=1793659163397"></script>
+<script src="layerpitch-import-engine.js?v=1793659163397"></script>
+<script src="layerpitch-appearance.js?v=1793659163397"></script>
+<script src="layerpitch-album-shared.js?v=1793659163397"></script>
+<script src="layerpitch-album-editor.js?v=1793659163397"></script>
+<script src="layerpitch-shell.js?v=1793659163397"></script>
+<script src="layerpitch-social-icons.js?v=1793659163397"></script>
+<script src="layerpitch-notify.js?v=1793659163397"></script>
+<script src="layerpitch-guide.js?v=1793659163397"></script>
+<script src="layerpitch-lesson-previews.js?v=1793659163397"></script>
+<script src="layerpitch-help.js?v=1793659163397"></script>
+<script src="player.js?v=1793659163397"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16055,8 +16056,28 @@ function lhSecIs(i, key) { const s = lhSec(i); return !!s && s.trackId === LH_TR
 function lhSecNamed(i) { const s = lhSec(i); return !!s && (s.label || '').trim().toLowerCase() === LH_NAMES[i].toLowerCase(); }
 function lhRow(i) { return document.querySelector(`#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(${i + 1})`); }
 function lhField(i, name) { const r = lhRow(i); return r ? r.querySelector(`[data-hybrid="${name}"]`) : null; }
+// Leçon « 9 · Mode hybride à sections » (sans embranchement) : « Music City_Hyb. Seq. » de Jules-Antoine (base : bmvzpsnbudo0k8), trois sections
+// bout à bout, réglages par défaut (sans nom, passage en fin de section, sans transition).
+const LHS_ORDER = ['add', 'seq', 'lo'];
+function lhsOrderOk(n) { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential' && LHS_ORDER.slice(0, n).every((k, i) => t.sections && t.sections[i] && t.sections[i].trackId === LH_TRACKS[k]); }
+function lhsMapPreviewHtml() {
+  const W = 94, H = 44, y = 10, gap = 22; // 3 cases + flèches, puis « Fin » dans les ~40 px restants
+  const boxes = [['Jazz Hi Lay. Add.', tr('lhMapAddPlain')], ['Jazz Hi Seq. Branch.', tr('lhMapSeqPlain')], ['Jazz Lo Static +FX', tr('lhMapStatic')]];
+  let svg = '';
+  boxes.forEach(([n, sub], k) => {
+    const x = 4 + k * (W + gap);
+    svg += `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="5" fill="var(--bg-card, var(--bg))" stroke="var(--accent)"/>`
+      + `<text x="${x + W / 2}" y="${y + 19}" text-anchor="middle" font-size="8.5" fill="var(--text)">${escapeHtml(n)}</text>`
+      + `<text x="${x + W / 2}" y="${y + H - 8}" text-anchor="middle" font-size="7" fill="var(--text-dim)">${escapeHtml(sub)}</text>`;
+    const x2 = x + W + gap;
+    svg += `<path d="M${x + W} ${y + H / 2} L${x2 - 4} ${y + H / 2}" stroke="var(--border)" stroke-width="1.4" fill="none"/><path d="M${x2 - 8} ${y + H / 2 - 3} L${x2 - 3} ${y + H / 2} L${x2 - 8} ${y + H / 2 + 3}" stroke="var(--border)" stroke-width="1.4" fill="none"/>`;
+  });
+  const xe = 4 + 3 * (W + gap);
+  svg += `<rect x="${xe - 4}" y="${y + 6}" width="${400 - xe}" height="${H - 12}" rx="5" fill="none" stroke="var(--border)"/><text x="${(xe - 4 + 400) / 2 - 2}" y="${y + H / 2 + 3}" text-anchor="middle" font-size="8" fill="var(--text-dim)">${escapeHtml(tr('lhsMapEnd'))}</text>`;
+  return `<svg class="tour-map-preview" viewBox="0 0 400 64" role="img" aria-label="${escapeAttr(tr('lhsMapAria'))}">${svg}</svg>`;
+}
 // Aperçu de la carte finale (2e bulle de la leçon) : « A little walk in Music City » en arbre, de gauche à droite, comme la carte des chemins.
-// Sections 1 à 7 puis la fin ; la mention sous chaque nom dit le mode du morceau et le moment du passage.
+// Sections 1 à 7 puis la fin ; sous chaque nom, seulement le mode de lecture du morceau (demande de Jules-Antoine, 02/11).
 function lhMapPreviewHtml() {
   const W = 96, H = 44, col = [4, 112, 220, 336], rowY = [8, 60, 112, 164];
   const node = (x, y, n, sub, w) => {
@@ -16568,7 +16589,34 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
-  // Leçon « Hybride à sections » (02/11, ?tuto&lesson=hybrid, rechargement obligatoire d'où `reload`) : on refait « A little walk in Music City » de Jules-Antoine,
+  // Leçon « 9 · Mode hybride à sections » (02/11 soir, ?tuto&lesson=hybrid-seq) : des sections bout à bout, SANS embranchement (celles-ci viennent à la
+  // leçon 10). Refait « Music City_Hyb. Seq. » de Jules-Antoine avec les morceaux Jazz du faux serveur (mêmes que la leçon 10) ; les réglages qu'il a laissés
+  // par défaut sont présentés sans être changés.
+  { id: 'hybrid-seq', theme: 'engine', public: true, reload: true, titleKey: 'lessonHybridSeqTitle', descKey: 'lessonHybridSeqDesc', steps: [
+    { titleKey: 'lhsWelcomeTitle', textKey: 'lhsWelcomeText' },
+    { titleKey: 'lhsMapTitle', textKey: 'lhsMapText', preview: 'hybridSeqMap' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lhLibTitle', textKey: 'lhLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lhModeTitle', textKey: 'lhModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential'; } },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAddTitle', textKey: 'lhsAddText', done: () => !!lhSec(0) },
+    { selector: () => lhField(0, 'track'), titleKey: 'lhsTrack1Title', textKey: 'lhsTrack1Text', done: () => lhsOrderOk(1) },
+    { selector: () => lhField(0, 'label'), titleKey: 'lhsNameTitle', textKey: 'lhsNameText' },
+    { selector: () => lhField(0, 'loops'), titleKey: 'lhsLoopsTitle', textKey: 'lhsLoopsText' },
+    { selector: () => lhField(0, 'switch'), titleKey: 'lhsSwitchTitle', textKey: 'lhsSwitchText' },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd2Title', textKey: 'lhsAdd2Text', done: () => !!lhSec(1) },
+    { selector: () => lhField(1, 'track'), titleKey: 'lhsTrack2Title', textKey: 'lhsTrack2Text', done: () => lhsOrderOk(2) },
+    { selector: () => lhRow(0) && lhRow(0).querySelector('[data-role="hybridTransFile"]'), titleKey: 'lhsTransTitle', textKey: 'lhsTransText' },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd3Title', textKey: 'lhsAdd3Text', done: () => !!lhSec(2) },
+    { selector: () => lhField(2, 'track'), titleKey: 'lhsTrack3Title', textKey: 'lhsTrack3Text', done: () => lhsOrderOk(3) },
+    { selector: () => lhField(1, 'up'), titleKey: 'lhsOrderTitle', textKey: 'lhsOrderText' },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lhsListenTitle', textKey: 'lhsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lhsEndTitle', textKey: 'lhsEndText', final: true },
+  ] },
+  // Leçon « 10 · Mode hybride à embranchement » (02/11, d'abord « Hybride à sections », ?tuto&lesson=hybrid, rechargement obligatoire d'où `reload`) : on refait « A little walk in Music City » de Jules-Antoine,
   // un arbre de 7 sections qui puisent dans les 6 morceaux Jazz déjà présents dans la bibliothèque du faux serveur (api/demo-client.js). L'apprenant pose à la main
   // le tronc (1 → 2 | 3, puis 2 → 4 → fin) avec les moments de passage et les points de transition ; la leçon complète ensuite les branches restantes, identiques (voir lhCompleteMap). Ouverte à tous le 02/11
   // (le faux serveur ouvre `hybrid_sequential` pour la leçon, même si le feu vert reste fermé dans les vrais comptes).
@@ -16921,6 +16969,9 @@ const LESSONS = [
   { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
   { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
+// 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
+// Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
+LESSONS.forEach(l => { if (l.steps && !l.page && window.LayerPitchLessonPreviews && window.LayerPitchLessonPreviews.has(l.id)) l.steps.splice(1, 0, window.LayerPitchLessonPreviews.step(l.id)); });
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
@@ -16967,6 +17018,8 @@ const GUIDE = window.LayerPitchGuide.create({
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
   cardExtras(step) {
     if (step.preview === 'hybridMap') return lhMapPreviewHtml();
+    if (step.preview === 'hybridSeqMap') return lhsMapPreviewHtml();
+    if (step.preview && window.LayerPitchLessonPreviews) return window.LayerPitchLessonPreviews.html(step.preview, tr);
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
     const canUse = lessonSampleReady(step);
     const many = lessonStepFileNames(step).length > 1;

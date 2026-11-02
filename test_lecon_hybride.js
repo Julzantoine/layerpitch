@@ -12,8 +12,6 @@ const { loadBackstage } = require('./scripts/test-harness.js');
 
   // Le faux serveur du tutoriel sert bien les 6 morceaux et ouvre le mode pour cette leçon.
   const demo = fs.readFileSync('api/demo-client.js', 'utf8');
-  check('faux serveur : morceaux de la leçon hybride', /lessonParam\(\) === 'hybrid'\) return DEMO_TRACKS_HYBRID/.test(demo));
-  check('faux serveur : feu vert hybrid_sequential pour la leçon', demo.includes("lessonParam() === 'hybrid' ? ['hybrid_sequential'] : []"));
   const ids = window.eval('Object.values(LH_TRACKS)');
   ids.forEach(id => check('faux serveur : morceau ' + id + ' présent', demo.includes('"id":"' + id + '"')));
 
@@ -105,9 +103,40 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('retour libre : coché sur les 7 sections', window.eval("library.find(l => l.id === 'h').sections.every(s => s.freeReturn)"));
   check('l\'écoute trouve son bouton', !!target(find('lhListenTitle')));
 
+  // Leçon 9 « Hybride à sections » (sans embranchement) : « Music City_Hyb. Seq. », trois sections bout à bout.
+  const seq = window.eval("LESSONS.find(l => l.id === 'hybrid-seq')");
+  const order = window.eval("LESSONS.filter(l => l.theme === 'engine').map(l => l.id)");
+  check('leçon 9 juste avant la 10 (à embranchement), en fin de thème', order.slice(-2).join() === 'hybrid-seq,hybrid');
+  check('titres : 9 · hybride à sections, 10 · hybride à embranchement', /^9 · Mode hybride à sections$/.test(window.eval("tr('lessonHybridSeqTitle')")) && /^10 · Mode hybride à embranchement$/.test(window.eval("tr('lessonHybridTitle')")));
+  check('faux serveur : mêmes morceaux et feu vert pour la leçon 9', demo.includes("['hybrid', 'hybrid-seq'].includes(lessonParam())) return DEMO_TRACKS_HYBRID") && demo.includes("['hybrid', 'hybrid-seq'].includes(lessonParam()) ? ['hybrid_sequential']"));
+  check('leçon 9 : aperçu linéaire en 2e bulle', seq.steps[1].preview === 'hybridSeqMap' && (window.eval('lhsMapPreviewHtml()').match(/<rect/g) || []).length === 4);
+  window.eval("library.push({ id: 'h2', title: 'Ma suite', mode: 'static', layers: [{}] }); manageLibrarySelectedId = 'h2'; renderLibrary();");
+  const sSteps = seq.steps;
+  const sFind = key => sSteps.findIndex(s => s.titleKey === key);
+  const sTarget = i => { const s = sSteps[i]; return typeof s.selector === 'function' ? s.selector() : window.document.querySelector(s.selector); };
+  const sGesture = (key, act) => {
+    const i = sFind(key), el = sTarget(i);
+    check('9 · ' + key + ' : cible trouvée', !!el);
+    check('9 · ' + key + ' : pas encore faite', !sSteps[i].done({}));
+    if (el) act(el);
+    check('9 · ' + key + ' : faite après le geste', sSteps[i].done({}));
+  };
+  sGesture('lhModeTitle', el => pick(el, 'hybrid-sequential'));
+  sGesture('lhsAddTitle', click);
+  sGesture('lhsTrack1Title', el => pick(el, window.eval('LH_TRACKS.add')));
+  ['lhsNameTitle', 'lhsLoopsTitle', 'lhsSwitchTitle'].forEach(k => check('9 · ' + k + ' : cible trouvée', !!sTarget(sFind(k))));
+  sGesture('lhsAdd2Title', click);
+  sGesture('lhsTrack2Title', el => pick(el, window.eval('LH_TRACKS.seq')));
+  check('9 · lhsTransTitle : cible trouvée', !!sTarget(sFind('lhsTransTitle')));
+  sGesture('lhsAdd3Title', click);
+  sGesture('lhsTrack3Title', el => pick(el, window.eval('LH_TRACKS.lo')));
+  ['lhsOrderTitle', 'lhsListenTitle'].forEach(k => check('9 · ' + k + ' : cible trouvée', !!sTarget(sFind(k))));
+  const seqResult = window.eval("library.find(l => l.id === 'h2').sections.map(s => [s.trackId, s.label || '', s.switchMode || 'end', (s.branches || []).length, s.transition ? 1 : 0].join('/')).join(' ; ')");
+  check('9 · résultat identique à « Music City_Hyb. Seq. »', seqResult === window.eval("['add', 'seq', 'lo'].map(k => LH_TRACKS[k] + '//end/0/0').join(' ; ')"));
+
   // Textes en français et en anglais pour chaque étape.
   const I18N = window.LAYERPITCH_I18N;
-  const keys = [lesson.titleKey, lesson.descKey].concat(...steps.map(s => [s.titleKey, s.textKey]));
+  const keys = [lesson.titleKey, lesson.descKey, seq.titleKey, seq.descKey].concat(...steps.concat(seq.steps).map(s => [s.titleKey, s.textKey]));
   check('textes FR et EN présents', keys.every(k => I18N.fr.backstage[k] && I18N.en.backstage[k]));
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
