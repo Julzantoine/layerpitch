@@ -1,5 +1,5 @@
 // Leçon « Hybride à sections » (02/11) : chaque étape trouve sa cible dans l'éditeur, chaque geste fait avancer la leçon,
-// et la fin de la leçon reproduit « A little walk in Music City » de Jules-Antoine (7 sections, mêmes morceaux, mêmes chemins).
+// et la fin de la leçon reproduit « A little walk in Music City » de Jules-Antoine (7 sections, mêmes morceaux, mêmes chemins, mêmes moments de passage et points).
 const fs = require('fs');
 const { loadBackstage } = require('./scripts/test-harness.js');
 (async () => {
@@ -57,15 +57,24 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   gesture('lhAddTitle', click);
   gesture('lhTrack1Title', el => pick(el, window.eval('LH_TRACKS.lo')));
   gesture('lhName1Title', el => pick(el, 'Meet me there'));
-  ['lhLoopsTitle', 'lhSwitchTitle'].forEach(k => check(k + ' : cible trouvée', !!target(find(k))));
+  check('lhLoopsTitle : cible trouvée', !!target(find('lhLoopsTitle')));
+  gesture('lhSwitchTitle', el => pick(el, 'point'));
+  // Frise : un clic par point, au début des mesures 2, 4 et 6 (temps 4, 12, 20).
+  gesture('lhPointsTitle', el => [4, 12, 20].forEach(b => click(target(find('lhPointsTitle')).querySelector('[data-beat="' + b + '"]'))));
+  check('lhFadeTitle : cible trouvée', !!target(find('lhFadeTitle')));
   gesture('lhBranch1Title', click);
   gesture('lhBranch2Title', click);
   gesture('lhNewTitle', el => pick(el, '__new'));
+  gesture('lhBranchSw1Title', el => pick(el, 'point'));
+  gesture('lhBranchSw2Title', el => pick(el, 'point'));
   ['lhLabelTitle', 'lhDefaultTitle'].forEach(k => check(k + ' : cible trouvée', !!target(find(k))));
   gesture('lhTrack2Title', el => pick(el, window.eval('LH_TRACKS.seq')));
   gesture('lhName2Title', el => pick(el, 'This way?'));
+  gesture('lhSwitch2Title', el => pick(el, 'bar'));
   gesture('lhTrack3Title', el => pick(el, window.eval('LH_TRACKS.add')));
   gesture('lhName3Title', el => pick(el, 'Or this one?'));
+  gesture('lhSwitch3Title', el => pick(el, 'point'));
+  gesture('lhPoints3Title', el => [4, 20].forEach(b => click(target(find('lhPoints3Title')).querySelector('[data-beat="' + b + '"]'))));
   gesture('lhBranch3Title', click);
   gesture('lhNew2Title', el => pick(el, '__new'));
   gesture('lhTrack4Title', el => pick(el, window.eval('LH_TRACKS.embr')));
@@ -80,12 +89,14 @@ const { loadBackstage } = require('./scripts/test-harness.js');
     const t = library.find(l => l.id === 'h');
     const key = id => Object.keys(LH_TRACKS).find(k => LH_TRACKS[k] === id);
     const idx = id => id === 'end' ? 'fin' : String(t.sections.findIndex(s => s.id === id) + 1);
-    return t.sections.map((s, i) => (i + 1) + ':' + key(s.trackId) + ':' + s.label + '>' + (s.branches || []).map(b => idx(b.targetId)).join('|')).join(' ; ');
+    return t.sections.map((s, i) => (i + 1) + ':' + key(s.trackId) + ':' + s.label + ':' + (s.switchMode || 'end') + (s.transitionPoints && s.transitionPoints.length ? '@' + s.transitionPoints.join(',') : '')
+      + '>' + (s.branches || []).map(b => idx(b.targetId) + '/' + (b.switchMode || 'end')).join('|')).join(' ; ');
   })()`);
   check('carte finale identique à « A little walk in Music City »', tree === [
-    '1:lo:Meet me there>2|3', '2:seq:This way?>4|5', '3:add:Or this one?>6|7', '4:embr:Would you like to walk a bit more?>fin',
-    '5:hi:This is so pretty over there>fin', '6:rand:This place is so nice>fin', '7:hi:I would like it never ends>fin'].join(' ; '));
-  if (!/^1:lo/.test(tree)) console.log(tree);
+    '1:lo:Meet me there:point@4,12,20>2/point|3/point', '2:seq:This way?:bar>4/end|5/end', '3:add:Or this one?:point@4,20>6/end|7/end',
+    '4:embr:Would you like to walk a bit more?:end>fin/end', '5:hi:This is so pretty over there:end>fin/end', '6:rand:This place is so nice:end>fin/end',
+    '7:hi:I would like it never ends:end>fin/end'].join(' ; '));
+  console.log('   ' + tree);
   check('l\'écoute trouve son bouton', !!target(find('lhListenTitle')));
 
   // Textes en français et en anglais pour chaque étape.
