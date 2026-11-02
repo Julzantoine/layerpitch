@@ -11,6 +11,8 @@ function hybridSectionTrackIsReady(source) {
   const layers = source.layers || [];
   return has(layers[0]) && (source.mode === 'static' || layers.every(has));
 }
+// Retour libre : réglage du morceau entier, rangé sur chacune de ses sections (aucune colonne dédiée en base, pas de migration).
+function hybridFreeReturn(track) { return (track.sections || []).length > 0 && track.sections.every(sec => sec.freeReturn); }
 // Le morceau commence-t-il par une partie jouée une seule fois avant sa boucle (départ avant l'entrée de boucle, ou fichier d'intro) ?
 function hybridSectionHasIntro(source) {
   if (!source) return false;
@@ -61,7 +63,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
     + `<option value="__new">${tr('hybridBranchNewSection')}</option>`;
   // Le réflexe est de créer l'embranchement avant la section où il mène : on crée alors cette section, vide, juste après.
   const newTargetSection = () => {
-    const created = { id: genId(), label: '', trackId: null, maxLoops: null };
+    const created = { id: genId(), label: '', trackId: null, maxLoops: null, freeReturn: hybridFreeReturn(track) };
     track.sections.push(created);
     return created.id;
   };
@@ -153,6 +155,8 @@ function renderHybridEditor(host, track, ti) {
     <label>${tr('descriptionLabel')}</label>
     <textarea data-field="description" data-ti="${ti}">${escapeHtml(track.description || '')}</textarea>
     <div class="hint-inline" style="margin-top:10px">${tr('hybridEditorIntro')}</div>
+    <label class="hybrid-free-return"><input type="checkbox" data-hybrid="freeReturn"${hybridFreeReturn(track) ? ' checked' : ''}> <span>${tr('hybridFreeReturnLabel')}</span></label>
+    <div class="hint-inline">${tr('hybridFreeReturnHint')}</div>
     <label style="margin-top:14px">${tr('hybridSectionsLabel')}</label>
     ${!eligible.length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridNoEligibleTrack')}</div>` : ''}
     <div data-role="hybridSections"></div>
@@ -282,6 +286,7 @@ function renderHybridEditor(host, track, ti) {
     row.querySelector('[data-hybrid="loops"]').addEventListener('change', e => { sec.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); hasUnsavedEdits = true; });
     list.appendChild(row);
   });
-  host.querySelector('[data-role="hybridAdd"]').addEventListener('click', () => { track.sections.push({ id: genId(), label: '', trackId: null, maxLoops: null }); changed(); });
+  host.querySelector('[data-role="hybridAdd"]').addEventListener('click', () => { track.sections.push({ id: genId(), label: '', trackId: null, maxLoops: null, freeReturn: hybridFreeReturn(track) }); changed(); });
+  host.querySelector('[data-hybrid="freeReturn"]').addEventListener('change', e => { track.sections.forEach(sec => { sec.freeReturn = e.target.checked; }); hasUnsavedEdits = true; });
 }
 

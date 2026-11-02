@@ -298,6 +298,33 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   check('section sans ce réglage : intro jouée', await waitUntil(() => firstStart('ic1.wav'), 3000) && firstStart('ic1.wav').offset === 0);
   click(rm.querySelector('[data-role="stopBtn"]'));
 
+  // ---- Retour libre vers une section déjà jouée ----
+  starts.length = 0;
+  const rr = mount([
+    { id: 'a', label: 'A', maxLoops: 1, freeReturn: true, track: vertical('ra', 'ra') },
+    { id: 'b', label: 'B', maxLoops: 0, freeReturn: true, branches: [{ id: 'fin', targetId: 'end' }], track: stat('rb', 'rb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rr).disabled, 2000);
+  click(rolePlay(rr));
+  await waitUntil(() => shown(rr) === 1, 3000);
+  const labels = () => [...rr.querySelectorAll('.hybrid-branch-btn')].map(b => b.textContent);
+  check('retour libre : la section jouée est proposée, la fin a un libellé simple', labels().join('|') === '→ Fin du morceau|↩ A');
+  check('retour libre : case cliquable sur la carte', !!rr.querySelector('.seq-map-node.selectable[data-map-idx="0"]'));
+  const raBefore = starts.filter(x => x.file === 'ra1.wav').length;
+  click(rr.querySelector('.seq-map-node.selectable[data-map-idx="0"]'));
+  check('retour libre : on revient à la section A', await waitUntil(() => starts.filter(x => x.file === 'ra1.wav').length > raBefore, 3000));
+  click(rr.querySelector('[data-role="stopBtn"]'));
+  starts.length = 0;
+  const rn = mount([
+    { id: 'a', label: 'A', maxLoops: 1, track: vertical('na', 'na') },
+    { id: 'b', label: 'B', maxLoops: 0, track: stat('nb', 'nb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rn).disabled, 2000);
+  click(rolePlay(rn));
+  await waitUntil(() => shown(rn) === 1, 3000);
+  check('sans retour libre : aucune section jouée proposée', !rn.querySelector('.hybrid-branch-btn') && !rn.querySelector('.seq-map-node.selectable'));
+  click(rn.querySelector('[data-role="stopBtn"]'));
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

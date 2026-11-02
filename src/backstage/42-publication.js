@@ -89,6 +89,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
         defaultNext: sec.defaultNext || null,
         skipIntro: !!sec.skipIntro,
+        freeReturn: !!sec.freeReturn,
       })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,

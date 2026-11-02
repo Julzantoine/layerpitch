@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793616654608">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793618250162">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1039,8 +1039,8 @@
 .hybrid-branches-editor { margin: 14px 0 4px 18px; padding: 10px 12px 12px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
 .hybrid-branches-editor .list-block { background: var(--bg-card, #fff); }
 .hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
-.hybrid-skip-intro { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.hybrid-skip-intro input { width: auto; margin: 0; }
+.hybrid-skip-intro, .hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hybrid-skip-intro input, .hybrid-free-return input { width: auto; margin: 0; }
 </style>
 </head>
 <body>
@@ -1993,18 +1993,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793616654608"></script>
-<script src="layerpitch-i18n.js?v=1793616654608"></script>
-<script src="layerpitch-import-engine.js?v=1793616654608"></script>
-<script src="layerpitch-appearance.js?v=1793616654608"></script>
-<script src="layerpitch-album-shared.js?v=1793616654608"></script>
-<script src="layerpitch-album-editor.js?v=1793616654608"></script>
-<script src="layerpitch-shell.js?v=1793616654608"></script>
-<script src="layerpitch-social-icons.js?v=1793616654608"></script>
-<script src="layerpitch-notify.js?v=1793616654608"></script>
-<script src="layerpitch-guide.js?v=1793616654608"></script>
-<script src="layerpitch-help.js?v=1793616654608"></script>
-<script src="player.js?v=1793616654608"></script>
+<script src="layerpitch-tuto.js?v=1793618250162"></script>
+<script src="layerpitch-i18n.js?v=1793618250162"></script>
+<script src="layerpitch-import-engine.js?v=1793618250162"></script>
+<script src="layerpitch-appearance.js?v=1793618250162"></script>
+<script src="layerpitch-album-shared.js?v=1793618250162"></script>
+<script src="layerpitch-album-editor.js?v=1793618250162"></script>
+<script src="layerpitch-shell.js?v=1793618250162"></script>
+<script src="layerpitch-social-icons.js?v=1793618250162"></script>
+<script src="layerpitch-notify.js?v=1793618250162"></script>
+<script src="layerpitch-guide.js?v=1793618250162"></script>
+<script src="layerpitch-help.js?v=1793618250162"></script>
+<script src="player.js?v=1793618250162"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6093,6 +6093,7 @@ function buildPreviewTrack(track) {
             transition: b.transition && b.transition.pendingFile ? { localFile: b.transition.pendingFile, bars: b.transition.bars || null } : b.transition && b.transition.remoteFile ? { file: b.transition.remoteFile, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
           skipIntro: !!sec.skipIntro,
+          freeReturn: !!sec.freeReturn,
         };
       })
     };
@@ -8276,6 +8277,8 @@ function hybridSectionTrackIsReady(source) {
   const layers = source.layers || [];
   return has(layers[0]) && (source.mode === 'static' || layers.every(has));
 }
+// Retour libre : réglage du morceau entier, rangé sur chacune de ses sections (aucune colonne dédiée en base, pas de migration).
+function hybridFreeReturn(track) { return (track.sections || []).length > 0 && track.sections.every(sec => sec.freeReturn); }
 // Le morceau commence-t-il par une partie jouée une seule fois avant sa boucle (départ avant l'entrée de boucle, ou fichier d'intro) ?
 function hybridSectionHasIntro(source) {
   if (!source) return false;
@@ -8326,7 +8329,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
     + `<option value="__new">${tr('hybridBranchNewSection')}</option>`;
   // Le réflexe est de créer l'embranchement avant la section où il mène : on crée alors cette section, vide, juste après.
   const newTargetSection = () => {
-    const created = { id: genId(), label: '', trackId: null, maxLoops: null };
+    const created = { id: genId(), label: '', trackId: null, maxLoops: null, freeReturn: hybridFreeReturn(track) };
     track.sections.push(created);
     return created.id;
   };
@@ -8418,6 +8421,8 @@ function renderHybridEditor(host, track, ti) {
     <label>${tr('descriptionLabel')}</label>
     <textarea data-field="description" data-ti="${ti}">${escapeHtml(track.description || '')}</textarea>
     <div class="hint-inline" style="margin-top:10px">${tr('hybridEditorIntro')}</div>
+    <label class="hybrid-free-return"><input type="checkbox" data-hybrid="freeReturn"${hybridFreeReturn(track) ? ' checked' : ''}> <span>${tr('hybridFreeReturnLabel')}</span></label>
+    <div class="hint-inline">${tr('hybridFreeReturnHint')}</div>
     <label style="margin-top:14px">${tr('hybridSectionsLabel')}</label>
     ${!eligible.length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridNoEligibleTrack')}</div>` : ''}
     <div data-role="hybridSections"></div>
@@ -8547,7 +8552,8 @@ function renderHybridEditor(host, track, ti) {
     row.querySelector('[data-hybrid="loops"]').addEventListener('change', e => { sec.maxLoops = e.target.value === '' ? null : parseInt(e.target.value, 10); hasUnsavedEdits = true; });
     list.appendChild(row);
   });
-  host.querySelector('[data-role="hybridAdd"]').addEventListener('click', () => { track.sections.push({ id: genId(), label: '', trackId: null, maxLoops: null }); changed(); });
+  host.querySelector('[data-role="hybridAdd"]').addEventListener('click', () => { track.sections.push({ id: genId(), label: '', trackId: null, maxLoops: null, freeReturn: hybridFreeReturn(track) }); changed(); });
+  host.querySelector('[data-hybrid="freeReturn"]').addEventListener('change', e => { track.sections.forEach(sec => { sec.freeReturn = e.target.checked; }); hasUnsavedEdits = true; });
 }
 
 /* ---------------- Bibliothèque Sfx ---------------- */
@@ -13881,6 +13887,7 @@ async function loadData(silent) {
             transition: b.transition ? { remoteFile: b.transition.file || null, originalFileName: b.transition.originalFileName || null, pendingFile: null, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
           skipIntro: !!sec.skipIntro,
+          freeReturn: !!sec.freeReturn,
         }));
       } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({
@@ -15168,6 +15175,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
           transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
         defaultNext: sec.defaultNext || null,
         skipIntro: !!sec.skipIntro,
+        freeReturn: !!sec.freeReturn,
       })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
