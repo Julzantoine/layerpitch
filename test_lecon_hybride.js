@@ -25,14 +25,14 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.eval('currentUserIsAdmin = true;');
   check('admin : leçon ouverte', window.eval("lessonOpenToMe(LESSONS.find(l => l.id === 'hybrid'))"));
 
-  // Bibliothèque de départ : les 6 morceaux Jazz (fichiers déjà en ligne), puis le morceau de l'apprenant.
+  // Bibliothèque de départ : les 6 morceaux Jazz (fichiers déjà en ligne, réglages de boucle réels : la frise s'arrête à la sortie de boucle), puis le morceau de l'apprenant.
   window.eval(`
     myFlags.hybrid_sequential = true;
     const has = { remoteFile: 'a.ogg' };
     library.push(
-      { id: LH_TRACKS.lo, title: 'Jazz Lo Static +FX', mode: 'static', bpm: 110, duration: 20, layers: [has] },
+      { id: LH_TRACKS.lo, title: 'Jazz Lo Static +FX', mode: 'static', bpm: 110, duration: 20.48, loopEngine: 'quantized', loopInBeat: 2, loopOutBeat: 34, layers: [has] },
       { id: LH_TRACKS.seq, title: 'Jazz Hi Seq. Branch.', mode: 'sequential', bpm: 110, segmentSlots: [{ alternatives: [has] }] },
-      { id: LH_TRACKS.add, title: 'Jazz Hi Lay. Add.', mode: 'vertical', bpm: 110, duration: 20, layers: [has, has] },
+      { id: LH_TRACKS.add, title: 'Jazz Hi Lay. Add.', mode: 'vertical', bpm: 110, duration: 21.96, loopEngine: 'quantized', loopInBeat: 2, loopOutBeat: 34, layers: [has, has] },
       { id: LH_TRACKS.embr, title: 'Jazz Hi-Lo Vert. Branch.', mode: 'embranchement-vertical', bpm: 110, loops: [Object.assign({ isInitial: true }, has)] },
       { id: LH_TRACKS.hi, title: 'Jazz Hi Static', mode: 'static', bpm: 110, duration: 20, layers: [has] },
       { id: LH_TRACKS.rand, title: 'Jazz Lo Vert. Rand.', mode: 'vertical-random', bpm: 110, sections: [{ pools: [{ alternatives: [has] }] }] },
