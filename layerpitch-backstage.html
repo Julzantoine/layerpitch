@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793443176607">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793613238661">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1028,6 +1028,9 @@
 .hybrid-point { width: 22px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: transparent; color: var(--text-dim); font-size: 10px; cursor: pointer; }
 .hybrid-point.is-bar { border-left: 2px solid var(--text-dim); }
 .hybrid-point.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1980,18 +1983,18 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793443176607"></script>
-<script src="layerpitch-i18n.js?v=1793443176607"></script>
-<script src="layerpitch-import-engine.js?v=1793443176607"></script>
-<script src="layerpitch-appearance.js?v=1793443176607"></script>
-<script src="layerpitch-album-shared.js?v=1793443176607"></script>
-<script src="layerpitch-album-editor.js?v=1793443176607"></script>
-<script src="layerpitch-shell.js?v=1793443176607"></script>
-<script src="layerpitch-social-icons.js?v=1793443176607"></script>
-<script src="layerpitch-notify.js?v=1793443176607"></script>
-<script src="layerpitch-guide.js?v=1793443176607"></script>
-<script src="layerpitch-help.js?v=1793443176607"></script>
-<script src="player.js?v=1793443176607"></script>
+<script src="layerpitch-tuto.js?v=1793613238661"></script>
+<script src="layerpitch-i18n.js?v=1793613238661"></script>
+<script src="layerpitch-import-engine.js?v=1793613238661"></script>
+<script src="layerpitch-appearance.js?v=1793613238661"></script>
+<script src="layerpitch-album-shared.js?v=1793613238661"></script>
+<script src="layerpitch-album-editor.js?v=1793613238661"></script>
+<script src="layerpitch-shell.js?v=1793613238661"></script>
+<script src="layerpitch-social-icons.js?v=1793613238661"></script>
+<script src="layerpitch-notify.js?v=1793613238661"></script>
+<script src="layerpitch-guide.js?v=1793613238661"></script>
+<script src="layerpitch-help.js?v=1793613238661"></script>
+<script src="player.js?v=1793613238661"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6076,6 +6079,9 @@ function buildPreviewTrack(track) {
           id: sec.id, label: sec.label, trackId: sec.trackId, maxLoops: sec.maxLoops, track: source ? buildPreviewTrack(source) : null,
           switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
           transition: trans && trans.pendingFile ? { localFile: trans.pendingFile, bars: trans.bars || null } : trans && trans.remoteFile ? { file: trans.remoteFile, bars: trans.bars || null } : null,
+          branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode || 'end',
+            transition: b.transition && b.transition.pendingFile ? { localFile: b.transition.pendingFile, bars: b.transition.bars || null } : b.transition && b.transition.remoteFile ? { file: b.transition.remoteFile, bars: b.transition.bars || null } : null })),
+          defaultNext: sec.defaultNext || null,
         };
       })
     };
@@ -8285,6 +8291,89 @@ function hybridPointsTimeline(sec, source, changed) {
   }
   return wrap;
 }
+// Embranchements d'une section (comme le séquentiel) : le visiteur choisit où aller ; chaque chemin a son moment de passage et peut
+// avoir son propre fichier de transition.
+function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
+  if (!sec.branches) sec.branches = [];
+  const targets = track.sections.filter(o => o !== sec);
+  const targetName = (o, n) => o.label || ((library.find(l => l.id === o.trackId) || {}).title) || tr('sectionFallback', { n: n + 1 });
+  const targetOptions = cur => `<option value="">${tr('hybridBranchPickTarget')}</option>`
+    + targets.map(o => `<option value="${escapeAttr(o.id)}"${cur === o.id ? ' selected' : ''}>${escapeHtml(targetName(o, track.sections.indexOf(o)))}</option>`).join('')
+    + `<option value="end"${cur === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>`;
+  host.innerHTML = `
+    <label style="margin-top:14px">${tr('hybridBranchesLabel')}</label>
+    <div class="hint-inline">${tr('hybridBranchesHint')}</div>
+    <div data-role="branchList"></div>
+    <div class="actions"><button class="btn btn-small" type="button" data-hybrid="addBranch">${tr('hybridAddBranch')}</button></div>
+    ${sec.branches.length ? `
+      <label style="margin-top:8px">${tr('hybridDefaultNextLabel')}</label>
+      <select data-hybrid="defaultNext">
+        <option value=""${!sec.defaultNext ? ' selected' : ''}>${tr('hybridDefaultWait')}</option>
+        ${targets.map(o => `<option value="${escapeAttr(o.id)}"${sec.defaultNext === o.id ? ' selected' : ''}>${escapeHtml(tr('hybridDefaultGoTo', { name: targetName(o, track.sections.indexOf(o)) }))}</option>`).join('')}
+        <option value="end"${sec.defaultNext === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>
+      </select>
+      <div class="hint-inline">${tr('hybridDefaultNextHint')}</div>
+    ` : ''}
+  `;
+  const list = host.querySelector('[data-role="branchList"]');
+  sec.branches.forEach((b, bi) => {
+    const card = document.createElement('div');
+    card.className = 'list-block';
+    card.style.margin = '6px 0';
+    const hasTrans = !!(b.transition && (b.transition.pendingFile || b.transition.remoteFile));
+    const mode = !hasOneTimeline ? 'end' : (b.switchMode || 'end');
+    card.innerHTML = `
+      <div class="list-block-head">
+        <select data-branch="target" style="flex:1;margin-right:8px">${targetOptions(b.targetId)}</select>
+        <button class="btn btn-small btn-danger" type="button" data-branch="remove">${tr('hybridRemoveSection')}</button>
+      </div>
+      <label style="margin-top:6px">${tr('hybridBranchLabelLabel')}</label>
+      <input type="text" data-branch="label" value="${escapeAttr(b.label || '')}" placeholder="${escapeAttr(tr('hybridBranchLabelPlaceholder'))}">
+      <label style="margin-top:6px">${tr('hybridBranchSwitchLabel')}</label>
+      <select data-branch="switch">
+        <option value="end"${mode === 'end' ? ' selected' : ''}>${tr('hybridSwitchEnd')}</option>
+        ${hasOneTimeline ? `<option value="point"${mode === 'point' ? ' selected' : ''}>${tr('hybridSwitchPoint')}</option>` : ''}
+      </select>
+      ${mode === 'point' && !(sec.transitionPoints || []).length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridBranchNeedsPoints')}</div>` : ''}
+      <label style="margin-top:6px">${tr('hybridBranchTransitionLabel')}</label>
+      <div data-role="branchTransFile"></div>
+      ${hasTrans ? `
+        <select data-branch="transBars" style="margin-top:6px">
+          <option value=""${!b.transition.bars ? ' selected' : ''}>${tr('hybridTransitionWholeFile')}</option>
+          ${[1, 2, 4, 8, 16].map(n => `<option value="${n}"${b.transition.bars === n ? ' selected' : ''}>${tr('hybridTransitionBars', { n })}</option>`).join('')}
+        </select>
+      ` : ''}
+    `;
+    card.querySelector('[data-branch="target"]').addEventListener('change', e => { b.targetId = e.target.value || null; changed(); });
+    card.querySelector('[data-branch="label"]').addEventListener('input', e => { b.label = e.target.value; hasUnsavedEdits = true; });
+    card.querySelector('[data-branch="switch"]').addEventListener('change', e => { b.switchMode = e.target.value; changed(); });
+    card.querySelector('[data-branch="remove"]').addEventListener('click', () => {
+      if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`);
+      sec.branches.splice(bi, 1);
+      if (!sec.branches.length) sec.defaultNext = null;
+      changed();
+    });
+    const fileHost = card.querySelector('[data-role="branchTransFile"]');
+    fileHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), hasTrans ? `<button class="btn btn-small btn-danger" type="button" data-branch="transRemove">${tr('hybridTransitionRemove')}</button>` : '');
+    wireFileControl(fileHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+      () => b.transition && b.transition.pendingFile, () => b.transition && b.transition.remoteFile,
+      f => {
+        if (!b.transition) b.transition = { remoteFile: null, originalFileName: null, pendingFile: null, bars: null };
+        if (b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`);
+        b.transition.remoteFile = null;
+        b.transition.pendingFile = f;
+        changed();
+      }, () => b.transition && b.transition.originalFileName);
+    const rm = fileHost.querySelector('[data-branch="transRemove"]');
+    if (rm) rm.addEventListener('click', () => { if (b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); b.transition = null; changed(); });
+    const bars = card.querySelector('[data-branch="transBars"]');
+    if (bars) bars.addEventListener('change', e => { b.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
+    list.appendChild(card);
+  });
+  host.querySelector('[data-hybrid="addBranch"]').addEventListener('click', () => { sec.branches.push({ id: genId(), targetId: null, label: '', switchMode: 'end', transition: null }); changed(); });
+  const def = host.querySelector('[data-hybrid="defaultNext"]');
+  if (def) def.addEventListener('change', e => { sec.defaultNext = e.target.value || null; changed(); });
+}
 function renderHybridEditor(host, track, ti) {
   if (!track.sections) track.sections = [];
   const eligible = library.filter(l => l.id !== track.id && HYBRID_SECTION_MODES_BS.includes(l.mode));
@@ -8387,11 +8476,21 @@ function renderHybridEditor(host, track, ti) {
     }
     const transBars = row.querySelector('[data-hybrid="transBars"]');
     if (transBars) transBars.addEventListener('change', e => { sec.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
+    const branchesHost = document.createElement('div');
+    row.appendChild(branchesHost);
+    renderHybridBranches(branchesHost, track, sec, si, hasOneTimeline, changed);
     const swap = (a, b) => { const arr = track.sections; [arr[a], arr[b]] = [arr[b], arr[a]]; changed(); };
     row.querySelector('[data-hybrid="up"]').addEventListener('click', () => swap(si, si - 1));
     row.querySelector('[data-hybrid="down"]').addEventListener('click', () => swap(si, si + 1));
     row.querySelector('[data-hybrid="remove"]').addEventListener('click', () => {
       if (sec.transition && sec.transition.remoteFile) queueR2Delete(`audio/${track.id}/${sec.transition.remoteFile}`);
+      (sec.branches || []).forEach(b => { if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); });
+      // Les embranchements qui menaient à cette section disparaissent avec elle.
+      track.sections.forEach(other => {
+        (other.branches || []).filter(b => b.targetId === sec.id).forEach(b => { if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); });
+        other.branches = (other.branches || []).filter(b => b.targetId !== sec.id);
+        if (other.defaultNext === sec.id) other.defaultNext = null;
+      });
       track.sections.splice(si, 1);
       changed();
     });
@@ -13730,6 +13829,9 @@ async function loadData(silent) {
           id: sec.id || genId(), label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
           switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
           transition: sec.transition ? { remoteFile: sec.transition.file || null, originalFileName: sec.transition.originalFileName || null, pendingFile: null, bars: sec.transition.bars || null } : null,
+          branches: (sec.branches || []).map(b => ({ id: b.id || genId(), targetId: b.targetId || null, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
+            transition: b.transition ? { remoteFile: b.transition.file || null, originalFileName: b.transition.originalFileName || null, pendingFile: null, bars: b.transition.bars || null } : null })),
+          defaultNext: sec.defaultNext || null,
         }));
       } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({
@@ -14358,7 +14460,7 @@ function trackAudioItems(track) {
   });
   (track.sections || []).forEach(sec => (sec.pools || []).forEach(p => (p.alternatives || []).forEach(a => items.push(a))));
   (track.loops || []).forEach(l => { items.push(l); if (l.transition) items.push(l.transition); });
-  (track.sections || []).forEach(sec => { if (sec.transition) items.push(sec.transition); });
+  (track.sections || []).forEach(sec => { if (sec.transition) items.push(sec.transition); (sec.branches || []).forEach(b => { if (b.transition) items.push(b.transition); }); });
   return items.filter(it => it && (it.remoteFile || it.pendingFile || it._measure));
 }
 
@@ -14916,6 +15018,7 @@ function trackRemoteFileKeys(track) {
   (track.sections || []).forEach(section => {
     (section.pools || []).forEach(pool => (pool.alternatives || []).forEach(collect));
     collect(section.transition);
+    (section.branches || []).forEach(b => collect(b.transition));
   });
   (track.loops || []).forEach(loop => { collect(loop); collect(loop.transition); });
   return keys;
@@ -15012,6 +15115,9 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
         switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
         transition: (sec.transition && (sec.transition.remoteFile || sec.transition.pendingFile)) ? { file: sec.transition.remoteFile || null, localUrl: sec.transition.remoteFile ? null : pendingPreviewUrl(sec.transition.pendingFile), originalFileName: sec.transition.originalFileName || null, bars: sec.transition.bars || null } : null,
+        branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
+          transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
+        defaultNext: sec.defaultNext || null,
       })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
@@ -15389,6 +15495,17 @@ async function publishAll() {
           log(tr('uploadingPath', { path }));
           await r2PutFile(path, bytes, 'audio/ogg');
           section.transition.remoteFile = fileName; section.transition.originalFileName = section.transition.pendingFile.name; section.transition.pendingFile = null; section.transition._measure = measure;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
+        for (const branch of (section.branches || [])) { // séquentiel hybride : fichier propre à un embranchement
+          if (!branch.transition || !branch.transition.pendingFile) continue;
+          log(tr('convertingGeneric', { title: track.title, label: tr('transitionFallbackShort') }));
+          const { bytes, measure } = await wavFileToOgg(branch.transition.pendingFile);
+          const fileName = `section-${section.id}-branch-${branch.id}-transition.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await r2PutFile(path, bytes, 'audio/ogg');
+          branch.transition.remoteFile = fileName; branch.transition.originalFileName = branch.transition.pendingFile.name; branch.transition.pendingFile = null; branch.transition._measure = measure;
           log(tr('uploadedPath', { path }), 'ok');
         }
         for (let pi = 0; pi < (section.pools || []).length; pi++) {

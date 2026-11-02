@@ -5528,18 +5528,19 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (usesGens) {
       const gen = [...chainGens].reverse().find(g => g.at <= now) || chainGens[0];
       if (!gen) return null;
-      return { now, sec: gen.offset + Math.max(0, now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
+      return { now, start: gen.offset, sec: gen.offset + (now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
     }
     if (!sources.length) return null;
-    const played = Math.max(0, now - startedAt) * trackPitchRatio;
+    const played = (now - startedAt) * trackPitchRatio; // négatif tant que le départ programmé n'est pas atteint
     const tt = trackTempo(track);
-    return { now, sec: loops ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
+    return { now, start: 0, sec: loops && played > 0 ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
   }
   // Prochain instant de sortie (horloge audio), ou null s'il n'y en a pas avant la fin de la boucle.
   function chainNextExitSec(mode, points) {
     const pos = chainBufferPosition();
     if (!pos) return null;
-    const earliest = pos.sec + 0.06 * trackPitchRatio; // le temps de programmer sans clic
+    // Jamais avant le début de ce qui est programmé (une section qui vient d'être lancée démarre un peu plus tard).
+    const earliest = Math.max(pos.sec + 0.06 * trackPitchRatio, pos.start);
     let exit;
     if (mode === 'point') {
       exit = (points || []).map(b => b * pos.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);
@@ -7713,7 +7714,9 @@ function hybridChildTrack(sec) {
   // Boucles : 0 = sans limite, vide = le réglage du morceau lui-même.
   // Le séquentiel et le vertical-random comptent en tours complets de leur chaîne.
   const key = sec.track.mode === 'sequential' || sec.track.mode === 'vertical-random' ? 'maxChainLoops' : 'maxLoops';
-  const limit = sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track[key] || null);
+  // Avec des embranchements et sans section par défaut, la section attend le choix du visiteur : pas de limite.
+  const waitsForChoice = (sec.branches || []).length && !sec.defaultNext;
+  const limit = waitsForChoice || sec.maxLoops === 0 ? null : (sec.maxLoops || sec.track[key] || null);
   const child = Object.assign({}, sec.track, { id: sec.track.id + '~' + sec.id, [key]: limit });
   // Une section interne sans limite ne ferait jamais finir le tour : avec un nombre de tours, elle joue une fois par tour.
   if (limit && child.mode === 'vertical-random') child.sections = (child.sections || []).map(s => Object.assign({}, s, { maxLoops: s.maxLoops || 1 }));
@@ -7750,6 +7753,7 @@ function buildHybridRow(track, isNoAiCertified) {
           ${sections.map(sec => `<div class="seq-block"><span class="seq-block-label">${escapeHtml(sec.label || sec.track.title || '')}</span></div>`).join('')}
         </div>
         <div><button type="button" class="voice-refresh-btn" data-role="hybridNext" disabled>${t('goToNextSectionBtn')}</button></div>
+        <div class="hybrid-branches" data-role="hybridBranches"></div>
         <div class="hybrid-children" data-role="hybridChildren"></div>
       `}
      </div>
@@ -7766,7 +7770,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   const sections = hybridPlayableSections(track);
   const q = role => wrapper.querySelector(`[data-role="${role}"]`);
   const playBtn = q('playBtn'), playIcon = q('playIcon'), stopBtn = q('stopBtn'), details = q('details');
-  const statusEl = q('status'), nextBtn = q('hybridNext'), childrenHost = q('hybridChildren');
+  const statusEl = q('status'), nextBtn = q('hybridNext'), childrenHost = q('hybridChildren'), branchesEl = q('hybridBranches');
   trackCollapsers[track.id] = () => setDetailsExpanded(details, false);
   if (!sections.length) { playIcon.classList.remove('loading-icon'); playIcon.innerHTML = HYBRID_PLAY_SVG; return; }
   const blocks = [...q('hybridBlocks').children];
@@ -7774,8 +7778,14 @@ function initHybridPlayer(track, wrapper, elementColors) {
   let cur = -1, playing = false, paused = false, ending = false;
   let pending = null; // { to, at, given } : passage annoncé par la section en cours ; given = la suivante est déjà programmée
   let queuedAt = null; // fin déjà annoncée par la section programmée, avant même qu'on l'entende (statique sans boucle, nombre de boucles)
-  // Fichier de transition d'une section vers la suivante : joué au moment du passage, la section suivante démarre après.
+  // Fichier de transition d'une section vers la suivante : joué au moment du passage, la section suivante démarre après. Un
+  // embranchement peut avoir le sien, qui remplace celui de la section pour ce chemin.
   const transitionBuffers = sections.map(() => null);
+  const branchBuffers = new Map();
+  // Embranchements (comme le séquentiel) : boutons de la section en cours. La cible est une autre section ou « end » (fin du morceau).
+  const indexOfSection = id => sections.findIndex(s => s.id === id);
+  const branchesOf = i => (sections[i].branches || []).filter(b => b && (b.targetId === 'end' || indexOfSection(b.targetId) >= 0));
+  let chosen = null, boundaryAt = null;
   let transitionsLoaded = false;
   let transitionSrc = null, resumeFresh = false;
   let timer = null, endedCb = null;
@@ -7792,12 +7802,27 @@ function initHybridPlayer(track, wrapper, elementColors) {
   function show(i) {
     players.forEach((p, n) => p.row.classList.toggle('hybrid-child-offstage', n !== i));
     blocks.forEach((b, n) => b.classList.toggle('active', n === i));
+    renderBranches();
     if (details.classList.contains('expanded')) setDetailsExpanded(details, true); // la hauteur suit celle de la section affichée
   }
+  function renderBranches() {
+    const list = cur >= 0 ? branchesOf(cur) : (sections.length ? branchesOf(0) : []);
+    nextBtn.parentElement.style.display = list.length ? 'none' : '';
+    branchesEl.innerHTML = list.map(b => `<button type="button" class="voice-refresh-btn hybrid-branch-btn${chosen === b ? ' is-chosen' : ''}" data-branch="${escapeHtml(b.id)}" aria-pressed="${chosen === b}"${!playing || (pending && pending.given) ? ' disabled' : ''}>${escapeHtml(b.label || (b.targetId === 'end' ? t('goToEndBtn') : (sections[indexOfSection(b.targetId)].label || sections[indexOfSection(b.targetId)].track.title || '')))}</button>`).join('');
+  }
   function refreshNext() {
-    const last = cur === sections.length - 1;
+    const last = targetAfter(cur) < 0;
     nextBtn.disabled = !playing || cur < 0 || ending || !!pending;
     nextBtn.textContent = (ending || pending) ? t('hybridEndOfLoop') : t(last ? 'goToEndBtn' : 'goToNextSectionBtn');
+    renderBranches();
+  }
+  // Section qui suit `i` : le choix du visiteur, sinon la section par défaut, sinon la suivante dans l'ordre. -1 = fin du morceau.
+  function targetAfter(i) {
+    if (i < 0) return 0;
+    const sec = sections[i];
+    if (chosen) return chosen.targetId === 'end' ? -1 : indexOfSection(chosen.targetId);
+    if (branchesOf(i).length) return sec.defaultNext && sec.defaultNext !== 'end' && indexOfSection(sec.defaultNext) >= 0 ? indexOfSection(sec.defaultNext) : -1;
+    return i + 1 < sections.length ? i + 1 : -1;
   }
   function setPlayUI() {
     playIcon.innerHTML = playing ? HYBRID_PAUSE_SVG : HYBRID_PLAY_SVG;
@@ -7808,16 +7833,24 @@ function initHybridPlayer(track, wrapper, elementColors) {
   function onBoundary(i, at) {
     if (pending && pending.given && pending.to === i) { queuedAt = at; return; }
     if (i !== cur || !playing) return;
-    if (i === sections.length - 1) ending = true;
-    else {
-      const buf = transitionBuffers[i];
-      const trans = sections[i].transition;
+    boundaryAt = at;
+    planFrom(i, at);
+  }
+  // Prépare le passage depuis la section `i`, qui finit à `at` (recalculé si le visiteur change d'embranchement entre-temps).
+  function planFrom(i, at) {
+    const to = targetAfter(i);
+    pending = null;
+    ending = to < 0;
+    if (!ending) {
+      const own = chosen && branchBuffers.get(chosen.id);
+      const buf = own || transitionBuffers[i];
+      const trans = own ? chosen.transition : sections[i].transition;
       if (buf) {
         // Durée en mesures au tempo de la section suivante (la fin du fichier peut alors chevaucher son début), sinon le fichier entier.
-        const tt = trackTempo(sections[i + 1].track);
+        const tt = trackTempo(sections[to].track);
         const dur = trans.bars ? trans.bars * tt.beatsPerBar * tt.secondsPerBeat : buf.duration;
-        pending = { to: i + 1, at: at + dur, given: false, transAt: at, transBuf: buf };
-      } else pending = { to: i + 1, at, given: false };
+        pending = { to, at: at + dur, given: false, transAt: at, transBuf: buf };
+      } else pending = { to, at, given: false };
     }
     refreshNext();
   }
@@ -7828,7 +7861,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
   function onSectionEnded(i) {
     // La dernière section a fini de sonner. Une section qui s'arrête sans avoir annoncé de passage ne bloque pas la suite.
     if (i !== cur || !playing || (pending && pending.given)) return; // la suivante est déjà en route : simple queue qui s'éteint
-    if (i < sections.length - 1) { pending = null; startSection(i + 1, startSoon()); cur = i + 1; show(cur); refreshNext(); return; }
+    const to = targetAfter(i);
+    if (to >= 0) { pending = null; chosen = null; startSection(to, startSoon()); cur = to; show(cur); refreshNext(); return; }
     stopAll();
     if (endedCb) { const cb = endedCb; endedCb = null; try { cb(); } catch (e) { /* jamais bloquant */ } }
   }
@@ -7849,6 +7883,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (pending.given && now >= pending.at) {
       cur = pending.to;
       pending = null;
+      chosen = null;
+      boundaryAt = null;
       show(cur);
       if (queuedAt != null) { const at = queuedAt; queuedAt = null; onBoundary(cur, at); }
       refreshNext();
@@ -7876,6 +7912,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
       ending = false;
       pending = null;
       queuedAt = null;
+      chosen = null;
       cur = 0;
       trackPublicEvent('track_play', { trackId: track.id, mode: track.mode });
       startSection(0, startSoon());
@@ -7894,6 +7931,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (pending && pending.transAt != null && ctx.currentTime >= pending.transAt) { players[cur].control.reset(); cur = pending.to; resumeFresh = true; }
     pending = null;
     queuedAt = null;
+    chosen = null;
     ending = false;
     players.forEach((p, n) => { if (n !== cur) p.control.reset(); });
     if (!resumeFresh) players[cur].control.pause();
@@ -7908,7 +7946,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     stopTransition();
     resumeFresh = false;
     if (playing || paused) trackPublicEvent('track_stop', { trackId: track.id, mode: track.mode });
-    playing = false; paused = false; ending = false; pending = null; queuedAt = null; cur = -1;
+    playing = false; paused = false; ending = false; pending = null; queuedAt = null; chosen = null; cur = -1;
     blocks.forEach(b => b.classList.remove('active'));
     if (activeTrackId === track.id) activeTrackId = null;
     setPlayUI();
@@ -7924,19 +7962,38 @@ function initHybridPlayer(track, wrapper, elementColors) {
     nextBtn.disabled = true;
     nextBtn.textContent = t('hybridEndOfLoop');
   });
+  branchesEl.addEventListener('click', e => {
+    const btn = e.target.closest('[data-branch]');
+    if (!btn || !playing || cur < 0 || (pending && pending.given)) return;
+    const branch = branchesOf(cur).find(b => b.id === btn.dataset.branch);
+    if (!branch) return;
+    const first = !chosen && !pending && !ending;
+    chosen = branch;
+    trackPublicEvent('hybrid_branch', { trackId: track.id, sectionIndex: cur, branchId: branch.id });
+    // Premier choix : la section reçoit l'ordre de finir (fin de section ou prochain point de transition). Un nouveau choix avant le
+    // passage change seulement la destination, au même instant.
+    if (first) {
+      const sec = sections[cur];
+      players[cur].control.finishAt(branch.switchMode === 'point' ? 'point' : 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
+    } else if (boundaryAt != null) planFrom(cur, boundaryAt);
+    refreshNext();
+  });
   document.addEventListener('stop-track', e => { if (e.detail === track.id) { stopAll(); } });
 
   // Le bouton Lecture s'active quand TOUTES les sections sont chargées : un passage ne peut pas attendre un téléchargement.
   const isReady = () => transitionsLoaded && players.every(p => p.control.isReady());
-  Promise.all(sections.map(async (sec, i) => {
-    const tr = sec.transition;
-    if (i === sections.length - 1 || !tr || !(tr.localFile || tr.localUrl || tr.file)) return;
+  const loadTransition = async tr => {
+    if (!tr || !(tr.localFile || tr.localUrl || tr.file)) return null;
     try {
       const ab = tr.localFile ? await tr.localFile.arrayBuffer()
         : tr.localUrl ? await (await fetch(tr.localUrl)).arrayBuffer()
         : await (await fetchAudio(track.base + encodeURIComponent(tr.file) + (track.publishedAt ? '?v=' + encodeURIComponent(track.publishedAt) : ''), track.protected)).arrayBuffer();
-      transitionBuffers[i] = await decodeAudioCompat(ab);
-    } catch (e) { console.warn('Transition illisible, passage direct :', e); }
+      return await decodeAudioCompat(ab);
+    } catch (e) { console.warn('Transition illisible, passage direct :', e); return null; }
+  };
+  Promise.all(sections.map(async (sec, i) => {
+    transitionBuffers[i] = await loadTransition(sec.transition);
+    await Promise.all(branchesOf(i).map(async b => { const buf = await loadTransition(b.transition); if (buf) branchBuffers.set(b.id, buf); }));
   })).then(() => { transitionsLoaded = true; });
   const readyTimer = setInterval(() => {
     if (!isReady()) return;

@@ -51,22 +51,33 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('séquentiel : pas de point de transition proposé', ![...switches()[2].options].some(o => o.value === 'point'));
   check('séquentiel : le compte se fait en tours', /Tours complets|Full passes/.test(q('[data-role="hybridEditor"]').textContent));
   click([...window.document.querySelectorAll('[data-hybrid="remove"]')][2]);
+  // Embranchements : cible, libellé, moment, section par défaut ; nettoyés quand la cible disparaît.
+  click(q('[data-hybrid="addBranch"]'));
+  const bt = () => q('select[data-branch="target"]');
+  check('cibles : les autres sections et la fin du morceau', [...bt().options].map(o => o.value).slice(1).join() === window.eval("library.find(l => l.id === 'h').sections[1].id") + ',end');
+  pick(bt(), window.eval("library.find(l => l.id === 'h').sections[1].id"));
+  pick(q('input[data-branch="label"]'), 'Combat');
+  check('section par défaut proposée', !!q('select[data-hybrid="defaultNext"]'));
   const snap = window.eval("JSON.stringify(buildDataSnapshot({}, 1).library.find(l => l.id === 'h').sections)");
   const sec = JSON.parse(snap);
   check('publication : champs des sections conservés', sec.length === 2 && sec[1].trackId === 'vt' && sec[1].maxLoops === 2 && sec[1].label === 'Exploration' && !('pools' in sec[1]) && !('track' in sec[1]));
   check('publication : réglages du passage conservés', sec[1].switchMode === 'point' && JSON.stringify(sec[1].transitionPoints) === '[8]' && sec[0].transition.file === 'section-x-transition.ogg' && sec[0].transition.bars === 2);
   check('fichier de transition supprimé avec le morceau', window.eval("trackRemoteFileKeys(library.find(l => l.id === 'h'))").length === 1);
   check('rechargement : lecture du format publié', /remoteFile: sec\.transition\.file/.test(require('fs').readFileSync('src/backstage/38-chargement.js', 'utf-8')));
+  check('publication : embranchements conservés', sec[0].branches.length === 1 && sec[0].branches[0].label === 'Combat' && sec[0].branches[0].targetId === sec[1].id && sec[0].defaultNext === null);
   const preview = JSON.parse(window.eval("JSON.stringify(buildPreviewTrack(library.find(l => l.id === 'h')))"));
   check('aperçu : la section porte son morceau', preview.sections[1].track && preview.sections[1].track.mode === 'vertical');
   const copy = JSON.parse(window.eval("JSON.stringify(cloneTrackWithRemap(library.find(l => l.id === 'h')))"));
   check('duplication : les sections gardent leur morceau', copy.sections[1].trackId === 'vt' && copy.sections[1].maxLoops === 2);
 
+  window.eval("manageLibrarySelectedId = 'h'; renderLibrary();");
+  click([...window.document.querySelectorAll('[data-hybrid="remove"]')][1]);
+  check('section supprimée : les embranchements vers elle aussi', window.eval("library.find(l => l.id === 'h').sections[0].branches.length") === 0);
   // Morceau utilisé puis supprimé : la section disparaît.
   window.eval("manageLibrarySelectedId = 'st'; renderLibrary(); window.LayerPitchNotify = { confirm: () => Promise.resolve(true), info() {} };");
   click(q('[data-action="remove-track"]'));
   await new Promise(r => setTimeout(r, 50));
-  check('morceau supprimé : section retirée', window.eval("library.find(l => l.id === 'h').sections.length") === 1);
+  check('morceau supprimé : section retirée', window.eval("library.find(l => l.id === 'h').sections.length") === 0);
 
   // Un morceau qui a déjà ses propres sections ne devient pas hybride.
   window.eval("library.push({ id: 'vr', title: 'VR', mode: 'vertical-random', layers: [], sections: [{ id: 'z', pools: [{ alternatives: [] }] }] }); manageLibrarySelectedId = 'vr'; renderLibrary();");

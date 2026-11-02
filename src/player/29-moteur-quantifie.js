@@ -94,18 +94,19 @@
     if (usesGens) {
       const gen = [...chainGens].reverse().find(g => g.at <= now) || chainGens[0];
       if (!gen) return null;
-      return { now, sec: gen.offset + Math.max(0, now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
+      return { now, start: gen.offset, sec: gen.offset + (now - gen.at) * trackPitchRatio, limit: gen.limit, secondsPerBeat: gen.secondsPerBeat, beatsPerBar: gen.beatsPerBar };
     }
     if (!sources.length) return null;
-    const played = Math.max(0, now - startedAt) * trackPitchRatio;
+    const played = (now - startedAt) * trackPitchRatio; // négatif tant que le départ programmé n'est pas atteint
     const tt = trackTempo(track);
-    return { now, sec: loops ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
+    return { now, start: 0, sec: loops && played > 0 ? played % track.duration : played, limit: track.duration, secondsPerBeat: tt.secondsPerBeat, beatsPerBar: tt.beatsPerBar };
   }
   // Prochain instant de sortie (horloge audio), ou null s'il n'y en a pas avant la fin de la boucle.
   function chainNextExitSec(mode, points) {
     const pos = chainBufferPosition();
     if (!pos) return null;
-    const earliest = pos.sec + 0.06 * trackPitchRatio; // le temps de programmer sans clic
+    // Jamais avant le début de ce qui est programmé (une section qui vient d'être lancée démarre un peu plus tard).
+    const earliest = Math.max(pos.sec + 0.06 * trackPitchRatio, pos.start);
     let exit;
     if (mode === 'point') {
       exit = (points || []).map(b => b * pos.secondsPerBeat).sort((a, b) => a - b).find(s => s >= earliest);

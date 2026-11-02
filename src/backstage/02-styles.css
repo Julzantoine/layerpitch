@@ -1012,3 +1012,6 @@
 .hybrid-point { width: 22px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: transparent; color: var(--text-dim); font-size: 10px; cursor: pointer; }
 .hybrid-point.is-bar { border-left: 2px solid var(--text-dim); }
 .hybrid-point.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }

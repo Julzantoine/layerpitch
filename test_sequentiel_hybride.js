@@ -234,6 +234,52 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   check('vertical-random : sortie à la prochaine mesure de sa section', await waitUntil(() => firstStart('vbnext.wav'), 2000) && onGrid(firstStart('vbnext.wav').when - firstStart('vb.wav').when, 0.4));
   click(rb.querySelector('[data-role="stopBtn"]'));
 
+  // ---- Embranchements entre sections ----
+  starts.length = 0;
+  const rbr = mount([
+    { id: 'a', label: 'Exploration', maxLoops: 2, transitionPoints: [1], fadeSec: 0, branches: [
+      { id: 'toC', targetId: 'c', label: 'Combat', switchMode: 'end', transition: { localFile: file('brtrans.wav', 0.3) } },
+      { id: 'toEnd', targetId: 'end', label: 'Quitter', switchMode: 'end' },
+      { id: 'pt', targetId: 'b', label: 'Fuite', switchMode: 'point' },
+      { id: 'bad', targetId: 'introuvable', label: 'X' } ], track: vertical('ba', 'ba') },
+    { id: 'b', label: 'Fuite', maxLoops: 0, track: stat('bb', 'bb', true, 0.5) },
+    { id: 'c', label: 'Combat', maxLoops: 1, branches: [{ id: 'back', targetId: 'a', label: 'Retour' }], defaultNext: 'b', track: stat('bc', 'bc', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rbr).disabled, 2000);
+  click(rolePlay(rbr));
+  await waitUntil(() => firstStart('ba1.wav'), 800);
+  const brBtns = () => [...rbr.querySelectorAll('[data-branch]')];
+  check('boutons d\'embranchement à la place de « Section suivante »', brBtns().map(b => b.textContent).join('|') === 'Combat|Quitter|Fuite' && rbr.querySelector('[data-role="hybridNext"]').parentElement.style.display === 'none');
+  await sleep(1000);
+  check('sans choix : la section boucle (nombre de boucles ignoré)', starts.filter(x => x.file === 'ba1.wav').length >= 3 && !firstStart('bb.wav') && !firstStart('bc.wav'));
+  click(brBtns()[0]);
+  check('choix marqué', brBtns()[0].classList.contains('is-chosen'));
+  check('chemin choisi : son fichier de transition, puis la cible', await waitUntil(() => firstStart('bc.wav'), 3000) && nearly(firstStart('bc.wav').when, firstStart('brtrans.wav').when + 0.3));
+  const baGens = starts.filter(x => x.file === 'ba1.wav' && x.when < firstStart('brtrans.wav').when);
+  check('fin de section : transition à la fin de boucle', nearly(firstStart('brtrans.wav').when, baGens[baGens.length - 1].when + 0.4));
+  check('après le nombre de boucles : section par défaut', await waitUntil(() => firstStart('bb.wav'), 3000) && nearly(firstStart('bb.wav').when, firstStart('bc.wav').when + 0.5));
+  click(rbr.querySelector('[data-role="stopBtn"]'));
+  // Retour vers une section déjà jouée, et sortie au point de transition.
+  starts.length = 0;
+  const rp = mount([
+    { id: 'a', label: 'A', maxLoops: 0, transitionPoints: [1], fadeSec: 0, branches: [{ id: 'p', targetId: 'b', label: 'Vers B', switchMode: 'point' }], track: { ...longVert('pa', 'pa', 4) } },
+    { id: 'b', label: 'B', maxLoops: 0, branches: [{ id: 'r', targetId: 'a', label: 'Retour' }, { id: 'e', targetId: 'end', label: 'Fin' }], track: stat('pb', 'pb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rp).disabled, 2000);
+  click(rolePlay(rp));
+  await waitUntil(() => firstStart('pa1.wav'), 800);
+  click(rp.querySelector('[data-branch="p"]'));
+  check('au prochain point : avant la fin de boucle', await waitUntil(() => firstStart('pb.wav'), 2000) && onGrid(firstStart('pb.wav').when - firstStart('pa1.wav').when, 0.4) && firstStart('pb.wav').when - firstStart('pa1.wav').when < 1.6 - 1e-6);
+  await waitUntil(() => rp.querySelector('[data-branch="r"]'), 2000);
+  const paCount = starts.filter(x => x.file === 'pa1.wav').length;
+  click(rp.querySelector('[data-branch="r"]'));
+  check('retour vers une section déjà jouée', await waitUntil(() => starts.filter(x => x.file === 'pa1.wav').length > paCount, 3000));
+  await waitUntil(() => rp.querySelector('[data-branch="p"]'), 2000);
+  click(rp.querySelector('[data-branch="p"]'));
+  await waitUntil(() => rp.querySelector('[data-branch="e"]') && shown(rp) === 1, 3000);
+  click(rp.querySelector('[data-branch="e"]'));
+  check('« Fin du morceau » : le morceau s\'arrête', await waitUntil(() => rolePlay(rp).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000));
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

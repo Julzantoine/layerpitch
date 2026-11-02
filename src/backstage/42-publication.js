@@ -85,6 +85,9 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
         switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
         transition: (sec.transition && (sec.transition.remoteFile || sec.transition.pendingFile)) ? { file: sec.transition.remoteFile || null, localUrl: sec.transition.remoteFile ? null : pendingPreviewUrl(sec.transition.pendingFile), originalFileName: sec.transition.originalFileName || null, bars: sec.transition.bars || null } : null,
+        branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
+          transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
+        defaultNext: sec.defaultNext || null,
       })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
@@ -462,6 +465,17 @@ async function publishAll() {
           log(tr('uploadingPath', { path }));
           await r2PutFile(path, bytes, 'audio/ogg');
           section.transition.remoteFile = fileName; section.transition.originalFileName = section.transition.pendingFile.name; section.transition.pendingFile = null; section.transition._measure = measure;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
+        for (const branch of (section.branches || [])) { // séquentiel hybride : fichier propre à un embranchement
+          if (!branch.transition || !branch.transition.pendingFile) continue;
+          log(tr('convertingGeneric', { title: track.title, label: tr('transitionFallbackShort') }));
+          const { bytes, measure } = await wavFileToOgg(branch.transition.pendingFile);
+          const fileName = `section-${section.id}-branch-${branch.id}-transition.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await r2PutFile(path, bytes, 'audio/ogg');
+          branch.transition.remoteFile = fileName; branch.transition.originalFileName = branch.transition.pendingFile.name; branch.transition.pendingFile = null; branch.transition._measure = measure;
           log(tr('uploadedPath', { path }), 'ok');
         }
         for (let pi = 0; pi < (section.pools || []).length; pi++) {

@@ -486,6 +486,7 @@ function trackRemoteFileKeys(track) {
   (track.sections || []).forEach(section => {
     (section.pools || []).forEach(pool => (pool.alternatives || []).forEach(collect));
     collect(section.transition);
+    (section.branches || []).forEach(b => collect(b.transition));
   });
   (track.loops || []).forEach(loop => { collect(loop); collect(loop.transition); });
   return keys;

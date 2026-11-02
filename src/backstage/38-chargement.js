@@ -46,6 +46,9 @@ async function loadData(silent) {
           id: sec.id || genId(), label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
           switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
           transition: sec.transition ? { remoteFile: sec.transition.file || null, originalFileName: sec.transition.originalFileName || null, pendingFile: null, bars: sec.transition.bars || null } : null,
+          branches: (sec.branches || []).map(b => ({ id: b.id || genId(), targetId: b.targetId || null, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
+            transition: b.transition ? { remoteFile: b.transition.file || null, originalFileName: b.transition.originalFileName || null, pendingFile: null, bars: b.transition.bars || null } : null })),
+          defaultNext: sec.defaultNext || null,
         }));
       } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({

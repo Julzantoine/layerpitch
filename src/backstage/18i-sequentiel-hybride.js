@@ -37,6 +37,89 @@ function hybridPointsTimeline(sec, source, changed) {
   }
   return wrap;
 }
+// Embranchements d'une section (comme le séquentiel) : le visiteur choisit où aller ; chaque chemin a son moment de passage et peut
+// avoir son propre fichier de transition.
+function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
+  if (!sec.branches) sec.branches = [];
+  const targets = track.sections.filter(o => o !== sec);
+  const targetName = (o, n) => o.label || ((library.find(l => l.id === o.trackId) || {}).title) || tr('sectionFallback', { n: n + 1 });
+  const targetOptions = cur => `<option value="">${tr('hybridBranchPickTarget')}</option>`
+    + targets.map(o => `<option value="${escapeAttr(o.id)}"${cur === o.id ? ' selected' : ''}>${escapeHtml(targetName(o, track.sections.indexOf(o)))}</option>`).join('')
+    + `<option value="end"${cur === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>`;
+  host.innerHTML = `
+    <label style="margin-top:14px">${tr('hybridBranchesLabel')}</label>
+    <div class="hint-inline">${tr('hybridBranchesHint')}</div>
+    <div data-role="branchList"></div>
+    <div class="actions"><button class="btn btn-small" type="button" data-hybrid="addBranch">${tr('hybridAddBranch')}</button></div>
+    ${sec.branches.length ? `
+      <label style="margin-top:8px">${tr('hybridDefaultNextLabel')}</label>
+      <select data-hybrid="defaultNext">
+        <option value=""${!sec.defaultNext ? ' selected' : ''}>${tr('hybridDefaultWait')}</option>
+        ${targets.map(o => `<option value="${escapeAttr(o.id)}"${sec.defaultNext === o.id ? ' selected' : ''}>${escapeHtml(tr('hybridDefaultGoTo', { name: targetName(o, track.sections.indexOf(o)) }))}</option>`).join('')}
+        <option value="end"${sec.defaultNext === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>
+      </select>
+      <div class="hint-inline">${tr('hybridDefaultNextHint')}</div>
+    ` : ''}
+  `;
+  const list = host.querySelector('[data-role="branchList"]');
+  sec.branches.forEach((b, bi) => {
+    const card = document.createElement('div');
+    card.className = 'list-block';
+    card.style.margin = '6px 0';
+    const hasTrans = !!(b.transition && (b.transition.pendingFile || b.transition.remoteFile));
+    const mode = !hasOneTimeline ? 'end' : (b.switchMode || 'end');
+    card.innerHTML = `
+      <div class="list-block-head">
+        <select data-branch="target" style="flex:1;margin-right:8px">${targetOptions(b.targetId)}</select>
+        <button class="btn btn-small btn-danger" type="button" data-branch="remove">${tr('hybridRemoveSection')}</button>
+      </div>
+      <label style="margin-top:6px">${tr('hybridBranchLabelLabel')}</label>
+      <input type="text" data-branch="label" value="${escapeAttr(b.label || '')}" placeholder="${escapeAttr(tr('hybridBranchLabelPlaceholder'))}">
+      <label style="margin-top:6px">${tr('hybridBranchSwitchLabel')}</label>
+      <select data-branch="switch">
+        <option value="end"${mode === 'end' ? ' selected' : ''}>${tr('hybridSwitchEnd')}</option>
+        ${hasOneTimeline ? `<option value="point"${mode === 'point' ? ' selected' : ''}>${tr('hybridSwitchPoint')}</option>` : ''}
+      </select>
+      ${mode === 'point' && !(sec.transitionPoints || []).length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridBranchNeedsPoints')}</div>` : ''}
+      <label style="margin-top:6px">${tr('hybridBranchTransitionLabel')}</label>
+      <div data-role="branchTransFile"></div>
+      ${hasTrans ? `
+        <select data-branch="transBars" style="margin-top:6px">
+          <option value=""${!b.transition.bars ? ' selected' : ''}>${tr('hybridTransitionWholeFile')}</option>
+          ${[1, 2, 4, 8, 16].map(n => `<option value="${n}"${b.transition.bars === n ? ' selected' : ''}>${tr('hybridTransitionBars', { n })}</option>`).join('')}
+        </select>
+      ` : ''}
+    `;
+    card.querySelector('[data-branch="target"]').addEventListener('change', e => { b.targetId = e.target.value || null; changed(); });
+    card.querySelector('[data-branch="label"]').addEventListener('input', e => { b.label = e.target.value; hasUnsavedEdits = true; });
+    card.querySelector('[data-branch="switch"]').addEventListener('change', e => { b.switchMode = e.target.value; changed(); });
+    card.querySelector('[data-branch="remove"]').addEventListener('click', () => {
+      if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`);
+      sec.branches.splice(bi, 1);
+      if (!sec.branches.length) sec.defaultNext = null;
+      changed();
+    });
+    const fileHost = card.querySelector('[data-role="branchTransFile"]');
+    fileHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), hasTrans ? `<button class="btn btn-small btn-danger" type="button" data-branch="transRemove">${tr('hybridTransitionRemove')}</button>` : '');
+    wireFileControl(fileHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
+      () => b.transition && b.transition.pendingFile, () => b.transition && b.transition.remoteFile,
+      f => {
+        if (!b.transition) b.transition = { remoteFile: null, originalFileName: null, pendingFile: null, bars: null };
+        if (b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`);
+        b.transition.remoteFile = null;
+        b.transition.pendingFile = f;
+        changed();
+      }, () => b.transition && b.transition.originalFileName);
+    const rm = fileHost.querySelector('[data-branch="transRemove"]');
+    if (rm) rm.addEventListener('click', () => { if (b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); b.transition = null; changed(); });
+    const bars = card.querySelector('[data-branch="transBars"]');
+    if (bars) bars.addEventListener('change', e => { b.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
+    list.appendChild(card);
+  });
+  host.querySelector('[data-hybrid="addBranch"]').addEventListener('click', () => { sec.branches.push({ id: genId(), targetId: null, label: '', switchMode: 'end', transition: null }); changed(); });
+  const def = host.querySelector('[data-hybrid="defaultNext"]');
+  if (def) def.addEventListener('change', e => { sec.defaultNext = e.target.value || null; changed(); });
+}
 function renderHybridEditor(host, track, ti) {
   if (!track.sections) track.sections = [];
   const eligible = library.filter(l => l.id !== track.id && HYBRID_SECTION_MODES_BS.includes(l.mode));
@@ -139,11 +222,21 @@ function renderHybridEditor(host, track, ti) {
     }
     const transBars = row.querySelector('[data-hybrid="transBars"]');
     if (transBars) transBars.addEventListener('change', e => { sec.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
+    const branchesHost = document.createElement('div');
+    row.appendChild(branchesHost);
+    renderHybridBranches(branchesHost, track, sec, si, hasOneTimeline, changed);
     const swap = (a, b) => { const arr = track.sections; [arr[a], arr[b]] = [arr[b], arr[a]]; changed(); };
     row.querySelector('[data-hybrid="up"]').addEventListener('click', () => swap(si, si - 1));
     row.querySelector('[data-hybrid="down"]').addEventListener('click', () => swap(si, si + 1));
     row.querySelector('[data-hybrid="remove"]').addEventListener('click', () => {
       if (sec.transition && sec.transition.remoteFile) queueR2Delete(`audio/${track.id}/${sec.transition.remoteFile}`);
+      (sec.branches || []).forEach(b => { if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); });
+      // Les embranchements qui menaient à cette section disparaissent avec elle.
+      track.sections.forEach(other => {
+        (other.branches || []).filter(b => b.targetId === sec.id).forEach(b => { if (b.transition && b.transition.remoteFile) queueR2Delete(`audio/${track.id}/${b.transition.remoteFile}`); });
+        other.branches = (other.branches || []).filter(b => b.targetId !== sec.id);
+        if (other.defaultNext === sec.id) other.defaultNext = null;
+      });
       track.sections.splice(si, 1);
       changed();
     });

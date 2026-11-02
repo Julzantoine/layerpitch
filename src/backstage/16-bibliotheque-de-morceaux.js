@@ -431,6 +431,9 @@ function buildPreviewTrack(track) {
           id: sec.id, label: sec.label, trackId: sec.trackId, maxLoops: sec.maxLoops, track: source ? buildPreviewTrack(source) : null,
           switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
           transition: trans && trans.pendingFile ? { localFile: trans.pendingFile, bars: trans.bars || null } : trans && trans.remoteFile ? { file: trans.remoteFile, bars: trans.bars || null } : null,
+          branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode || 'end',
+            transition: b.transition && b.transition.pendingFile ? { localFile: b.transition.pendingFile, bars: b.transition.bars || null } : b.transition && b.transition.remoteFile ? { file: b.transition.remoteFile, bars: b.transition.bars || null } : null })),
+          defaultNext: sec.defaultNext || null,
         };
       })
     };

@@ -253,3 +253,6 @@
 .hybrid-child .track-row-details-inner { padding-left: 0; }
 .hybrid-child [data-role="status"] { display: none; }
 .hybrid-child-offstage { position: absolute; left: -200%; top: 0; width: 100%; visibility: hidden; }
+
+.hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
