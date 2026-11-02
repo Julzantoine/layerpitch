@@ -46,7 +46,7 @@
   // tous sur le faux serveur (api/demo-client.js doit être chargé).
   function switchToDemo() { window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient }; }
   // Entrée complète pour les pages à balises <script> statiques : porte (si fermée) puis bascule. `leaveTo` : page de repli pour un refus.
-  // `opts.adminOnly` : page réservée aux admins même quand le tutoriel public est ouvert (leçons « Préproduction » pas encore vérifiées, 26/10).
+  // `opts.adminOnly` : page réservée aux admins même quand le tutoriel public est ouvert (plus utilisé depuis le 02/11 : les leçons « Préproduction » sont ouvertes à tous).
   async function enter(leaveTo, opts) {
     if (!isOn()) return false;
     await ready;

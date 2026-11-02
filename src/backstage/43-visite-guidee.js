@@ -39,7 +39,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch', 'preprod']; // « preprod » ouvert à tous le 02/11 (« Versioning » et « Annoter » restent « bientôt »)
 // `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
 function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }

@@ -20,7 +20,8 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
   check('bêta-testeur : pastille = nombre de leçons du moteur audio (' + engine.length + ')', !badge().hidden && badge().textContent === String(engine.length));
   check('bêta-testeur : chaque leçon du moteur audio est ouverte, avec sa pastille', engine.every(id => !lessonBtn(id).disabled && !!lessonBtn(id).querySelector('.tutorial-todo-dot')));
   check('bêta-testeur : les autres leçons (AdReel, préproduction) sont grisées, « bientôt », sans pastille', others.length > 0 && others.every(id => lessonBtn(id).disabled && !lessonBtn(id).querySelector('.tutorial-todo-dot') && /bientôt/.test(lessonBtn(id).textContent)));
-  check('bêta-testeur : aucune de ces leçons n’est jouable', others.every(id => w.eval(`lessonPlayable(LESSONS.find(l => l.id === '${id}'))`) === false) && engine.every(id => w.eval(`lessonPlayable(LESSONS.find(l => l.id === '${id}'))`) === true));
+  // Depuis le 02/11 (tous les thèmes ouverts), il ne reste que des leçons « bientôt » : bloquées par `soon`, pas par lessonPlayable().
+  check('bêta-testeur : aucune de ces leçons n’est jouable', others.every(id => w.eval(`(l => !lessonPlayable(l) || !!l.soon)(LESSONS.find(l => l.id === '${id}'))`) === true) && engine.every(id => w.eval(`lessonPlayable(LESSONS.find(l => l.id === '${id}'))`) === true));
 
   const sectionBadge = th => doc.querySelector('#tutorialMenuList [data-fold-theme="' + th + '"] .tutorial-section-badge');
   const engineTheme = w.eval(`LESSONS.find(l => l.id === '${engine[0]}').theme`);
@@ -37,7 +38,8 @@ function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + lab
 
   w.eval(`currentUserIsAdmin = true; renderTutorialMenu();`);
   const notSoon = others.filter(id => !w.eval(`!!LESSONS.find(l => l.id === '${id}').soon`));
-  check('admin : les autres leçons restent jouables (sauf celles encore « bientôt » pour tous)', notSoon.length > 0 && notSoon.every(id => !lessonBtn(id).disabled));
+  // Depuis le 02/11 tous les thèmes sont ouverts : `notSoon` peut être vide (plus aucune leçon réservée aux admins hors « bientôt »).
+  check('admin : les autres leçons restent jouables (sauf celles encore « bientôt » pour tous)', notSoon.every(id => !lessonBtn(id).disabled));
   check('admin : la pastille ne compte que les leçons ouvertes à tous', badge().hidden);
 
   dom.window.close();
