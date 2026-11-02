@@ -256,3 +256,7 @@
 
 .hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.hybrid-map { margin-bottom: 10px; }
+.hybrid-map .seq-map-graph { padding-bottom: 4px; }
+.hybrid-branches-block .hybrid-branch-btn { border-style: dashed; }

@@ -437,7 +437,13 @@
       stop() { lpCancelWait(); if (playing) stopAllSources(false); },
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
-      startAt(when) { chainStartAt = when; chainFinishRequested = false; playThisTrack(true); },
+      // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
+      startAt(when, skipIntro) {
+        chainStartAt = when; chainFinishRequested = false; chainSkipIntro = !!skipIntro;
+        if (chainSkipIntro && useQuantizedLoop) offsetAt = loopInSec;
+        playThisTrack(true);
+        chainSkipIntro = false;
+      },
       finishAtLoopEnd() { chainRequestEnd(); },
       // Quitter la section avant sa fin : au prochain temps, à la prochaine mesure ou au prochain point de transition (temps du fichier).
       // Rien d'atteignable avant la fin de la boucle : la fin de boucle, avec sa queue.

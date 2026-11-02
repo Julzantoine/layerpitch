@@ -424,9 +424,11 @@
     chainEmbrLoops = 1;
     const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
-    embrIntroPhase = true;
-    scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
-    embrNextStartCtxTime = now + embrFirstPassSec() / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
+    // Section d'un hybride où l'on arrive par un passage : sans la partie Départ→Entrée, directement dans la boucle.
+    const skipIntro = chainSkipIntro;
+    embrIntroPhase = !skipIntro;
+    scheduleEmbrGeneration(now, !skipIntro); // isFirst=true -- démarre à "Départ", pas "Entrée"
+    embrNextStartCtxTime = now + (skipIntro ? embrCycleLengthSec() : embrFirstPassSec()) / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -437,7 +439,7 @@
     // verrouillage dure 0s (comportement d'origine inchangé).
     const timing = embrLoopTiming();
     const introSec = timing.loopInSec - timing.startSec;
-    if (introSec > 0) {
+    if (introSec > 0 && !skipIntro) {
       embrLoopBtns.forEach(btn => { btn.disabled = true; });
       embrIntroLockTimeout = setTimeout(() => {
         embrIntroLockTimeout = null;

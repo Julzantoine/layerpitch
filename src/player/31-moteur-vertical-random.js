@@ -208,7 +208,7 @@
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,
         {
-          randomize: !!track.randomizeSections, hasIntro: !!introBuffer, hasOutro: !!outroBuffer,
+          randomize: !!track.randomizeSections, hasIntro: !!introBuffer && !chainSkipIntro, hasOutro: !!outroBuffer,
           // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
           // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
           get maxChainLoops() { return track.maxChainLoops || null; }

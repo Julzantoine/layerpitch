@@ -54,7 +54,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   // Embranchements : cible, libellé, moment, section par défaut ; nettoyés quand la cible disparaît.
   click(q('[data-hybrid="addBranch"]'));
   const bt = () => q('select[data-branch="target"]');
-  check('cibles : les autres sections et la fin du morceau', [...bt().options].map(o => o.value).slice(1).join() === window.eval("library.find(l => l.id === 'h').sections[1].id") + ',end');
+  check('cibles : les autres sections, la fin du morceau, une nouvelle section', [...bt().options].map(o => o.value).slice(1).join() === window.eval("library.find(l => l.id === 'h').sections[1].id") + ',end,__new');
   pick(bt(), window.eval("library.find(l => l.id === 'h').sections[1].id"));
   pick(q('input[data-branch="label"]'), 'Combat');
   check('section par défaut proposée', !!q('select[data-hybrid="defaultNext"]'));
@@ -83,6 +83,28 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.eval("library.push({ id: 'vr', title: 'VR', mode: 'vertical-random', layers: [], sections: [{ id: 'z', pools: [{ alternatives: [] }] }] }); manageLibrarySelectedId = 'vr'; renderLibrary();");
   pick(modeSel(), 'hybrid-sequential');
   check('sections existantes protégées', window.eval("library.find(l => l.id === 'vr').mode") === 'vertical-random' && window.eval("library.find(l => l.id === 'vr').sections.length") === 1);
+
+  // Une seule section : « + Embranchement » crée aussi la section où il mène.
+  window.eval("library.push({ id: 'h2', title: 'Seul', mode: 'hybrid-sequential', layers: [], sfxIds: [], sections: [{ id: 's1', label: '', trackId: 'vt', maxLoops: null }] }); manageLibrarySelectedId = 'h2'; renderLibrary();");
+  click(q('[data-hybrid="addBranch"]'));
+  const h2 = () => window.eval("JSON.stringify(library.find(l => l.id === 'h2').sections)");
+  const s2 = JSON.parse(h2());
+  check('une seule section : la section cible est créée', s2.length === 2 && s2[0].branches[0].targetId === s2[1].id);
+  check('message : choisir son morceau plus bas', /pas encore de morceau/.test(q('[data-role="hybridEditor"]').textContent));
+  pick(q('select[data-branch="target"]'), '__new');
+  const s3 = JSON.parse(h2());
+  check('« Nouvelle section » dans le menu : une section de plus, choisie', s3.length === 3 && s3[0].branches[0].targetId === s3[2].id);
+
+  // Cibles déjà prises : plus proposées aux autres embranchements de la section ; embranchements dans un cadre à part.
+  click(q('[data-hybrid="addBranch"]'));
+  const sels = () => [...window.document.querySelectorAll('select[data-branch="target"]')];
+  const firstTarget = sels()[0].value;
+  check('cible déjà prise : absente du menu du 2e embranchement', ![...sels()[1].options].some(o => o.value === firstTarget));
+  check('embranchements dans un cadre à part, avec leur titre', !!q('.hybrid-branches-editor .hybrid-branches-title'));
+  // Intro détectée : la case n'apparaît que pour un morceau qui commence avant sa boucle.
+  check('pas de case « ignorer l\'intro » sans intro', !q('.hybrid-skip-intro'));
+  window.eval("library.find(l => l.id === 'vt').loopEngine = 'quantized'; library.find(l => l.id === 'vt').loopInBeat = 4; renderLibrary();");
+  check('intro détectée : case proposée', !!q('.hybrid-skip-intro'));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

@@ -6,7 +6,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // Section d'un séquentiel hybride (31/10) : le chef d'orchestre impose l'instant de départ (chainStartAt) et peut demander de finir à
   // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
   const chainHooks = (opts && opts.chain) || null;
-  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null;
+  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null, chainSkipIntro = false;
   let chainGens = [], chainEmbrLoops = 0, chainEmbrMarker = null; // ce qui a été programmé : position dans le fichier et tempo à cet instant
   function chainNoteGen(at, offset, secondsPerBeat, beatsPerBar, limit) {
     if (chainHooks) chainGens.push({ at, offset, secondsPerBeat, beatsPerBar, limit });

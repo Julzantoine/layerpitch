@@ -65,7 +65,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
     { id: 's4', label: 'Sans fichier', maxLoops: null, track: { ...base, id: 'x', mode: 'static', layers: [{}] } },
     { id: 's5', label: 'Morceau supprimé', maxLoops: null, track: null },
   ]);
-  check('sections sans fichier ou supprimées ignorées', row.querySelectorAll('[data-role="hybridBlocks"] .seq-block').length === 3);
+  check('sections sans fichier ou supprimées ignorées', row.querySelectorAll('[data-role="hybridMapNodes"] .seq-map-node').length === 3);
   check('un lecteur par section', rows(row).length === 3);
   check('bouton Lecture actif une fois tout chargé', await waitUntil(() => !rolePlay(row).disabled, 2000));
   click(rolePlay(row));
@@ -81,7 +81,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   check('statique en boucle : deux tours exacts', nearly(firstStart('end.wav').when, firstStart('loop.wav').when + 1));
   check('le statique en boucle s\'arrête pile', nearly(firstStart('loop.wav').node.stoppedAt, firstStart('end.wav').when));
   check('fin naturelle de la chaîne', await waitUntil(() => rolePlay(row).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000));
-  check('plus aucune section active', !row.querySelector('.seq-block.active'));
+  check('plus aucune section active', !row.querySelector('.seq-map-node.current'));
 
   // ---- Bouton « Section suivante » sur une section sans limite ; arrêt et relance ----
   starts.length = 0;
@@ -125,7 +125,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   const stopBtn = row3.querySelector('[data-role="stopBtn"]');
   await waitUntil(() => shown(row3) === 1, 2000);
   click(stopBtn);
-  check('stop : tout est coupé', firstStart('d.wav').node.stoppedAt != null && !row3.querySelector('.seq-block.active'));
+  check('stop : tout est coupé', firstStart('d.wav').node.stoppedAt != null && !row3.querySelector('.seq-map-node.current'));
   check('stop : le bouton Stop disparaît', stopBtn.style.display === 'none');
 
   // ---- Sortie avant la fin : prochain temps, mesure, point de transition ; repli sur la fin de boucle ----
@@ -169,14 +169,14 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   click(rs.querySelector('[data-role="hybridNext"]'));
   await waitUntil(() => firstStart('sc.wav'), 2000);
   check('statique : passage au prochain temps', onGrid(firstStart('sc.wav').when - firstStart('sb.wav').when, 0.4));
-  // Dernière section coupée au temps : le morceau se termine.
+  // Dernière section réglée « au prochain temps » : aller vers la fin attend quand même la fin de boucle, sans couper la queue.
   starts.length = 0;
-  const rl = mount([{ id: 'a', label: 'A', maxLoops: 0, switchMode: 'beat', fadeSec: 0.1, track: longVert('ve', 'e', 8) }]);
+  const rl = mount([{ id: 'a', label: 'A', maxLoops: 0, switchMode: 'beat', fadeSec: 0.1, track: longVert('ve', 'e', 4) }]);
   await waitUntil(() => !rolePlay(rl).disabled, 2000);
   click(rolePlay(rl));
   await sleep(100);
   click(rl.querySelector('[data-role="hybridNext"]'));
-  check('dernière section coupée : fin du morceau', await waitUntil(() => rolePlay(rl).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 2000));
+  check('fin du morceau : la boucle finit et sa queue n\'est pas coupée', await waitUntil(() => rolePlay(rl).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 4000) && starts.filter(x => x.file === 'e1.wav').every(x => x.node.stoppedAt == null || x.node.stoppedAt >= x.when + 1.9));
 
   // ---- Fichier de transition : joué au passage, la suite démarre à sa fin ou après N mesures ----
   starts.length = 0;
@@ -249,7 +249,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   click(rolePlay(rbr));
   await waitUntil(() => firstStart('ba1.wav'), 800);
   const brBtns = () => [...rbr.querySelectorAll('[data-branch]')];
-  check('boutons d\'embranchement à la place de « Section suivante »', brBtns().map(b => b.textContent).join('|') === 'Combat|Quitter|Fuite' && rbr.querySelector('[data-role="hybridNext"]').parentElement.style.display === 'none');
+  check('boutons d\'embranchement à la place de « Section suivante »', brBtns().map(b => b.textContent).join('|') === '→ Combat|→ Quitter|→ Fuite' && rbr.querySelector('[data-role="hybridNext"]').parentElement.style.display === 'none');
   await sleep(1000);
   check('sans choix : la section boucle (nombre de boucles ignoré)', starts.filter(x => x.file === 'ba1.wav').length >= 3 && !firstStart('bb.wav') && !firstStart('bc.wav'));
   click(brBtns()[0]);
@@ -279,6 +279,24 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   await waitUntil(() => rp.querySelector('[data-branch="e"]') && shown(rp) === 1, 3000);
   click(rp.querySelector('[data-branch="e"]'));
   check('« Fin du morceau » : le morceau s\'arrête', await waitUntil(() => rolePlay(rp).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000));
+
+  // ---- Carte des chemins, et intro sautée en arrivant par un passage ----
+  starts.length = 0;
+  const introVert = (id, n) => ({ ...vertical(id, n), startTrackBeat: 0, loopInBeat: 1, loopOutBeat: 2, duration: 1.1, layers: [{ label: 'a', localFile: file(n + '1.wav', 1.1) }, { label: 'b', localFile: file(n + '2.wav', 1.1) }] });
+  const rm = mount([
+    { id: 'a', label: 'A', maxLoops: 1, track: introVert('ia', 'ia') },
+    { id: 'b', label: 'B', maxLoops: 1, skipIntro: true, track: introVert('ib', 'ib') },
+    { id: 'c', label: 'C', maxLoops: 1, track: introVert('ic', 'ic') },
+  ]);
+  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 3 && rm.querySelectorAll('.seq-map-edge').length === 2);
+  await waitUntil(() => !rolePlay(rm).disabled, 2000);
+  click(rolePlay(rm));
+  await waitUntil(() => firstStart('ia1.wav'), 800);
+  check('carte : la section en cours est marquée, la suivante cliquable', rm.querySelector('.seq-map-node.current').dataset.mapIdx === '0' && rm.querySelector('.seq-map-node.selectable').dataset.mapIdx === '1');
+  check('première section : l\'intro est jouée', firstStart('ia1.wav').offset === 0);
+  check('section réglée pour sauter l\'intro : départ au point d\'entrée de boucle', await waitUntil(() => firstStart('ib1.wav'), 3000) && Math.abs(firstStart('ib1.wav').offset - 0.4) < 1e-9);
+  check('section sans ce réglage : intro jouée', await waitUntil(() => firstStart('ic1.wav'), 3000) && firstStart('ic1.wav').offset === 0);
+  click(rm.querySelector('[data-role="stopBtn"]'));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

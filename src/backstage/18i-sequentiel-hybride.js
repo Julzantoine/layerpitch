@@ -11,6 +11,16 @@ function hybridSectionTrackIsReady(source) {
   const layers = source.layers || [];
   return has(layers[0]) && (source.mode === 'static' || layers.every(has));
 }
+// Le morceau commence-t-il par une partie jouée une seule fois avant sa boucle (départ avant l'entrée de boucle, ou fichier d'intro) ?
+function hybridSectionHasIntro(source) {
+  if (!source) return false;
+  if (source.mode === 'sequential' || source.mode === 'vertical-random') return !!(source.intro && (source.intro.pendingFile || source.intro.remoteFile));
+  if (source.mode === 'embranchement-vertical') {
+    const ref = (source.loops || []).find(l => l.isInitial) || (source.loops || [])[0] || {};
+    return (ref.loopInBeat || 0) > (ref.startTrackBeat || 0);
+  }
+  return source.loopEngine === 'quantized' && (source.loopInBeat || 0) > (source.startTrackBeat || 0);
+}
 // Frise des points de transition d'une section : une graduation par temps du morceau. Un clic pose un point, un clic sur un point l'enlève.
 function hybridPointsTimeline(sec, source, changed) {
   const wrap = document.createElement('div');
@@ -43,11 +53,21 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
   if (!sec.branches) sec.branches = [];
   const targets = track.sections.filter(o => o !== sec);
   const targetName = (o, n) => o.label || ((library.find(l => l.id === o.trackId) || {}).title) || tr('sectionFallback', { n: n + 1 });
-  const targetOptions = cur => `<option value="">${tr('hybridBranchPickTarget')}</option>`
-    + targets.map(o => `<option value="${escapeAttr(o.id)}"${cur === o.id ? ' selected' : ''}>${escapeHtml(targetName(o, track.sections.indexOf(o)))}</option>`).join('')
-    + `<option value="end"${cur === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>`;
+  // Une cible déjà prise par un autre embranchement de cette section n'est plus proposée (sauf à lui-même).
+  const takenBy = self => new Set(sec.branches.filter(o => o !== self).map(o => o.targetId).filter(Boolean));
+  const targetOptions = (cur, self) => `<option value="">${tr('hybridBranchPickTarget')}</option>`
+    + targets.filter(o => !takenBy(self).has(o.id)).map(o => `<option value="${escapeAttr(o.id)}"${cur === o.id ? ' selected' : ''}>${escapeHtml(targetName(o, track.sections.indexOf(o)))}</option>`).join('')
+    + (takenBy(self).has('end') ? '' : `<option value="end"${cur === 'end' ? ' selected' : ''}>${tr('hybridBranchEnd')}</option>`)
+    + `<option value="__new">${tr('hybridBranchNewSection')}</option>`;
+  // Le réflexe est de créer l'embranchement avant la section où il mène : on crée alors cette section, vide, juste après.
+  const newTargetSection = () => {
+    const created = { id: genId(), label: '', trackId: null, maxLoops: null };
+    track.sections.push(created);
+    return created.id;
+  };
+  host.className = 'hybrid-branches-editor';
   host.innerHTML = `
-    <label style="margin-top:14px">${tr('hybridBranchesLabel')}</label>
+    <div class="hybrid-branches-title">↳ ${escapeHtml(tr('hybridBranchesOf', { name: targetName(sec, si) }))}</div>
     <div class="hint-inline">${tr('hybridBranchesHint')}</div>
     <div data-role="branchList"></div>
     <div class="actions"><button class="btn btn-small" type="button" data-hybrid="addBranch">${tr('hybridAddBranch')}</button></div>
@@ -62,6 +82,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
     ` : ''}
   `;
   const list = host.querySelector('[data-role="branchList"]');
+  const targetWithoutTrack = b => { const o = track.sections.find(x => x.id === b.targetId); return o && !o.trackId ? o : null; };
   sec.branches.forEach((b, bi) => {
     const card = document.createElement('div');
     card.className = 'list-block';
@@ -70,7 +91,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
     const mode = !hasOneTimeline ? 'end' : (b.switchMode || 'end');
     card.innerHTML = `
       <div class="list-block-head">
-        <select data-branch="target" style="flex:1;margin-right:8px">${targetOptions(b.targetId)}</select>
+        <select data-branch="target" style="flex:1;margin-right:8px">${targetOptions(b.targetId, b)}</select>
         <button class="btn btn-small btn-danger" type="button" data-branch="remove">${tr('hybridRemoveSection')}</button>
       </div>
       <label style="margin-top:6px">${tr('hybridBranchLabelLabel')}</label>
@@ -80,6 +101,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
         <option value="end"${mode === 'end' ? ' selected' : ''}>${tr('hybridSwitchEnd')}</option>
         ${hasOneTimeline ? `<option value="point"${mode === 'point' ? ' selected' : ''}>${tr('hybridSwitchPoint')}</option>` : ''}
       </select>
+      ${targetWithoutTrack(b) ? `<div class="hint-inline" style="color:#b45309">${tr('hybridBranchTargetEmpty', { name: targetName(targetWithoutTrack(b), track.sections.indexOf(targetWithoutTrack(b))) })}</div>` : ''}
       ${mode === 'point' && !(sec.transitionPoints || []).length ? `<div class="hint-inline" style="color:#b45309">${tr('hybridBranchNeedsPoints')}</div>` : ''}
       <label style="margin-top:6px">${tr('hybridBranchTransitionLabel')}</label>
       <div data-role="branchTransFile"></div>
@@ -90,7 +112,7 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
         </select>
       ` : ''}
     `;
-    card.querySelector('[data-branch="target"]').addEventListener('change', e => { b.targetId = e.target.value || null; changed(); });
+    card.querySelector('[data-branch="target"]').addEventListener('change', e => { b.targetId = e.target.value === '__new' ? newTargetSection() : (e.target.value || null); changed(); });
     card.querySelector('[data-branch="label"]').addEventListener('input', e => { b.label = e.target.value; hasUnsavedEdits = true; });
     card.querySelector('[data-branch="switch"]').addEventListener('change', e => { b.switchMode = e.target.value; changed(); });
     card.querySelector('[data-branch="remove"]').addEventListener('click', () => {
@@ -116,7 +138,11 @@ function renderHybridBranches(host, track, sec, si, hasOneTimeline, changed) {
     if (bars) bars.addEventListener('change', e => { b.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
     list.appendChild(card);
   });
-  host.querySelector('[data-hybrid="addBranch"]').addEventListener('click', () => { sec.branches.push({ id: genId(), targetId: null, label: '', switchMode: 'end', transition: null }); changed(); });
+  host.querySelector('[data-hybrid="addBranch"]').addEventListener('click', () => {
+    // Seule section du morceau : l'embranchement mène tout de suite à une nouvelle section, à remplir plus bas.
+    sec.branches.push({ id: genId(), targetId: targets.length ? null : newTargetSection(), label: '', switchMode: 'end', transition: null });
+    changed();
+  });
   const def = host.querySelector('[data-hybrid="defaultNext"]');
   if (def) def.addEventListener('change', e => { sec.defaultNext = e.target.value || null; changed(); });
 }
@@ -222,6 +248,17 @@ function renderHybridEditor(host, track, ti) {
     }
     const transBars = row.querySelector('[data-hybrid="transBars"]');
     if (transBars) transBars.addEventListener('change', e => { sec.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
+    if (hybridSectionHasIntro(source)) {
+      const skip = document.createElement('label');
+      skip.className = 'hybrid-skip-intro';
+      skip.innerHTML = `<input type="checkbox"${sec.skipIntro ? ' checked' : ''}> <span>${tr('hybridSkipIntroLabel')}</span>`;
+      skip.querySelector('input').addEventListener('change', e => { sec.skipIntro = e.target.checked; hasUnsavedEdits = true; });
+      row.appendChild(skip);
+      const hint = document.createElement('div');
+      hint.className = 'hint-inline';
+      hint.textContent = tr('hybridSkipIntroHint');
+      row.appendChild(hint);
+    }
     const branchesHost = document.createElement('div');
     row.appendChild(branchesHost);
     renderHybridBranches(branchesHost, track, sec, si, hasOneTimeline, changed);

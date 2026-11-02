@@ -49,6 +49,7 @@ async function loadData(silent) {
           branches: (sec.branches || []).map(b => ({ id: b.id || genId(), targetId: b.targetId || null, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
             transition: b.transition ? { remoteFile: b.transition.file || null, originalFileName: b.transition.originalFileName || null, pendingFile: null, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
+          skipIntro: !!sec.skipIntro,
         }));
       } else if (t.sections && t.sections.length) {
         sections = t.sections.map(sec => ({

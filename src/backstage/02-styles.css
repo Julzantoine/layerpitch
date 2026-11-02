@@ -1015,3 +1015,13 @@
 
 .hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.hybrid-map { margin-bottom: 10px; }
+.hybrid-map .seq-map-graph { padding-bottom: 4px; }
+.hybrid-branches-block .hybrid-branch-btn { border-style: dashed; }
+
+.hybrid-branches-editor { margin: 14px 0 4px 18px; padding: 10px 12px 12px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
+.hybrid-branches-editor .list-block { background: var(--bg-card, #fff); }
+.hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.hybrid-skip-intro { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hybrid-skip-intro input { width: auto; margin: 0; }

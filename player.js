@@ -3050,7 +3050,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // Section d'un séquentiel hybride (31/10) : le chef d'orchestre impose l'instant de départ (chainStartAt) et peut demander de finir à
   // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
   const chainHooks = (opts && opts.chain) || null;
-  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null;
+  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null, chainSkipIntro = false;
   let chainGens = [], chainEmbrLoops = 0, chainEmbrMarker = null; // ce qui a été programmé : position dans le fichier et tempo à cet instant
   function chainNoteGen(at, offset, secondsPerBeat, beatsPerBar, limit) {
     if (chainHooks) chainGens.push({ at, offset, secondsPerBeat, beatsPerBar, limit });
@@ -5109,7 +5109,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     }
     const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
-    if (!isContinuation && introBuffer) {
+    if (!isContinuation && introBuffer && !chainSkipIntro) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.
@@ -6040,9 +6040,11 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     chainEmbrLoops = 1;
     const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     embrClockReset(now, 0); // point zéro de l'horloge de phase, utilisée par embrQuantizeDelaySec()
-    embrIntroPhase = true;
-    scheduleEmbrGeneration(now, true); // seul appel avec isFirst=true -- démarre à "Départ", pas "Entrée"
-    embrNextStartCtxTime = now + embrFirstPassSec() / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
+    // Section d'un hybride où l'on arrive par un passage : sans la partie Départ→Entrée, directement dans la boucle.
+    const skipIntro = chainSkipIntro;
+    embrIntroPhase = !skipIntro;
+    scheduleEmbrGeneration(now, !skipIntro); // isFirst=true -- démarre à "Départ", pas "Entrée"
+    embrNextStartCtxTime = now + (skipIntro ? embrCycleLengthSec() : embrFirstPassSec()) / trackPitchRatio; // 1er passage : jusqu'à la Sortie (voir embrFirstPassSec)
     embrSchedulerTimer = setInterval(embrSchedulerTick, 200);
     updateEmbrButtonsUI();
     applyEmbrWaveAnimation();
@@ -6053,7 +6055,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     // verrouillage dure 0s (comportement d'origine inchangé).
     const timing = embrLoopTiming();
     const introSec = timing.loopInSec - timing.startSec;
-    if (introSec > 0) {
+    if (introSec > 0 && !skipIntro) {
       embrLoopBtns.forEach(btn => { btn.disabled = true; });
       embrIntroLockTimeout = setTimeout(() => {
         embrIntroLockTimeout = null;
@@ -6591,7 +6593,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       sectionScheduler = createSectionPlaybackScheduler(
         vrPlayableSectionRefs,
         {
-          randomize: !!track.randomizeSections, hasIntro: !!introBuffer, hasOutro: !!outroBuffer,
+          randomize: !!track.randomizeSections, hasIntro: !!introBuffer && !chainSkipIntro, hasOutro: !!outroBuffer,
           // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
           // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
           get maxChainLoops() { return track.maxChainLoops || null; }
@@ -7074,7 +7076,13 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       stop() { lpCancelWait(); if (playing) stopAllSources(false); },
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
-      startAt(when) { chainStartAt = when; chainFinishRequested = false; playThisTrack(true); },
+      // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
+      startAt(when, skipIntro) {
+        chainStartAt = when; chainFinishRequested = false; chainSkipIntro = !!skipIntro;
+        if (chainSkipIntro && useQuantizedLoop) offsetAt = loopInSec;
+        playThisTrack(true);
+        chainSkipIntro = false;
+      },
       finishAtLoopEnd() { chainRequestEnd(); },
       // Quitter la section avant sa fin : au prochain temps, à la prochaine mesure ou au prochain point de transition (temps du fichier).
       // Rien d'atteignable avant la fin de la boucle : la fin de boucle, avec sa queue.
@@ -7749,11 +7757,15 @@ function buildHybridRow(track, isNoAiCertified) {
       ${track.tags ? `<div class="track-tags">${track.tags.split(',').map(s => s.trim()).filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       ${!sections.length ? `<span class="placeholder-tag">${t('hybridNoSection')}</span>` : `
         <div class="status" data-role="status">${t('loadingAriaLabel')}</div>
-        <div class="seq-blocks hybrid-blocks" data-role="hybridBlocks">
-          ${sections.map(sec => `<div class="seq-block"><span class="seq-block-label">${escapeHtml(sec.label || sec.track.title || '')}</span></div>`).join('')}
+        <div class="seq-map hybrid-map${currentSeqMapTheme() === 'dark' ? ' seq-map-dark' : ''}" data-role="hybridMap">
+          <div class="voice-graph-label">${t('seqMapLabel')}</div>
+          <div class="seq-map-graph"><div class="seq-map-canvas" data-role="hybridMapCanvas"><svg class="seq-map-lines" data-role="hybridMapLines"></svg><div class="seq-map-nodes" data-role="hybridMapNodes"></div></div></div>
         </div>
         <div><button type="button" class="voice-refresh-btn" data-role="hybridNext" disabled>${t('goToNextSectionBtn')}</button></div>
-        <div class="hybrid-branches" data-role="hybridBranches"></div>
+        <div class="track-intensity-block hybrid-branches-block" data-role="hybridBranchesBlock">
+          <div class="track-intensity-label">${t('hybridGoToLabel')}</div>
+          <div class="hybrid-branches" data-role="hybridBranches"></div>
+        </div>
         <div class="hybrid-children" data-role="hybridChildren"></div>
       `}
      </div>
@@ -7773,7 +7785,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
   const statusEl = q('status'), nextBtn = q('hybridNext'), childrenHost = q('hybridChildren'), branchesEl = q('hybridBranches');
   trackCollapsers[track.id] = () => setDetailsExpanded(details, false);
   if (!sections.length) { playIcon.classList.remove('loading-icon'); playIcon.innerHTML = HYBRID_PLAY_SVG; return; }
-  const blocks = [...q('hybridBlocks').children];
+  const branchesBlock = q('hybridBranchesBlock'), mapNodes = q('hybridMapNodes'), mapLines = q('hybridMapLines'), mapCanvas = q('hybridMapCanvas');
+  const visited = new Set();
 
   let cur = -1, playing = false, paused = false, ending = false;
   let pending = null; // { to, at, given } : passage annoncé par la section en cours ; given = la suivante est déjà programmée
@@ -7801,21 +7814,71 @@ function initHybridPlayer(track, wrapper, elementColors) {
 
   function show(i) {
     players.forEach((p, n) => p.row.classList.toggle('hybrid-child-offstage', n !== i));
-    blocks.forEach((b, n) => b.classList.toggle('active', n === i));
+    if (i >= 0) visited.add(i);
     renderBranches();
     if (details.classList.contains('expanded')) setDetailsExpanded(details, true); // la hauteur suit celle de la section affichée
   }
   function renderBranches() {
     const list = cur >= 0 ? branchesOf(cur) : (sections.length ? branchesOf(0) : []);
     nextBtn.parentElement.style.display = list.length ? 'none' : '';
-    branchesEl.innerHTML = list.map(b => `<button type="button" class="voice-refresh-btn hybrid-branch-btn${chosen === b ? ' is-chosen' : ''}" data-branch="${escapeHtml(b.id)}" aria-pressed="${chosen === b}"${!playing || (pending && pending.given) ? ' disabled' : ''}>${escapeHtml(b.label || (b.targetId === 'end' ? t('goToEndBtn') : (sections[indexOfSection(b.targetId)].label || sections[indexOfSection(b.targetId)].track.title || '')))}</button>`).join('');
+    branchesBlock.style.display = list.length ? '' : 'none';
+    branchesEl.innerHTML = list.map(b => `<button type="button" class="voice-refresh-btn hybrid-branch-btn${chosen === b ? ' is-chosen' : ''}" data-branch="${escapeHtml(b.id)}" aria-pressed="${chosen === b}"${!playing || (pending && pending.given) ? ' disabled' : ''}>→ ${escapeHtml(b.label || (b.targetId === 'end' ? t('goToEndBtn') : (sections[indexOfSection(b.targetId)].label || sections[indexOfSection(b.targetId)].track.title || '')))}</button>`).join('');
   }
   function refreshNext() {
     const last = targetAfter(cur) < 0;
     nextBtn.disabled = !playing || cur < 0 || ending || !!pending;
     nextBtn.textContent = (ending || pending) ? t('hybridEndOfLoop') : t(last ? 'goToEndBtn' : 'goToNextSectionBtn');
     renderBranches();
+    renderMap();
   }
+  // Carte des chemins : une case par section, rangées par distance depuis la première ; les flèches suivent les embranchements (ou
+  // l'ordre des sections quand une section n'en a pas). Clic sur une case atteignable = même effet que son bouton.
+  const edgesFrom = i => {
+    const list = branchesOf(i);
+    if (list.length) return list.filter(b => b.targetId !== 'end').map(b => indexOfSection(b.targetId));
+    return i + 1 < sections.length ? [i + 1] : [];
+  };
+  const NODE_W = 132, NODE_H = 40, GAP_X = 56, GAP_Y = 18;
+  const mapPos = (() => {
+    const depth = sections.map(() => -1);
+    const queue = [0]; depth[0] = 0;
+    while (queue.length) { const i = queue.shift(); edgesFrom(i).forEach(j => { if (depth[j] < 0) { depth[j] = depth[i] + 1; queue.push(j); } }); }
+    let maxDepth = Math.max(0, ...depth);
+    depth.forEach((d, i) => { if (d < 0) depth[i] = ++maxDepth; }); // section jamais atteinte : à la suite, pour qu'on la voie quand même
+    const rows = {};
+    return depth.map(d => { rows[d] = (rows[d] || 0) + 1; return { x: d * (NODE_W + GAP_X), y: (rows[d] - 1) * (NODE_H + GAP_Y) }; });
+  })();
+  mapCanvas.style.width = (Math.max(...mapPos.map(p => p.x)) + NODE_W) + 'px';
+  mapCanvas.style.height = (Math.max(...mapPos.map(p => p.y)) + NODE_H + 24) + 'px';
+  mapNodes.style.setProperty('--seq-map-node-w', NODE_W + 'px');
+  mapNodes.style.setProperty('--seq-map-node-h', NODE_H + 'px');
+  function reachableFromCur() { return playing && cur >= 0 && !(pending && pending.given) ? edgesFrom(cur) : []; }
+  function renderMap() {
+    const reach = reachableFromCur();
+    const target = pending ? pending.to : (chosen && chosen.targetId !== 'end' ? indexOfSection(chosen.targetId) : -1);
+    mapNodes.innerHTML = sections.map((sec, i) => {
+      const cls = 'seq-map-node' + (i === cur ? ' current' : '') + (visited.has(i) && i !== cur ? ' visited' : '') + (reach.includes(i) && i !== target ? ' selectable' : '') + (i === target ? ' pending' : '');
+      const check = visited.has(i) && i !== cur ? '<span class="seq-map-node-check">✓</span>' : '';
+      return `<div class="${cls}" data-map-idx="${i}" style="left:${mapPos[i].x}px;top:${mapPos[i].y}px">${check}<span class="seq-map-node-label">${escapeHtml(sec.label || sec.track.title || '')}</span></div>`;
+    }).join('');
+    mapLines.innerHTML = sections.map((_, i) => edgesFrom(i).map(j => {
+      const a = mapPos[i], b = mapPos[j];
+      const x1 = a.x + NODE_W, y1 = a.y + NODE_H / 2, x2 = b.x, y2 = b.y + NODE_H / 2;
+      // Retour en arrière (ou sur la même colonne) : la flèche passe sous les cases.
+      const d = x2 > x1 ? `M${x1},${y1} C${x1 + GAP_X / 2},${y1} ${x2 - GAP_X / 2},${y2} ${x2},${y2}`
+        : `M${a.x + NODE_W / 2},${a.y + NODE_H} C${a.x + NODE_W / 2},${Math.max(a.y, b.y) + NODE_H + 22} ${b.x + NODE_W / 2},${Math.max(a.y, b.y) + NODE_H + 22} ${b.x + NODE_W / 2},${b.y + NODE_H}`;
+      return `<path class="seq-map-edge" d="${d}"></path>`;
+    }).join('')).join('');
+  }
+  renderMap();
+  mapNodes.addEventListener('click', e => {
+    const node = e.target.closest('.seq-map-node.selectable');
+    if (!node) return;
+    const idx = Number(node.dataset.mapIdx);
+    const branch = branchesOf(cur).find(b => indexOfSection(b.targetId) === idx);
+    if (branch) branchesEl.querySelector(`[data-branch="${CSS.escape(branch.id)}"]`).click();
+    else if (!nextBtn.disabled) nextBtn.click();
+  });
   // Section qui suit `i` : le choix du visiteur, sinon la section par défaut, sinon la suivante dans l'ordre. -1 = fin du morceau.
   function targetAfter(i) {
     if (i < 0) return 0;
@@ -7854,15 +7917,16 @@ function initHybridPlayer(track, wrapper, elementColors) {
     }
     refreshNext();
   }
-  function startSection(i, when) {
+  // viaPassage : on arrive depuis une autre section ; une section réglée pour sauter son intro démarre alors dans sa boucle.
+  function startSection(i, when, viaPassage) {
     players[i].control.onEnded(() => onSectionEnded(i));
-    players[i].control.startAt(when);
+    players[i].control.startAt(when, !!viaPassage && !!sections[i].skipIntro);
   }
   function onSectionEnded(i) {
     // La dernière section a fini de sonner. Une section qui s'arrête sans avoir annoncé de passage ne bloque pas la suite.
     if (i !== cur || !playing || (pending && pending.given)) return; // la suivante est déjà en route : simple queue qui s'éteint
     const to = targetAfter(i);
-    if (to >= 0) { pending = null; chosen = null; startSection(to, startSoon()); cur = to; show(cur); refreshNext(); return; }
+    if (to >= 0) { pending = null; chosen = null; startSection(to, startSoon(), true); cur = to; show(cur); refreshNext(); return; }
     stopAll();
     if (endedCb) { const cb = endedCb; endedCb = null; try { cb(); } catch (e) { /* jamais bloquant */ } }
   }
@@ -7878,7 +7942,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     }
     if (!pending.given && pending.at - now < HYBRID_HANDOFF_LEAD_SEC) {
       pending.given = true;
-      startSection(pending.to, pending.at);
+      startSection(pending.to, pending.at, true);
     }
     if (pending.given && now >= pending.at) {
       cur = pending.to;
@@ -7905,7 +7969,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (paused) {
       paused = false;
       playing = true;
-      if (resumeFresh) { resumeFresh = false; startSection(cur, startSoon()); show(cur); } // pause pendant une transition : on repart sur la suite
+      if (resumeFresh) { resumeFresh = false; startSection(cur, startSoon(), true); show(cur); } // pause pendant une transition : on repart sur la suite
       else players[cur].control.resume(); // annonce de nouveau son passage s'il était demandé
     } else {
       playing = true;
@@ -7947,7 +8011,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     resumeFresh = false;
     if (playing || paused) trackPublicEvent('track_stop', { trackId: track.id, mode: track.mode });
     playing = false; paused = false; ending = false; pending = null; queuedAt = null; chosen = null; cur = -1;
-    blocks.forEach(b => b.classList.remove('active'));
+    visited.clear();
     if (activeTrackId === track.id) activeTrackId = null;
     setPlayUI();
   }
@@ -7958,7 +8022,9 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (!playing || cur < 0) return;
     trackPublicEvent('hybrid_next', { trackId: track.id, sectionIndex: cur });
     const sec = sections[cur];
-    players[cur].control.finishAt(sec.switchMode || 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
+    // Aller vers la fin (aucune section après) : on laisse finir la boucle et sonner sa queue, sans couper.
+    if (targetAfter(cur) < 0) players[cur].control.finishAtLoopEnd();
+    else players[cur].control.finishAt(sec.switchMode || 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
     nextBtn.disabled = true;
     nextBtn.textContent = t('hybridEndOfLoop');
   });
@@ -7974,7 +8040,8 @@ function initHybridPlayer(track, wrapper, elementColors) {
     // passage change seulement la destination, au même instant.
     if (first) {
       const sec = sections[cur];
-      players[cur].control.finishAt(branch.switchMode === 'point' ? 'point' : 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
+      if (branch.targetId === 'end') players[cur].control.finishAtLoopEnd(); // fin du morceau : la queue sonne jusqu'au bout
+      else players[cur].control.finishAt(branch.switchMode === 'point' ? 'point' : 'end', sec.transitionPoints, sec.fadeSec != null ? sec.fadeSec : 0.5);
     } else if (boundaryAt != null) planFrom(cur, boundaryAt);
     refreshNext();
   });

@@ -310,7 +310,7 @@
     }
     const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
-    if (!isContinuation && introBuffer) {
+    if (!isContinuation && introBuffer && !chainSkipIntro) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.
