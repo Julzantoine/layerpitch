@@ -124,15 +124,22 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   sGesture('lhModeTitle', el => pick(el, 'hybrid-sequential'));
   sGesture('lhsAddTitle', click);
   sGesture('lhsTrack1Title', el => pick(el, window.eval('LH_TRACKS.add')));
-  ['lhsNameTitle', 'lhsLoopsTitle', 'lhsSwitchTitle'].forEach(k => check('9 · ' + k + ' : cible trouvée', !!sTarget(sFind(k))));
+  sGesture('lhsNameTitle', el => pick(el, window.eval('LHS_NAME')));
+  sGesture('lhsLoopsTitle', el => pick(el, '2'));
   sGesture('lhsAdd2Title', click);
   sGesture('lhsTrack2Title', el => pick(el, window.eval('LH_TRACKS.seq')));
   check('9 · lhsTransTitle : cible trouvée', !!sTarget(sFind('lhsTransTitle')));
   sGesture('lhsAdd3Title', click);
   sGesture('lhsTrack3Title', el => pick(el, window.eval('LH_TRACKS.lo')));
-  ['lhsOrderTitle', 'lhsListenTitle'].forEach(k => check('9 · ' + k + ' : cible trouvée', !!sTarget(sFind(k))));
-  const seqResult = window.eval("library.find(l => l.id === 'h2').sections.map(s => [s.trackId, s.label || '', s.switchMode || 'end', (s.branches || []).length, s.transition ? 1 : 0].join('/')).join(' ; ')");
-  check('9 · résultat identique à « Music City_Hyb. Seq. »', seqResult === window.eval("['add', 'seq', 'lo'].map(k => LH_TRACKS[k] + '//end/0/0').join(' ; ')"));
+  sGesture('lhsOrderTitle', click);
+  check('9 · le séquentiel ne propose pas de point de transition', !window.document.querySelector('#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(1) [data-hybrid="switch"] option[value="point"]'));
+  sGesture('lhsSwitchTitle', el => pick(el, 'point'));
+  sGesture('lhsPointsTitle', el => { window.eval('LHS_POINTS').forEach(b => { const c = el.querySelector(`[data-beat="${b}"]`); if (c) click(c); }); });
+  check('9 · l’écoute trouve son bouton', !!sTarget(sFind('lhsListenTitle')));
+  check('9 · chaque étape avant l’écoute demande un geste (sauf accueil, aperçu, fichier de transition facultatif et case « Ignorer l’intro » laissée cochée)', sSteps.slice(0, sFind('lhsListenTitle')).every(st => st.done || ['lhsWelcomeTitle', 'lhsMapTitle', 'lhsTransTitle', 'lhsSkipTitle'].includes(st.titleKey)));
+  const seqResult = window.eval("library.find(l => l.id === 'h2').sections.map(s => [s.trackId, s.label || '', s.switchMode || 'end', s.maxLoops == null ? '' : s.maxLoops, (s.transitionPoints || []).join('+'), (s.branches || []).length, s.transition ? 1 : 0].join('/')).join(' ; ')");
+  console.log('   ' + seqResult);
+  check('9 · résultat : séquentiel, « Le club » (2 boucles, points mesures 2 et 6), statique', seqResult === window.eval("[LH_TRACKS.seq + '//end///0/0', LH_TRACKS.add + '/Le club/point/2/4+20/0/0', LH_TRACKS.lo + '//end///0/0'].join(' ; ')"));
 
   // Textes en français et en anglais pour chaque étape.
   const I18N = window.LAYERPITCH_I18N;

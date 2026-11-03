@@ -46,14 +46,14 @@ const { JSDOM } = require('jsdom');
   const untilCount = async (d, re) => { for (let i = 0; i < 40 && !re.test(countText(d)); i++) await wait(100); return re.test(countText(d)); };
 
   const { w, d } = await boot();
-  check('bandeau « rien n’est enregistré » + bouton Quitter', /rien n’est enregistré/.test(d.querySelector('.demo-banner').textContent) && !!d.querySelector('.demo-banner a[href*="projets.html"]'));
+  check('bandeau « rien n’est enregistré » + bouton Quitter, comme au Backstage', /rien n’est enregistré/.test(d.querySelector('.tuto-banner').textContent) && !!d.querySelector('.tuto-banner a[href*="projets.html"]'));
   check('Projet fictif « Music City » chargé', /Music City/.test(d.getElementById('pTitle').textContent));
   check('discussion préremplie (13 messages)', d.querySelectorAll('.bubble').length === 13);
   check('les 4 villes du jeu sont des sections', ['Jazz City', 'Rock City', 'Disco City', 'Synth City'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
-  check('huit leçons jouables dans le bandeau (Annoter attend ses vidéos ; les deux leçons Vitrine en fin)', d.querySelectorAll('[data-tutolesson]').length === 8);
+  check('pas de liste de leçons dans le bandeau (elles se lancent depuis le menu des tutos)', !d.querySelector('[data-tutolesson]') && w.LayerPitchTutoLessons.list.filter(l => l.page === 'projet' && !l.soon).length === 8);
 
   // ---- Leçon « tchat »
-  click(w, d.querySelector('[data-tutolesson="pj-chat"]')); await wait(100);
+  w.LayerPitchTutoLessons.start('pj-chat'); await wait(100);
   check('la leçon s’ouvre', !!d.querySelector('.tour-root-lesson .tour-card') && /1 \/ 7/.test(countText(d)));
   click(w, d.querySelector('[data-tour="next"]')); await wait(100);
   check('étape « écris » : vignette de texte', !!d.querySelector('.tour-chip-text'));
@@ -78,13 +78,13 @@ const { JSDOM } = require('jsdom');
   check('rechargement : retour aux 13 messages de départ', again.d.querySelectorAll('.bubble').length === 13);
 
   // ---- Leçon « Moodboard » : dépôt d’un lien dans le tableau (vrai « drop »)
-  click(again.w, again.d.querySelector('[data-tutolesson="pj-moodboard"]')); await wait(100);
+  again.w.LayerPitchTutoLessons.start('pj-moodboard'); await wait(100);
   check('leçon Moodboard ouverte', /1 \/ 10/.test(countText(again.d)));
   const L = again.w.LayerPitchProjetLessons.LESSON_LINKS; check('kit de liens : un lien YouTube et un lien Spotify', L.length === 2 && /youtube\.com/.test(L[0].value) && /open\.spotify\.com/.test(L[1].value));
   // ---- Leçon « la musique du projet »
   {
     const x = await boot();
-    click(x.w, x.d.querySelector('[data-tutolesson="pj-music"]')); await wait(100);
+    x.w.LayerPitchTutoLessons.start('pj-music'); await wait(100);
     check('leçon « la musique du projet » ouverte', /1 \/ 6/.test(countText(x.d)) && /compositeur du projet/.test(x.d.querySelector('.tour-text').textContent));
     click(x.w, x.d.querySelector('[data-tour="next"]')); await wait(100);
     click(x.w, x.d.querySelector('.tab[data-tab="music"]')); await wait(500);
@@ -99,7 +99,7 @@ const { JSDOM } = require('jsdom');
 
   // ---- Leçon « carte : la construire »
   const m = await boot();
-  click(m.w, m.d.querySelector('[data-tutolesson="pj-map-build"]')); await wait(100);
+  m.w.LayerPitchTutoLessons.start('pj-map-build'); await wait(100);
   const N = m.d, W = m.w;
   const next = async () => { click(W, N.querySelector('[data-tour="next"]')); await wait(100); };
   check('leçon carte ouverte (étapes sautées sans fichier d’ambiance)', /1 \/ 2\d/.test(countText(N)) || /1 \/ 1\d/.test(countText(N)));
@@ -198,7 +198,7 @@ const { JSDOM } = require('jsdom');
     await wait(500);
     const D = pw.document;
     check('liste des projets : bandeau tutoriel, liste vide au départ', /rien n’est enregistré/.test(D.body.textContent) && !D.querySelector('a.row'));
-    click(pw, D.querySelector('[data-tutolesson="pj-create"]')); await wait(100);
+    pw.LayerPitchTutoLessons.start('pj-create'); await wait(100);
     check('la leçon « créer un projet » s’ouvre', /1 \/ 5/.test(countText(D)));
     click(pw, D.querySelector('[data-tour="next"]')); await wait(100);
     chipKey(pw, D, 0);

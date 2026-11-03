@@ -59,7 +59,7 @@
   const SHOWCASE_TRACKS = [['bmvilh6aprhhug', 'Jazz Hi Static'], ['bmvidtfhvfa5tt', 'Jazz Hi Lay. Add.']];
   const SHOWCASE_PITCH = 'Music City est un jeu d’exploration musicale. Tu traverses quatre villes, Jazz City, Rock City, Disco City et Synth City : la musique change de style à chaque quartier, sans jamais perdre le tempo.';
   // Vitrine « déjà construite » (leçon apparence) : le résultat de la leçon « construire ».
-  const SHOWCASE_LINKS = ['https://www.instagram.com/musiccity.exemple', 'https://www.youtube.com/@musiccity-exemple', 'https://store.steampowered.com/search/?term=music%20city%20exemple'];
+  const SHOWCASE_LINKS = ['https://www.instagram.com/musiccity.exemple', 'https://store.steampowered.com/search/?term=music%20city%20exemple'];
   const TUTO_VITRINE_KEY = 'layerpitch_tuto_vitrine_v1'; // aperçu : lu par vitrine.html?tuto
 
   // Carte de la balade : celle de Jules-Antoine (Projet réel « Music City », 02/11), recopiée telle quelle.
@@ -140,7 +140,7 @@
         published: false, secretToken: null, logoAssetId: null, bgAssetId: null, theme: {},
         blocks: [{ id: 'vb1', type: 'header' }, { id: 'vb2', type: 'tracks', assetIds: trk.map(a => a.id) }, { id: 'vb3', type: 'text', title: 'Le pitch', content: SHOWCASE_PITCH, align: 'left' },
           { id: 'vb4', type: 'video', assetIds: [vid.id] }, { id: 'vb5', type: 'photo', assetIds: imgs.map(a => a.id), caption: '' },
-          { id: 'vb6', type: 'links', links: SHOWCASE_LINKS.map((url, i) => ({ label: ['Instagram', 'YouTube', 'Steam'][i], url })) }, { id: 'vb7', type: 'contact' }] });
+          { id: 'vb6', type: 'links', links: SHOWCASE_LINKS.map((url, i) => ({ label: ['Instagram', 'Steam'][i], url })) }, { id: 'vb7', type: 'contact' }] });
     }
     // Aperçu (vitrine.html?tuto) : la vitrine et ce qu'elle cite, recopiés dans le navigateur à chaque enregistrement.
     async function storePreview(v) {

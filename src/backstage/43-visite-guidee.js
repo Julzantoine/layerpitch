@@ -297,13 +297,20 @@ function lhSecIs(i, key) { const s = lhSec(i); return !!s && s.trackId === LH_TR
 function lhSecNamed(i) { const s = lhSec(i); return !!s && (s.label || '').trim().toLowerCase() === LH_NAMES[i].toLowerCase(); }
 function lhRow(i) { return document.querySelector(`#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(${i + 1})`); }
 function lhField(i, name) { const r = lhRow(i); return r ? r.querySelector(`[data-hybrid="${name}"]`) : null; }
-// Leçon « 9 · Mode hybride à sections » (sans embranchement) : « Music City_Hyb. Seq. » de Jules-Antoine (base : bmvzpsnbudo0k8), trois sections
-// bout à bout, réglages par défaut (sans nom, passage en fin de section, sans transition).
+// Leçon « 9 · Mode hybride à sections » (sans embranchement) : trois sections bout à bout, d'après « Music City_Hyb. Seq. » de Jules-Antoine (base : bmvzpsnbudo0k8).
+// Chaque étape demande un geste (03/11) : les sections sont ajoutées dans l'ordre LHS_ORDER, puis « Monter » remet le séquentiel en tête (LHS_FINAL) ;
+// la 2e section (« Le club », en couches) tourne 2 fois et passe à la suite sur des points de transition (ceux de Jules-Antoine sur ce morceau dans « A little walk »).
+// Un séquentiel n'a pas de frise unique : il ne peut pas avoir de points, d'où le passage par la 2e section.
 const LHS_ORDER = ['add', 'seq', 'lo'];
-function lhsOrderOk(n) { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential' && LHS_ORDER.slice(0, n).every((k, i) => t.sections && t.sections[i] && t.sections[i].trackId === LH_TRACKS[k]); }
+const LHS_FINAL = ['seq', 'add', 'lo'];
+const LHS_NAME = 'Le club';
+const LHS_POINTS = [4, 20];
+function lhsOrderIs(keys, n) { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential' && keys.slice(0, n).every((k, i) => t.sections && t.sections[i] && t.sections[i].trackId === LH_TRACKS[k]); }
+function lhsOrderOk(n) { return lhsOrderIs(LHS_ORDER, n); }
+function lhsAddSec() { const t = lessonTrack(); return (t && t.mode === 'hybrid-sequential' && (t.sections || []).find(s => s.trackId === LH_TRACKS.add)) || null; }
 function lhsMapPreviewHtml() {
   const W = 94, H = 44, y = 10, gap = 22; // 3 cases + flèches, puis « Fin » dans les ~40 px restants
-  const boxes = [['Jazz Hi Lay. Add.', tr('lhMapAddPlain')], ['Jazz Hi Seq. Branch.', tr('lhMapSeqPlain')], ['Jazz Lo Static +FX', tr('lhMapStatic')]];
+  const boxes = [['Jazz Hi Seq. Branch.', tr('lhMapSeqPlain')], [LHS_NAME, tr('lhMapAddPlain')], ['Jazz Lo Static +FX', tr('lhMapStatic')]];
   let svg = '';
   boxes.forEach(([n, sub], k) => {
     const x = 4 + k * (W + gap);
@@ -344,8 +351,8 @@ function lhMapPreviewHtml() {
 function lhPoints(i) { const r = lhRow(i); return r ? r.querySelector('[data-role="hybridPoints"]') : null; }
 function lhPointsAre(i, beats) { const s = lhSec(i); return !!s && (s.transitionPoints || []).slice().sort((a, b) => a - b).join() === beats.join(); }
 // Flèches au-dessus des cases de la frise où poser les points (début des mesures visées), comme la flèche « mesure 9 » de la leçon Statique.
-function lhPointArrows(i) {
-  return LH_POINTS[i].map(beat => ({ bar: beat / 4 + 1, label: '', point: () => {
+function lhPointArrows(i, beats) {
+  return (beats || LH_POINTS[i]).map(beat => ({ bar: beat / 4 + 1, label: '', point: () => {
     const p = lhPoints(i); const cell = p && p.querySelector(`[data-beat="${beat}"]`);
     if (!cell) return null;
     const r = cell.getBoundingClientRect();
@@ -844,15 +851,20 @@ const LESSONS = [
       done: () => { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential'; } },
     { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAddTitle', textKey: 'lhsAddText', done: () => !!lhSec(0) },
     { selector: () => lhField(0, 'track'), titleKey: 'lhsTrack1Title', textKey: 'lhsTrack1Text', done: () => lhsOrderOk(1) },
-    { selector: () => lhField(0, 'label'), titleKey: 'lhsNameTitle', textKey: 'lhsNameText' },
-    { selector: () => lhField(0, 'loops'), titleKey: 'lhsLoopsTitle', textKey: 'lhsLoopsText' },
-    { selector: () => lhField(0, 'switch'), titleKey: 'lhsSwitchTitle', textKey: 'lhsSwitchText' },
+    { selector: () => lhField(0, 'label'), titleKey: 'lhsNameTitle', textKey: 'lhsNameText',
+      done: () => { const s = lhSec(0); return !!s && (s.label || '').trim().toLowerCase() === LHS_NAME.toLowerCase(); }, drops: [{ kind: 'text', label: LHS_NAME, value: LHS_NAME }] },
+    { selector: () => lhField(0, 'loops'), titleKey: 'lhsLoopsTitle', textKey: 'lhsLoopsText', done: () => { const s = lhSec(0); return !!s && s.maxLoops === 2; } },
     { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd2Title', textKey: 'lhsAdd2Text', done: () => !!lhSec(1) },
     { selector: () => lhField(1, 'track'), titleKey: 'lhsTrack2Title', textKey: 'lhsTrack2Text', done: () => lhsOrderOk(2) },
     { selector: () => lhRow(0) && lhRow(0).querySelector('[data-role="hybridTransFile"]'), titleKey: 'lhsTransTitle', textKey: 'lhsTransText' },
     { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd3Title', textKey: 'lhsAdd3Text', done: () => !!lhSec(2) },
     { selector: () => lhField(2, 'track'), titleKey: 'lhsTrack3Title', textKey: 'lhsTrack3Text', done: () => lhsOrderOk(3) },
-    { selector: () => lhField(1, 'up'), titleKey: 'lhsOrderTitle', textKey: 'lhsOrderText' },
+    { selector: () => lhField(1, 'up'), titleKey: 'lhsOrderTitle', textKey: 'lhsOrderText', done: () => lhsOrderIs(LHS_FINAL, 3) },
+    { selector: () => lhField(1, 'switch'), titleKey: 'lhsSwitchTitle', textKey: 'lhsSwitchText',
+      done: () => { const s = lhsAddSec(); return !!s && s.switchMode === 'point'; } },
+    { selector: () => lhPoints(1), titleKey: 'lhsPointsTitle', textKey: 'lhsPointsText', arrow: lhPointArrows(1, LHS_POINTS), done: () => lhPointsAre(1, LHS_POINTS) },
+    // Case « sauter l'intro » (cochée par défaut hors 1re section, réglage du lecteur fait dans une autre session) : présentée, pas imposée.
+    { selector: () => { const r = lhRow(1); return (r && r.querySelector('.hybrid-skip-intro')) || lhField(1, 'track'); }, titleKey: 'lhsSkipTitle', textKey: 'lhsSkipText' },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lhsListenTitle', textKey: 'lhsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lhsEndTitle', textKey: 'lhsEndText', final: true },
