@@ -34,10 +34,32 @@ const TARGETS = {
   },
   // Moteur d'affichage des AdReels, partagé avec les vitrines de Projet (28/09) ; avertissement dans src/reel/01-tete.js.
   reel: { dir: 'src/reel', out: 'reel.js', pattern: /^\d\d[a-z]?-.*\.js$/, header: '' },
+  // Programme local d'import par assistant (3/11) : UN seul fichier à télécharger (layerpitch.com/layerpitch-cli.js), fabriqué à
+  // partir de cli/layerpitch.js avec le moteur de noms de fichiers (layerpitch-import-engine.js) collé à la place du require.
+  cli: {
+    out: 'layerpitch-cli.js', header: '',
+    generate() {
+      const src = fs.readFileSync(path.join(root, 'cli/layerpitch.js'), 'utf8');
+      const engineSrc = fs.readFileSync(path.join(root, 'layerpitch-import-engine.js'), 'utf8');
+      const req = "const engine = require('../layerpitch-import-engine.js');";
+      if (!src.includes(req)) throw new Error('cli/layerpitch.js : ligne require du moteur introuvable');
+      const lines = src.split('\n');
+      const shebang = lines[0].startsWith('#!') ? lines.shift() + '\n' : '';
+      return shebang + '// FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de cli/layerpitch.js + layerpitch-import-engine.js — ne pas le modifier ici : modifier les sources, puis `npm run build`.\n'
+        + lines.join('\n').replace(req, 'const engine = (() => {\nconst module = { exports: {} };\n' + engineSrc + '\nreturn module.exports;\n})();');
+    },
+  },
 };
 
 function build(name, check) {
   const t = TARGETS[name];
+  if (t.generate) {
+    const out = t.generate(), target = path.join(root, t.out);
+    const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    if (check) return { ok: current === out, msg: current === out ? `${t.out} à jour.` : `${t.out} n'est pas à jour : lance \`npm run build\`.` };
+    if (current !== out) fs.writeFileSync(target, out);
+    return { ok: true, msg: `${t.out} ${current === out ? 'déjà à jour' : 'reconstruit'}.` };
+  }
   const sources = t.sources || [{ dir: t.dir, pattern: t.pattern }];
   const parts = [].concat(...sources.map(s => fs.readdirSync(path.join(root, s.dir)).filter(f => s.pattern.test(f)).map(f => ({ f, file: path.join(root, s.dir, f) }))))
     .sort((a, b) => (a.f < b.f ? -1 : a.f > b.f ? 1 : 0));

@@ -82,6 +82,7 @@
     // Musique 1 = l'export direct du montage (MC_CAPTURE.lastExportVideoId) ; musique 2 = une version vidéo du montage.
     list_video_capture_versions: a => (mcMontageShown() ? [{ id: 'ver-2', captureId: MC_CAPTURE.id, title: MC_VIDEOS[1].versionTitle, lastExportVideoId: MC_VIDEOS[1].id }] : [...VERSIONS.values()].filter(v => a && v.captureId === a.p_capture_id)),
     account_deletion_status: () => null,
+    my_assistant_status: () => ({ open: false }),
     // Leçon « Versioning vidéo » (atelier vidéo, atelier.html?tuto&lesson=versioning) : montages et versions gardés EN MÉMOIRE (perdus
     // au rechargement), le compte fictif est le compositeur du pack d'exemple.
     resolve_composer_handle: () => DEMO_COMPOSER_ID,
