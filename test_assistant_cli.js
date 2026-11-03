@@ -27,6 +27,9 @@ check('login enregistre le jeton avec les droits 0600', run(['login', tok]).stat
 check('logout oublie le jeton', run(['logout']).status === 0 && !fs.existsSync(path.join(home, '.layerpitch/credentials.json')));
 check('porte en http (hors machine locale) refusée', run(['hello', '--api', 'http://example.com/x'], { LAYERPITCH_TOKEN: tok }).status !== 0);
 check('option inconnue refusée', run(['import', dir, '--rm']).status !== 0);
+const bundle = path.join(__dirname, 'layerpitch-cli.js');
+r = spawnSync(process.execPath, [bundle, 'import', dir, '--dry-run'], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: home } });
+check('le fichier à télécharger (layerpitch-cli.js) marche seul, sans le reste du dépôt, et donne le même résultat', r.status === 0 && /couches \(vertical\)/.test(r.stdout) && !/require\('\.\./.test(fs.readFileSync(bundle, 'utf8')));
 const src = fs.readFileSync(cli, 'utf8').replace(/\/\/.*$/gm, '');
 check('le programme n\'exécute aucune commande ni code dynamique', !/child_process|\beval\(|new Function|\bexec(Sync)?\(|\bspawn/.test(src));
 check('le jeton ne part que dans l\'en-tête Authorization (jamais dans une adresse ou un affichage)', !/console\.\w+\([^)]*token/i.test(src.replace(/Pas de jeton[^)]*/g, '')) && (src.match(/Bearer/g) || []).length === 1);

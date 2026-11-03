@@ -46,8 +46,15 @@
   check('jeton : seule l\'empreinte SHA-256 est stockée, jamais le jeton', row.token_hash === sha(t1.token) && !JSON.stringify(row).includes(t1.token) && row.token_prefix === t1.token.slice(0, 12));
   const listed = JSON.stringify(await one(`select public.list_my_assistant_tokens()`));
   check('liste : prefixe et dates, jamais le jeton ni son empreinte', listed.includes(row.token_prefix) && !listed.includes(t1.token) && !listed.includes(row.token_hash));
-  for (let i = 0; i < 4; i++) await one(`select public.create_assistant_token($1)`, ['t' + i]);
-  check('plafond : 5 jetons actifs au plus', await fails(`select public.create_assistant_token('de trop')`, [], /too_many_tokens/));
+  const revokeSpare = id => one(`select public.revoke_assistant_token($1)`, [id]);
+  const t30 = await one(`select public.create_assistant_token('court', 30)`);
+  check('durée choisie : 30 jours', Math.abs(new Date(t30.expires_at) - Date.now() - 30 * 86400000) < 3600000);
+  check('durée choisie : 0 et 366 jours refusés', await fails(`select public.create_assistant_token('x', 0)`, [], /bad_duration/) && await fails(`select public.create_assistant_token('x', 366)`, [], /bad_duration/));
+  const myStatus = await one(`select public.my_assistant_status()`);
+  check('Mon compte : état ouvert avec la liste des jetons et les limites', myStatus.open === true && myStatus.tokens.length === 2 && myStatus.limits.token_days_max === 365 && myStatus.limits.max_active_tokens === 10 && !JSON.stringify(myStatus).includes(t1.token));
+  await revokeSpare(t30.id);
+  for (let i = 0; i < 9; i++) await one(`select public.create_assistant_token($1)`, ['t' + i]);
+  check('plafond : 10 jetons actifs au plus', await fails(`select public.create_assistant_token('de trop')`, [], /too_many_tokens/));
 
   const resolved = await one(`select public.assistant_resolve_token($1)`, [sha(t1.token)]);
   check('résolution : l\'empreinte du jeton donne le bon compositeur', resolved && resolved.composer_id === c1 && resolved.scope === 'import');

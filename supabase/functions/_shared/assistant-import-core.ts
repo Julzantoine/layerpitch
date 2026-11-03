@@ -46,6 +46,8 @@ const DB_MESSAGES: Record<string, string> = {
   file_too_big: 'Un fichier dépasse la taille maximale (150 Mo).',
   import_too_big: 'Cet import dépasse la taille maximale (1 Go).',
   account_quota: "L'espace d'attente du compte est plein (3 Go) : traite les imports en attente d'abord.",
+  too_many_tokens: 'Trop de jetons actifs.',
+  bad_duration: 'Durée de validité invalide.',
   unknown_composer: 'Compte introuvable.',
 };
 export function dbErrorMessage(message: string | undefined): { code: string; text: string } {
