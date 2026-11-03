@@ -1023,5 +1023,5 @@
 .hybrid-branches-editor { margin: 14px 0 4px 18px; padding: 10px 12px 12px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
 .hybrid-branches-editor .list-block { background: var(--bg-card, #fff); }
 .hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
-.hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.hybrid-free-return input { width: auto; margin: 0; }
+.hybrid-skip-intro, .hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hybrid-skip-intro input, .hybrid-free-return input { width: auto; margin: 0; }

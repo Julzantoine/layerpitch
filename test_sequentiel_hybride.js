@@ -286,9 +286,10 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   const rm = mount([
     { id: 'a', label: 'A', maxLoops: 1, track: introVert('ia', 'ia') },
     { id: 'b', label: 'B', maxLoops: 1, track: introVert('ib', 'ib') },
-    { id: 'c', label: 'C', maxLoops: 1, skipIntro: false, track: introVert('ic', 'ic') }, // ancien réglage « ne pas sauter » : ignoré
+    { id: 'c', label: 'C', maxLoops: 1, skipIntro: false, track: introVert('ic', 'ic') }, // ancien champ skipIntro: false (partout en base) : ignoré
+    { id: 'd', label: 'D', maxLoops: 1, keepIntro: true, track: introVert('id', 'id') }, // case décochée : l'intro est gardée
   ]);
-  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 3 && rm.querySelectorAll('.seq-map-edge').length === 2);
+  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 4 && rm.querySelectorAll('.seq-map-edge').length === 3);
   await waitUntil(() => !rolePlay(rm).disabled, 2000);
   click(rolePlay(rm));
   await waitUntil(() => firstStart('ia1.wav'), 800);
@@ -296,6 +297,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   check('première section : l\'intro est jouée', firstStart('ia1.wav').offset === 0);
   check('2e section : départ au point d\'entrée de boucle, toutes les couches', await waitUntil(() => firstStart('ib1.wav'), 3000) && Math.abs(firstStart('ib1.wav').offset - 0.4) < 1e-9 && Math.abs(firstStart('ib2.wav').offset - 0.4) < 1e-9);
   check('3e section (même réglée « ne pas sauter ») : intro sautée aussi', await waitUntil(() => firstStart('ic1.wav'), 3000) && Math.abs(firstStart('ic1.wav').offset - 0.4) < 1e-9);
+  check('section avec la case décochée : intro jouée', await waitUntil(() => firstStart('id1.wav'), 3000) && firstStart('id1.wav').offset === 0);
   click(rm.querySelector('[data-role="stopBtn"]'));
 
   // ---- Intro sautée au passage, pour les autres modes (séquentiel et vertical-random : fichier d'intro ; embranchement : Départ→Entrée) ----

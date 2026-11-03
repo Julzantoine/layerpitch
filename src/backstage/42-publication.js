@@ -88,6 +88,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
           transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
         defaultNext: sec.defaultNext || null,
+        keepIntro: !!sec.keepIntro,
         freeReturn: !!sec.freeReturn,
       })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
