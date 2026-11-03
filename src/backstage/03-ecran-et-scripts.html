@@ -318,6 +318,8 @@
             <button class="btn btn-small" id="btnAddLibraryTrack" type="button" data-i18n="addTrack">+ Morceau</button>
             <button class="btn btn-small" id="btnRecomputeAllNormalization" type="button" data-i18n="normalizeRecomputeAllBtn" data-help="recomputeAllNormalization">Recalculer le niveau de tous les morceaux</button>
           </div>
+          <!-- Imports en attente déposés par un assistant IA (3/11, feu vert assistant_import) -->
+          <div id="pendingImports" hidden style="margin-bottom:14px"></div>
           <!-- Import d'un dossier de fichiers -> nouveau morceau en brouillon (11/10). Visible avec le feu vert bulk_drop. -->
           <div id="libraryFolderImport" hidden>
             <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:14px">

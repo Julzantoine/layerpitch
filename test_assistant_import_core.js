@@ -18,12 +18,14 @@ const tok = 'lpa_' + 'a1'.repeat(32);
   check('erreur inconnue -> « Erreur interne. » (rien de la base ne fuit)', core.dbErrorMessage('relation "x" does not exist').text === 'Erreur interne.' && core.dbErrorMessage(undefined).code === 'internal');
   // ---- Garde-fous sur le code des deux fonctions de la porte ----
   const fs = require('fs');
-  for (const fn of ['assistant-import', 'purge-assistant-imports']) {
+  for (const fn of ['assistant-import', 'purge-assistant-imports', 'pending-import-files']) {
     const src = fs.readFileSync('supabase/functions/' + fn + '/index.ts', 'utf8').replace(/\/\/.*$/gm, '');
     check(fn + ' : la clé de service ne sert qu\'à .rpc (aucun .from()/.storage)', !/\.from\(|\.storage\b/.test(src.replace(/Array\.from|Object\.from/g, '')));
-    check(fn + ' : aucun en-tête CORS', !/Access-Control/i.test(src));
+    if (fn !== 'pending-import-files') check(fn + ' : aucun en-tête CORS', !/Access-Control/i.test(src));
   }
   const door = fs.readFileSync('supabase/functions/assistant-import/index.ts', 'utf8');
+  const pick = fs.readFileSync('supabase/functions/pending-import-files/index.ts', 'utf8');
+  check('ramassage : connexion vérifiée, seau privé, liens de lecture 15 min, effacement immédiat', /auth\.getUser/.test(pick) && /R2_PROJECTS_BUCKET/.test(pick) && !/Deno\.env\.get\('R2_BUCKET'\)/.test(pick) && /X-Amz-Expires=900/.test(pick) && /method: 'DELETE'/.test(pick));
   check('porte : seau PRIVÉ uniquement (R2_PROJECTS_BUCKET, jamais R2_BUCKET)', /R2_PROJECTS_BUCKET/.test(door) && !/Deno\.env\.get\('R2_BUCKET'\)/.test(door));
   check('porte : URL signée 15 min (900 s) pour envoi', /X-Amz-Expires=900/.test(door));
   check('porte : ne journalise ni le jeton ni les URL signées', !/log\([^)]*(token\b|upload_url|Authorization)/.test(door.replace(/tokenId/g, '')));

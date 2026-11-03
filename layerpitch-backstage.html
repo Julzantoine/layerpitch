@@ -1361,6 +1361,8 @@
             <button class="btn btn-small" id="btnAddLibraryTrack" type="button" data-i18n="addTrack">+ Morceau</button>
             <button class="btn btn-small" id="btnRecomputeAllNormalization" type="button" data-i18n="normalizeRecomputeAllBtn" data-help="recomputeAllNormalization">Recalculer le niveau de tous les morceaux</button>
           </div>
+          <!-- Imports en attente déposés par un assistant IA (3/11, feu vert assistant_import) -->
+          <div id="pendingImports" hidden style="margin-bottom:14px"></div>
           <!-- Import d'un dossier de fichiers -> nouveau morceau en brouillon (11/10). Visible avec le feu vert bulk_drop. -->
           <div id="libraryFolderImport" hidden>
             <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:14px">
@@ -2474,6 +2476,7 @@ async function renderAdminOnlyPanels(session) {
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
+  if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)
   const albumsNavBtn = document.getElementById('navItemAlbums');
   if (albumsNavBtn) albumsNavBtn.hidden = !can('sell_albums');
   if (typeof syncBackstageTour === 'function') syncBackstageTour(); // visite guidée (feu vert in_app_tour)
@@ -6400,6 +6403,8 @@ function newFolderImportTrack(title, mode) {
   if (mode === 'embranchement-vertical') { t.bpm = 120; t.beatsPerBar = 4; t.loops = []; }
   return t;
 }
+// Import déposé par un assistant (3/11) : appelé une fois, quand le morceau est créé (16b-imports-en-attente.js efface alors la zone d'attente).
+let activeFolderImport = null;
 function registerImportedTrack(track, fileCount) {
   library.push(track);
   manageLibrarySelectedId = track.id;
@@ -6408,6 +6413,8 @@ function registerImportedTrack(track, fileCount) {
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
   window.LayerPitchNotify.info(tr('importFolderDone', { title: track.title, n: fileCount }));
+  const done = activeFolderImport; activeFolderImport = null;
+  if (done) done();
 }
 if (typeof window !== 'undefined') window.groupFilesBySequentialSlot = groupFilesBySequentialSlot;
 
@@ -6679,7 +6686,11 @@ function openFolderImportDialog(folder) {
   // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
   // Décision du 11/10 : on ne présélectionne QUE si le nom du dossier le dit ; toute autre devinette est une suggestion
   // affichée, que le compositeur accepte d'un clic (chaque compositeur nomme ses fichiers à sa manière).
-  const noClue = guess.why !== 'name';
+  // Dossier déposé par un assistant (3/11) : la structure qu'il propose est présélectionnée, modifiable comme toute proposition.
+  const preset = folder.presetMode || null;
+  if (preset) { guess.mode = preset; guess.why = 'assistant'; }
+  activeFolderImport = folder.onRegistered || null; // un import manuel ultérieur n'efface jamais une zone d'attente
+  const noClue = !preset && guess.why !== 'name';
   const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -6698,7 +6709,7 @@ function openFolderImportDialog(folder) {
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
       <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${(files.length === 1 ? ['static', ...FOLDER_IMPORT_MODES] : FOLDER_IMPORT_MODES).map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
+      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr(preset ? 'importFolderWhy_assistant' : 'importFolderWhy_name') })
         : (guess.why === 'default' ? tr('importFolderNoClue')
         : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
         : tr('importFolderSuggestion', { mode: tr(optionLabel[guess.mode]), why: tr('importFolderWhy_' + guess.why) })))}
@@ -6770,6 +6781,94 @@ if (typeof window !== 'undefined') window.openFolderImportDialog = openFolderImp
     if (!flagOpen('bulk_drop')) return;
     readDroppedFolder(e.dataTransfer).then(openFolderImportDialog)
       .catch(err => window.LayerPitchNotify.error(tr('importFolderReadError', { error: err && err.message ? err.message : String(err) })));
+  });
+})();
+/* ---------------- Imports en attente : fichiers déposés par un assistant IA (3/11, chantier MCP) ----------------
+   Un programme local (layerpitch-cli.js) dépose des .wav dans une zone d'attente privée du compte (Edge Function assistant-import).
+   Ici, le compositeur voit ces imports, les télécharge (liens signés par pending-import-files), puis retrouve EXACTEMENT la fenêtre
+   d'import de dossier habituelle (titre modifiable, structure proposée par l'assistant, confirmation) : le morceau est un brouillon,
+   publié seulement par « Publier ». Une fois le morceau créé, les fichiers sont effacés tout de suite côté serveur (finish 'added').
+   Feu vert 'assistant_import' (admin seulement tant qu'il n'est pas donné). Conversion WAV -> OGG : faite à la publication comme pour
+   tout WAV déposé (40-conversion-wav-ogg.js). */
+let pendingImportsList = [];
+let pendingImportDownload = null; // { id, abort } pendant un téléchargement
+
+async function pendingImportsCall(body) {
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().functions.invoke('pending-import-files', { body });
+  if (error) throw new Error(await LayerPitchAuth.describeFunctionError(error));
+  return data;
+}
+async function refreshPendingImports() {
+  const host = document.getElementById('pendingImports');
+  if (!host) return;
+  if (!flagOpen('assistant_import')) { host.hidden = true; return; }
+  const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_pending_imports');
+  pendingImportsList = error ? [] : (data || []);
+  renderPendingImports();
+}
+function renderPendingImports() {
+  const host = document.getElementById('pendingImports');
+  if (!host) return;
+  host.hidden = !pendingImportsList.length;
+  if (!pendingImportsList.length) { host.innerHTML = ''; return; }
+  const mb = n => (n / 1048576).toFixed(1);
+  host.innerHTML = `<div class="hint-inline" style="font-weight:600;margin-bottom:6px">${tr('pendingImportsTitle', { n: pendingImportsList.length })}</div>` + pendingImportsList.map(p => {
+    const bytes = (p.files || []).reduce((a, f) => a + (f.size || 0), 0);
+    const busy = pendingImportDownload && pendingImportDownload.id === p.id;
+    return `<div class="pending-import-row" data-pi="${escapeAttr(p.id)}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border)">
+      <span style="flex:1;min-width:180px"><strong>${escapeHtml(p.title || '…')}</strong> — ${tr('pendingImportsSummary', { files: (p.files || []).length, mb: mb(bytes), date: new Date(p.expires_at).toLocaleDateString(currentLang()) })}</span>
+      <span data-pi-status></span>
+      ${busy ? `<button class="btn btn-small" type="button" data-pi-btn="cancel">${tr('cancel')}</button>`
+        : `<button class="btn btn-small btn-primary" type="button" data-pi-btn="open">${tr('pendingImportsBuild')}</button>
+           <button class="btn btn-small" type="button" data-pi-btn="discard">${tr('pendingImportsDiscard')}</button>`}
+    </div>`;
+  }).join('');
+}
+async function openPendingImport(id) {
+  const p = pendingImportsList.find(x => x.id === id);
+  if (!p || pendingImportDownload) return;
+  const ctl = new AbortController();
+  pendingImportDownload = { id, abort: () => ctl.abort() };
+  renderPendingImports();
+  const status = () => document.querySelector(`[data-pi="${CSS.escape(id)}"] [data-pi-status]`);
+  try {
+    const { files } = await pendingImportsCall({ action: 'download_urls', import_id: id });
+    const out = [];
+    for (let i = 0; i < files.length; i++) {
+      if (status()) status().textContent = tr('pendingImportsDownloading', { i: i + 1, n: files.length });
+      const res = await fetch(files[i].url, { signal: ctl.signal });
+      if (!res.ok) throw new Error(tr('pendingImportsDownloadError', { name: files[i].name }));
+      out.push(new File([await res.blob()], files[i].name, { type: 'audio/wav' }));
+    }
+    pendingImportDownload = null; renderPendingImports();
+    const plan = p.plan || {};
+    openFolderImportDialog({
+      name: p.title || plan.folder || '', files: out.sort(folderImportByName), ignored: [],
+      presetMode: ['vertical', 'vertical-random', 'sequential', 'embranchement-vertical', 'static'].includes(plan.mode) ? plan.mode : null,
+      onRegistered: () => finishPendingImport(id, 'added'),
+    });
+  } catch (e) {
+    pendingImportDownload = null; renderPendingImports();
+    if (e && e.name !== 'AbortError') window.LayerPitchNotify.error(tr('errorPrefix', { message: e.message }));
+  }
+}
+async function finishPendingImport(id, outcome) {
+  try { await pendingImportsCall({ action: 'finish', import_id: id, outcome }); }
+  catch (e) { window.LayerPitchNotify.error(tr('errorPrefix', { message: e.message })); }
+  refreshPendingImports();
+}
+(function wirePendingImports() {
+  const host = document.getElementById('pendingImports');
+  if (!host) return;
+  host.addEventListener('click', async e => {
+    const b = e.target.closest('[data-pi-btn]'); const row = e.target.closest('[data-pi]');
+    if (!b || !row) return;
+    const id = row.dataset.pi;
+    if (b.dataset.piBtn === 'open') openPendingImport(id);
+    else if (b.dataset.piBtn === 'cancel' && pendingImportDownload) pendingImportDownload.abort();
+    else if (b.dataset.piBtn === 'discard') {
+      if (await window.LayerPitchNotify.confirm(tr('pendingImportsDiscardConfirm'), { okLabel: tr('pendingImportsDiscard'), danger: true })) finishPendingImport(id, 'discarded');
+    }
   });
 })();
 /* ---------------- Durée auto (probe) ---------------- */

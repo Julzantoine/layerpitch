@@ -75,6 +75,8 @@ function newFolderImportTrack(title, mode) {
   if (mode === 'embranchement-vertical') { t.bpm = 120; t.beatsPerBar = 4; t.loops = []; }
   return t;
 }
+// Import déposé par un assistant (3/11) : appelé une fois, quand le morceau est créé (16b-imports-en-attente.js efface alors la zone d'attente).
+let activeFolderImport = null;
 function registerImportedTrack(track, fileCount) {
   library.push(track);
   manageLibrarySelectedId = track.id;
@@ -83,6 +85,8 @@ function registerImportedTrack(track, fileCount) {
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
   window.LayerPitchNotify.info(tr('importFolderDone', { title: track.title, n: fileCount }));
+  const done = activeFolderImport; activeFolderImport = null;
+  if (done) done();
 }
 if (typeof window !== 'undefined') window.groupFilesBySequentialSlot = groupFilesBySequentialSlot;
 
@@ -354,7 +358,11 @@ function openFolderImportDialog(folder) {
   // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
   // Décision du 11/10 : on ne présélectionne QUE si le nom du dossier le dit ; toute autre devinette est une suggestion
   // affichée, que le compositeur accepte d'un clic (chaque compositeur nomme ses fichiers à sa manière).
-  const noClue = guess.why !== 'name';
+  // Dossier déposé par un assistant (3/11) : la structure qu'il propose est présélectionnée, modifiable comme toute proposition.
+  const preset = folder.presetMode || null;
+  if (preset) { guess.mode = preset; guess.why = 'assistant'; }
+  activeFolderImport = folder.onRegistered || null; // un import manuel ultérieur n'efface jamais une zone d'attente
+  const noClue = !preset && guess.why !== 'name';
   const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -373,7 +381,7 @@ function openFolderImportDialog(folder) {
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
       <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${(files.length === 1 ? ['static', ...FOLDER_IMPORT_MODES] : FOLDER_IMPORT_MODES).map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
+      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr(preset ? 'importFolderWhy_assistant' : 'importFolderWhy_name') })
         : (guess.why === 'default' ? tr('importFolderNoClue')
         : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
         : tr('importFolderSuggestion', { mode: tr(optionLabel[guess.mode]), why: tr('importFolderWhy_' + guess.why) })))}

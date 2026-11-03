@@ -196,6 +196,14 @@
   const limits = await one(`select public.assistant_limits()`);
   check('limites annoncées : 150 Mo, 1 Go, 3 Go, 14 jours, 90 jours', limits.max_file_bytes === 150 * MB && limits.max_import_bytes === 1024 * MB && limits.max_account_bytes === 3072 * MB && limits.pending_days === 14 && limits.token_days === 90);
 
+  // ---- Ramassage (pending-import-files) : compositeur d'un compte, seulement avec le feu vert, fonction réservée à service_role ----
+  await q(`update public.feature_flags set released = false where key = 'assistant_import'`);
+  check('ramassage : feu vert fermé = aucun compositeur pour un non-admin', (await one(`select public.assistant_composer_for_profile($1)`, [U(1)])) === null);
+  await q(`update public.feature_flags set released = true where key = 'assistant_import'`);
+  check('ramassage : feu vert ouvert = le compositeur du compte', (await one(`select public.assistant_composer_for_profile($1)`, [U(1)])) === c1);
+  check('ramassage : un compte sans profil compositeur n\'en reçoit pas', (await one(`select public.assistant_composer_for_profile($1)`, ['00000000-0000-0000-0000-0000000000ff'])) === null);
+  check('droits : assistant_composer_for_profile interdit à anon et authenticated', await asRole('anon', `select public.assistant_composer_for_profile('${U(1)}')`) && await asRole('authenticated', `select public.assistant_composer_for_profile('${U(1)}')`));
+
   if (failures) { console.log(failures + ' échec(s)'); process.exit(1); }
   console.log('Porte « import par assistant » : tout est vert.');
 })();
