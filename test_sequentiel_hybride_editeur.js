@@ -101,10 +101,9 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   const firstTarget = sels()[0].value;
   check('cible déjà prise : absente du menu du 2e embranchement', ![...sels()[1].options].some(o => o.value === firstTarget));
   check('embranchements dans un cadre à part, avec leur titre', !!q('.hybrid-branches-editor .hybrid-branches-title'));
-  // Intro détectée : la case n'apparaît que pour un morceau qui commence avant sa boucle.
-  check('pas de case « ignorer l\'intro » sans intro', !q('.hybrid-skip-intro'));
+  // L'intro d'une section atteinte par un passage est toujours sautée (03/11) : plus de case à cocher, même pour un morceau avec intro.
   window.eval("library.find(l => l.id === 'vt').loopEngine = 'quantized'; library.find(l => l.id === 'vt').loopInBeat = 4; renderLibrary();");
-  check('intro détectée : case proposée', !!q('.hybrid-skip-intro'));
+  check('intro détectée : aucune case « ignorer l\'intro »', !q('.hybrid-skip-intro'));
 
   // Retour libre : une case pour tout le morceau, rangée sur chaque section, gardée à la publication.
   const fr = q('input[data-hybrid="freeReturn"]');

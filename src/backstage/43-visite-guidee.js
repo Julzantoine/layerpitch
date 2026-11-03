@@ -359,7 +359,7 @@ function lhCompleteMap() {
   const t = lessonTrack();
   if (!t || t.mode !== 'hybrid-sequential' || (t.sections || []).length !== 4) return;
   const secs = t.sections;
-  const section = (key, label) => { const s = { id: genId(), label, trackId: LH_TRACKS[key], maxLoops: null, switchMode: 'end', transitionPoints: [], fadeSec: 0.5, transition: null, branches: [], defaultNext: null, skipIntro: false, freeReturn: hybridFreeReturn(t) }; secs.push(s); return s; };
+  const section = (key, label) => { const s = { id: genId(), label, trackId: LH_TRACKS[key], maxLoops: null, switchMode: 'end', transitionPoints: [], fadeSec: 0.5, transition: null, branches: [], defaultNext: null, freeReturn: hybridFreeReturn(t) }; secs.push(s); return s; };
   const branch = (from, targetId) => { from.branches = from.branches || []; from.branches.push({ id: genId(), targetId, label: '', switchMode: 'end', transition: null }); };
   const s5 = section('hi', LH_NAMES[4]); branch(secs[1], s5.id); branch(s5, 'end');
   const s6 = section('rand', LH_NAMES[5]); branch(secs[2], s6.id); branch(s6, 'end');

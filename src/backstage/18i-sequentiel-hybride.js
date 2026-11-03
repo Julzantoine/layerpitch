@@ -14,15 +14,6 @@ function hybridSectionTrackIsReady(source) {
 // Retour libre : réglage du morceau entier, rangé sur chacune de ses sections (aucune colonne dédiée en base, pas de migration).
 function hybridFreeReturn(track) { return (track.sections || []).length > 0 && track.sections.every(sec => sec.freeReturn); }
 // Le morceau commence-t-il par une partie jouée une seule fois avant sa boucle (départ avant l'entrée de boucle, ou fichier d'intro) ?
-function hybridSectionHasIntro(source) {
-  if (!source) return false;
-  if (source.mode === 'sequential' || source.mode === 'vertical-random') return !!(source.intro && (source.intro.pendingFile || source.intro.remoteFile));
-  if (source.mode === 'embranchement-vertical') {
-    const ref = (source.loops || []).find(l => l.isInitial) || (source.loops || [])[0] || {};
-    return (ref.loopInBeat || 0) > (ref.startTrackBeat || 0);
-  }
-  return source.loopEngine === 'quantized' && (source.loopInBeat || 0) > (source.startTrackBeat || 0);
-}
 // Frise des points de transition d'une section : une graduation par temps du morceau. Un clic pose un point, un clic sur un point l'enlève.
 function hybridPointsTimeline(sec, source, changed) {
   const wrap = document.createElement('div');
@@ -256,17 +247,6 @@ function renderHybridEditor(host, track, ti) {
     }
     const transBars = row.querySelector('[data-hybrid="transBars"]');
     if (transBars) transBars.addEventListener('change', e => { sec.transition.bars = e.target.value ? parseInt(e.target.value, 10) : null; hasUnsavedEdits = true; });
-    if (hybridSectionHasIntro(source)) {
-      const skip = document.createElement('label');
-      skip.className = 'hybrid-skip-intro';
-      skip.innerHTML = `<input type="checkbox"${sec.skipIntro ? ' checked' : ''}> <span>${tr('hybridSkipIntroLabel')}</span>`;
-      skip.querySelector('input').addEventListener('change', e => { sec.skipIntro = e.target.checked; hasUnsavedEdits = true; });
-      row.appendChild(skip);
-      const hint = document.createElement('div');
-      hint.className = 'hint-inline';
-      hint.textContent = tr('hybridSkipIntroHint');
-      row.appendChild(hint);
-    }
     const branchesHost = document.createElement('div');
     row.appendChild(branchesHost);
     renderHybridBranches(branchesHost, track, sec, si, hasOneTimeline, changed);
