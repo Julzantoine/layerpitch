@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793654302438">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793659337720">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1993,19 +1993,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793654302438"></script>
-<script src="layerpitch-i18n.js?v=1793654302438"></script>
-<script src="layerpitch-import-engine.js?v=1793654302438"></script>
-<script src="layerpitch-appearance.js?v=1793654302438"></script>
-<script src="layerpitch-album-shared.js?v=1793654302438"></script>
-<script src="layerpitch-album-editor.js?v=1793654302438"></script>
-<script src="layerpitch-shell.js?v=1793654302438"></script>
-<script src="layerpitch-social-icons.js?v=1793654302438"></script>
-<script src="layerpitch-notify.js?v=1793654302438"></script>
-<script src="layerpitch-guide.js?v=1793654302438"></script>
-<script src="layerpitch-lesson-previews.js?v=1793654302438"></script>
-<script src="layerpitch-help.js?v=1793654302438"></script>
-<script src="player.js?v=1793654302438"></script>
+<script src="layerpitch-tuto.js?v=1793659337720"></script>
+<script src="layerpitch-i18n.js?v=1793659337720"></script>
+<script src="layerpitch-import-engine.js?v=1793659337720"></script>
+<script src="layerpitch-appearance.js?v=1793659337720"></script>
+<script src="layerpitch-album-shared.js?v=1793659337720"></script>
+<script src="layerpitch-album-editor.js?v=1793659337720"></script>
+<script src="layerpitch-shell.js?v=1793659337720"></script>
+<script src="layerpitch-social-icons.js?v=1793659337720"></script>
+<script src="layerpitch-notify.js?v=1793659337720"></script>
+<script src="layerpitch-guide.js?v=1793659337720"></script>
+<script src="layerpitch-lesson-previews.js?v=1793659337720"></script>
+<script src="layerpitch-help.js?v=1793659337720"></script>
+<script src="player.js?v=1793659337720"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16932,7 +16932,7 @@ const LESSONS = [
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
-  // « Musique » et « balade » : les boucles des quatre villes de « Music City » (CITY_MUSIC dans api/demo-projects.js), ouvertes le 02/11.
+  // « Musique » et « balade » : la carte « Music City » de Jules-Antoine (WALK_MAP dans api/demo-projects.js), ouvertes le 02/11.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', steps: preprodEntrySteps('pj-map-music', 'plEntryIntroText') },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', steps: preprodEntrySteps('pj-map-walk', 'plEntryIntroText') },
   // La vidéo en dernier (02/11) : Versioning puis Annoter, après la carte de niveau.
@@ -16964,6 +16964,10 @@ const LESSONS = [
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
+  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
+  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).

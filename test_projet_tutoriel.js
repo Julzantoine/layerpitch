@@ -50,7 +50,7 @@ const { JSDOM } = require('jsdom');
   check('Projet fictif « Music City » chargé', /Music City/.test(d.getElementById('pTitle').textContent));
   check('discussion préremplie (13 messages)', d.querySelectorAll('.bubble').length === 13);
   check('les 4 villes du jeu sont des sections', ['Jazz City', 'Rock City', 'Disco City', 'Synth City'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
-  check('six leçons jouables dans le bandeau (Annoter attend ses vidéos)', d.querySelectorAll('[data-tutolesson]').length === 6);
+  check('huit leçons jouables dans le bandeau (Annoter attend ses vidéos ; les deux leçons Vitrine en fin)', d.querySelectorAll('[data-tutolesson]').length === 8);
 
   // ---- Leçon « tchat »
   click(w, d.querySelector('[data-tutolesson="pj-chat"]')); await wait(100);
@@ -145,16 +145,37 @@ const { JSDOM } = require('jsdom');
   // ---- Leçons « musique » et « balade » (02/11) : les boucles des quatre villes de « Music City », la balade part d'une carte déjà sonorisée
   check('musique et balade ouvertes dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')));
   {
-    const C = W.LayerPitchDemoProjects.CITY_MUSIC;
-    check('une musique par ville (Jazz, Rock, Disco, Synth City)', ['jazz', 'rock', 'disco', 'synth'].every(k => C[k] && /^https:\/\/media\.layerpitch\.com\/tuto\//.test(C[k].url)));
     const PJw = W.LayerPitchDemoProjects.create({ seedMap: true, seedMapMusic: true });
     const m = (await PJw.listMaps()).data[0];
     const places = m.data.nodes.filter(n => n.label);
-    const ref = places[0].sounds.main[0];
-    const a = (await PJw.content()).data.assets.find(x => x.id === ref.id);
-    check('balade : chaque ville de la carte a déjà sa musique, lue depuis media.layerpitch.com', places.length === 4 && places.every(n => n.sounds.main.length === 1) && a && a.kind === 'audio' && /media\.layerpitch\.com/.test((await PJw.fileUrl(a.fileId)).data));
+    const refs = [...m.data.nodes, ...m.data.edges].flatMap(n => n.sounds.main).concat([m.data.roomTone]);
+    const dc = read('api/demo-client.js');
+    check('balade : la carte de Jules-Antoine, une musique par ville, ambiance et pas dans la rue', places.length === 4 && places.every(n => n.sounds.main.length === 1) && m.data.roomTone && m.data.roomTone.title === 'City Birds' && m.data.edges.some(e => e.sounds.main.some(r => r.title === 'Street+Footsteps')));
+    check('balade : chaque morceau de la carte existe dans le faux serveur', refs.every(r => r.kind === 'track' && dc.includes('"id":"' + r.id + '"')) && /includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter\([^)]*\)\)\.concat\(DEMO_TRACKS_CITY_MAP\)/.test(dc));
     const m2 = (await W.LayerPitchDemoProjects.create({ seedMap: true }).listMaps()).data[0];
-    check('leçon « musique » : la carte part sans musique', m2.data.nodes.every(n => !n.sounds.main.length));
+    check('leçon « musique » : la carte de Jules-Antoine, sans aucun son au départ', m2.data.nodes.length === m.data.nodes.length && m2.data.nodes.concat(m2.data.edges).every(n => !n.sounds.main.length) && !m2.data.roomTone);
+    check('leçon « musique » : ses morceaux sont aussi dans la bibliothèque', /\['pj-map-music', 'pj-map-walk'\]\.includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter/.test(dc));
+  }
+  // ---- Leçons Vitrine (02/11) : réserve garnie (images, vidéo, morceaux ★), enregistrement en mémoire, aperçu recopié dans le navigateur
+  {
+    const DPr = W.LayerPitchDemoProjects;
+    const PJv = DPr.create({ seedVitrine: true });
+    const as = (await PJv.content()).data.assets;
+    check('vitrine : quatre images, la vidéo de gameplay et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'video' && a.fileId) && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
+    check('vitrine : images lues depuis media.layerpitch.com/tuto/music-city/', /^https:\/\/media\.layerpitch\.com\/tuto\/music-city\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
+    check('vitrine : aucune vitrine au départ de la leçon « construire »', (await PJv.vitrines()).data.length === 0);
+    const img = as.find(a => a.kind === 'image');
+    const r = await PJv.saveVitrine('demo-music-city', { audience: 'players', display: 'page', title: 'Music City', subtitle: '', slug: 'music-city', published: false, theme: {}, bgAssetId: img.id, blocks: [{ id: 'b1', type: 'photo', assetIds: [img.id] }] });
+    const snap = JSON.parse(W.localStorage.getItem(DPr.TUTO_VITRINE_KEY) || 'null');
+    check('vitrine : enregistrée dans la page, aperçu recopié pour vitrine.html?tuto', !r.error && (await PJv.vitrines()).data.length === 1 && snap && snap.vitrine.assets[img.id] && snap.fileUrls[img.fileId]);
+    const built = (await DPr.create({ seedVitrineBuilt: true }).vitrines()).data[0];
+    check('vitrine : la leçon « apparence » part de la vitrine déjà construite', built && ['header', 'tracks', 'text', 'video', 'photo', 'links', 'contact'].every(t => built.blocks.some(b => b.type === t)) && built.blocks.find(b => b.type === 'links').links.every(l => l.label && l.url));
+    const vhtml = read('vitrine.html');
+    check('vitrine.html?tuto : lue depuis le navigateur, ni statistiques ni message envoyé', /TUTO_KEY = 'layerpitch_tuto_vitrine_v1'/.test(vhtml) && /if \(!TUTO\) startVitrineStats/.test(vhtml) && /if \(TUTO\) return \{ ok: true \}/.test(vhtml) && DPr.TUTO_VITRINE_KEY === 'layerpitch_tuto_vitrine_v1');
+    const bs = read('src/backstage/43-visite-guidee.js');
+    check('vitrine : deux leçons en fin de menu, réservées aux admins pour l’instant', /pj-vitrine', theme: 'preprod', public: true, adminOnly: true/.test(bs) && /pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true/.test(bs));
+    const pl = read('projet.html');
+    check('éditeur de vitrine : le texte des blocs est gardé quand on ajoute un bloc', /collect\(\); syncVitrineBlocks\(panel\);\n    const k = b\.dataset\.addblock/.test(pl));
   }
   // ---- Leçon « créer un projet » (projets.html?tuto)
   {

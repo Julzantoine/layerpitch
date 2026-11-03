@@ -1173,7 +1173,7 @@ const LESSONS = [
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
-  // « Musique » et « balade » : les boucles des quatre villes de « Music City » (CITY_MUSIC dans api/demo-projects.js), ouvertes le 02/11.
+  // « Musique » et « balade » : la carte « Music City » de Jules-Antoine (WALK_MAP dans api/demo-projects.js), ouvertes le 02/11.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', steps: preprodEntrySteps('pj-map-music', 'plEntryIntroText') },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', steps: preprodEntrySteps('pj-map-walk', 'plEntryIntroText') },
   // La vidéo en dernier (02/11) : Versioning puis Annoter, après la carte de niveau.
@@ -1205,6 +1205,10 @@ const LESSONS = [
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
   { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
+  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
+  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).

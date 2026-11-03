@@ -18,9 +18,9 @@
   const LESSON_IMAGES = []; // [{ label, name, url }]
 
   // Sons d'exemple de la carte : { label, name, url }. Fond d'ambiance général : VIDE tant qu'aucun fichier n'est choisi (étapes sautées).
-  // Musique par ville (02/11) : les boucles des quatre villes de « Music City », déclarées dans api/demo-projects.js (CITY_MUSIC).
+  // Musique de la carte (02/11) : celle que Jules-Antoine a posée sur sa carte « Music City » (WALK_MAP dans api/demo-projects.js).
   const MAP_AMBIANCE = [];
-  const MAP_MUSIC = (window.LayerPitchDemoProjects && window.LayerPitchDemoProjects.CITY_MUSIC) || {}; // { jazz, rock, disco, synth }
+  const WALK_MAP = (window.LayerPitchDemoProjects && window.LayerPitchDemoProjects.WALK_MAP) || null;
 
   const LESSON_THEME_ID = 'preprod';
   // Leçons de cette page, dans l'ordre du menu. Les textes sont dans la zone « projects » de layerpitch-i18n.js.
@@ -34,6 +34,9 @@
     { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
     // « bientôt » tant que les deux vidéos de « Music City » (music-city-gameplay-musique1/2.mp4) ne sont pas en ligne (media.layerpitch.com/tuto/).
     { id: 'pj-annotate', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', soon: true },
+    // Vitrine (02/11), tout à la fin : la construire, puis son apparence.
+    { id: 'pj-vitrine', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc' },
+    { id: 'pj-vitrine-look', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc' },
   ];
 
   function init(ctx) {
@@ -172,12 +175,23 @@
     // Leçons « musique » (glisser la boucle de chaque ville sur son lieu) et « balade » (la carte a déjà sa musique, voir seedMapMusic).
     // L'onglet Carte d'abord : la carte d'exemple s'y ouvre toute seule.
     const mapTabStep = { selector: '.tab[data-tab="map"]', titleKey: 'plMapTabTitle', textKey: 'plMapTabText', done: () => S.tab === 'map' && !!document.querySelector('#lmSvg') };
+    // On glisse chaque morceau de la bibliothèque (à gauche) sur sa ville, puis les pas sur les chemins, puis l'ambiance de fond.
+    const libItem = title => () => [...document.querySelectorAll('#lmLib .lm-sound')].find(el => { const t = el.querySelector('.lm-t'); return t && t.textContent === title; }) || null;
+    const edgeEl = id => document.querySelector(`#lmSvg [data-edge="${id}"]`);
+    const W = WALK_MAP || { nodes: [], edges: [], roomTone: null };
+    const placeName = id => { const n = W.nodes.find(x => x.id === id); return n ? n.label : ''; };
     lessons['pj-map-music'] = [
       { titleKey: 'plMapMusicWelcomeTitle', textKey: 'plMapMusicWelcomeText' },
       mapTabStep,
-      ...['jazz:Jazz City', 'rock:Rock City', 'disco:Disco City', 'synth:Synth City'].map(x => { const [k, name] = x.split(':'); return {
-        selector: () => nodeEl(name), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText', textVars: { name }, skip: () => !MAP_MUSIC[k],
-        done: () => { const g = nodeEl(name); return !!g && /♪/.test(g.textContent); }, drops: MAP_MUSIC[k] ? fileDrops([MAP_MUSIC[k]]) : [] }; }),
+      ...W.nodes.filter(n => n.sounds.main[0]).map(n => ({ selector: libItem(n.sounds.main[0].title), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText',
+        textVars: { name: n.label, track: n.sounds.main[0].title }, done: () => { const g = nodeEl(n.label); return !!g && /♪/.test(g.textContent); } })),
+      ...W.edges.filter(e => e.sounds.main[0]).map(e => ({ selector: libItem(e.sounds.main[0].title), titleKey: 'plMapMusicPathTitle', textKey: 'plMapMusicPathText',
+        textVars: { from: placeName(e.from), to: placeName(e.to), track: e.sounds.main[0].title }, done: () => { const g = edgeEl(e.id); return !!g && /♪/.test(g.textContent); } })),
+      ...(W.roomTone ? [
+        { selector: '#lmSettings > summary', titleKey: 'plMapMusicRoomOpenTitle', textKey: 'plMapMusicRoomOpenText', done: () => !!($('lmSettings') && $('lmSettings').open) },
+        { selector: libItem(W.roomTone.title), titleKey: 'plMapMusicRoomTitle', textKey: 'plMapMusicRoomText', textVars: { track: W.roomTone.title },
+          done: () => !!($('lmRoomZone') && $('lmRoomZone').querySelector('.lm-t') && $('lmRoomZone').querySelector('.lm-t').textContent === W.roomTone.title) },
+      ] : []),
       { titleKey: 'plMapMusicDoneTitle', textKey: 'plMapMusicDoneText', final: true },
     ];
     lessons['pj-map-walk'] = [
@@ -190,6 +204,74 @@
       { titleKey: 'plMapWalkDoneTitle', textKey: 'plMapWalkDoneText', final: true },
     ];
 
+    // ---- Vitrine (02/11) : le brouillon en cours (S.vitrineDraft), et la carte de chacun de ses blocs (le dernier bloc de ce type) ----
+    const DP = window.LayerPitchDemoProjects || {};
+    const draft = () => S.vitrineDraft;
+    const hasBlock = type => !!(draft() && draft().blocks.some(b => b.type === type));
+    const vbEl = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? document.querySelector(`[data-vb="${b.id}"]`) : null; };
+    const vbField = (type, f) => () => { const r = vbEl(type); return r && r.querySelector(`[data-f="${f}"]`); };
+    const vbHas = (type, f) => { const el = vbField(type, f)(); return !!(el && el.value.trim().length > 1); };
+    const picked = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? (b.assetIds || []).length : 0; };
+    const linkRows = () => { const r = vbEl('links'); return r ? r.querySelectorAll('[data-link]').length : 0; };
+    const linkUrl = j => () => { const r = vbEl('links'); const row = r && r.querySelector(`[data-link="${j}"]`); return row && row.querySelector('[data-f="url"]'); };
+    const linkHas = j => { const el = linkUrl(j)(); return !!(el && /^https:\/\//.test(el.value.trim())); };
+    const LINKS = DP.SHOWCASE_LINKS || [];
+    const linkName = j => () => { const r = vbEl('links'); const row = r && r.querySelector(`[data-link="${j}"]`); return row && row.querySelector('[data-f="label"]'); };
+    // Un lien = son nom (sinon la vitrine affiche l'adresse brute), puis son adresse.
+    const linkStep = (j, titleKey, textKey, name) => [
+      { selector: linkName(j), titleKey: 'plVitLinkNameTitle', textKey: 'plVitLinkNameText', textVars: { name }, done: () => { const el = linkName(j)(); return !!(el && el.value.trim()); },
+        drops: [{ kind: 'text', label: name, value: name }] },
+      { selector: linkUrl(j), titleKey, textKey, done: () => linkHas(j), drops: LINKS[j] ? [{ kind: 'link', label: LINKS[j], value: LINKS[j] }] : [] }];
+    const moreLink = n => ({ selector: () => { const r = vbEl('links'); return r && r.querySelector('[data-addlink]'); }, titleKey: 'plVitLinkMoreTitle', textKey: 'plVitLinkMoreText', done: () => linkRows() >= n });
+    const showcaseTab = { selector: '.tab[data-tab="showcase"]', titleKey: 'plVitTabTitle', textKey: 'plVitTabText', done: () => S.tab === 'showcase' && !!document.querySelector('[data-new]') };
+    const saveStep = { selector: '#vSave', titleKey: 'plVitSaveTitle', textKey: 'plVitSaveText', done: () => !draft() && (S.vitrines || []).length > 0 };
+    // L'aperçu s'ouvre dans un nouvel onglet (vitrine.html?tuto) : la vitrine y est relue depuis le navigateur.
+    const previewStep = { selector: 'a[href*="vitrine.html?id="]', titleKey: 'plVitPreviewTitle', textKey: 'plVitPreviewText', clickDone: true };
+    lessons['pj-vitrine'] = [
+      { titleKey: 'plVitWelcomeTitle', textKey: 'plVitWelcomeText' },
+      showcaseTab,
+      { selector: '[data-new="players"]', titleKey: 'plVitNewTitle', textKey: 'plVitNewText', done: () => !!draft() },
+      { selector: '#vSub', titleKey: 'plVitSubTitle', textKey: 'plVitSubText', done: () => hasText('vSub'),
+        drops: [{ kind: 'text', label: 'Quatre villes, un tempo : la ville qui joue avec toi.', value: 'Quatre villes, un tempo : la ville qui joue avec toi.' }] },
+      { selector: '#vSlug', titleKey: 'plVitSlugTitle', textKey: 'plVitSlugText', done: () => hasText('vSlug'), drops: [{ kind: 'text', label: 'music-city', value: 'music-city' }] },
+      { selector: () => vbEl('tracks'), titleKey: 'plVitTracksTitle', textKey: 'plVitTracksText' },
+      { selector: '[data-addblock="text"]', titleKey: 'plVitAddTextTitle', textKey: 'plVitAddTextText', done: () => hasBlock('text') },
+      { selector: vbField('text', 'title'), titleKey: 'plVitTextTitleTitle', textKey: 'plVitTextTitleText', done: () => vbHas('text', 'title'), drops: [{ kind: 'text', label: 'Le pitch', value: 'Le pitch' }] },
+      { selector: vbField('text', 'content'), titleKey: 'plVitTextBodyTitle', textKey: 'plVitTextBodyText', done: () => vbHas('text', 'content'),
+        drops: DP.SHOWCASE_PITCH ? [{ kind: 'text', label: DP.SHOWCASE_PITCH, value: DP.SHOWCASE_PITCH }] : [] },
+      { selector: '[data-addblock="video"]', titleKey: 'plVitAddVideoTitle', textKey: 'plVitAddVideoText', done: () => hasBlock('video') },
+      { selector: () => vbEl('video'), titleKey: 'plVitPickVideoTitle', textKey: 'plVitPickVideoText', done: () => picked('video') >= 1 },
+      { selector: '[data-addblock="photo"]', titleKey: 'plVitAddPhotoTitle', textKey: 'plVitAddPhotoText', done: () => hasBlock('photo') },
+      { selector: () => vbEl('photo'), titleKey: 'plVitPickPhotoTitle', textKey: 'plVitPickPhotoText', done: () => picked('photo') >= 4 },
+      { selector: '[data-addblock="links"]', titleKey: 'plVitAddLinksTitle', textKey: 'plVitAddLinksText', done: () => hasBlock('links') },
+      ...linkStep(0, 'plVitLink1Title', 'plVitLink1Text', 'Instagram'),
+      moreLink(2),
+      ...linkStep(1, 'plVitLink2Title', 'plVitLink2Text', 'YouTube'),
+      moreLink(3),
+      ...linkStep(2, 'plVitLink3Title', 'plVitLink3Text', 'Steam'),
+      { selector: '[data-addblock="contact"]', titleKey: 'plVitAddContactTitle', textKey: 'plVitAddContactText', done: () => hasBlock('contact') },
+      saveStep,
+      previewStep,
+      { titleKey: 'plVitDoneTitle', textKey: 'plVitDoneText', final: true },
+    ];
+    // Apparence : la vitrine de la leçon précédente est déjà là (seedVitrineBuilt).
+    const textBlockAp = sel => () => { const r = vbEl('text'); return r && r.querySelector(sel); };
+    lessons['pj-vitrine-look'] = [
+      { titleKey: 'plLookWelcomeTitle', textKey: 'plLookWelcomeText' },
+      showcaseTab,
+      { selector: '[data-edit]', titleKey: 'plLookEditTitle', textKey: 'plLookEditText', done: () => !!draft() },
+      { selector: '#vFont', titleKey: 'plLookFontTitle', textKey: 'plLookFontText', done: () => !!($('vFont') && $('vFont').value !== 'default') },
+      { selector: '[data-theme="titleColor"]', titleKey: 'plLookColorTitle', textKey: 'plLookColorText', done: () => { const i = document.querySelector('[data-theme="titleColor"]'); return !!(i && i.value.toLowerCase() !== '#24262b'); } },
+      { selector: '#vBg', titleKey: 'plLookBgTitle', textKey: 'plLookBgText', done: () => !!($('vBg') && $('vBg').value) },
+      { selector: '#vBgOp', titleKey: 'plLookOpacityTitle', textKey: 'plLookOpacityText', done: () => !!($('vBgOp') && Number($('vBgOp').value) <= 0.2) },
+      { selector: '#vSep', titleKey: 'plLookSepTitle', textKey: 'plLookSepText', done: () => !!($('vSep') && $('vSep').checked) },
+      { selector: textBlockAp('details > summary'), titleKey: 'plLookBlockTitle', textKey: 'plLookBlockText', done: () => { const d = textBlockAp('details')(); return !!(d && d.open); } },
+      { selector: () => { const c = textBlockAp('[data-apon="bgColor"]')(); return c && c.closest('label'); }, titleKey: 'plLookBlockBgTitle', textKey: 'plLookBlockBgText',
+        done: () => { const c = textBlockAp('[data-apon="bgColor"]')(); return !!(c && c.checked); } },
+      saveStep,
+      previewStep,
+      { titleKey: 'plLookDoneTitle', textKey: 'plLookDoneText', final: true },
+    ];
     // 2e bulle (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
     const PV = window.LayerPitchLessonPreviews;
     if (PV) Object.keys(lessons).forEach(id => { if (PV.has(id)) lessons[id].splice(1, 0, PV.step(id)); });
@@ -215,5 +297,5 @@
     return { start, close: () => G.close(), list: LESSON_LIST, guide: G, tr };
   }
 
-  window.LayerPitchProjetLessons = { init, LESSON_LIST, LESSON_LINKS, LESSON_IMAGES, MAP_AMBIANCE, MAP_MUSIC };
+  window.LayerPitchProjetLessons = { init, LESSON_LIST, LESSON_LINKS, LESSON_IMAGES, MAP_AMBIANCE };
 })();
