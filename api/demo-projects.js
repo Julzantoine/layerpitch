@@ -50,14 +50,6 @@
       ['Cuphead : l’enregistrement de « Floral Fury »', 'https://www.youtube.com/watch?v=v6h1vM9W2NM', 'Big band jazz enregistré en live : la couleur de Jazz City et du club.'],
     ],
   };
-  // Musique de chaque ville sur la carte (leçons « la musique » et « se balader ») : les boucles de 4 mesures de « Jazz Hi Seq. Branch. »
-  // de Jules-Antoine, déjà en ligne dans media.layerpitch.com/tuto/. Clé -> [nom du lieu sur la carte, fichier].
-  const CITY_DIR = 'https://media.layerpitch.com/tuto/' + encodeURIComponent('Jazz Hi Seq. Branch.') + '/';
-  const CITY_MUSIC = {};
-  [['jazz', 'Jazz City', 'Jazz Hi_Jazz City_4M_110bpm.wav'], ['rock', 'Rock City', 'Jazz Hi_Rock City_4M_110bpm.wav'],
-    ['disco', 'Disco City', 'Jazz Hi_Disco City_4M_110bpm.wav'], ['synth', 'Synth City', 'Jazz Hi_Synth city_4M_110bpm.wav']]
-    .forEach(([k, place, name]) => { CITY_MUSIC[k] = { place, label: name, name, url: CITY_DIR + encodeURIComponent(name) }; });
-
   // Leçons Vitrine (02/11) : images tirées des clips de la vidéo de gameplay, la vidéo elle-même et deux morceaux favoris (★, repris
   // d'office par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers dans media.layerpitch.com/tuto/music-city/.
   const MC_DIR = 'https://media.layerpitch.com/tuto/music-city/';
@@ -126,19 +118,12 @@
     const PACK_TITLES = { 'p-music-city': 'Music City : le club de jazz (exemple)' };
     const sharedPacks = [{ packId: 'p-cities', title: 'Music City : les quatre villes (pack de Daniel)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'daniel.orcman@example.com' }];
     const maps = [];
-    // Carte déjà construite (celle que la leçon « construire la carte » fait faire), sans musique : pour la leçon « musique ».
-    // Balade (opts.seedMapMusic) : la carte sonorisée par Jules-Antoine dans son Projet réel (WALK_MAP) ; ses morceaux sont dans
-    // api/demo-client.js (DEMO_TRACKS_CITY_MAP).
-    if (opts.seedMapMusic) maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data: JSON.parse(JSON.stringify(WALK_MAP)) });
-    else if (opts.seedMap) {
-      const emptySounds = () => ({ main: [], combat: [], room: [] });
-      const node = (id, type, label, x, y, note) => ({ id, type, label, x, y, note: note || '', sounds: emptySounds(), transition: null });
-      const edge = (id, from, to) => ({ id, from, to, label: '', enemy: false, sounds: emptySounds(), transition: null });
-      maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data: {
-        nodes: [node('n1', 'start', 'Jazz City', -240, 0), node('n2', 'transition', '', -120, 0), node('n3', 'place', 'Rock City', 0, 0),
-          node('n4', 'place', 'Disco City', 260, -110, 'La boîte de nuit de Disco City : sa carte est au niveau 2.'), node('n5', 'place', 'Synth City', 260, 110)],
-        edges: [edge('e1', 'n1', 'n2'), edge('e2', 'n2', 'n3'), edge('e3', 'n3', 'n4'), edge('e4', 'n3', 'n5')],
-        roomTone: null, roomToneDb: -14, defaults: { transition: { style: 'crossfade', sec: 2, sync: 'bar' } } } });
+    // Leçons « musique » (opts.seedMap) et « balade » (opts.seedMapMusic) : la carte de Jules-Antoine (WALK_MAP), sans ses sons pour la
+    // leçon « musique » (on les y pose un à un), complète pour la balade ; ses morceaux sont dans api/demo-client.js (DEMO_TRACKS_CITY_MAP).
+    if (opts.seedMap || opts.seedMapMusic) {
+      const data = JSON.parse(JSON.stringify(WALK_MAP));
+      if (!opts.seedMapMusic) { data.nodes.concat(data.edges).forEach(x => { x.sounds = { main: [], room: [], combat: [] }; }); data.roomTone = null; }
+      maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data });
     }
     const snapshots = [];
     let appearance = {};
@@ -337,5 +322,5 @@
     return new Proxy(P, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' ? async () => ok(null) : undefined)) });
   }
 
-  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl, CITY_MUSIC, SHOWCASE_PITCH, SHOWCASE_LINKS, TUTO_VITRINE_KEY };
+  window.LayerPitchDemoProjects = { create, SEED, LINK_PREVIEWS, previewFromUrl, WALK_MAP, SHOWCASE_PITCH, SHOWCASE_LINKS, TUTO_VITRINE_KEY };
 })();

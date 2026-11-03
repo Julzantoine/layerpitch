@@ -145,17 +145,16 @@ const { JSDOM } = require('jsdom');
   // ---- Leçons « musique » et « balade » (02/11) : les boucles des quatre villes de « Music City », la balade part d'une carte déjà sonorisée
   check('musique et balade ouvertes dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')));
   {
-    const C = W.LayerPitchDemoProjects.CITY_MUSIC;
-    check('une musique par ville (Jazz, Rock, Disco, Synth City)', ['jazz', 'rock', 'disco', 'synth'].every(k => C[k] && /^https:\/\/media\.layerpitch\.com\/tuto\//.test(C[k].url)));
     const PJw = W.LayerPitchDemoProjects.create({ seedMap: true, seedMapMusic: true });
     const m = (await PJw.listMaps()).data[0];
     const places = m.data.nodes.filter(n => n.label);
     const refs = [...m.data.nodes, ...m.data.edges].flatMap(n => n.sounds.main).concat([m.data.roomTone]);
     const dc = read('api/demo-client.js');
     check('balade : la carte de Jules-Antoine, une musique par ville, ambiance et pas dans la rue', places.length === 4 && places.every(n => n.sounds.main.length === 1) && m.data.roomTone && m.data.roomTone.title === 'City Birds' && m.data.edges.some(e => e.sounds.main.some(r => r.title === 'Street+Footsteps')));
-    check('balade : chaque morceau de la carte existe dans le faux serveur', refs.every(r => r.kind === 'track' && dc.includes('"id":"' + r.id + '"')) && /lessonParam\(\) === 'pj-map-walk' \? DEMO_TRACKS\.filter\([^)]*\)\)\.concat\(DEMO_TRACKS_CITY_MAP\)/.test(dc));
+    check('balade : chaque morceau de la carte existe dans le faux serveur', refs.every(r => r.kind === 'track' && dc.includes('"id":"' + r.id + '"')) && /includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter\([^)]*\)\)\.concat\(DEMO_TRACKS_CITY_MAP\)/.test(dc));
     const m2 = (await W.LayerPitchDemoProjects.create({ seedMap: true }).listMaps()).data[0];
-    check('leçon « musique » : la carte part sans musique', m2.data.nodes.every(n => !n.sounds.main.length));
+    check('leçon « musique » : la carte de Jules-Antoine, sans aucun son au départ', m2.data.nodes.length === m.data.nodes.length && m2.data.nodes.concat(m2.data.edges).every(n => !n.sounds.main.length) && !m2.data.roomTone);
+    check('leçon « musique » : ses morceaux sont aussi dans la bibliothèque', /\['pj-map-music', 'pj-map-walk'\]\.includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter/.test(dc));
   }
   // ---- Leçons Vitrine (02/11) : réserve garnie (images, vidéo, morceaux ★), enregistrement en mémoire, aperçu recopié dans le navigateur
   {

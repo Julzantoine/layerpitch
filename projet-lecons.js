@@ -18,9 +18,9 @@
   const LESSON_IMAGES = []; // [{ label, name, url }]
 
   // Sons d'exemple de la carte : { label, name, url }. Fond d'ambiance général : VIDE tant qu'aucun fichier n'est choisi (étapes sautées).
-  // Musique par ville (02/11) : les boucles des quatre villes de « Music City », déclarées dans api/demo-projects.js (CITY_MUSIC).
+  // Musique de la carte (02/11) : celle que Jules-Antoine a posée sur sa carte « Music City » (WALK_MAP dans api/demo-projects.js).
   const MAP_AMBIANCE = [];
-  const MAP_MUSIC = (window.LayerPitchDemoProjects && window.LayerPitchDemoProjects.CITY_MUSIC) || {}; // { jazz, rock, disco, synth }
+  const WALK_MAP = (window.LayerPitchDemoProjects && window.LayerPitchDemoProjects.WALK_MAP) || null;
 
   const LESSON_THEME_ID = 'preprod';
   // Leçons de cette page, dans l'ordre du menu. Les textes sont dans la zone « projects » de layerpitch-i18n.js.
@@ -175,12 +175,23 @@
     // Leçons « musique » (glisser la boucle de chaque ville sur son lieu) et « balade » (la carte a déjà sa musique, voir seedMapMusic).
     // L'onglet Carte d'abord : la carte d'exemple s'y ouvre toute seule.
     const mapTabStep = { selector: '.tab[data-tab="map"]', titleKey: 'plMapTabTitle', textKey: 'plMapTabText', done: () => S.tab === 'map' && !!document.querySelector('#lmSvg') };
+    // On glisse chaque morceau de la bibliothèque (à gauche) sur sa ville, puis les pas sur les chemins, puis l'ambiance de fond.
+    const libItem = title => () => [...document.querySelectorAll('#lmLib .lm-sound')].find(el => { const t = el.querySelector('.lm-t'); return t && t.textContent === title; }) || null;
+    const edgeEl = id => document.querySelector(`#lmSvg [data-edge="${id}"]`);
+    const W = WALK_MAP || { nodes: [], edges: [], roomTone: null };
+    const placeName = id => { const n = W.nodes.find(x => x.id === id); return n ? n.label : ''; };
     lessons['pj-map-music'] = [
       { titleKey: 'plMapMusicWelcomeTitle', textKey: 'plMapMusicWelcomeText' },
       mapTabStep,
-      ...['jazz:Jazz City', 'rock:Rock City', 'disco:Disco City', 'synth:Synth City'].map(x => { const [k, name] = x.split(':'); return {
-        selector: () => nodeEl(name), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText', textVars: { name }, skip: () => !MAP_MUSIC[k],
-        done: () => { const g = nodeEl(name); return !!g && /♪/.test(g.textContent); }, drops: MAP_MUSIC[k] ? fileDrops([MAP_MUSIC[k]]) : [] }; }),
+      ...W.nodes.filter(n => n.sounds.main[0]).map(n => ({ selector: libItem(n.sounds.main[0].title), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText',
+        textVars: { name: n.label, track: n.sounds.main[0].title }, done: () => { const g = nodeEl(n.label); return !!g && /♪/.test(g.textContent); } })),
+      ...W.edges.filter(e => e.sounds.main[0]).map(e => ({ selector: libItem(e.sounds.main[0].title), titleKey: 'plMapMusicPathTitle', textKey: 'plMapMusicPathText',
+        textVars: { from: placeName(e.from), to: placeName(e.to), track: e.sounds.main[0].title }, done: () => { const g = edgeEl(e.id); return !!g && /♪/.test(g.textContent); } })),
+      ...(W.roomTone ? [
+        { selector: '#lmSettings > summary', titleKey: 'plMapMusicRoomOpenTitle', textKey: 'plMapMusicRoomOpenText', done: () => !!($('lmSettings') && $('lmSettings').open) },
+        { selector: libItem(W.roomTone.title), titleKey: 'plMapMusicRoomTitle', textKey: 'plMapMusicRoomText', textVars: { track: W.roomTone.title },
+          done: () => !!($('lmRoomZone') && $('lmRoomZone').querySelector('.lm-t') && $('lmRoomZone').querySelector('.lm-t').textContent === W.roomTone.title) },
+      ] : []),
       { titleKey: 'plMapMusicDoneTitle', textKey: 'plMapMusicDoneText', final: true },
     ];
     lessons['pj-map-walk'] = [
@@ -286,5 +297,5 @@
     return { start, close: () => G.close(), list: LESSON_LIST, guide: G, tr };
   }
 
-  window.LayerPitchProjetLessons = { init, LESSON_LIST, LESSON_LINKS, LESSON_IMAGES, MAP_AMBIANCE, MAP_MUSIC };
+  window.LayerPitchProjetLessons = { init, LESSON_LIST, LESSON_LINKS, LESSON_IMAGES, MAP_AMBIANCE };
 })();

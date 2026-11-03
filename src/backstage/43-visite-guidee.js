@@ -1173,7 +1173,7 @@ const LESSONS = [
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
   { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
   { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
-  // « Musique » et « balade » : les boucles des quatre villes de « Music City » (CITY_MUSIC dans api/demo-projects.js), ouvertes le 02/11.
+  // « Musique » et « balade » : la carte « Music City » de Jules-Antoine (WALK_MAP dans api/demo-projects.js), ouvertes le 02/11.
   { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', steps: preprodEntrySteps('pj-map-music', 'plEntryIntroText') },
   { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', steps: preprodEntrySteps('pj-map-walk', 'plEntryIntroText') },
   // La vidéo en dernier (02/11) : Versioning puis Annoter, après la carte de niveau.
