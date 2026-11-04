@@ -562,6 +562,19 @@ async function publishAll() {
       const { ok, error } = await window.LayerPitchTracks.syncFolders(kind, folders);
       if (!ok) throw new Error('Écriture des dossiers (' + kind + ') échouée — publication arrêtée : ' + error);
     }
+    // Sfx AVANT morceaux, packs et AdReels (04/11) : un morceau ou un pack qui cite un Sfx tout neuf (jamais enregistré) était
+    // refusé par la base (« Sfx introuvable »), et la sauvegarde s'arrêtait là. Les Sfx ne dépendent que de leurs dossiers (juste au-dessus).
+    log('Écriture en base : Sfx...');
+    const pgSfxErrors = [];
+    for (const sfx of data.sfxLibrary) {
+      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
+      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
+    }
+    if (pgSfxErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
+
     log('Écriture en base : morceaux...');
     const pgErrors = [];
     for (const track of data.library) {
@@ -594,17 +607,6 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée :\n' + pgAdReelErrors.join('\n'));
     }
     log(`Écriture en base : ${data.adReels.length} AdReel(s) OK.`, 'ok');
-
-    log('Écriture en base : Sfx...');
-    const pgSfxErrors = [];
-    for (const sfx of data.sfxLibrary) {
-      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
-      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
-    }
-    if (pgSfxErrors.length) {
-      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
-    }
-    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
 
     log('Écriture en base : collections...');
     const pgCollectionErrors = [];
@@ -650,6 +652,7 @@ async function publishAll() {
     renderSocials();
     rebuildAllCards();
     renderPacks();
+    if (typeof notifyAtelierPacksChanged === 'function') notifyAtelierPacksChanged();
     // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
     // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
     if (retiredDeletes.length) window.LayerPitchNotify.info(tr('deleteRetiredAlert', { list: retiredDeletes.join('\n') }));

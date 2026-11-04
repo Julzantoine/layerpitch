@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793802956123">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793805626648">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -274,6 +274,7 @@
   .video-subpanel { display: none; margin-top: 6px; }
   .video-subpanel.active { display: block; }
   /* Atelier vidéo (21/10) : atelier.html dans un cadre, assez haut pour le lecteur, la vidéo et la frise (il défile à l'intérieur). */
+  .video-atelier-unsaved-note { margin-top: 10px; padding: 8px 12px; border: 1px solid #2f80c0; border-radius: 8px; background: rgba(47,128,192,0.08); color: var(--text, inherit); font-size: 13px; }
   .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -1430,6 +1431,8 @@
              aussi par « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc vidéo d'un AdReel) : openVideoAtelier(). -->
         <div class="video-subpanel" data-video-subpanel="capture">
           <div class="sub" data-i18n="videoCaptureSubtabHint">Choisis un pack, puis une vidéo, et joue sa musique adaptative sur l'image : retouche la prise, enregistre le montage, fais-en des versions avec d'autres musiques, et mets la vidéo à jour partout où elle est montrée.</div>
+          <!-- 04/11 : changements pas encore sauvegardés (un pack tout juste créé…) : l'atelier ne lit que ce qui est en base. -->
+          <div id="videoAtelierUnsavedNote" class="video-atelier-unsaved-note" hidden data-i18n="videoAtelierUnsavedNote">Tu as des changements pas encore sauvegardés : un pack que tu viens de créer ou de modifier apparaîtra ici après « Sauvegarder / publier ».</div>
           <iframe id="videoAtelierFrame" class="video-atelier-frame" title="Atelier vidéo" allow="autoplay; fullscreen"></iframe>
         </div>
 
@@ -1996,19 +1999,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793802956123"></script>
-<script src="layerpitch-i18n.js?v=1793802956123"></script>
-<script src="layerpitch-import-engine.js?v=1793802956123"></script>
-<script src="layerpitch-appearance.js?v=1793802956123"></script>
-<script src="layerpitch-album-shared.js?v=1793802956123"></script>
-<script src="layerpitch-album-editor.js?v=1793802956123"></script>
-<script src="layerpitch-shell.js?v=1793802956123"></script>
-<script src="layerpitch-social-icons.js?v=1793802956123"></script>
-<script src="layerpitch-notify.js?v=1793802956123"></script>
-<script src="layerpitch-guide.js?v=1793802956123"></script>
-<script src="layerpitch-lesson-previews.js?v=1793802956123"></script>
-<script src="layerpitch-help.js?v=1793802956123"></script>
-<script src="player.js?v=1793802956123"></script>
+<script src="layerpitch-tuto.js?v=1793805626648"></script>
+<script src="layerpitch-i18n.js?v=1793805626648"></script>
+<script src="layerpitch-import-engine.js?v=1793805626648"></script>
+<script src="layerpitch-appearance.js?v=1793805626648"></script>
+<script src="layerpitch-album-shared.js?v=1793805626648"></script>
+<script src="layerpitch-album-editor.js?v=1793805626648"></script>
+<script src="layerpitch-shell.js?v=1793805626648"></script>
+<script src="layerpitch-social-icons.js?v=1793805626648"></script>
+<script src="layerpitch-notify.js?v=1793805626648"></script>
+<script src="layerpitch-guide.js?v=1793805626648"></script>
+<script src="layerpitch-lesson-previews.js?v=1793805626648"></script>
+<script src="layerpitch-help.js?v=1793805626648"></script>
+<script src="player.js?v=1793805626648"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15084,7 +15087,7 @@ async function uploadLibraryVideo(file) {
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') ensureVideoAtelierLoaded();
+  if (name === 'capture') { ensureVideoAtelierLoaded(); refreshAtelierUnsavedNote(); }
   if (name === 'versioning') renderVideoVersioningList();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
@@ -15105,6 +15108,23 @@ function videoAtelierUrl(opts) {
 function ensureVideoAtelierLoaded() {
   const frame = document.getElementById('videoAtelierFrame');
   if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
+}
+// 04/11 : l'atelier ne lit que ce qui est en base. Ligne d'avertissement tant qu'il reste des changements non sauvegardés (un pack tout
+// juste créé n'y apparaît qu'après « Sauvegarder / publier ») ; revérifiée après chaque clic ou saisie (toute modification en passe par
+// là), rien à brancher sur chaque modification. Pas de minuterie : elle empêchait les tests (Node) de se terminer.
+function refreshAtelierUnsavedNote() {
+  const note = document.getElementById('videoAtelierUnsavedNote');
+  if (!note) return;
+  const show = !!hasUnsavedEdits && !isTutoMode();
+  if (note.hidden === show) note.hidden = !show;
+}
+['click', 'input', 'change', 'keyup'].forEach(type => document.addEventListener(type, () => setTimeout(refreshAtelierUnsavedNote, 0)));
+// Après une sauvegarde réussie : l'atelier (s'il est déjà ouvert) remet à jour sa liste de packs, sans recharger un montage en cours.
+function notifyAtelierPacksChanged() {
+  refreshAtelierUnsavedNote();
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return;
+  try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'packsChanged' }, location.origin); } catch (e) { /* cadre pas encore prêt : il lira la base à son ouverture */ }
 }
 // Ouvre l'atelier (onglet Vidéo → Atelier), sur un pack et un montage s'ils sont donnés (Versioning, bloc vidéo d'un AdReel).
 function openVideoAtelier(opts) {
@@ -15799,6 +15819,19 @@ async function publishAll() {
       const { ok, error } = await window.LayerPitchTracks.syncFolders(kind, folders);
       if (!ok) throw new Error('Écriture des dossiers (' + kind + ') échouée — publication arrêtée : ' + error);
     }
+    // Sfx AVANT morceaux, packs et AdReels (04/11) : un morceau ou un pack qui cite un Sfx tout neuf (jamais enregistré) était
+    // refusé par la base (« Sfx introuvable »), et la sauvegarde s'arrêtait là. Les Sfx ne dépendent que de leurs dossiers (juste au-dessus).
+    log('Écriture en base : Sfx...');
+    const pgSfxErrors = [];
+    for (const sfx of data.sfxLibrary) {
+      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
+      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
+    }
+    if (pgSfxErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
+
     log('Écriture en base : morceaux...');
     const pgErrors = [];
     for (const track of data.library) {
@@ -15831,17 +15864,6 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée :\n' + pgAdReelErrors.join('\n'));
     }
     log(`Écriture en base : ${data.adReels.length} AdReel(s) OK.`, 'ok');
-
-    log('Écriture en base : Sfx...');
-    const pgSfxErrors = [];
-    for (const sfx of data.sfxLibrary) {
-      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
-      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
-    }
-    if (pgSfxErrors.length) {
-      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
-    }
-    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
 
     log('Écriture en base : collections...');
     const pgCollectionErrors = [];
@@ -15887,6 +15909,7 @@ async function publishAll() {
     renderSocials();
     rebuildAllCards();
     renderPacks();
+    if (typeof notifyAtelierPacksChanged === 'function') notifyAtelierPacksChanged();
     // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
     // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
     if (retiredDeletes.length) window.LayerPitchNotify.info(tr('deleteRetiredAlert', { list: retiredDeletes.join('\n') }));

@@ -345,7 +345,7 @@ async function uploadLibraryVideo(file) {
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') ensureVideoAtelierLoaded();
+  if (name === 'capture') { ensureVideoAtelierLoaded(); refreshAtelierUnsavedNote(); }
   if (name === 'versioning') renderVideoVersioningList();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
@@ -366,6 +366,23 @@ function videoAtelierUrl(opts) {
 function ensureVideoAtelierLoaded() {
   const frame = document.getElementById('videoAtelierFrame');
   if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
+}
+// 04/11 : l'atelier ne lit que ce qui est en base. Ligne d'avertissement tant qu'il reste des changements non sauvegardés (un pack tout
+// juste créé n'y apparaît qu'après « Sauvegarder / publier ») ; revérifiée après chaque clic ou saisie (toute modification en passe par
+// là), rien à brancher sur chaque modification. Pas de minuterie : elle empêchait les tests (Node) de se terminer.
+function refreshAtelierUnsavedNote() {
+  const note = document.getElementById('videoAtelierUnsavedNote');
+  if (!note) return;
+  const show = !!hasUnsavedEdits && !isTutoMode();
+  if (note.hidden === show) note.hidden = !show;
+}
+['click', 'input', 'change', 'keyup'].forEach(type => document.addEventListener(type, () => setTimeout(refreshAtelierUnsavedNote, 0)));
+// Après une sauvegarde réussie : l'atelier (s'il est déjà ouvert) remet à jour sa liste de packs, sans recharger un montage en cours.
+function notifyAtelierPacksChanged() {
+  refreshAtelierUnsavedNote();
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return;
+  try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'packsChanged' }, location.origin); } catch (e) { /* cadre pas encore prêt : il lira la base à son ouverture */ }
 }
 // Ouvre l'atelier (onglet Vidéo → Atelier), sur un pack et un montage s'ils sont donnés (Versioning, bloc vidéo d'un AdReel).
 function openVideoAtelier(opts) {

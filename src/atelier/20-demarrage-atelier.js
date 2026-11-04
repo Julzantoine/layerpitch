@@ -41,6 +41,34 @@ async function atelierPackChoices(client) {
   return (data || []).filter(p => p.owner_id === composerId).map(p => ({ id: p.id, title: p.title || tr('atelierUntitledPack') }));
 }
 
+function atelierFillPackSelect(select, choices, packId) {
+  // Un pack ouvert par un lien (montage d'un autre compte de l'équipe, pack retiré de la liste…) reste proposé.
+  if (packId && !choices.some(c => c.id === packId)) choices.unshift({ id: packId, title: packId });
+  select.innerHTML = (packId ? '' : `<option value="">${escapeHtml(tr('atelierPickPack'))}</option>`)
+    + choices.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === packId ? 'selected' : ''}>${escapeHtml(c.title)}</option>`).join('');
+}
+
+// Sauvegarde dans le Backstage (04/11) : la page hôte prévient (« lp-backstage » / packsChanged) -- un pack créé puis sauvegardé
+// apparaît dans la liste sans recharger la page. Aucun pack ouvert : l'atelier se relance (rien à perdre). Un pack ouvert (prise ou
+// montage peut-être en cours) : seule la liste des packs est remise à jour, rien d'autre n'est touché.
+let atelierPacksRefreshing = false;
+window.addEventListener('message', async e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'packsChanged') return;
+  if (atelierPacksRefreshing) return;
+  atelierPacksRefreshing = true;
+  try {
+    const packId = atelierParams.get('id');
+    if (!packId) { await init(); return; }
+    const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+    if (!client) return;
+    atelierFillPackSelect(document.getElementById('atelierPackSelect'), await atelierPackChoices(client), packId);
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, mise à jour des packs :', err);
+  } finally {
+    atelierPacksRefreshing = false;
+  }
+});
+
 async function init() {
   const container = document.getElementById('content');
   const packId = atelierParams.get('id');
@@ -65,19 +93,19 @@ async function init() {
       atelierEmpty(container, escapeHtml(tr(atelierAsStudio ? 'atelierNoPacksStudio' : 'atelierNoPacks')));
       return;
     }
-    // Un pack ouvert par un lien (montage d'un autre compte de l'équipe, pack retiré de la liste…) reste proposé.
-    if (packId && !choices.some(c => c.id === packId)) choices.unshift({ id: packId, title: packId });
-    select.innerHTML = (packId ? '' : `<option value="">${escapeHtml(tr('atelierPickPack'))}</option>`)
-      + choices.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === packId ? 'selected' : ''}>${escapeHtml(c.title)}</option>`).join('');
+    atelierFillPackSelect(select, choices, packId);
     row.hidden = false;
-    select.addEventListener('change', () => {
-      if (!select.value) return;
-      const next = new URLSearchParams(location.search);
-      next.set('id', select.value);
-      next.delete('montage');
-      atelierTell('pack', { packId: select.value });
-      location.search = next.toString();
-    });
+    if (!select.dataset.bound) {
+      select.dataset.bound = '1';
+      select.addEventListener('change', () => {
+        if (!select.value) return;
+        const next = new URLSearchParams(location.search);
+        next.set('id', select.value);
+        next.delete('montage');
+        atelierTell('pack', { packId: select.value });
+        location.search = next.toString();
+      });
+    }
     if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); return; }
 
     // Données publiées du compositeur du pack (le sien, ou celui qui a vendu le pack au studio) : mêmes données que la page publique.
