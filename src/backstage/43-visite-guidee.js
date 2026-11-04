@@ -1265,11 +1265,12 @@ const GUIDE = window.LayerPitchGuide.create({
   startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
-  onClose: () => { hideDirectoryBackdrop(); renderTutorialMenu(); },
+  onClose: () => { hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
   cardExtras(step) {
+    if (step.profileQuiz) return profileQuizHtml(); // questions de profil (46-questions-de-profil.js)
     if (step.preview === 'hybridMap') return lhMapPreviewHtml();
     if (step.preview === 'hybridSeqMap') return lhsMapPreviewHtml();
     if (step.preview && window.LayerPitchLessonPreviews) return window.LayerPitchLessonPreviews.html(step.preview, tr);
@@ -1282,6 +1283,7 @@ const GUIDE = window.LayerPitchGuide.create({
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
   },
   wireCard(card, step) {
+    if (step.profileQuiz) { wireProfileQuiz(card); return; }
     // Lien « Télécharger le fichier d'exemple » : pour la façon « bouton » (choisir le fichier sur son ordinateur). Le fichier vient d'un
     // autre domaine : on le charge puis on le propose en téléchargement, l'attribut `download` seul serait ignoré.
     const dl = card.querySelector('[data-tour="download"]');
@@ -1331,11 +1333,14 @@ function tourChoiceStep() {
     .map(([theme, labelKey]) => { const l = first(theme); return l ? { labelKey, lesson: l.id } : null; }).filter(Boolean);
   return choices.length && lessonsAccessOpen() ? { titleKey: 'tourChoiceTitle', textKey: 'tourChoiceText', choices } : null;
 }
+let tourProfileWaited = false;
 function startBackstageTour() {
   if (guide) return;
+  // Questions de profil (4/11) : leur présence en fin de visite dépend des réponses déjà enregistrées, lues une fois.
+  if (profileQuizOpen() && myOnboardingProfile === undefined && !tourProfileWaited) { tourProfileWaited = true; loadMyOnboardingProfile().then(startBackstageTour); return; }
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
   const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
-  const choice = tourChoiceStep();
+  const choice = tourFinalStep(); // questions de profil / tes essentiels, ou le double choix d'avant (46-questions-de-profil.js)
   openGuide('tour', choice ? steps.concat(choice) : steps);
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
@@ -1404,7 +1409,7 @@ function renderTutorialMenu() {
   if (!list) return;
   const done = lessonsDone();
   const tick = '<svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-  list.innerHTML = `
+  list.innerHTML = `${essentialsMenuHtml(tick)}
     <button class="account-menu-item" type="button" data-tutorial="tour">
       <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr('accountMenuTour'))}</b><small>${escapeHtml(tr('tutorialTourDesc'))}</small></span></span>
       ${tourAlreadyDone() ? tick : ''}
@@ -1448,6 +1453,8 @@ function initTutorialMenuUi() {
   document.addEventListener('click', (e) => { if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== btn) closeMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
+    const sw = e.target.closest('[data-essentials-switch]');
+    if (sw) { e.stopPropagation(); switchEssentialsPath(sw.dataset.essentialsSwitch); if (guide) closeMenu(); return; }
     const fold = e.target.closest('[data-fold-theme]');
     if (fold) {
       // Le menu est redessiné : le bouton cliqué sort alors du DOM et le clic remonté au document paraîtrait « hors menu » (fermeture). On l'arrête ici.
@@ -1499,6 +1506,8 @@ function syncBackstageTour() {
   // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
   if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
   if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
+  else offerProfileQuizIfNeeded(); // comptes déjà inscrits : les questions de profil seules, une fois (46-questions-de-profil.js)
+  if (profileQuizOpen() && myOnboardingProfile === undefined) loadMyOnboardingProfile().then(() => { if (lessonsOpen) renderTutorialMenu(); });
 }
 // Accueil tant que la bibliothèque est vide (30/10, retours de bêta : tuto interactif pas vu, pas de morceau prêt pour essayer). Attend un
 // chargement réussi pour ne pas clignoter à l'ouverture, jamais en mode tutoriel. « Plus tard » vaut pour ce navigateur.

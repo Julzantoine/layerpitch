@@ -1030,3 +1030,7 @@
 /* Exemples préchargés (4/11, 45-exemples.js) : étiquette « Exemple » et ligne d'explication, dans le bleu du Backstage. */
 .lp-example-badge { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); margin-left: 6px; white-space: nowrap; }
 .lp-example-notice { margin: 8px 0 4px; padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--accent-soft); color: var(--text, inherit); }
+/* Questions de profil (4/11, 46-questions-de-profil.js) : dans la bulle de fin de visite. */
+.profile-quiz-q { font-weight: 600; margin: 10px 0 6px; }
+.profile-essentials { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.profile-essentials .btn { text-align: left; justify-content: flex-start; }

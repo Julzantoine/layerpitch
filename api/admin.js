@@ -18,6 +18,13 @@
     return { stats: data, error: null };
   }
 
+  // Questions de profil (4/11, admin_onboarding_profile_stats) : posées, passées, répartition des réponses.
+  async function getOnboardingProfileStats() {
+    const { data, error } = await getClient().rpc('admin_onboarding_profile_stats');
+    if (error) return { stats: null, error: error.message };
+    return { stats: data, error: null };
+  }
+
   // Courbe d'evolution dans le temps (22 septembre) : mêmes métriques que "nouveaux sur la
   // période" ci-dessus, mais regroupées par semaine/mois plutôt qu'un seul total — voir
   // admin_get_growth_series() (aucune table d'événements, uniquement created_at déjà existant).
@@ -143,5 +150,5 @@
     return { report: data || [], error: null };
   }
 
-  window.LayerPitchAdmin = { getAdReelsReport, getStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage, updateAdminMessage, listNativeMessages, updateNativeMessage, deleteNativeMessage };
+  window.LayerPitchAdmin = { getAdReelsReport, getStats, getOnboardingProfileStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage, updateAdminMessage, listNativeMessages, updateNativeMessage, deleteNativeMessage };
 })();

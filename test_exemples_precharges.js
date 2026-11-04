@@ -19,7 +19,7 @@
   const mk = async (n, handle, lang) => {
     await q(`insert into auth.users (id, email) values ($1, $2)`, [U(n), `c${n}@x.test`]);
     await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(n)]);
-    await q(`update public.profiles set lang = $2 where id = $1`, [U(n), lang || null]);
+    await q(`update public.profiles set lang = $2, onboarding_completed = true where id = $1`, [U(n), lang || null]);
     return (await q(`insert into public.composer_profiles (profile_id, handle) values ($1, $2) returning id`, [U(n), handle]))[0].id;
   };
 
@@ -182,6 +182,13 @@
   await q(`update public.tracks set retired_at = now() where id = 'bmvidtfhvfa5tt'`);
   await mk(5, 'zed'); await as(U(5));
   check('source retirée entre-temps : simplement sautée', (await val(`select public.seed_my_examples()`)).tracks === 5);
+
+  // ---- Après l'accueil seulement (sinon le message des exemples empêcherait la bienvenue)
+  await mk(6, 'neo'); await q(`update public.profiles set onboarding_completed = false where id = $1`, [U(6)]); await as(U(6));
+  check('accueil pas terminé : rien encore (la bienvenue d\'abord)', (await val(`select public.seed_my_examples()`)).skipped === 'onboarding'
+    && (await val(`select count(*)::int from public.admin_messages where recipient_id = $1`, [U(6)])) === 0);
+  await q(`update public.profiles set onboarding_completed = true where id = $1`, [U(6)]);
+  check('… accueil terminé : ajout au chargement suivant', (await val(`select public.seed_my_examples()`)).seeded === true);
 
   // ---- Questions de profil
   await as(U(2));
