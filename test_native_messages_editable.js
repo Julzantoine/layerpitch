@@ -58,7 +58,7 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
 
   // --- suppression du modèle : plus de bienvenue ; « enregistrer » la recrée ---
   await q(`select public.admin_delete_native_message('welcome')`);
-  check('modèle supprimé : plus dans la liste', (await q(`select * from public.admin_list_native_messages()`)).length === 0);
+  check('modèle supprimé : plus dans la liste', !(await q(`select * from public.admin_list_native_messages()`)).some(m => m.key === 'welcome'));
   await as(2);
   await q(`delete from public.admin_messages where recipient_id = $1`, [U(2)]);
   await q(`select public.mark_onboarding_complete()`);
@@ -74,6 +74,36 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   check('la liste admin expose le drapeau d\'accueil', (await q(`select * from public.admin_list_messages()`)).find(m => m.id == idSent).welcome === true);
   await q(`select public.admin_delete_message($1::bigint)`, [idSent]);
   check('un message d\'accueil diffusé se supprime comme les autres', !(await q(`select * from public.admin_list_messages()`)).some(m => m.id == idSent));
+
+  // --- bienvenue studio (4/11) : un compte studio seul reçoit 'welcome_studio' ---
+  for (const [n, email] of [[4, 'studio@x.test'], [5, 'both@x.test']]) {
+    await q(`insert into auth.users (id, email) values ($1, $2)`, [U(n), email]);
+    await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(n)]);
+    await q(`insert into public.studio_profiles (profile_id) values ($1)`, [U(n)]);
+  }
+  await q(`insert into public.composer_profiles (profile_id) values ($1)`, [U(5)]);
+  const studioTpl = (await q(`select * from public.admin_list_native_messages()`)).find(m => m.key === 'welcome_studio');
+  check('le modèle studio existe, FR/EN, centré sur le mode Projet, sans tuto vidéo',
+    studioTpl && studioTpl.body.fr.includes('mode Projet') && studioTpl.body.en.includes('Project mode') && !/youtube/i.test(studioTpl.body.fr + studioTpl.body.en));
+  await as(4);
+  await q(`select public.mark_onboarding_complete()`);
+  const st = await q(`select body from public.admin_messages where recipient_id = $1`, [U(4)]);
+  check('compte studio seul : reçoit la bienvenue studio', st.length === 1 && st[0].body.fr === studioTpl.body.fr);
+  await as(5);
+  await q(`select public.mark_onboarding_complete()`);
+  const both = await q(`select body from public.admin_messages where recipient_id = $1`, [U(5)]);
+  check('compte studio + compositeur : garde la bienvenue compositeur', both.length === 1 && both[0].body.fr === 'Recréé');
+  await as(1);
+  await q(`select public.admin_update_native_message('welcome_studio', $1::jsonb)`, [JSON.stringify({ fr: 'Studio modifié' })]);
+  check('le modèle studio se modifie depuis l\'admin', (await q(`select * from public.admin_list_native_messages()`)).find(m => m.key === 'welcome_studio').body.fr === 'Studio modifié');
+  await q(`select public.admin_delete_native_message('welcome_studio')`);
+  await q(`insert into auth.users (id, email) values ($1, 'studio2@x.test')`, [U(6)]);
+  await q(`insert into public.profiles (id) values ($1) on conflict do nothing`, [U(6)]);
+  await q(`insert into public.studio_profiles (profile_id) values ($1)`, [U(6)]);
+  await as(6);
+  await q(`select public.mark_onboarding_complete()`);
+  check('sans modèle studio : le studio reçoit la bienvenue compositeur', (await q(`select body from public.admin_messages where recipient_id = $1`, [U(6)]))[0]?.body.fr === 'Recréé');
+  await as(1);
 
   // --- garde-fous ---
   check('message inconnu : refusé', await fails(`select public.admin_update_native_message('nope', '{"fr":"x"}'::jsonb)`, [], /inconnu/));
@@ -106,7 +136,7 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   const html = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
   check('admin.html : bouton Modifier dans l\'historique et carte des messages automatiques', html.includes('data-admin-msg-edit') && html.includes('data-native-delete') && html.includes('id="adminNativeMsgs"') && html.includes('loadAdminNativeMsgs();'));
   const i18n = fs.readFileSync(path.join(__dirname, 'layerpitch-i18n.js'), 'utf8');
-  check('i18n : libellés FR et EN', (i18n.match(/adminMsgEditBtn:/g) || []).length === 2 && (i18n.match(/adminNativeKey_welcome:/g) || []).length === 2 && (i18n.match(/adminNativeSentLabel:/g) || []).length === 2);
+  check('i18n : libellés FR et EN', (i18n.match(/adminMsgEditBtn:/g) || []).length === 2 && (i18n.match(/adminNativeKey_welcome:/g) || []).length === 2 && (i18n.match(/adminNativeKey_welcome_studio:/g) || []).length === 2 && (i18n.match(/adminNativeSentLabel:/g) || []).length === 2);
 
   if (failures) { console.log(`\n${failures} échec(s)`); process.exit(1); }
   console.log('\nTout est OK');
