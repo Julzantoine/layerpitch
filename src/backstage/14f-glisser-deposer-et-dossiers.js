@@ -403,6 +403,7 @@ document.addEventListener('pointercancel', releaseAllOrgFolderDragHandles);
 //   deleteFolderAction  nom de l'action data-action du bouton suppression de dossier
 //   folderFieldAttr     nom de l'attribut data-*-folder-field posé sur le champ titre du dossier
 //   folderFallbackKey   clé i18n du placeholder "dossier sans nom"
+//   packFromFolderAction (facultatif) data-action du bouton « Créer un pack » de l'en-tête de dossier
 //   buildRowInner(item) renvoie le HTML interne d'une ligne (après la poignée) -- laisse à l'appelant le
 //                       soin d'afficher ce qui a du sens pour lui (titre + badge, titre + compteur, etc.)
 function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opts) {
@@ -427,6 +428,7 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
         ${dragHandleHtml('folder-drag-handle')}
         <button class="btn btn-icon" data-action="${opts.toggleFolderAction}" data-folder-id="${folder.id}" type="button">${collapsed ? '▸' : '▾'}</button>
         <input type="text" class="org-folder-title" ${opts.folderFieldAttr}="label" data-folder-id="${folder.id}" value="${escapeAttr(folder.label)}" placeholder="${tr(opts.folderFallbackKey)}">
+        ${opts.packFromFolderAction ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
         ${deleteIconBtnHtml(opts.deleteFolderAction, { 'folder-id': folder.id }, tr('deleteBtn'))}
       </div>
     `;

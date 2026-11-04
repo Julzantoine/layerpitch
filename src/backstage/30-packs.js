@@ -245,8 +245,45 @@ function packPriceOptions(current) {
   return `<option value=""${current == null ? ' selected' : ''}>${tr('packPriceNone')}</option>` +
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
+function newPackObject() {
+  return { id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' };
+}
+// « Créer un pack avec ce dossier » (04/11) : copie unique -- le pack reçoit une fois les morceaux du dossier (dans
+// l'ordre de la liste) et tous les Sfx attachés à ces morceaux, sans doublon ; ensuite pack et dossier vivent chacun
+// leur vie. Depuis un dossier de Sfx : les Sfx du dossier seulement. Feu vert 'pack_from_folder' (admin d'abord).
+function createPackFromFolder(kind, folderId) {
+  if (!flagOpen('pack_from_folder')) return;
+  const folders = kind === 'sfx' ? sfxFolders : libraryFolders;
+  const folder = folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const pack = newPackObject();
+  if (folder.label && folder.label.trim()) pack.title = folder.label.trim();
+  const knownSfx = new Set(sfxLibrary.map(s => s.id));
+  if (kind === 'sfx') {
+    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId).map(s => s.id);
+  } else {
+    const tracks = library.filter(t => t.folderId === folderId);
+    pack.trackIds = tracks.map(t => t.id);
+    const seen = new Set();
+    tracks.forEach(t => (t.sfxIds || []).forEach(id => { if (knownSfx.has(id) && !seen.has(id)) { seen.add(id); pack.sfxIds.push(id); } }));
+  }
+  if (!pack.trackIds.length && !pack.sfxIds.length) {
+    window.LayerPitchNotify.info(tr('packFromFolderEmpty'));
+    return;
+  }
+  packs.push(pack);
+  packSelectedEntry.set(pack.id, 'content');
+  hasUnsavedEdits = true;
+  trackBackstageEvent('pack_add', { fromFolder: kind, tracks: pack.trackIds.length, sfx: pack.sfxIds.length });
+  renderPacks();
+  openTab('packs');
+  const blocks = document.querySelectorAll('#packsContainer > .list-block');
+  const last = blocks[blocks.length - 1];
+  if (last) last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.LayerPitchNotify.info(tr('packFromFolderDone', { tracks: pack.trackIds.length, sfx: pack.sfxIds.length }));
+}
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push(newPackObject());
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();

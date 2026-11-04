@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793801593266">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793802956123">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -498,6 +498,7 @@
      droite. Réutilise .seq-two-col/.seq-master-list/.seq-detail-col/.seq-master-item déjà en place. */
   .org-folder-group { margin-bottom: 10px; }
   .org-folder-header { display: flex; align-items: center; gap: 6px; padding: 2px; margin-bottom: 4px; }
+  .org-folder-pack-btn { flex: 0 0 auto; white-space: nowrap; }
   .org-folder-title { flex: 1; font-weight: 600; font-size: 13px; border: 1px solid transparent; background: transparent; padding: 3px 4px; border-radius: 4px; }
   .org-folder-title:hover, .org-folder-title:focus { border-color: var(--border); }
   .org-folder-dropzone, .org-root-dropzone { display: flex; flex-direction: column; gap: 4px; min-height: 10px; padding: 2px 0 2px 4px; border-radius: 6px; }
@@ -1995,19 +1996,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793801593266"></script>
-<script src="layerpitch-i18n.js?v=1793801593266"></script>
-<script src="layerpitch-import-engine.js?v=1793801593266"></script>
-<script src="layerpitch-appearance.js?v=1793801593266"></script>
-<script src="layerpitch-album-shared.js?v=1793801593266"></script>
-<script src="layerpitch-album-editor.js?v=1793801593266"></script>
-<script src="layerpitch-shell.js?v=1793801593266"></script>
-<script src="layerpitch-social-icons.js?v=1793801593266"></script>
-<script src="layerpitch-notify.js?v=1793801593266"></script>
-<script src="layerpitch-guide.js?v=1793801593266"></script>
-<script src="layerpitch-lesson-previews.js?v=1793801593266"></script>
-<script src="layerpitch-help.js?v=1793801593266"></script>
-<script src="player.js?v=1793801593266"></script>
+<script src="layerpitch-tuto.js?v=1793802956123"></script>
+<script src="layerpitch-i18n.js?v=1793802956123"></script>
+<script src="layerpitch-import-engine.js?v=1793802956123"></script>
+<script src="layerpitch-appearance.js?v=1793802956123"></script>
+<script src="layerpitch-album-shared.js?v=1793802956123"></script>
+<script src="layerpitch-album-editor.js?v=1793802956123"></script>
+<script src="layerpitch-shell.js?v=1793802956123"></script>
+<script src="layerpitch-social-icons.js?v=1793802956123"></script>
+<script src="layerpitch-notify.js?v=1793802956123"></script>
+<script src="layerpitch-guide.js?v=1793802956123"></script>
+<script src="layerpitch-lesson-previews.js?v=1793802956123"></script>
+<script src="layerpitch-help.js?v=1793802956123"></script>
+<script src="player.js?v=1793802956123"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -4825,6 +4826,7 @@ document.addEventListener('pointercancel', releaseAllOrgFolderDragHandles);
 //   deleteFolderAction  nom de l'action data-action du bouton suppression de dossier
 //   folderFieldAttr     nom de l'attribut data-*-folder-field posé sur le champ titre du dossier
 //   folderFallbackKey   clé i18n du placeholder "dossier sans nom"
+//   packFromFolderAction (facultatif) data-action du bouton « Créer un pack » de l'en-tête de dossier
 //   buildRowInner(item) renvoie le HTML interne d'une ligne (après la poignée) -- laisse à l'appelant le
 //                       soin d'afficher ce qui a du sens pour lui (titre + badge, titre + compteur, etc.)
 function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opts) {
@@ -4849,6 +4851,7 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
         ${dragHandleHtml('folder-drag-handle')}
         <button class="btn btn-icon" data-action="${opts.toggleFolderAction}" data-folder-id="${folder.id}" type="button">${collapsed ? '▸' : '▾'}</button>
         <input type="text" class="org-folder-title" ${opts.folderFieldAttr}="label" data-folder-id="${folder.id}" value="${escapeAttr(folder.label)}" placeholder="${tr(opts.folderFallbackKey)}">
+        ${opts.packFromFolderAction ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
         ${deleteIconBtnHtml(opts.deleteFolderAction, { 'folder-id': folder.id }, tr('deleteBtn'))}
       </div>
     `;
@@ -7094,6 +7097,7 @@ function renderLibrary() {
     selectAction: 'select-manage-track',
     toggleFolderAction: 'toggle-library-folder',
     deleteFolderAction: 'delete-library-folder',
+    packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
@@ -8676,6 +8680,7 @@ function renderSfxLibrary() {
     selectAction: 'select-manage-sfx',
     toggleFolderAction: 'toggle-sfx-folder',
     deleteFolderAction: 'delete-sfx-folder',
+    packFromFolderAction: 'pack-from-sfx-folder',
     folderFieldAttr: 'data-sfx-folder-field',
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>`
@@ -9188,6 +9193,8 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     renderSfxLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-sfx-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('sfx', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-sfx-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
@@ -9331,6 +9338,8 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-library-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('library', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-library-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
@@ -12235,8 +12244,45 @@ function packPriceOptions(current) {
   return `<option value=""${current == null ? ' selected' : ''}>${tr('packPriceNone')}</option>` +
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
+function newPackObject() {
+  return { id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' };
+}
+// « Créer un pack avec ce dossier » (04/11) : copie unique -- le pack reçoit une fois les morceaux du dossier (dans
+// l'ordre de la liste) et tous les Sfx attachés à ces morceaux, sans doublon ; ensuite pack et dossier vivent chacun
+// leur vie. Depuis un dossier de Sfx : les Sfx du dossier seulement. Feu vert 'pack_from_folder' (admin d'abord).
+function createPackFromFolder(kind, folderId) {
+  if (!flagOpen('pack_from_folder')) return;
+  const folders = kind === 'sfx' ? sfxFolders : libraryFolders;
+  const folder = folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const pack = newPackObject();
+  if (folder.label && folder.label.trim()) pack.title = folder.label.trim();
+  const knownSfx = new Set(sfxLibrary.map(s => s.id));
+  if (kind === 'sfx') {
+    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId).map(s => s.id);
+  } else {
+    const tracks = library.filter(t => t.folderId === folderId);
+    pack.trackIds = tracks.map(t => t.id);
+    const seen = new Set();
+    tracks.forEach(t => (t.sfxIds || []).forEach(id => { if (knownSfx.has(id) && !seen.has(id)) { seen.add(id); pack.sfxIds.push(id); } }));
+  }
+  if (!pack.trackIds.length && !pack.sfxIds.length) {
+    window.LayerPitchNotify.info(tr('packFromFolderEmpty'));
+    return;
+  }
+  packs.push(pack);
+  packSelectedEntry.set(pack.id, 'content');
+  hasUnsavedEdits = true;
+  trackBackstageEvent('pack_add', { fromFolder: kind, tracks: pack.trackIds.length, sfx: pack.sfxIds.length });
+  renderPacks();
+  openTab('packs');
+  const blocks = document.querySelectorAll('#packsContainer > .list-block');
+  const last = blocks[blocks.length - 1];
+  if (last) last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.LayerPitchNotify.info(tr('packFromFolderDone', { tracks: pack.trackIds.length, sfx: pack.sfxIds.length }));
+}
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push(newPackObject());
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();

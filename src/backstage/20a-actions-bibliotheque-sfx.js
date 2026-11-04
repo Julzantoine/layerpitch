@@ -40,6 +40,8 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     renderSfxLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-sfx-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('sfx', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-sfx-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;

@@ -43,6 +43,8 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-library-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('library', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-library-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;

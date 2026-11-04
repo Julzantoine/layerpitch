@@ -482,6 +482,7 @@
      droite. Réutilise .seq-two-col/.seq-master-list/.seq-detail-col/.seq-master-item déjà en place. */
   .org-folder-group { margin-bottom: 10px; }
   .org-folder-header { display: flex; align-items: center; gap: 6px; padding: 2px; margin-bottom: 4px; }
+  .org-folder-pack-btn { flex: 0 0 auto; white-space: nowrap; }
   .org-folder-title { flex: 1; font-weight: 600; font-size: 13px; border: 1px solid transparent; background: transparent; padding: 3px 4px; border-radius: 4px; }
   .org-folder-title:hover, .org-folder-title:focus { border-color: var(--border); }
   .org-folder-dropzone, .org-root-dropzone { display: flex; flex-direction: column; gap: 4px; min-height: 10px; padding: 2px 0 2px 4px; border-radius: 6px; }

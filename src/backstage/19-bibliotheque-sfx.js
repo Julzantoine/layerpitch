@@ -13,6 +13,7 @@ function renderSfxLibrary() {
     selectAction: 'select-manage-sfx',
     toggleFolderAction: 'toggle-sfx-folder',
     deleteFolderAction: 'delete-sfx-folder',
+    packFromFolderAction: 'pack-from-sfx-folder',
     folderFieldAttr: 'data-sfx-folder-field',
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>`

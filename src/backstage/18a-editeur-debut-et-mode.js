@@ -15,6 +15,7 @@ function renderLibrary() {
     selectAction: 'select-manage-track',
     toggleFolderAction: 'toggle-library-folder',
     deleteFolderAction: 'delete-library-folder',
+    packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
