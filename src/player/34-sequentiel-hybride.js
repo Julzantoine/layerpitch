@@ -226,10 +226,12 @@ function initHybridPlayer(track, wrapper, elementColors) {
     }
     refreshNext();
   }
-  // viaPassage : on arrive depuis une autre section ; une section réglée pour sauter son intro démarre alors dans sa boucle.
+  // viaPassage : on arrive depuis une autre section. Par défaut, seul le tout premier départ joue l'intro : par un passage (section
+  // suivante, embranchement, retour), le morceau démarre directement à son point d'entrée de boucle (ou sans son fichier d'intro),
+  // sauf section réglée pour garder son intro (keepIntro, case « Ignorer l'intro » décochée).
   function startSection(i, when, viaPassage) {
     players[i].control.onEnded(() => onSectionEnded(i));
-    players[i].control.startAt(when, !!viaPassage && !!sections[i].skipIntro);
+    players[i].control.startAt(when, !!viaPassage && !sections[i].keepIntro);
   }
   function onSectionEnded(i) {
     // La dernière section a fini de sonner. Une section qui s'arrête sans avoir annoncé de passage ne bloque pas la suite.

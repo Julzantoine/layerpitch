@@ -259,8 +259,9 @@ function renderHybridEditor(host, track, ti) {
     if (hybridSectionHasIntro(source)) {
       const skip = document.createElement('label');
       skip.className = 'hybrid-skip-intro';
-      skip.innerHTML = `<input type="checkbox"${sec.skipIntro ? ' checked' : ''}> <span>${tr('hybridSkipIntroLabel')}</span>`;
-      skip.querySelector('input').addEventListener('change', e => { sec.skipIntro = e.target.checked; hasUnsavedEdits = true; });
+      // Cochée par défaut (03/11) : on enregistre l'exception (keepIntro), pas la règle — l'ancien champ skipIntro, à false partout, est ignoré.
+      skip.innerHTML = `<input type="checkbox"${sec.keepIntro ? '' : ' checked'}> <span>${tr('hybridSkipIntroLabel')}</span>`;
+      skip.querySelector('input').addEventListener('change', e => { sec.keepIntro = !e.target.checked; hasUnsavedEdits = true; });
       row.appendChild(skip);
       const hint = document.createElement('div');
       hint.className = 'hint-inline';

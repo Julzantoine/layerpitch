@@ -285,18 +285,45 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
   const introVert = (id, n) => ({ ...vertical(id, n), startTrackBeat: 0, loopInBeat: 1, loopOutBeat: 2, duration: 1.1, layers: [{ label: 'a', localFile: file(n + '1.wav', 1.1) }, { label: 'b', localFile: file(n + '2.wav', 1.1) }] });
   const rm = mount([
     { id: 'a', label: 'A', maxLoops: 1, track: introVert('ia', 'ia') },
-    { id: 'b', label: 'B', maxLoops: 1, skipIntro: true, track: introVert('ib', 'ib') },
-    { id: 'c', label: 'C', maxLoops: 1, track: introVert('ic', 'ic') },
+    { id: 'b', label: 'B', maxLoops: 1, track: introVert('ib', 'ib') },
+    { id: 'c', label: 'C', maxLoops: 1, skipIntro: false, track: introVert('ic', 'ic') }, // ancien champ skipIntro: false (partout en base) : ignoré
+    { id: 'd', label: 'D', maxLoops: 1, keepIntro: true, track: introVert('id', 'id') }, // case décochée : l'intro est gardée
   ]);
-  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 3 && rm.querySelectorAll('.seq-map-edge').length === 2);
+  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 4 && rm.querySelectorAll('.seq-map-edge').length === 3);
   await waitUntil(() => !rolePlay(rm).disabled, 2000);
   click(rolePlay(rm));
   await waitUntil(() => firstStart('ia1.wav'), 800);
   check('carte : la section en cours est marquée, la suivante cliquable', rm.querySelector('.seq-map-node.current').dataset.mapIdx === '0' && rm.querySelector('.seq-map-node.selectable').dataset.mapIdx === '1');
   check('première section : l\'intro est jouée', firstStart('ia1.wav').offset === 0);
-  check('section réglée pour sauter l\'intro : départ au point d\'entrée de boucle', await waitUntil(() => firstStart('ib1.wav'), 3000) && Math.abs(firstStart('ib1.wav').offset - 0.4) < 1e-9);
-  check('section sans ce réglage : intro jouée', await waitUntil(() => firstStart('ic1.wav'), 3000) && firstStart('ic1.wav').offset === 0);
+  check('2e section : départ au point d\'entrée de boucle, toutes les couches', await waitUntil(() => firstStart('ib1.wav'), 3000) && Math.abs(firstStart('ib1.wav').offset - 0.4) < 1e-9 && Math.abs(firstStart('ib2.wav').offset - 0.4) < 1e-9);
+  check('3e section (même réglée « ne pas sauter ») : intro sautée aussi', await waitUntil(() => firstStart('ic1.wav'), 3000) && Math.abs(firstStart('ic1.wav').offset - 0.4) < 1e-9);
+  check('section avec la case décochée : intro jouée', await waitUntil(() => firstStart('id1.wav'), 3000) && firstStart('id1.wav').offset === 0);
   click(rm.querySelector('[data-role="stopBtn"]'));
+
+  // ---- Intro sautée au passage, pour les autres modes (séquentiel et vertical-random : fichier d'intro ; embranchement : Départ→Entrée) ----
+  const introCase = async (label, track, introFile, mainFile, expectOffset) => {
+    starts.length = 0;
+    const r = mount([{ id: 'a', label: 'A', maxLoops: 1, track: vertical('p' + label, 'p' + label) }, { id: 'b', label: 'B', maxLoops: 0, track }]);
+    await waitUntil(() => !rolePlay(r).disabled, 2000);
+    click(rolePlay(r));
+    const heard = await waitUntil(() => firstStart(mainFile), 3000);
+    await sleep(150);
+    if (introFile) check(label + ' en 2e position : fichier d\'intro jamais joué, la section démarre dans sa boucle', heard && !firstStart(introFile));
+    else check(label + ' en 2e position : départ au point d\'entrée de boucle', heard && Math.abs(firstStart(mainFile).offset - expectOffset) < 1e-9);
+    click(r.querySelector('[data-role="stopBtn"]'));
+  };
+  await introCase('séquentiel', { ...seqTrack('si', 'si'), intro: { label: 'i', localFile: file('siintro.wav', 0.4) } }, 'siintro.wav', 'si.wav');
+  await introCase('vertical-random', { ...vrTrack('vi', 'vi'), intro: { label: 'i', localFile: file('viintro.wav', 0.4) } }, 'viintro.wav', 'vi.wav');
+  const embrIntro = embrTrack('ei', 'ei');
+  embrIntro.loops = embrIntro.loops.map(l => ({ ...l, duration: 1.2, bars: 2, startTrackBeat: 0, loopInBeat: 1, loopOutBeat: 3 }));
+  await introCase('embranchement', embrIntro, null, 'ei1.wav', 0.4);
+  // Contre-épreuve : en 1re position, le fichier d'intro du séquentiel est bien joué.
+  starts.length = 0;
+  const rsf = mount([{ id: 'a', label: 'A', maxLoops: 1, track: { ...seqTrack('sf', 'sf'), intro: { label: 'i', localFile: file('sfintro.wav', 0.4) } } }]);
+  await waitUntil(() => !rolePlay(rsf).disabled, 2000);
+  click(rolePlay(rsf));
+  check('séquentiel en 1re position : l\'intro est jouée', await waitUntil(() => firstStart('sfintro.wav'), 2000));
+  click(rsf.querySelector('[data-role="stopBtn"]'));
 
   // ---- Retour libre vers une section déjà jouée ----
   starts.length = 0;

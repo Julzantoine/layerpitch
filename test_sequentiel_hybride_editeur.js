@@ -105,6 +105,11 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('pas de case « ignorer l\'intro » sans intro', !q('.hybrid-skip-intro'));
   window.eval("library.find(l => l.id === 'vt').loopEngine = 'quantized'; library.find(l => l.id === 'vt').loopInBeat = 4; renderLibrary();");
   check('intro détectée : case proposée', !!q('.hybrid-skip-intro'));
+  // Cochée par défaut, même pour une section enregistrée avec l'ancien skipIntro: false ; décochée = keepIntro publié.
+  const skipBox = q('.hybrid-skip-intro input');
+  check('case « ignorer l\'intro » cochée par défaut', skipBox.checked);
+  skipBox.checked = false; skipBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+  check('case décochée : keepIntro publié', JSON.parse(window.eval("JSON.stringify(buildDataSnapshot({}, 1).library.find(l => l.id === manageLibrarySelectedId).sections)")).some(s => s.keepIntro === true));
 
   // Retour libre : une case pour tout le morceau, rangée sur chaque section, gardée à la publication.
   const fr = q('input[data-hybrid="freeReturn"]');

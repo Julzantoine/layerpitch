@@ -434,7 +434,7 @@ function buildPreviewTrack(track) {
           branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode || 'end',
             transition: b.transition && b.transition.pendingFile ? { localFile: b.transition.pendingFile, bars: b.transition.bars || null } : b.transition && b.transition.remoteFile ? { file: b.transition.remoteFile, bars: b.transition.bars || null } : null })),
           defaultNext: sec.defaultNext || null,
-          skipIntro: !!sec.skipIntro,
+          keepIntro: !!sec.keepIntro,
           freeReturn: !!sec.freeReturn,
         };
       })
