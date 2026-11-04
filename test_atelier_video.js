@@ -89,7 +89,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const src43 = read('src/backstage/43-visite-guidee.js');
   const lv = src43.slice(src43.indexOf("{ id: 'versioning'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning'")));
   check('leçon (Backstage) : onglet Vidéo → Atelier → bloc vidéo, sans page pack', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)
-    && /\[data-role="versionNew"\]/.test(lv) && !/page: 'pack'/.test(src43) && /reload: true, soon: true/.test(lv));
+    && /\[data-role="versionNew"\]/.test(lv) && !/page: 'pack'/.test(src43) && /reload: true, titleKey/.test(lv) && !/soon: true/.test(lv));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));
 

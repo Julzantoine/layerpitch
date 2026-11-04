@@ -7,8 +7,8 @@
  * Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son (le gameplay de « Music City » : la rue de Jazz City, puis le club), y poser une première musique en
  * jouant le pack sur la vidéo (capture), enregistrer le montage, puis en faire une deuxième version où chaque morceau est remplacé par un
  * autre du même mode (le statique de la rue par un statique, les couches du club par des couches), et l'écouter en direct (sans rendu vidéo). Moteur partagé layerpitch-guide.js ; faux serveur api/demo-client.js (montages
- * et versions gardés en mémoire, rien n'est enregistré). Tant que la vidéo muette n'est pas fournie (KIT.video vide), la leçon reste
- * « bientôt » dans le menu du Backstage.
+ * et versions gardés en mémoire, rien n'est enregistré). Sans vidéo muette (KIT.video vide), la leçon ne démarre pas ; la vidéo est
+ * en ligne depuis le 04/11.
  */
 (function () {
   // Vidéo muette du gameplay (fichier à déposer par Jules-Antoine dans media.layerpitch.com/tuto/).

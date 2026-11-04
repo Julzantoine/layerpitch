@@ -1194,8 +1194,8 @@ const LESSONS = [
   // (la rue de Jazz City, puis le club), capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
   // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
   // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
-  // « bientôt » tant que la vidéo muette (music-city-gameplay-muette.mp4) n'est pas en ligne (KIT d'atelier-lecons.js).
-  { id: 'versioning', theme: 'preprod', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+  // Ouverte le 04/11 : la vidéo muette (music-city-gameplay-muette.mp4, KIT d'atelier-lecons.js) est en ligne.
+  { id: 'versioning', theme: 'preprod', public: true, reload: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
     { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
       done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
