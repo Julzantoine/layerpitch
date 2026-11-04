@@ -52,6 +52,14 @@
     sectionChatState: id => rpc('section_chat_state', { p_project_id: id }),
     setSectionMap: (sectionId, mapId) => rpc('set_section_map', { p_section_id: sectionId, p_map_id: mapId || null }),
     removeAssetsFromSection: (sectionId, assetIds) => rpc('remove_assets_from_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
+    // Tâches (4/11, migration 20261104020000) : liste partagée. p = { title, notes, sectionId, assigneeId, dueDate 'AAAA-MM-JJ',
+    // link: { type: 'asset'|'section'|'map', id, sub } } ; en modification, seuls les champs présents changent (vide = effacé).
+    tasks: id => rpc('list_project_tasks', { p_project_id: id }),
+    createTask: (id, p) => rpc('create_project_task', { p_project_id: id, p: p || {} }),
+    updateTask: (taskId, p) => rpc('update_project_task', { p_task_id: taskId, p: p || {} }),
+    setTaskDone: (taskId, done) => rpc('set_project_task_done', { p_task_id: taskId, p_done: !!done }),
+    reorderTasks: (id, taskIds) => rpc('reorder_project_tasks', { p_project_id: id, p_task_ids: taskIds || [] }),
+    deleteTask: taskId => rpc('delete_project_task', { p_task_id: taskId }),
     // Apparence d'équipe d'un Projet (migration 20261008010000) : { bg, image, opacity, fixed } ; {} = rien de réglé. Réglage : administrateur du Projet.
     appearance: id => rpc('get_project_appearance', { p_project_id: id }),
     setAppearance: (id, p) => rpc('set_project_appearance', { p_project_id: id, p: p || {} }),

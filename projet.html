@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793802956123">
-<link rel="stylesheet" href="player.css?v=1793802956123">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793805359422">
+<link rel="stylesheet" href="player.css?v=1793805359422">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -40,7 +40,7 @@
   .icon-btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; min-width: 28px; height: 28px; cursor: pointer; color: var(--text-dim); font-size: 12px; }
   .icon-btn.on { color: var(--accent); border-color: var(--accent); }
   label { display: block; font-size: 12px; color: var(--text-dim); margin: 10px 0 4px; }
-  input[type="text"], input[type="email"], input[type="search"], input[type="url"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  input[type="text"], input[type="email"], input[type="search"], input[type="url"], input[type="date"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
   textarea { min-height: 64px; resize: vertical; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; overflow-wrap: anywhere; }
@@ -179,6 +179,21 @@
   body.demo .page { margin-left: 232px; max-width: none; }
   @media (max-width: 900px) { .demo-shell { display: none; } body.demo .page { margin-left: auto; } }
   [data-demo-locked] { opacity: .5; cursor: not-allowed; }
+  /* Onglet « Tâches » (4/11) */
+  .task-add { display: flex; gap: 8px; margin: 10px 0 4px; }
+  .task-add input { flex: 1 1 auto; }
+  .task-group h3 { font-size: 12px; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text-dimmer); margin: 16px 0 2px; }
+  .task-row { align-items: flex-start; flex-wrap: nowrap; gap: 8px; }
+  .task-row input[type="checkbox"] { width: 17px; height: 17px; margin: 3px 0 0; flex: 0 0 auto; cursor: pointer; }
+  .task-row .task-main { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  .task-row .task-title { overflow-wrap: anywhere; }
+  .task-row .task-notes { color: var(--text-dim); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; max-height: 3.2em; overflow: hidden; }
+  .task-row .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
+  .task-row.done .task-title { text-decoration: line-through; color: var(--text-dimmer); }
+  .pill.overdue { color: #b5442e; background: rgba(181, 68, 46, .12); }
+  .task-link { font-size: 11.5px; padding: 2px 8px; }
+  .sec-dialog .task-form label { display: block; margin: 10px 0 4px; font-size: 12.5px; }
+  .sec-dialog .task-form input, .sec-dialog .task-form select, .sec-dialog .task-form textarea { width: 100%; box-sizing: border-box; }
 </style>
 </head>
 <body>
@@ -188,29 +203,29 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793802956123"></script>
-<script src="layerpitch-notify.js?v=1793802956123"></script>
-<script src="player.js?v=1793802956123"></script>
-<script src="api/supabase-client.js?v=1793802956123"></script>
-<script src="api/auth.js?v=1793802956123"></script>
-<script src="layerpitch-appearance.js?v=1793802956123"></script>
-<script src="layerpitch-shell.js?v=1793802956123"></script>
-<script src="api/tracks.js?v=1793802956123"></script>
-<script src="api/packs.js?v=1793802956123"></script>
-<script src="api/albums.js?v=1793802956123"></script>
-<script src="api/studio.js?v=1793802956123"></script>
-<script src="api/adreels.js?v=1793802956123"></script>
-<script src="api/demo-client.js?v=1793802956123"></script>
-<script src="api/demo-projects.js?v=1793802956123"></script>
-<script src="layerpitch-tuto.js?v=1793802956123"></script>
-<script src="layerpitch-guide.js?v=1793802956123"></script>
-<script src="layerpitch-lesson-previews.js?v=1793802956123"></script>
-<script src="projet-lecons.js?v=1793802956123"></script>
-<script src="layerpitch-video-versions.js?v=1793802956123"></script>
-<script src="api/projects.js?v=1793802956123"></script>
-<script src="api/sfx.js?v=1793802956123"></script>
-<script src="projet-carte-audio.js?v=1793802956123"></script>
-<script src="projet-carte.js?v=1793802956123"></script>
+<script src="layerpitch-i18n.js?v=1793805359422"></script>
+<script src="layerpitch-notify.js?v=1793805359422"></script>
+<script src="player.js?v=1793805359422"></script>
+<script src="api/supabase-client.js?v=1793805359422"></script>
+<script src="api/auth.js?v=1793805359422"></script>
+<script src="layerpitch-appearance.js?v=1793805359422"></script>
+<script src="layerpitch-shell.js?v=1793805359422"></script>
+<script src="api/tracks.js?v=1793805359422"></script>
+<script src="api/packs.js?v=1793805359422"></script>
+<script src="api/albums.js?v=1793805359422"></script>
+<script src="api/studio.js?v=1793805359422"></script>
+<script src="api/adreels.js?v=1793805359422"></script>
+<script src="api/demo-client.js?v=1793805359422"></script>
+<script src="api/demo-projects.js?v=1793805359422"></script>
+<script src="layerpitch-tuto.js?v=1793805359422"></script>
+<script src="layerpitch-guide.js?v=1793805359422"></script>
+<script src="layerpitch-lesson-previews.js?v=1793805359422"></script>
+<script src="projet-lecons.js?v=1793805359422"></script>
+<script src="layerpitch-video-versions.js?v=1793805359422"></script>
+<script src="api/projects.js?v=1793805359422"></script>
+<script src="api/sfx.js?v=1793805359422"></script>
+<script src="projet-carte-audio.js?v=1793805359422"></script>
+<script src="projet-carte.js?v=1793805359422"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -735,6 +750,7 @@ async function load() {
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
   await loadSections();
+  await loadTasks();
   const ap = await PJ.appearance(projectId); S.appearance = ap.error ? null : (ap.data || {}); applyProjectAppearance(); // null = pas ouvert
   S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
@@ -769,6 +785,7 @@ function joinChannel() {
         renderChat();
       }
       else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
+      else if (payload.what === 'tasks') { await loadTasks(); if (S.tab === 'tasks' && !document.querySelector('.sec-overlay')) renderPanel(); }
       else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
@@ -794,7 +811,9 @@ function renderPresence() {
 }
 
 // ---- Rendu ----
-const TABS = ['board', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
+const TABS = ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
+// « Tâches » n'apparaît que si son feu vert est ouvert pour ce compte (S.tasks rempli, voir loadTasks).
+const visibleTabs = () => TABS.filter(t => t !== 'tasks' || S.tasks);
 function render() {
   const p = S.project;
   content.innerHTML = `
@@ -808,7 +827,7 @@ function render() {
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
-    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
+    <div class="tabs" role="tablist">${visibleTabs().map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
     <div id="openNotesBox"></div>
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
@@ -868,6 +887,7 @@ async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
   if (S.tab === 'map') return renderMap(panel);
+  if (S.tab === 'tasks') return renderTasks(panel);
   // Moodboard / Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
   let host = panel;
   if (S.sections && SECTION_TABS.includes(S.tab)) {
@@ -1051,7 +1071,7 @@ function renderSectionChat(aside) {
         ${attachmentsHtml(m)}
         ${m.attachments && m.attachments.length ? `<div class="meta">${esc(tr('chanFiled', { title: x.title }))}</div>` : ''}
         ${rangeBarHtml(m, rangeItems(m), a => !!(a && a.id && S.secPins.some(k => k.sectionId === S.chan && k.assetId === a.id)))}
-        ${m.mine || S.project.role === 'admin' ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+        ${m.mine || S.project.role === 'admin' || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine || S.project.role === 'admin' ? `<button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr('chanEmpty', { title: x.title }))}</div>`}</div>
     <div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -1081,6 +1101,7 @@ function renderSectionChat(aside) {
   $('chanSel').onchange = e => openChannel(e.target.value);
   $('followBtn').onclick = async () => { if (secError(await PJ.setSectionFollow(S.chan, !followed))) return; await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); };
   if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadSecMessages(true); renderChat(); };
+  aside.querySelectorAll('.bubble [data-act="totask"]').forEach(b => b.onclick = () => taskFromMessage(S.secMsgs.find(y => y.id === b.closest('.bubble').dataset.id), S.chan));
   aside.querySelectorAll('.bubble [data-act="delete"]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
     if (secError(await PJ.deleteSectionMessage(b.closest('.bubble').dataset.id))) return;
@@ -1111,7 +1132,7 @@ function renderChat() {
         ${m.body ? `<div class="bubble-body">${linkifyText(m.body)}</div>` : ''}
         ${attachmentsHtml(m)}
         ${rangeBarHtml(m, rangeItems(m))}
-        ${m.mine ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+        ${m.mine || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine ? `<button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr(S.query ? 'noSearchResult' : 'noMessages'))}</div>`}</div>
     ${S.query ? '' : `<div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -1146,6 +1167,7 @@ function renderChat() {
       if (r.error) { btn.disabled = false; return say('threadMsg', tr('errorPrefix', { message: r.error })); }
       await reloadContent(); renderChat(); if (['board', 'videos', 'music'].includes(S.tab)) renderPanel(); broadcast('content');
     });
+    const tk = b.querySelector('[data-act="totask"]'); if (tk) tk.onclick = () => taskFromMessage(m);
     const ed = b.querySelector('[data-act="edit"]'), del = b.querySelector('[data-act="delete"]');
     // Modification en place : le texte devient un champ, Enregistrer / Annuler.
     if (ed) ed.onclick = () => {
@@ -1844,9 +1866,9 @@ async function renderMap(panel) {
     asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
   };
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
-  const openId = S.openMapId; S.openMapId = null;
+  const openId = S.openMapId, openNode = S.openMapNode; S.openMapId = null; S.openMapNode = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, downloadFiles: downloadMapFiles,
+    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
     uploadSound: async file => {
@@ -2141,6 +2163,199 @@ function renderActivity(panel) {
   panel.innerHTML = `<div class="card"><h2>${esc(tr('activityTitle'))}</h2>${S.activity.length ? '<div class="scroll-list">' + S.activity.map(a => `<div class="list-row"><div class="list-main">
       <strong>${esc(a.actorEmail || '')}</strong> ${esc(tr('act_' + a.kind, { title: (a.payload && (a.payload.title || a.payload.label || a.payload.email)) || '' }))}</div>
       <span class="meta">${esc(new Date(a.createdAt).toLocaleString(pageLang))}</span></div>`).join('') + '</div>' : `<div class="empty">${esc(tr('noActivity'))}</div>`}</div>`;
+}
+
+// ---- Tâches (4/11, migration 20261104020000 ; cadrage layerpitch-docs/2026-11-04-projet-onglet-taches-cadrage.md) ----
+// Liste partagée par l'équipe : case à cocher, titre, précisions, personne assignée, échéance, section facultative, lien vers UN
+// élément du Projet (objet, section, carte ou point de carte). S.tasks = null tant que le feu vert 'project_tasks' est fermé
+// (ou en démonstration, ou dans le tutoriel) : l'onglet n'apparaît pas. Le filtre de section est S.sel, partagé avec le Moodboard.
+S.tasks = null; S.taskMine = false; S.taskShowDone = false; S.taskMaps = null;
+async function loadTasks() {
+  if (DEMO || TUTO || typeof PJ.tasks !== 'function') { S.tasks = null; return; }
+  const r = await PJ.tasks(projectId);
+  S.tasks = r.error ? null : (r.data || []);
+  if (!S.tasks && S.tab === 'tasks') S.tab = 'board';
+}
+async function tasksChanged() { await loadTasks(); if (S.tab === 'tasks') renderPanel(); broadcast('tasks'); }
+function taskError(r) { if (r && r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return true; } return false; }
+// Cartes de niveau (pour nommer et choisir un lien « carte ») : chargées une fois ; [] si la carte n'est pas ouverte pour ce compte.
+async function ensureTaskMaps(force) {
+  if (S.taskMaps && !force) return S.taskMaps;
+  const r = await PJ.listMaps(projectId);
+  S.taskMaps = r.error ? [] : (r.data || []);
+  return S.taskMaps;
+}
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const fmtDue = d => new Date(d + 'T00:00:00').toLocaleDateString(pageLang, { day: 'numeric', month: 'short', year: d.slice(0, 4) === String(new Date().getFullYear()) ? undefined : 'numeric' });
+function taskLinkLabel(link) {
+  if (!link) return null;
+  if (link.type === 'asset') { const a = assetById(link.id); return a ? (a.kind === 'video' ? '🎬 ' : a.kind === 'image' ? '🖼 ' : a.kind === 'track' || a.kind === 'audio' ? '♪ ' : '🔗 ') + assetTitle(a) : null; }
+  if (link.type === 'section') { const x = secById(link.id); return x ? '# ' + x.title : null; }
+  if (link.type === 'map') {
+    const m = (S.taskMaps || []).find(y => y.id === link.id); if (!m) return null;
+    const n = link.sub && ((m.data && m.data.nodes) || []).find(y => y.id === link.sub);
+    return '🗺 ' + (m.title || tr('map_untitled')) + (n ? ' · ' + (n.label || n.type || '') : '');
+  }
+  return null;
+}
+// Aller à l'élément lié : le bon onglet, la bonne section, la bonne carte (et son point sélectionné).
+function gotoTaskLink(link) {
+  if (!link) return;
+  if (link.type === 'asset') {
+    const a = assetById(link.id); if (!a) return;
+    if (a.kind === 'video') return openInVideos(a.id);
+    S.sel = 'all';
+    S.tab = a.kind === 'image' ? 'images' : ['track', 'audio', 'pack', 'album'].includes(a.kind) && !a.pinned ? 'music' : 'board';
+    S.openNotes[a.id] = true;
+  } else if (link.type === 'section') { if (!secById(link.id)) return; S.sel = link.id; S.tab = 'board'; }
+  else if (link.type === 'map') { S.openMapId = link.id; S.openMapNode = link.sub || null; S.tab = 'map'; }
+  stopMedia(); render();
+}
+// Tâches visibles d'après les filtres (section choisie et ses sous-sections, « sans section », « seulement les miennes »).
+function taskFilter(t) {
+  if (S.taskMine && t.assigneeId !== (S.me && S.me.id)) return false;
+  if (!S.sections || S.sel === 'all') return true;
+  if (S.sel === 'none') return !t.sectionId;
+  return !!t.sectionId && secDescendants(S.sel).includes(t.sectionId);
+}
+function taskRowHtml(t) {
+  const late = !t.done && t.dueDate && t.dueDate < todayStr();
+  const link = taskLinkLabel(t.link);
+  const who = t.assigneeId ? (t.assigneeId === (S.me && S.me.id) ? tr('taskMe') : (t.assigneeEmail || '')) : '';
+  return `<div class="list-row task-row${t.done ? ' done' : ''}" data-task="${esc(t.id)}">
+    ${t.done ? '' : `<span class="drag-handle" title="${esc(tr('dragToReorder'))}">${DRAG_HANDLE_SVG}</span>`}
+    <input type="checkbox" data-taskdone ${t.done ? 'checked' : ''} aria-label="${esc(t.title)}">
+    <div class="task-main" data-taskedit title="${esc(tr('taskEditHint'))}"><div class="task-title">${esc(t.title)}</div>
+      ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ''}
+      <div class="task-meta">${who ? `<span class="pill">👤 ${esc(who)}</span>` : ''}
+        ${t.dueDate ? `<span class="pill${late ? ' overdue' : ''}">📅 ${esc(fmtDue(t.dueDate))}${late ? ' · ' + esc(tr('taskOverdue')) : ''}</span>` : ''}
+        ${t.link ? (link ? `<button class="btn task-link" type="button" data-tasklink>${esc(link)}</button>` : `<span class="meta">🔗 ${esc(tr('taskLinkGone'))}</span>`) : ''}
+        ${t.done && t.doneByEmail ? `<span class="meta">${esc(tr('taskDoneBy', { email: t.doneByEmail }))}</span>` : ''}</div></div></div>`;
+}
+async function renderTasks(panel) {
+  if (!S.tasks) { S.tab = 'board'; return render(); }
+  if (S.tasks.some(t => t.link && t.link.type === 'map')) await ensureTaskMaps();
+  if (S.sections && S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
+  const todo = S.tasks.filter(t => !t.done && taskFilter(t)), done = S.tasks.filter(t => t.done && taskFilter(t));
+  // Toutes les sections : groupées par section (dans l'ordre de l'arbre), puis « Sans section ».
+  let groups;
+  if (S.sections && S.sel === 'all' && S.sections.sections.length) {
+    groups = secFlat().map(x => ({ id: x.id, title: '# ' + x.title, items: todo.filter(t => t.sectionId === x.id) })).filter(g => g.items.length);
+    const loose = todo.filter(t => !t.sectionId || !secById(t.sectionId));
+    if (loose.length) groups.push({ id: '', title: tr('secNone'), items: loose });
+  } else groups = [{ id: null, title: null, items: todo }];
+  const secOpts = S.sections ? `<select id="taskSec" style="width:auto">
+      <option value="all"${S.sel === 'all' ? ' selected' : ''}>${esc(tr('taskSectionAll'))}</option>
+      ${secFlat().map(x => `<option value="${esc(x.id)}"${S.sel === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}
+      <option value="none"${S.sel === 'none' ? ' selected' : ''}>${esc(tr('secNone'))}</option></select>` : '';
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('tab_tasks'))}</h2><p class="hint">${esc(tr('tasksIntro'))}</p>
+    <div class="bar">${secOpts}<label class="choice" style="margin:0"><input type="checkbox" id="taskMine" ${S.taskMine ? 'checked' : ''}> ${esc(tr('taskFilterMine'))}</label></div>
+    <div class="task-add"><input type="text" id="taskNew" maxlength="200" placeholder="${esc(tr('taskAddPlaceholder'))}"><button class="btn primary" id="taskAddBtn" type="button">${esc(tr('taskAdd'))}</button><button class="icon-btn" id="taskMoreBtn" type="button" title="${esc(tr('taskNewTitle'))}">⋯</button></div>
+    ${todo.length ? groups.map(g => `<div class="task-group">${g.title ? `<h3>${esc(g.title)}</h3>` : ''}<div data-taskgroup="${esc(g.id == null ? '*' : g.id)}">${g.items.map(taskRowHtml).join('')}</div></div>`).join('')
+      : `<div class="empty">${esc(tr(S.tasks.length ? 'taskEmptyFiltered' : 'taskEmpty'))}</div>`}
+    ${done.length ? `<div class="task-group"><h3><button class="btn" id="taskDoneToggle" type="button" aria-expanded="${S.taskShowDone}">${S.taskShowDone ? '▾' : '▸'} ${esc(tr('taskShowDone', { n: done.length }))}</button></h3>
+      ${S.taskShowDone ? done.map(taskRowHtml).join('') : ''}</div>` : ''}</div>`;
+  const add = async () => {
+    const title = $('taskNew').value.trim(); if (!title) return;
+    $('taskAddBtn').disabled = true;
+    const r = await PJ.createTask(projectId, { title, sectionId: S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null });
+    $('taskAddBtn').disabled = false;
+    if (taskError(r)) return;
+    await tasksChanged(); const box = $('taskNew'); if (box) box.focus();
+  };
+  $('taskAddBtn').onclick = add;
+  $('taskNew').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } };
+  $('taskMoreBtn').onclick = () => openTaskDialog(null, { title: $('taskNew').value.trim() });
+  if ($('taskSec')) $('taskSec').onchange = e => { S.sel = e.target.value; renderPanel(); };
+  $('taskMine').onchange = e => { S.taskMine = e.target.checked; renderPanel(); };
+  if ($('taskDoneToggle')) $('taskDoneToggle').onclick = () => { S.taskShowDone = !S.taskShowDone; renderPanel(); };
+  panel.querySelectorAll('[data-task]').forEach(row => {
+    const t = S.tasks.find(x => x.id === row.dataset.task); if (!t) return;
+    row.querySelector('[data-taskdone]').onchange = async e => { e.target.disabled = true; if (taskError(await PJ.setTaskDone(t.id, e.target.checked))) { e.target.disabled = false; e.target.checked = !e.target.checked; return; } await tasksChanged(); };
+    row.querySelector('[data-taskedit]').onclick = e => { if (e.target.closest('[data-tasklink]')) return; openTaskDialog(t); };
+    const ln = row.querySelector('[data-tasklink]'); if (ln) ln.onclick = () => gotoTaskLink(t.link);
+  });
+  // Ordre manuel (glisser par la poignée) à l'intérieur d'un groupe : les autres tâches gardent leur place.
+  panel.querySelectorAll('[data-taskgroup]').forEach(host => makeSortable(host, async (from, to) => {
+    const ids = [...host.querySelectorAll('[data-task]')].map(el => el.dataset.task);
+    const moved = ids.splice(from, 1)[0]; ids.splice(to, 0, moved);
+    const all = S.tasks.filter(t => !t.done).map(t => t.id), slots = new Set(ids);
+    let k = 0; const order = all.map(id => slots.has(id) ? ids[k++] : id);
+    if (taskError(await PJ.reorderTasks(projectId, order))) return;
+    await tasksChanged();
+  }));
+}
+// Création (task = null, prefill = valeurs de départ) ou modification d'une tâche.
+async function openTaskDialog(task, prefill) {
+  const maps = await ensureTaskMaps();
+  const specific = S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null;
+  const t = task || Object.assign({ title: '', notes: '', assigneeId: null, dueDate: null, sectionId: specific, link: null }, prefill || {});
+  const members = (S.project.members || []).filter(m => m.profileId && m.status === 'active');
+  const assets = (S.content.assets || []);
+  const flat = S.sections ? secFlat() : [];
+  const linkType = t.link ? t.link.type : '';
+  const types = [['', 'taskLinkNone'], assets.length ? ['asset', 'taskLinkAsset'] : null, flat.length ? ['section', 'taskLinkSection'] : null, maps.length ? ['map', 'taskLinkMap'] : null].filter(Boolean);
+  const { box, close } = openOverlay(`<h2>${esc(tr(task ? 'taskEditTitle' : 'taskNewTitle'))}</h2><div class="task-form">
+    <label for="tTitle">${esc(tr('taskFieldTitle'))}</label><input type="text" id="tTitle" maxlength="200" value="${esc(t.title)}">
+    <label for="tNotes">${esc(tr('taskFieldNotes'))}</label><textarea id="tNotes" rows="3" maxlength="4000">${esc(t.notes)}</textarea>
+    <label for="tWho">${esc(tr('taskFieldAssignee'))}</label><select id="tWho"><option value="">${esc(tr('taskNobody'))}</option>
+      ${members.map(m => `<option value="${esc(m.profileId)}"${t.assigneeId === m.profileId ? ' selected' : ''}>${esc(m.email || '')}${m.me ? ' (' + esc(tr('taskMe')) + ')' : ''}</option>`).join('')}</select>
+    <label for="tDue">${esc(tr('taskFieldDue'))}</label><input type="date" id="tDue" value="${esc(t.dueDate || '')}">
+    ${flat.length ? `<label for="tSec">${esc(tr('taskFieldSection'))}</label><select id="tSec"><option value="">${esc(tr('secNone'))}</option>
+      ${flat.map(x => `<option value="${esc(x.id)}"${t.sectionId === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}</select>` : ''}
+    ${types.length > 1 || linkType ? `<label for="tLinkType">${esc(tr('taskFieldLink'))}</label><select id="tLinkType">${types.map(([v, k]) => `<option value="${v}"${linkType === v ? ' selected' : ''}>${esc(tr(k))}</option>`).join('')}</select>
+      <div id="tLinkPick"></div>` : ''}
+  </div><div class="bar" style="margin-top:14px">${task && task.canDelete ? `<button class="btn danger" type="button" data-x="del">${esc(tr('taskDelete'))}</button>` : ''}
+    <span style="flex:1"></span><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+  const fillPick = () => {
+    const pick = box.querySelector('#tLinkPick'); if (!pick) return;
+    const ty = box.querySelector('#tLinkType').value, cur = t.link && t.link.type === ty ? t.link : null;
+    if (ty === 'asset') pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${assets.map(a => opt(a.id, tr('kind_' + a.kind) + ' · ' + assetTitle(a), cur && cur.id === a.id)).join('')}</select>`;
+    else if (ty === 'section') pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${flat.map(x => opt(x.id, '  '.repeat(x.depth) + x.title, cur && cur.id === x.id)).join('')}</select>`;
+    else if (ty === 'map') {
+      pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${maps.map(m => opt(m.id, m.title || tr('map_untitled'), cur && cur.id === m.id)).join('')}</select><select id="tLinkSub" style="margin-top:6px"></select>`;
+      const fillNodes = () => {
+        const m = maps.find(y => y.id === box.querySelector('#tLinkId').value), nodes = (m && m.data && m.data.nodes) || [];
+        box.querySelector('#tLinkSub').innerHTML = opt('', tr('taskMapWhole'), !(cur && cur.sub)) + nodes.map(n => opt(n.id, n.label || n.type || n.id, cur && cur.sub === n.id)).join('');
+      };
+      box.querySelector('#tLinkId').onchange = fillNodes; fillNodes();
+    } else pick.innerHTML = '';
+  };
+  if (box.querySelector('#tLinkType')) { box.querySelector('#tLinkType').onchange = fillPick; fillPick(); }
+  const v = id => { const el = box.querySelector('#' + id); return el ? el.value : ''; };
+  box.querySelector('#tTitle').focus();
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  if (box.querySelector('[data-x="del"]')) box.querySelector('[data-x="del"]').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('taskDeleteConfirm', { title: task.title }), { okLabel: tr('taskDelete'), danger: true }))) return;
+    if (taskError(await PJ.deleteTask(task.id))) return;
+    close(); await tasksChanged();
+  };
+  const save = async () => {
+    const title = v('tTitle').trim(); if (!title) { box.querySelector('#tTitle').focus(); return; }
+    const ty = v('tLinkType');
+    const p = { title, notes: v('tNotes').trim(), assigneeId: v('tWho') || null, dueDate: v('tDue') || null,
+      link: ty && v('tLinkId') ? { type: ty, id: v('tLinkId'), sub: ty === 'map' ? (v('tLinkSub') || null) : null } : null };
+    if (box.querySelector('#tSec')) p.sectionId = v('tSec') || null;
+    else if (!task) p.sectionId = t.sectionId || null;
+    if (!box.querySelector('#tLinkType') && task) delete p.link; // pas de choix possible : on ne touche pas au lien existant
+    const btn = box.querySelector('[data-x="save"]'); btn.disabled = true;
+    const r = task ? await PJ.updateTask(task.id, p) : await PJ.createTask(projectId, p);
+    btn.disabled = false;
+    if (taskError(r)) return;
+    close(); await tasksChanged();
+  };
+  box.querySelector('[data-x="save"]').onclick = save;
+  box.querySelector('#tTitle').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); save(); } };
+}
+// « Faire une tâche » depuis un message de la Discussion (général ou canal de section) : titre = première ligne, précisions = le message.
+function taskFromMessage(m, sectionId) {
+  if (!m || !S.tasks) return;
+  const body = String(m.body || '').trim();
+  const first = (body.split('\n').find(l => l.trim()) || '').trim();
+  const att = (m.attachments || []).map(a => a.assetId).find(id => id && assetById(id));
+  openTaskDialog(null, { title: first.slice(0, 200), notes: body + (m.authorEmail ? '\n— ' + m.authorEmail : ''),
+    sectionId: sectionId || (S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null), link: att ? { type: 'asset', id: att } : null });
 }
 
 // ---- Membres ----
