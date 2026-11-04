@@ -58,14 +58,14 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
 
   // --- suppression du modèle : plus de bienvenue ; « enregistrer » la recrée ---
   await q(`select public.admin_delete_native_message('welcome')`);
-  check('modèle supprimé : plus dans la liste', (await q(`select * from public.admin_list_native_messages()`)).length === 0);
+  check('modèle supprimé : plus dans la liste', !(await q(`select * from public.admin_list_native_messages()`)).some(m => m.key === 'welcome'));
   await as(2);
   await q(`delete from public.admin_messages where recipient_id = $1`, [U(2)]);
   await q(`select public.mark_onboarding_complete()`);
   check('sans modèle : l\'arrivant ne reçoit rien (et son accueil se termine quand même)', Number(await val(`select count(*) from public.admin_messages where recipient_id = $1`, [U(2)])) === 0);
   await as(1);
   await q(`select public.admin_update_native_message('welcome', $1::jsonb)`, [JSON.stringify({ fr: 'Recréé' })]);
-  check('enregistrer après suppression recrée le message', (await q(`select * from public.admin_list_native_messages()`))[0].body.fr === 'Recréé');
+  check('enregistrer après suppression recrée le message', (await q(`select * from public.admin_list_native_messages()`)).find(m => m.key === 'welcome').body.fr === 'Recréé');
 
   // --- LayerPitch 101 : rangé avec la bienvenue ---
   const idSent = await val(`select public.admin_send_message($1::jsonb, null, false, $2::jsonb)`, [JSON.stringify({ fr: 'Bonjour à toutes et à tous' }), JSON.stringify({ fr: 'LayerPitch 101 : le lecteur interactif' })]);
