@@ -91,6 +91,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   if (btn.dataset.action === 'toggle-track-protection') {
     const track = library[ti];
+    if (isExample(track)) { window.LayerPitchNotify.error(tr('exampleNoProtect')); return; }
     const target = !track.protected;
     window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
       if (!ok) return;

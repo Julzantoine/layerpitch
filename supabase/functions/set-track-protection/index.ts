@@ -39,10 +39,13 @@ Deno.serve(async (req) => {
     const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
     if (composerError || !composerId) return json({ error: 'Non autorisé.' }, 403);
     const { data: item } = isSfx
-      ? await adminClient.from('sfx_library').select('owner_id').eq('id', id).maybeSingle()
-      : await adminClient.from('tracks').select('owner_id').eq('id', id).maybeSingle();
+      ? await adminClient.from('sfx_library').select('owner_id, example_source_id').eq('id', id).maybeSingle()
+      : await adminClient.from('tracks').select('owner_id, example_source_id').eq('id', id).maybeSingle();
     if (!item) return json({ error: 'Introuvable (publie-le d\'abord).' }, 404);
     if (item.owner_id !== composerId) return json({ error: 'Ce fichier ne t\'appartient pas.' }, 403);
+    // Exemple préchargé (4/11) : ses fichiers sont ceux de la source (base partagée) ; audio/<id de la copie>/ est vide et
+    // déplacer quoi que ce soit casserait la copie. Refusé ici AVANT tout déplacement (la base refuse aussi le drapeau).
+    if (item.example_source_id) return json({ error: 'Exemple : il ne peut pas être protégé (ses fichiers son sont partagés avec tous les comptes).' }, 409);
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
     const publicBucket = Deno.env.get('R2_BUCKET')!;

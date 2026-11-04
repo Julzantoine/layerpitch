@@ -1,5 +1,6 @@
 /* ---------------- Sélecteur de Sfx (bibliothèque Sfx -> bloc "Sfx" d'un AdReel) ---------------- */
-function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
+// allowExamples (4/11) : les Sfx d'exemple ne sont proposés que dans un morceau, le pack ou l'AdReel d'exemple (exampleChoices).
+function buildSfxSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
   function render() {
     hostEl.innerHTML = '';
     if (sfxLibrary.length === 0) {
@@ -19,7 +20,7 @@ function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = sfxLibrary.filter(s => !selectedIds.includes(s.id));
+    const unselected = exampleChoices(sfxLibrary.filter(s => !selectedIds.includes(s.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -59,7 +60,7 @@ function buildSfxBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('sfxBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.sfxIds) block.sfxIds = [];
-  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, isExample(currentAdReelObj()));
   return card;
 }
 

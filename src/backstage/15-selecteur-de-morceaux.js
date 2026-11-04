@@ -1,7 +1,8 @@
 /* ---------------- Sélecteur de morceaux (bibliothèque -> AdReel ou Pack) ---------------- */
 // overridesObj : objet live { [trackId]: { title?, description?, layers?: {li: label}, stingers?: {si: label} } }.
 // Fourni uniquement pour l'usage AdReel (jamais pour les Packs) — active l'éditeur "Personnaliser pour cet AdReel".
-function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
+// allowExamples (4/11) : les morceaux d'exemple ne sont proposés que dans le pack et l'AdReel d'exemple (exampleChoices).
+function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj, allowExamples) {
   const expandedOverrides = new Set(); // état d'affichage de l'éditeur de surcharge, local à ce widget (pas persistant entre rendus de page)
 
   function layersOf(track) {
@@ -85,7 +86,7 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = library.filter(t => !selectedIds.includes(t.id));
+    const unselected = exampleChoices(library.filter(t => !selectedIds.includes(t.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -254,9 +255,14 @@ function privateLinkNotice(adReelId) {
   return false;
 }
 // Texte quand il n'y a pas (encore) de lien public : en mode tutoriel, le compte est fictif, il n'aura jamais de vrai lien.
-function adReelUrlMissingText() { return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending'); }
+// item (optionnel, 4/11) : l'AdReel ou le pack concerné -- un exemple n'a jamais de page publique, on le dit plutôt que « lien en attente ».
+function adReelUrlMissingText(item) {
+  if (isExample(item)) return tr(packs.includes(item) ? 'examplePackNoPage' : 'exampleAdreelNoPage');
+  return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending');
+}
 function computeAdReelUrl(adReelId) {
   if (isTutoMode()) return null; // compte fictif : aucun lien public réel (ni copie, ni partage, ni « Visualiser »)
+  if (isExample(adReels.find(a => a.id === adReelId))) return null; // AdReel Démo d'exemple (4/11) : aucune page publique
   // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
   // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
   // de lien à afficher -- null est un état transitoire normal. (Le lien github.io des dépôts personnels a disparu
@@ -275,6 +281,7 @@ function computeAdReelUrl(adReelId) {
 // que le handle n'est pas chargé, comme computeAdReelUrl.
 function computePackUrl(packId) {
   if (!myComposerHandle) return null;
+  if (isExample(packs.find(p => p.id === packId))) return null; // pack d'exemple (4/11) : aucune page publique
   return `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/pack.html?id=${encodeURIComponent(packId)}`;
 }
 function computeCollectionUrl(collectionId) {
@@ -314,17 +321,20 @@ function renderAdReelSelect() {
   const box = document.getElementById('adReelUrlBox');
   box.innerHTML = url
     ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`
-    : escapeAttr(adReelUrlMissingText());
+    : escapeAttr(adReelUrlMissingText(currentAdReelObj()));
   const linkButtons = document.getElementById('adReelLinkButtons');
   if (linkButtons) linkButtons.hidden = isTutoMode(); // copier / partager / intégrer un lien qui n'existe pas : masqués
+  // AdReel Démo d'exemple (4/11) : copier / partager / intégrer grisés (pas de page publique) ; « Prévisualiser » marche.
+  const curIsExample = isExample(currentAdReelObj());
+  ['btnCopyAdReelUrl', 'btnShareAdReelUrl'].forEach(id => { const b = document.getElementById(id); b.disabled = curIsExample; b.title = curIsExample ? tr('exampleAdreelNoPage') : ''; });
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
   // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
   // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
   const ar = adReels.find(a => a.id === currentAdReelId);
   const hasTracksBlock = !!(ar && (ar.blocks || []).some(b => b.type === 'tracks'));
   const embedBtn = document.getElementById('btnEmbedAdReelTracks');
-  embedBtn.disabled = !hasTracksBlock;
-  embedBtn.title = hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint');
+  embedBtn.disabled = !hasTracksBlock || curIsExample;
+  embedBtn.title = curIsExample ? tr('exampleAdreelNoPage') : (hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint'));
 }
 function renderManageAdreels() {
   const masterHost = document.getElementById('manageAdreelsMaster');
@@ -343,6 +353,7 @@ function renderManageAdreels() {
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: a => `
       <span class="seq-master-item-label">${escapeAttr(a.label || a.id)}</span>
+      ${isExample(a) ? exampleBadgeHtml() : ''}
       ${a.id === currentAdReelId ? `<span class="badge">${tr('currentAdreelBadge')}</span>` : ''}
     `
   });
@@ -361,12 +372,12 @@ function renderManageAdreels() {
       </div>
       <span class="hint-inline" style="font-family:monospace;white-space:nowrap;">${escapeAttr(selected.id)}</span>
     </div>
-    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText())}</div>
+    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText(selected))}</div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-small" data-action="edit-adreel" data-id="${selected.id}" type="button">${tr('editAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button">${tr('duplicateAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button">${tr('copyLink')}</button>
-      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button">${tr('shareBtn')}</button>
+      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleNoCopy'))}"` : ''}>${tr('duplicateAdreelBtn')}</button>
+      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('copyLink')}</button>
+      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('shareBtn')}</button>
       <button class="btn btn-small btn-danger" data-action="delete-adreel-manage" data-id="${selected.id}" type="button" ${canDelete ? '' : 'disabled'} title="${canDelete ? '' : escapeAttr(tr('cantDeleteLastAdreel'))}">${tr('deleteBtn')}</button>
     </div>
   `;
@@ -421,7 +432,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === copyBtn.dataset.id))); return; }
     if (privateLinkNotice(copyBtn.dataset.id)) return;
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -432,7 +443,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === shareBtn.dataset.id))); return; }
     if (privateLinkNotice(shareBtn.dataset.id)) return;
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
@@ -447,7 +458,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
 document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
@@ -459,7 +470,7 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
   const baseUrl = computeAdReelUrl(currentAdReelId);
-  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
@@ -468,7 +479,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
-  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);

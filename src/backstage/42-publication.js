@@ -233,6 +233,9 @@ async function publishAll() {
     // dans chacune des 3 boucles ci-dessous (un seul composer_profiles.plan pour tout le compositeur).
     // Bloque la publication plutôt que de deviner un palier si la session/RPC échoue -- même logique que
     // le garde-fou dataLoadOk ci-dessus, jamais de publication avec un palier incertain.
+    // Exemples préchargés (4/11) : vérifiés AVANT tout envoi (pas de nouveau fichier son, jamais dans une page publique).
+    const exampleProblem = examplePublishProblem();
+    if (exampleProblem) throw new Error(exampleProblem);
     log(tr('resolvingEffectivePlan'));
     await loadPostgresReadScripts();
     const { status: planStatus, error: planError } = await window.LayerPitchSubscriptions.getTrialStatus();
@@ -381,7 +384,8 @@ async function publishAll() {
     }
     for (const track of library) {
       if (!track.id) track.id = slug(track.title);
-      track.base = `${MEDIA_BASE}audio/${track.id}/`;
+      // Exemple préchargé (4/11) : ses fichiers sont ceux de la source (base figée, aussi en base) -- jamais audio/<id de la copie>/.
+      if (!isExample(track)) track.base = `${MEDIA_BASE}audio/${track.id}/`;
       const isStatic = track.mode === 'static';
       const hadPendingAudio = trackAudioItems(track).some(it => it.pendingFile);
       const layersToPublish = isStatic ? (track.layers || []).slice(0, 1) : (track.layers || []);
@@ -536,7 +540,7 @@ async function publishAll() {
     }
     for (const sfx of sfxLibrary) {
       if (!sfx.id) sfx.id = genId();
-      sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`;
+      if (!isExample(sfx)) sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`; // exemple (4/11) : fichiers de la source
       for (let ai = 0; ai < (sfx.alternatives || []).length; ai++) {
         const alt = sfx.alternatives[ai];
         if (alt.pendingFile) {

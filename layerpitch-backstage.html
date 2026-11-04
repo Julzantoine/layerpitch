@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793805626648">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793830203318">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1043,6 +1043,9 @@
 .hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
 .hybrid-skip-intro, .hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .hybrid-skip-intro input, .hybrid-free-return input { width: auto; margin: 0; }
+/* Exemples préchargés (4/11, 45-exemples.js) : étiquette « Exemple » et ligne d'explication, dans le bleu du Backstage. */
+.lp-example-badge { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); margin-left: 6px; white-space: nowrap; }
+.lp-example-notice { margin: 8px 0 4px; padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--accent-soft); color: var(--text, inherit); }
 </style>
 </head>
 <body>
@@ -1362,6 +1365,8 @@
             <button class="btn btn-small" id="btnAddLibraryFolder" type="button" data-i18n="addOrgFolder">+ Dossier</button>
             <button class="btn btn-small" id="btnAddLibraryTrack" type="button" data-i18n="addTrack">+ Morceau</button>
             <button class="btn btn-small" id="btnRecomputeAllNormalization" type="button" data-i18n="normalizeRecomputeAllBtn" data-help="recomputeAllNormalization">Recalculer le niveau de tous les morceaux</button>
+            <!-- Exemples préchargés (4/11, 45-exemples.js) : visible tant qu'il reste un exemple dans le compte -->
+            <button class="btn btn-small btn-danger" id="btnRemoveExamples" type="button" data-i18n="removeExamplesBtn" hidden>Retirer les exemples</button>
           </div>
           <!-- Imports en attente déposés par un assistant IA (3/11, feu vert assistant_import) -->
           <div id="pendingImports" hidden style="margin-bottom:14px"></div>
@@ -1999,19 +2004,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793805626648"></script>
-<script src="layerpitch-i18n.js?v=1793805626648"></script>
-<script src="layerpitch-import-engine.js?v=1793805626648"></script>
-<script src="layerpitch-appearance.js?v=1793805626648"></script>
-<script src="layerpitch-album-shared.js?v=1793805626648"></script>
-<script src="layerpitch-album-editor.js?v=1793805626648"></script>
-<script src="layerpitch-shell.js?v=1793805626648"></script>
-<script src="layerpitch-social-icons.js?v=1793805626648"></script>
-<script src="layerpitch-notify.js?v=1793805626648"></script>
-<script src="layerpitch-guide.js?v=1793805626648"></script>
-<script src="layerpitch-lesson-previews.js?v=1793805626648"></script>
-<script src="layerpitch-help.js?v=1793805626648"></script>
-<script src="player.js?v=1793805626648"></script>
+<script src="layerpitch-tuto.js?v=1793830203318"></script>
+<script src="layerpitch-i18n.js?v=1793830203318"></script>
+<script src="layerpitch-import-engine.js?v=1793830203318"></script>
+<script src="layerpitch-appearance.js?v=1793830203318"></script>
+<script src="layerpitch-album-shared.js?v=1793830203318"></script>
+<script src="layerpitch-album-editor.js?v=1793830203318"></script>
+<script src="layerpitch-shell.js?v=1793830203318"></script>
+<script src="layerpitch-social-icons.js?v=1793830203318"></script>
+<script src="layerpitch-notify.js?v=1793830203318"></script>
+<script src="layerpitch-guide.js?v=1793830203318"></script>
+<script src="layerpitch-lesson-previews.js?v=1793830203318"></script>
+<script src="layerpitch-help.js?v=1793830203318"></script>
+<script src="player.js?v=1793830203318"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2268,6 +2273,7 @@ async function fetchSiteData() {
   const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
   if (error) throw new Error('Aucune session active — connecte-toi avant de recharger (' + error + ').');
   loadedComposerId = composerId; // clé du brouillon automatique (un par compte)
+  await seedMyExamplesIfNeeded(); // exemples préchargés (4/11, 45-exemples.js) : copiés une fois, AVANT la lecture
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
 }
 
@@ -3516,6 +3522,7 @@ function trackNormalizeHtml(track, ti) {
 // pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function
 // set-track-protection (le morceau doit être publié).
 function trackProtectionHtml(track, ti) {
+  if (isExample(track)) return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label><div class="hint-inline">${tr('exampleNoProtect')}</div>`;
   const on = !!track.protected;
   return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3528,6 +3535,7 @@ function trackProtectionHtml(track, ti) {
 // Protection des fichiers d'un effet sonore (29/09) : même principe que les morceaux (voir trackProtectionHtml) ; les packs
 // restent consultables, ce qui est protégé c'est l'accès direct aux fichiers. Bloc de l'onglet « Identité » du Sfx.
 function sfxProtectionHtml(sfx, si) {
+  if (isExample(sfx)) return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label><div class="hint-inline">${tr('exampleNoProtect')}</div>`;
   const on = !!sfx.protected;
   return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -4487,6 +4495,7 @@ function cloneTrackWithRemap(track) {
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
   if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;
   copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
@@ -4854,7 +4863,8 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
         ${dragHandleHtml('folder-drag-handle')}
         <button class="btn btn-icon" data-action="${opts.toggleFolderAction}" data-folder-id="${folder.id}" type="button">${collapsed ? '▸' : '▾'}</button>
         <input type="text" class="org-folder-title" ${opts.folderFieldAttr}="label" data-folder-id="${folder.id}" value="${escapeAttr(folder.label)}" placeholder="${tr(opts.folderFallbackKey)}">
-        ${opts.packFromFolderAction ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
+        ${isExample(folder) ? exampleBadgeHtml() : ''}
+        ${opts.packFromFolderAction && !isExample(folder) ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
         ${deleteIconBtnHtml(opts.deleteFolderAction, { 'folder-id': folder.id }, tr('deleteBtn'))}
       </div>
     `;
@@ -5031,7 +5041,8 @@ function freshBlocks() {
 /* ---------------- Sélecteur de morceaux (bibliothèque -> AdReel ou Pack) ---------------- */
 // overridesObj : objet live { [trackId]: { title?, description?, layers?: {li: label}, stingers?: {si: label} } }.
 // Fourni uniquement pour l'usage AdReel (jamais pour les Packs) — active l'éditeur "Personnaliser pour cet AdReel".
-function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
+// allowExamples (4/11) : les morceaux d'exemple ne sont proposés que dans le pack et l'AdReel d'exemple (exampleChoices).
+function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj, allowExamples) {
   const expandedOverrides = new Set(); // état d'affichage de l'éditeur de surcharge, local à ce widget (pas persistant entre rendus de page)
 
   function layersOf(track) {
@@ -5115,7 +5126,7 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = library.filter(t => !selectedIds.includes(t.id));
+    const unselected = exampleChoices(library.filter(t => !selectedIds.includes(t.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -5284,9 +5295,14 @@ function privateLinkNotice(adReelId) {
   return false;
 }
 // Texte quand il n'y a pas (encore) de lien public : en mode tutoriel, le compte est fictif, il n'aura jamais de vrai lien.
-function adReelUrlMissingText() { return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending'); }
+// item (optionnel, 4/11) : l'AdReel ou le pack concerné -- un exemple n'a jamais de page publique, on le dit plutôt que « lien en attente ».
+function adReelUrlMissingText(item) {
+  if (isExample(item)) return tr(packs.includes(item) ? 'examplePackNoPage' : 'exampleAdreelNoPage');
+  return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending');
+}
 function computeAdReelUrl(adReelId) {
   if (isTutoMode()) return null; // compte fictif : aucun lien public réel (ni copie, ni partage, ni « Visualiser »)
+  if (isExample(adReels.find(a => a.id === adReelId))) return null; // AdReel Démo d'exemple (4/11) : aucune page publique
   // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
   // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
   // de lien à afficher -- null est un état transitoire normal. (Le lien github.io des dépôts personnels a disparu
@@ -5305,6 +5321,7 @@ function computeAdReelUrl(adReelId) {
 // que le handle n'est pas chargé, comme computeAdReelUrl.
 function computePackUrl(packId) {
   if (!myComposerHandle) return null;
+  if (isExample(packs.find(p => p.id === packId))) return null; // pack d'exemple (4/11) : aucune page publique
   return `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/pack.html?id=${encodeURIComponent(packId)}`;
 }
 function computeCollectionUrl(collectionId) {
@@ -5344,17 +5361,20 @@ function renderAdReelSelect() {
   const box = document.getElementById('adReelUrlBox');
   box.innerHTML = url
     ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`
-    : escapeAttr(adReelUrlMissingText());
+    : escapeAttr(adReelUrlMissingText(currentAdReelObj()));
   const linkButtons = document.getElementById('adReelLinkButtons');
   if (linkButtons) linkButtons.hidden = isTutoMode(); // copier / partager / intégrer un lien qui n'existe pas : masqués
+  // AdReel Démo d'exemple (4/11) : copier / partager / intégrer grisés (pas de page publique) ; « Prévisualiser » marche.
+  const curIsExample = isExample(currentAdReelObj());
+  ['btnCopyAdReelUrl', 'btnShareAdReelUrl'].forEach(id => { const b = document.getElementById(id); b.disabled = curIsExample; b.title = curIsExample ? tr('exampleAdreelNoPage') : ''; });
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
   // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
   // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
   const ar = adReels.find(a => a.id === currentAdReelId);
   const hasTracksBlock = !!(ar && (ar.blocks || []).some(b => b.type === 'tracks'));
   const embedBtn = document.getElementById('btnEmbedAdReelTracks');
-  embedBtn.disabled = !hasTracksBlock;
-  embedBtn.title = hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint');
+  embedBtn.disabled = !hasTracksBlock || curIsExample;
+  embedBtn.title = curIsExample ? tr('exampleAdreelNoPage') : (hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint'));
 }
 function renderManageAdreels() {
   const masterHost = document.getElementById('manageAdreelsMaster');
@@ -5373,6 +5393,7 @@ function renderManageAdreels() {
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: a => `
       <span class="seq-master-item-label">${escapeAttr(a.label || a.id)}</span>
+      ${isExample(a) ? exampleBadgeHtml() : ''}
       ${a.id === currentAdReelId ? `<span class="badge">${tr('currentAdreelBadge')}</span>` : ''}
     `
   });
@@ -5391,12 +5412,12 @@ function renderManageAdreels() {
       </div>
       <span class="hint-inline" style="font-family:monospace;white-space:nowrap;">${escapeAttr(selected.id)}</span>
     </div>
-    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText())}</div>
+    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText(selected))}</div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-small" data-action="edit-adreel" data-id="${selected.id}" type="button">${tr('editAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button">${tr('duplicateAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button">${tr('copyLink')}</button>
-      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button">${tr('shareBtn')}</button>
+      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleNoCopy'))}"` : ''}>${tr('duplicateAdreelBtn')}</button>
+      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('copyLink')}</button>
+      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('shareBtn')}</button>
       <button class="btn btn-small btn-danger" data-action="delete-adreel-manage" data-id="${selected.id}" type="button" ${canDelete ? '' : 'disabled'} title="${canDelete ? '' : escapeAttr(tr('cantDeleteLastAdreel'))}">${tr('deleteBtn')}</button>
     </div>
   `;
@@ -5451,7 +5472,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === copyBtn.dataset.id))); return; }
     if (privateLinkNotice(copyBtn.dataset.id)) return;
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -5462,7 +5483,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === shareBtn.dataset.id))); return; }
     if (privateLinkNotice(shareBtn.dataset.id)) return;
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
@@ -5477,7 +5498,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
 document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
@@ -5489,7 +5510,7 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
   const baseUrl = computeAdReelUrl(currentAdReelId);
-  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
@@ -5498,7 +5519,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
-  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
@@ -7091,6 +7112,7 @@ function renderLibrary() {
   const detailHost = document.getElementById('libraryDetail');
   if (!masterHost || !detailHost) return; // panneau pas encore dans le DOM au tout premier rendu
   if (dataLoadOk) syncBackstageWelcome(); // un morceau ajouté ou retiré : l'accueil suit
+  refreshExamplesUi(); // bouton « Retirer les exemples » (45-exemples.js)
   if (!manageLibrarySelectedId || !library.some(t => t.id === manageLibrarySelectedId)) {
     manageLibrarySelectedId = library.length ? library[0].id : null;
   }
@@ -7103,7 +7125,7 @@ function renderLibrary() {
     packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
+    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}`
   });
   wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
@@ -7124,6 +7146,7 @@ function renderLibrary() {
     const bpm = track.bpm || 120;
     const el = document.createElement('div');
     el.className = 'list-block';
+    if (isExample(track)) el.dataset.example = 'track'; // exemple préchargé (4/11) : fichiers son verrouillés, voir 45-exemples.js
     el.innerHTML = `
       <div class="list-block-head">
         <div class="list-block-head-left">
@@ -7142,11 +7165,13 @@ function renderLibrary() {
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-small" data-action="preview-track" data-ti="${ti}" type="button">${tr('previewBtn')}</button>
-          ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
+          ${isExample(track) ? exampleBadgeHtml() : ''}
+          ${flagOpen('alt_drag_delete') && !isExample(track) ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
           <button class="btn btn-small btn-danger" data-action="remove-track" data-ti="${ti}">${tr('deleteBtn')}</button>
         </div>
       </div>
       <div data-role="previewHost"></div>
+      ${isExample(track) ? `<div class="hint-inline lp-example-notice">${escapeHtml(tr('exampleTrackNotice'))}</div>` : ''}
       <div class="list-block-body" data-role="trackBody">
       ${isSequential ? `
         <label data-help="segmentSlotsSection" style="margin-top:14px">${tr('segmentSlotsLabel')}</label>
@@ -8365,7 +8390,7 @@ function renderLibrary() {
     }
     const trackSfxSelectorHost = el.querySelector('[data-role="trackSfxSelector"]');
     if (!track.sfxIds) track.sfxIds = [];
-    if (trackSfxSelectorHost) buildSfxSelectorWidget(trackSfxSelectorHost, track.sfxIds, () => { hasUnsavedEdits = true; });
+    if (trackSfxSelectorHost) buildSfxSelectorWidget(trackSfxSelectorHost, track.sfxIds, () => { hasUnsavedEdits = true; }, isExample(track));
 
     detailHost.appendChild(el);
   });
@@ -8686,7 +8711,7 @@ function renderSfxLibrary() {
     packFromFolderAction: 'pack-from-sfx-folder',
     folderFieldAttr: 'data-sfx-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>`
+    buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>${isExample(s) ? exampleBadgeHtml() : ''}`
   });
   wireOrgDragDrop(masterHost, () => sfxLibrary, () => sfxFolders, renderSfxLibrary); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
@@ -8701,13 +8726,16 @@ function renderSfxLibrary() {
   const entrySel = sfxSelectedEntry.get(sfx.id);
 
   const wrap = document.createElement('div');
+  if (isExample(sfx)) wrap.dataset.example = 'sfx'; // exemple préchargé (4/11) : fichiers son verrouillés, voir 45-exemples.js
   wrap.innerHTML = `
     <div class="list-block-head">
       <div class="list-block-head-left" style="flex:1;">
         <input type="text" data-sfx-field="title" data-si="${si}" value="${escapeAttr(sfx.title)}" placeholder="${tr('sfxFallback', { n: si + 1 })}" style="font-weight:600;border:1px solid transparent;background:transparent;padding:2px 4px;flex:1;min-width:120px;">
       </div>
+      ${isExample(sfx) ? exampleBadgeHtml() : ''}
       <button class="btn btn-small btn-danger" data-action="remove-sfx" data-si="${si}">${tr('removeSfxBtn')}</button>
     </div>
+    ${isExample(sfx) ? `<div class="hint-inline lp-example-notice">${escapeHtml(tr('exampleSfxNotice'))}</div>` : ''}
     <div class="seq-two-col" style="margin-top:10px">
       <div class="seq-master-list" data-role="sfxEntryMaster"></div>
       <div class="seq-detail-col" data-role="sfxEntryDetail"></div>
@@ -9211,6 +9239,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
   const protectBtn = e.target.closest('[data-action="toggle-sfx-protection"]');
   if (protectBtn) {
     const sfx = sfxLibrary[parseInt(protectBtn.dataset.si, 10)];
+    if (isExample(sfx)) { window.LayerPitchNotify.error(tr('exampleNoProtect')); return; }
     const target = !sfx.protected;
     if (!await window.LayerPitchNotify.confirm(tr(target ? 'sfxProtectConfirm' : 'sfxUnprotectConfirm', { title: sfx.title || sfx.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') })) return;
     protectBtn.disabled = true; protectBtn.textContent = tr('trackProtectBusy');
@@ -9389,6 +9418,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   if (btn.dataset.action === 'toggle-track-protection') {
     const track = library[ti];
+    if (isExample(track)) { window.LayerPitchNotify.error(tr('exampleNoProtect')); return; }
     const target = !track.protected;
     window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
       if (!ok) return;
@@ -11022,7 +11052,7 @@ function buildTracksCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div class="hint" data-help="tracksBlockSelector" style="margin-bottom:10px">${tr('tracksBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
-  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, trackOverrides);
+  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, trackOverrides, isExample(currentAdReelObj()));
   blockTracksRefresh = refresh;
   return card;
 }
@@ -11101,7 +11131,8 @@ function buildPhotoCard(block) {
 }
 
 /* ---------------- Sélecteur de packs (banque de packs -> bloc "Packs" d'un AdReel) ---------------- */
-function buildPackSelectorWidget(hostEl, selectedIds, onChange) {
+// allowExamples (4/11) : le pack d'exemple n'est proposé que dans l'AdReel d'exemple (jamais dans une collection).
+function buildPackSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
   function render() {
     hostEl.innerHTML = '';
     if (packs.length === 0) {
@@ -11121,7 +11152,7 @@ function buildPackSelectorWidget(hostEl, selectedIds, onChange) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = packs.filter(p => !selectedIds.includes(p.id));
+    const unselected = exampleChoices(packs.filter(p => !selectedIds.includes(p.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -11168,7 +11199,7 @@ function buildPacksBlockCard(block) {
   body.querySelector('[data-role="presentation"]').addEventListener('input', e => { block.presentation = e.target.value; hasUnsavedEdits = true; });
   const host = body.querySelector('[data-role="selector"]');
   if (!block.packIds) block.packIds = [];
-  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, isExample(currentAdReelObj()));
   return card;
 }
 
@@ -11245,7 +11276,8 @@ function buildCollectionsBlockCard(block) {
 }
 
 /* ---------------- Sélecteur de Sfx (bibliothèque Sfx -> bloc "Sfx" d'un AdReel) ---------------- */
-function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
+// allowExamples (4/11) : les Sfx d'exemple ne sont proposés que dans un morceau, le pack ou l'AdReel d'exemple (exampleChoices).
+function buildSfxSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
   function render() {
     hostEl.innerHTML = '';
     if (sfxLibrary.length === 0) {
@@ -11265,7 +11297,7 @@ function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = sfxLibrary.filter(s => !selectedIds.includes(s.id));
+    const unselected = exampleChoices(sfxLibrary.filter(s => !selectedIds.includes(s.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -11305,7 +11337,7 @@ function buildSfxBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('sfxBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.sfxIds) block.sfxIds = [];
-  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, isExample(currentAdReelObj()));
   return card;
 }
 
@@ -12026,6 +12058,7 @@ function renderPacks() {
           <button class="btn btn-icon btn-toggle-collapse" data-action="toggle-collapse-pack" data-pi="${pi}" type="button">${packCollapsed ? '▸' : '▾'}</button>
           <input type="text" class="seq-header-title" data-pack-field="title" data-pi="${pi}" value="${escapeAttr(pack.title)}" placeholder="${tr('packFallback', { n: pi + 1 })}">
           ${packKindBadge}
+          ${isExample(pack) ? exampleBadgeHtml() : ''}
         </div>
         <button class="btn btn-small btn-danger" data-action="remove-pack" data-pi="${pi}">${tr('deleteBtn')}</button>
       </div>
@@ -12216,16 +12249,22 @@ function renderPacks() {
         f => { pack.pendingWatermark = f; hasUnsavedEdits = true; }, () => pack.watermarkOriginalName);
     }
     if (entrySel === 'distribution') {
+      // Pack d'exemple (4/11) : ni vente, ni catalogue, ni page publique (refusé aussi en base) ; « Prévisualiser » marche.
+      if (isExample(pack)) {
+        detailEl.querySelectorAll('[data-pack-field="buyable"], [data-pack-field="catalogListed"], [data-pack-field="priceEurCents"], [data-pack-field="subscriberCatalog"], [data-pack-field="subscriberCredits"], [data-action="copy-pack-url"], [data-action="share-pack-url"], [data-action="embed-pack"], [data-action="publish-pack-social"]')
+          .forEach(c => { c.disabled = true; c.title = tr('examplePackNoPage'); });
+        detailEl.insertAdjacentHTML('afterbegin', `<div class="hint-inline lp-example-notice" style="margin:0 0 10px">${escapeHtml(tr('examplePackNotice'))}</div>`);
+      }
       const packUrlBox = detailEl.querySelector(`#packUrlBox_${pack.id}`);
       const packUrl = computePackUrl(pack.id);
-      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText());
+      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText(pack));
     }
     if (entrySel === 'content') {
       const selectorHost = detailEl.querySelector('[data-role="trackSelector"]');
-      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); }, undefined, isExample(pack));
       packTracksRefreshers.push(refresh);
       const sfxSelectorHost = detailEl.querySelector('[data-role="packSfxSelector"]');
-      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); }, isExample(pack));
       packSfxRefreshers.push(sfxRefresh);
     }
     container.appendChild(el);
@@ -12260,11 +12299,12 @@ function createPackFromFolder(kind, folderId) {
   if (!folder) return;
   const pack = newPackObject();
   if (folder.label && folder.label.trim()) pack.title = folder.label.trim();
-  const knownSfx = new Set(sfxLibrary.map(s => s.id));
+  // Exemples préchargés (4/11) : jamais dans un pack ordinaire (page publique) -- ils sont laissés de côté.
+  const knownSfx = new Set(sfxLibrary.filter(s => !isExample(s)).map(s => s.id));
   if (kind === 'sfx') {
-    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId).map(s => s.id);
+    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId && !isExample(s)).map(s => s.id);
   } else {
-    const tracks = library.filter(t => t.folderId === folderId);
+    const tracks = library.filter(t => t.folderId === folderId && !isExample(t));
     pack.trackIds = tracks.map(t => t.id);
     const seen = new Set();
     tracks.forEach(t => (t.sfxIds || []).forEach(id => { if (knownSfx.has(id) && !seen.has(id)) { seen.add(id); pack.sfxIds.push(id); } }));
@@ -12320,7 +12360,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -12334,7 +12374,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const pi = parseInt(embedBtn.dataset.pi, 10);
     // Mode tutoriel : le compte fictif n'a pas d'adresse publique, on montre le code avec une adresse d'exemple.
     const embedUrl = computePackUrl(packs[pi].id) || (isTutoMode() ? 'https://beta.layerpitch.com/pack.html?id=' + encodeURIComponent(packs[pi].id) : '');
-    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
@@ -12348,7 +12388,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
     const shareUrl = computePackUrl(packs[pi].id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
@@ -12365,7 +12405,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computePackUrl(packs[pi].id);
-    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;
@@ -12984,7 +13024,7 @@ function albumAutoTakeOpen() { return typeof isTutoMode === 'function' && isTuto
 function albumEditorConfig(al) {
   const A = () => window.LayerPitchAlbums;
   return {
-    tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
+    tracks: () => library.filter(t => !t.exampleSourceId).map(t => ({ id: t.id, title: t.title || t.id })), // jamais d'exemple dans un album (4/11)
     trackTitle: albumTrackTitle,
     mediaBase: MEDIA_BASE + 'images/',
     // Version officielle automatique : admin seulement (nouvelles fonctions, feu vert pas encore donné) ; dans le tutoriel, pour un admin seulement
@@ -14090,6 +14130,7 @@ async function loadData(silent) {
 
       return {
         id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
+        exampleSourceId: t.exampleSourceId || null, // exemple préchargé (4/11) : voir 45-exemples.js
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
@@ -14179,7 +14220,7 @@ async function loadData(silent) {
         folderId: t.folderId || null
       };
     });
-    libraryFolders = (data.libraryFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
+    libraryFolders = (data.libraryFolders || []).map(f => ({ id: f.id, label: f.label || '', exampleSourceId: f.exampleSourceId || null }));
     // Dossiers fermés par défaut à l'ouverture (29/08, retour de Jules-Antoine) : peupler l'ensemble des
     // dossiers repliés avec TOUS les dossiers existants juste après leur chargement, plutôt que de partir
     // d'un Set() vide qui les laissait tous ouverts. Un dossier créé plus tard dans la session (bouton "+
@@ -14187,7 +14228,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '', protected: !!s.protected,
+      id: s.id, title: s.title || '', protected: !!s.protected, exampleSourceId: s.exampleSourceId || null,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),
@@ -14199,14 +14240,14 @@ async function loadData(silent) {
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
       folderId: s.folderId || null
     }));
-    sfxFolders = (data.sfxFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
+    sfxFolders = (data.sfxFolders || []).map(f => ({ id: f.id, label: f.label || '', exampleSourceId: f.exampleSourceId || null }));
     sfxFolders.forEach(f => collapsedSfxFolderIds.add(f.id)); // fermés par défaut à l'ouverture (29/08), même principe que libraryFolders ci-dessus
     sfxLibrary.forEach(s => { if (s.folderId && !sfxFolders.some(f => f.id === s.folderId)) s.folderId = null; });
     socials = (data.socials || []).map(s => ({ id: s.id, platform: s.platform || 'twitter', url: s.url || '' }));
     adReelFolders = (data.adReelFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
     adReelFolders.forEach(f => collapsedAdReelFolderIds.add(f.id)); // fermés par défaut à l'ouverture (29/08), même principe que libraryFolders ci-dessus
     packs = (data.packs || []).map(p => ({
-      id: p.id, title: p.title || '', illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, pendingIllustration: null,
+      id: p.id, exampleSourceId: p.exampleSourceId || null, title: p.title || '', illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, pendingIllustration: null,
       watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, pendingWatermark: null,
       // Migration douce : les packs publiés avant l'architecture bilingue n'ont qu'un champ "presentation"
       // unique — repris tel quel comme version française plutôt que perdu.
@@ -14246,6 +14287,7 @@ async function loadData(silent) {
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       allowIndexing: a.allowIndexing !== false,
       accessMode: a.accessMode || 'public',
+      exampleSourceId: a.exampleSourceId || null, // AdReel « Démo » d'exemple (4/11) : aucune page publique
       slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
@@ -14259,10 +14301,12 @@ async function loadData(silent) {
     // entre deux publications par exemple) fait remonter l'AdReel à la racine plutôt que de le rendre
     // introuvable dans la liste maître.
     adReels.forEach(a => { if (a.folderId && !adReelFolders.some(f => f.id === a.folderId)) a.folderId = null; });
-    if (adReels.length === 0) {
-      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
+    // L'AdReel Démo d'exemple (4/11) s'ajoute à côté de l'AdReel principal, ne le remplace jamais : un compte qui n'a que lui
+    // reçoit quand même son AdReel principal vierge, en tête.
+    if (!adReels.some(a => !a.exampleSourceId)) {
+      adReels.unshift({ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
     }
-    currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : adReels[0].id;
+    currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : (adReels.find(a => !a.exampleSourceId) || adReels[0]).id;
     const cur = adReels.find(a => a.id === currentAdReelId);
     blocks = cur.blocks; profile = cur.profile; testimonials = cur.testimonials; trackIds = cur.trackIds; trackOverrides = cur.trackOverrides || (cur.trackOverrides = {});
     logoPendingFile = cur.logoPendingFile; photoPendingFile = cur.photoPendingFile; themeBgImagePendingFile = cur.themeBgImagePendingFile || null;
@@ -14507,7 +14551,7 @@ document.getElementById('btnView').addEventListener('click', () => {
   // « Renseigne owner / repo » n'allait que dans le journal, invisible). C'était aussi vrai pour tout compositeur
   // sans dépôt GitHub personnel, alors que computeAdReelUrl sait déjà retomber sur le lien public de son handle.
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   window.open(url, '_blank');
 });
 
@@ -15490,6 +15534,9 @@ async function publishAll() {
     // dans chacune des 3 boucles ci-dessous (un seul composer_profiles.plan pour tout le compositeur).
     // Bloque la publication plutôt que de deviner un palier si la session/RPC échoue -- même logique que
     // le garde-fou dataLoadOk ci-dessus, jamais de publication avec un palier incertain.
+    // Exemples préchargés (4/11) : vérifiés AVANT tout envoi (pas de nouveau fichier son, jamais dans une page publique).
+    const exampleProblem = examplePublishProblem();
+    if (exampleProblem) throw new Error(exampleProblem);
     log(tr('resolvingEffectivePlan'));
     await loadPostgresReadScripts();
     const { status: planStatus, error: planError } = await window.LayerPitchSubscriptions.getTrialStatus();
@@ -15638,7 +15685,8 @@ async function publishAll() {
     }
     for (const track of library) {
       if (!track.id) track.id = slug(track.title);
-      track.base = `${MEDIA_BASE}audio/${track.id}/`;
+      // Exemple préchargé (4/11) : ses fichiers sont ceux de la source (base figée, aussi en base) -- jamais audio/<id de la copie>/.
+      if (!isExample(track)) track.base = `${MEDIA_BASE}audio/${track.id}/`;
       const isStatic = track.mode === 'static';
       const hadPendingAudio = trackAudioItems(track).some(it => it.pendingFile);
       const layersToPublish = isStatic ? (track.layers || []).slice(0, 1) : (track.layers || []);
@@ -15793,7 +15841,7 @@ async function publishAll() {
     }
     for (const sfx of sfxLibrary) {
       if (!sfx.id) sfx.id = genId();
-      sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`;
+      if (!isExample(sfx)) sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`; // exemple (4/11) : fichiers de la source
       for (let ai = 0; ai < (sfx.alternatives || []).length; ai++) {
         const alt = sfx.alternatives[ai];
         if (alt.pendingFile) {
@@ -17622,6 +17670,124 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   if (e.repeat) return;
   if (quickSearchEl && !quickSearchEl.hidden) closeQuickSearch(); else openQuickSearch();
+});
+/* ---------------- Exemples préchargés (4/11) ----------------
+ * Cadrage : layerpitch-docs/2026-11-04-exemples-precharges-et-profilage-cadrage.md ; base : migration 20261104020000.
+ * Chaque compte reçoit UNE FOIS (feu vert example_content) une copie de 6 morceaux « Jazz +/- » et de 3 Sfx, rangés dans deux
+ * dossiers « Exemples », plus un pack d'exemple et un AdReel « Démo » privé (accessMode 'example'). Une fiche d'exemple porte
+ * exampleSourceId (id de la source). Ses fichiers son sont ceux de la source, PARTAGÉS par tous les comptes : jamais copiés,
+ * jamais remplacés. D'où les garde-fous ci-dessous (doublés en base) :
+ *   - pas de nouveau fichier son sur un morceau ou un Sfx d'exemple (filet sur les sélecteurs et dépôts de fichiers) ;
+ *   - ni protection (set-track-protection déplace audio/<id>/), ni copie (copy-track-files copie audio/<id>/) ;
+ *   - un exemple ne va que dans le pack ou l'AdReel d'exemple (tout autre pack/AdReel/collection est une page publique),
+ *     jamais dans un album ; le pack et l'AdReel d'exemple n'ont pas de lien public, ne se vendent pas.
+ * « Retirer les exemples » (bibliothèque) efface d'un coup les fiches (remove_my_examples), jamais les fichiers ; l'ajout ne se
+ * refait pas ensuite (composer_profiles.examples_seeded_at). */
+function isExample(o) { return !!(o && o.exampleSourceId); }
+function currentAdReelObj() { return adReels.find(a => a.id === currentAdReelId) || null; }
+// Choix proposés dans un sélecteur (morceaux, Sfx, packs) : sans les exemples, sauf là où ils sont permis.
+function exampleChoices(list, allowExamples) { return allowExamples ? list : list.filter(x => !isExample(x)); }
+function exampleBadgeHtml() { return `<span class="badge lp-example-badge" title="${escapeAttr(tr('exampleBadgeTitle'))}">${tr('exampleBadge')}</span>`; }
+function hasAnyExample() {
+  return library.some(isExample) || sfxLibrary.some(isExample) || packs.some(isExample) || adReels.some(isExample);
+}
+
+// Ajout au chargement : une seule tentative par ouverture de page ; le serveur décide (feu vert, déjà fait, langue).
+let examplesSeedTried = false;
+async function seedMyExamplesIfNeeded() {
+  if (examplesSeedTried || isTutoMode()) return;
+  examplesSeedTried = true;
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
+    if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }
+    if (data && data.seeded) {
+      log(tr('examplesSeededMsg'), 'ok');
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+    }
+  } catch (e) { console.warn('seed_my_examples() injoignable :', e && e.message); }
+}
+
+// Problème bloquant avant une sauvegarde (null si tout va bien) : vérifié avant tout envoi de fichier ou écriture en base.
+function hasPendingFileDeep(obj, seen) {
+  if (!obj || typeof obj !== 'object') return false;
+  seen = seen || new Set();
+  if (seen.has(obj)) return false;
+  seen.add(obj);
+  if (obj.pendingFile) return true;
+  return Object.keys(obj).some(k => k !== 'pendingFile' && hasPendingFileDeep(obj[k], seen));
+}
+function examplePublishProblem() {
+  const name = o => (o && (o.title || o.label)) || (o && o.id) || '?';
+  const exTrack = id => library.find(t => t.id === id && isExample(t));
+  const exSfx = id => sfxLibrary.find(s => s.id === id && isExample(s));
+  const exPack = id => packs.find(p => p.id === id && isExample(p));
+  for (const t of library) if (isExample(t) && hasPendingFileDeep(t)) return tr('examplePublishFiles', { name: name(t) });
+  for (const s of sfxLibrary) if (isExample(s) && hasPendingFileDeep(s.alternatives)) return tr('examplePublishFiles', { name: name(s) });
+  const placed = (holder, found) => found ? tr('examplePublishPlacement', { item: name(holder), name: name(found) }) : null;
+  for (const p of packs) {
+    if (isExample(p)) continue;
+    const msg = placed(p, (p.trackIds || []).map(exTrack).find(Boolean) || (p.sfxIds || []).map(exSfx).find(Boolean));
+    if (msg) return msg;
+  }
+  for (const a of adReels) {
+    if (isExample(a)) continue;
+    const inBlocks = (a.blocks || []).map(b => (b.sfxIds || []).map(exSfx).find(Boolean) || (b.packIds || []).map(exPack).find(Boolean)).find(Boolean);
+    const msg = placed(a, (a.trackIds || []).map(exTrack).find(Boolean) || inBlocks);
+    if (msg) return msg;
+  }
+  for (const c of collections) {
+    const msg = placed(c, (c.packIds || []).map(exPack).find(Boolean));
+    if (msg) return msg;
+  }
+  for (const t of library) {
+    if (isExample(t)) continue;
+    const msg = placed(t, (t.sfxIds || []).map(exSfx).find(Boolean));
+    if (msg) return msg;
+  }
+  return null;
+}
+
+// Filet anti-fichiers : sur une fiche d'exemple ([data-example], posé par renderLibrary/renderSfxLibrary), tout choix ou dépôt
+// de fichier est arrêté avant d'atteindre le sélecteur (phase de capture), avec un message.
+function exampleFileGuard(e) {
+  const host = e.target && e.target.closest && e.target.closest('[data-example]');
+  if (!host) return;
+  if (e.type === 'click') {
+    if (!e.target.closest('[data-role="pickBtn"], input[type="file"]')) return;
+  } else if (!e.dataTransfer || ![...(e.dataTransfer.types || [])].includes('Files')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.type !== 'dragover') window.LayerPitchNotify.error(tr(host.dataset.example === 'sfx' ? 'exampleNoFilesSfx' : 'exampleNoFiles'));
+}
+['libraryDetail', 'sfxLibraryDetail'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) ['click', 'dragover', 'drop'].forEach(type => el.addEventListener(type, exampleFileGuard, true));
+});
+
+// Bouton « Retirer les exemples » (bibliothèque) : visible tant qu'il reste un exemple.
+function refreshExamplesUi() {
+  const btn = document.getElementById('btnRemoveExamples');
+  if (btn) btn.hidden = isTutoMode() || !hasAnyExample();
+}
+document.getElementById('btnRemoveExamples').addEventListener('click', async () => {
+  const btn = document.getElementById('btnRemoveExamples');
+  if (isTutoMode()) return;
+  // Le retrait recharge la page : des changements non sauvegardés seraient perdus.
+  if (hasUnsavedEdits) { window.LayerPitchNotify.info(tr('removeExamplesSaveFirst')); return; }
+  if (!(await window.LayerPitchNotify.confirm(tr('removeExamplesConfirm'), { danger: true, okLabel: tr('removeExamplesBtn') }))) return;
+  btn.disabled = true;
+  try {
+    await loadPostgresReadScripts();
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('remove_my_examples');
+    if (error) throw new Error(error.message || String(error));
+    await loadData(true);
+    window.LayerPitchNotify.info(tr('removeExamplesDone'));
+  } catch (e) {
+    window.LayerPitchNotify.error(tr('removeExamplesError', { error: e && e.message ? e.message : String(e) }));
+  } finally {
+    btn.disabled = false;
+    refreshExamplesUi();
+  }
 });
 </script>
 <script type="text/javascript">

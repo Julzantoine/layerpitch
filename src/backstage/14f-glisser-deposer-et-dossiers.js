@@ -61,6 +61,7 @@ function cloneTrackWithRemap(track) {
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
   if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;
   copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
@@ -428,7 +429,8 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
         ${dragHandleHtml('folder-drag-handle')}
         <button class="btn btn-icon" data-action="${opts.toggleFolderAction}" data-folder-id="${folder.id}" type="button">${collapsed ? '▸' : '▾'}</button>
         <input type="text" class="org-folder-title" ${opts.folderFieldAttr}="label" data-folder-id="${folder.id}" value="${escapeAttr(folder.label)}" placeholder="${tr(opts.folderFallbackKey)}">
-        ${opts.packFromFolderAction ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
+        ${isExample(folder) ? exampleBadgeHtml() : ''}
+        ${opts.packFromFolderAction && !isExample(folder) ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
         ${deleteIconBtnHtml(opts.deleteFolderAction, { 'folder-id': folder.id }, tr('deleteBtn'))}
       </div>
     `;

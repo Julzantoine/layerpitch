@@ -50,6 +50,8 @@
       startTrackBeat: row.start_track_beat != null ? Number(row.start_track_beat) : null,
       maxLoops: row.max_loops, maxChainLoops: row.max_chain_loops, normalizeVolume: row.normalize_volume,
       protected: !!row.protected,
+      // Exemple préchargé (4/11, migration 20261104020000) : id du morceau source, null pour un morceau ordinaire.
+      exampleSourceId: row.example_source_id || null,
       duration: Number(row.duration), base: row.base, layers: row.layers, intro: row.intro, outro: row.outro,
       segmentSlots, loops: row.loops, randomizeSections: row.randomize_sections, sections: row.sections, sfxIds,
       // Effets audio (22-23/09) : fx de morceau entier (pitch "vitesse") et triggers d'effets -- colonnes
@@ -112,7 +114,7 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { folders: null, error: error.message };
-    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label })), error: null };
+    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label, exampleSourceId: f.example_source_id || null })), error: null };
   }
 
   // Écrit la liste COMPLÈTE et ordonnée des dossiers d'un type ('tracks' | 'sfx' | 'adreels') du compositeur courant

@@ -24,6 +24,7 @@ function renderPacks() {
           <button class="btn btn-icon btn-toggle-collapse" data-action="toggle-collapse-pack" data-pi="${pi}" type="button">${packCollapsed ? '▸' : '▾'}</button>
           <input type="text" class="seq-header-title" data-pack-field="title" data-pi="${pi}" value="${escapeAttr(pack.title)}" placeholder="${tr('packFallback', { n: pi + 1 })}">
           ${packKindBadge}
+          ${isExample(pack) ? exampleBadgeHtml() : ''}
         </div>
         <button class="btn btn-small btn-danger" data-action="remove-pack" data-pi="${pi}">${tr('deleteBtn')}</button>
       </div>
@@ -214,16 +215,22 @@ function renderPacks() {
         f => { pack.pendingWatermark = f; hasUnsavedEdits = true; }, () => pack.watermarkOriginalName);
     }
     if (entrySel === 'distribution') {
+      // Pack d'exemple (4/11) : ni vente, ni catalogue, ni page publique (refusé aussi en base) ; « Prévisualiser » marche.
+      if (isExample(pack)) {
+        detailEl.querySelectorAll('[data-pack-field="buyable"], [data-pack-field="catalogListed"], [data-pack-field="priceEurCents"], [data-pack-field="subscriberCatalog"], [data-pack-field="subscriberCredits"], [data-action="copy-pack-url"], [data-action="share-pack-url"], [data-action="embed-pack"], [data-action="publish-pack-social"]')
+          .forEach(c => { c.disabled = true; c.title = tr('examplePackNoPage'); });
+        detailEl.insertAdjacentHTML('afterbegin', `<div class="hint-inline lp-example-notice" style="margin:0 0 10px">${escapeHtml(tr('examplePackNotice'))}</div>`);
+      }
       const packUrlBox = detailEl.querySelector(`#packUrlBox_${pack.id}`);
       const packUrl = computePackUrl(pack.id);
-      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText());
+      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText(pack));
     }
     if (entrySel === 'content') {
       const selectorHost = detailEl.querySelector('[data-role="trackSelector"]');
-      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); }, undefined, isExample(pack));
       packTracksRefreshers.push(refresh);
       const sfxSelectorHost = detailEl.querySelector('[data-role="packSfxSelector"]');
-      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); }, isExample(pack));
       packSfxRefreshers.push(sfxRefresh);
     }
     container.appendChild(el);
@@ -258,11 +265,12 @@ function createPackFromFolder(kind, folderId) {
   if (!folder) return;
   const pack = newPackObject();
   if (folder.label && folder.label.trim()) pack.title = folder.label.trim();
-  const knownSfx = new Set(sfxLibrary.map(s => s.id));
+  // Exemples préchargés (4/11) : jamais dans un pack ordinaire (page publique) -- ils sont laissés de côté.
+  const knownSfx = new Set(sfxLibrary.filter(s => !isExample(s)).map(s => s.id));
   if (kind === 'sfx') {
-    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId).map(s => s.id);
+    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId && !isExample(s)).map(s => s.id);
   } else {
-    const tracks = library.filter(t => t.folderId === folderId);
+    const tracks = library.filter(t => t.folderId === folderId && !isExample(t));
     pack.trackIds = tracks.map(t => t.id);
     const seen = new Set();
     tracks.forEach(t => (t.sfxIds || []).forEach(id => { if (knownSfx.has(id) && !seen.has(id)) { seen.add(id); pack.sfxIds.push(id); } }));
@@ -318,7 +326,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -332,7 +340,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const pi = parseInt(embedBtn.dataset.pi, 10);
     // Mode tutoriel : le compte fictif n'a pas d'adresse publique, on montre le code avec une adresse d'exemple.
     const embedUrl = computePackUrl(packs[pi].id) || (isTutoMode() ? 'https://beta.layerpitch.com/pack.html?id=' + encodeURIComponent(packs[pi].id) : '');
-    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
@@ -346,7 +354,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
     const shareUrl = computePackUrl(packs[pi].id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
@@ -363,7 +371,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computePackUrl(packs[pi].id);
-    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;

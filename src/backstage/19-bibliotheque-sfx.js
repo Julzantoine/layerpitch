@@ -16,7 +16,7 @@ function renderSfxLibrary() {
     packFromFolderAction: 'pack-from-sfx-folder',
     folderFieldAttr: 'data-sfx-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>`
+    buildRowInner: s => `<span class="seq-master-item-label">${escapeAttr(s.title) || tr('sfxFallback', { n: sfxLibrary.indexOf(s) + 1 })}</span>${isExample(s) ? exampleBadgeHtml() : ''}`
   });
   wireOrgDragDrop(masterHost, () => sfxLibrary, () => sfxFolders, renderSfxLibrary); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
@@ -31,13 +31,16 @@ function renderSfxLibrary() {
   const entrySel = sfxSelectedEntry.get(sfx.id);
 
   const wrap = document.createElement('div');
+  if (isExample(sfx)) wrap.dataset.example = 'sfx'; // exemple préchargé (4/11) : fichiers son verrouillés, voir 45-exemples.js
   wrap.innerHTML = `
     <div class="list-block-head">
       <div class="list-block-head-left" style="flex:1;">
         <input type="text" data-sfx-field="title" data-si="${si}" value="${escapeAttr(sfx.title)}" placeholder="${tr('sfxFallback', { n: si + 1 })}" style="font-weight:600;border:1px solid transparent;background:transparent;padding:2px 4px;flex:1;min-width:120px;">
       </div>
+      ${isExample(sfx) ? exampleBadgeHtml() : ''}
       <button class="btn btn-small btn-danger" data-action="remove-sfx" data-si="${si}">${tr('removeSfxBtn')}</button>
     </div>
+    ${isExample(sfx) ? `<div class="hint-inline lp-example-notice">${escapeHtml(tr('exampleSfxNotice'))}</div>` : ''}
     <div class="seq-two-col" style="margin-top:10px">
       <div class="seq-master-list" data-role="sfxEntryMaster"></div>
       <div class="seq-detail-col" data-role="sfxEntryDetail"></div>

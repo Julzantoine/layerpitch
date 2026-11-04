@@ -6,6 +6,7 @@ function renderLibrary() {
   const detailHost = document.getElementById('libraryDetail');
   if (!masterHost || !detailHost) return; // panneau pas encore dans le DOM au tout premier rendu
   if (dataLoadOk) syncBackstageWelcome(); // un morceau ajouté ou retiré : l'accueil suit
+  refreshExamplesUi(); // bouton « Retirer les exemples » (45-exemples.js)
   if (!manageLibrarySelectedId || !library.some(t => t.id === manageLibrarySelectedId)) {
     manageLibrarySelectedId = library.length ? library[0].id : null;
   }
@@ -18,7 +19,7 @@ function renderLibrary() {
     packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>`
+    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}`
   });
   wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
@@ -39,6 +40,7 @@ function renderLibrary() {
     const bpm = track.bpm || 120;
     const el = document.createElement('div');
     el.className = 'list-block';
+    if (isExample(track)) el.dataset.example = 'track'; // exemple préchargé (4/11) : fichiers son verrouillés, voir 45-exemples.js
     el.innerHTML = `
       <div class="list-block-head">
         <div class="list-block-head-left">
@@ -57,11 +59,13 @@ function renderLibrary() {
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-small" data-action="preview-track" data-ti="${ti}" type="button">${tr('previewBtn')}</button>
-          ${flagOpen('alt_drag_delete') ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
+          ${isExample(track) ? exampleBadgeHtml() : ''}
+          ${flagOpen('alt_drag_delete') && !isExample(track) ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
           <button class="btn btn-small btn-danger" data-action="remove-track" data-ti="${ti}">${tr('deleteBtn')}</button>
         </div>
       </div>
       <div data-role="previewHost"></div>
+      ${isExample(track) ? `<div class="hint-inline lp-example-notice">${escapeHtml(tr('exampleTrackNotice'))}</div>` : ''}
       <div class="list-block-body" data-role="trackBody">
       ${isSequential ? `
         <label data-help="segmentSlotsSection" style="margin-top:14px">${tr('segmentSlotsLabel')}</label>

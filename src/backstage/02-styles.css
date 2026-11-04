@@ -1027,3 +1027,6 @@
 .hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
 .hybrid-skip-intro, .hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .hybrid-skip-intro input, .hybrid-free-return input { width: auto; margin: 0; }
+/* Exemples préchargés (4/11, 45-exemples.js) : étiquette « Exemple » et ligne d'explication, dans le bleu du Backstage. */
+.lp-example-badge { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); margin-left: 6px; white-space: nowrap; }
+.lp-example-notice { margin: 8px 0 4px; padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--accent-soft); color: var(--text, inherit); }
