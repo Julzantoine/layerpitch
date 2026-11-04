@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793790938720">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793790938720">
+<link rel="stylesheet" href="player.css?v=1793800966424">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793800966424">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -425,16 +425,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793790938720"></script>
-<script src="layerpitch-notify.js?v=1793790938720"></script>
-<script src="public-page.js?v=1793790938720"></script>
-<script src="player.js?v=1793790938720"></script>
-<script src="capture-plan.js?v=1793790938720"></script>
-<script src="capture-render.js?v=1793790938720"></script>
-<script src="capture-retarget.js?v=1793790938720"></script>
-<script src="capture-versioning.js?v=1793790938720"></script>
-<script src="layerpitch-guide.js?v=1793790938720"></script>
-<script src="atelier-lecons.js?v=1793790938720"></script>
+<script src="layerpitch-i18n.js?v=1793800966424"></script>
+<script src="layerpitch-notify.js?v=1793800966424"></script>
+<script src="public-page.js?v=1793800966424"></script>
+<script src="player.js?v=1793800966424"></script>
+<script src="capture-plan.js?v=1793800966424"></script>
+<script src="capture-render.js?v=1793800966424"></script>
+<script src="capture-retarget.js?v=1793800966424"></script>
+<script src="capture-versioning.js?v=1793800966424"></script>
+<script src="layerpitch-guide.js?v=1793800966424"></script>
+<script src="atelier-lecons.js?v=1793800966424"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -705,6 +705,65 @@ let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sl
 // avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
 // s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
 let armedTrackId = null;
+
+// Affiche la piste armée dans le panneau de capture. Restée dans src/pack/12 lors du passage à l'atelier (21/10) : sans
+// elle, ouvrir le panneau plantait avant de brancher « Démarrer la capture » (rétablie le 04/11, avec startCapture/stopCapture
+// ci-dessous, perdues au même moment : l'atelier ne pouvait plus rien enregistrer).
+function updateArmedStatusDisplay() {
+  const statusEl = document.getElementById('videoCaptureArmedStatus');
+  if (!statusEl) return; // panneau de capture pas encore ouvert
+  if (!armedTrackId) { statusEl.textContent = tr('captureArmedNone'); return; }
+  const row = document.querySelector(`[data-track-id="${armedTrackId}"]`);
+  const titleEl = row && row.querySelector('[data-role="titleToggle"]');
+  statusEl.textContent = tr('captureArmedLabel').replace('{name}', titleEl ? titleEl.textContent.trim() : armedTrackId);
+}
+
+function startCapture(videoEl) {
+  const events = [];
+  // Tout ce que le lecteur annonce passe par ses repères de capture (player.js, captureMark -- 25/09) : évènements de
+  // télémétrie ET repères propres à la capture (générations de boucles, arrêts, bascules réelles...). Chacun est daté
+  // à l'instant exact où le son a lieu (at : heure du contexte audio, donnée par le lecteur).
+  // Horloge : celle du son (at, heure exacte du contexte audio), replacée sur la vidéo par un seul décalage relevé au
+  // démarrage -- tous les sons restent calés entre eux à l'échantillon près.
+  const P = window.LayerPlayerCore;
+  const audio0 = P.audioNow(), video0 = videoEl.currentTime;
+  const stamp = at => Math.max(0, video0 + (at - audio0));
+  const markHandler = (e) => {
+    const d = e.detail || {};
+    const detail = Object.assign({}, d.detail || {});
+    const at = detail.at != null ? detail.at : P.audioNow();
+    delete detail.at;
+    events.push({ t: stamp(at), name: d.name, detail });
+  };
+  document.addEventListener('layerpitch-capture-mark', markHandler);
+  // Tête de l'auditeur (23/09) : pas un évènement de télémétrie (le curseur en émettrait des dizaines par seconde) mais
+  // un évènement DOM du moteur -- écouté ici seulement pendant la prise. L'orientation déjà réglée avant de démarrer est
+  // enregistrée comme point de départ.
+  const headHandler = (e) => events.push({ t: stamp(P.audioNow()), name: 'head_turn', detail: { yaw: e.detail } });
+  document.addEventListener('layerpitch-head-yaw', headHandler);
+  const yaw0 = window.LayerPlayerCore && window.LayerPlayerCore.getListenerYaw ? window.LayerPlayerCore.getListenerYaw() : 0;
+  if (yaw0) events.push({ t: stamp(P.audioNow()), name: 'head_turn', detail: { yaw: yaw0 } });
+  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur. Au démarrage d'une piste armée, le lecteur
+  // remet les curseurs à leur position de départ SANS émettre : l'état initial d'une prise est la valeur par défaut.
+  const sliderHandler = (e) => events.push({ t: stamp(P.audioNow()), name: 'fx_slider', detail: { trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value } });
+  document.addEventListener('layerpitch-fx-slider', sliderHandler);
+  videoCaptureState = { events, videoEl, markHandler, headHandler, sliderHandler, stamp };
+}
+
+function stopCapture() {
+  if (!videoCaptureState) return [];
+  // Fin de la prise : ce qui jouait s'arrête ici (l'arrêt réel de la musique suit, une fois l'enregistrement fermé) --
+  // sans ce repère, le rendu laisserait sonner les boucles au-delà de la fin de la capture.
+  const tEnd = videoCaptureState.stamp(window.LayerPlayerCore.audioNow());
+  [...new Set(videoCaptureState.events.map(e => e.detail && e.detail.trackId).filter(Boolean))]
+    .forEach(trackId => videoCaptureState.events.push({ t: tEnd, name: 'voices_stop', detail: { trackId } }));
+  document.removeEventListener('layerpitch-capture-mark', videoCaptureState.markHandler);
+  document.removeEventListener('layerpitch-head-yaw', videoCaptureState.headHandler);
+  document.removeEventListener('layerpitch-fx-slider', videoCaptureState.sliderHandler);
+  const events = videoCaptureState.events;
+  videoCaptureState = null;
+  return events;
+}
 
 // Libellé humain d'un événement capturé (calques/sfx résolus depuis window.__lpCaptureLibrary) --
 // utilisé à la fois par la liste affichée dans le panneau et implicitement par l'incrustation vidéo
@@ -2010,9 +2069,10 @@ function openCapturePanel(file, opts) {
       // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
       // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
       // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
-      // train de jouer. Ne couvre que la piste ARMÉE -- si le compositeur a manuellement démarré une
-      // AUTRE piste sans l'armer, celle-là continue (limite connue, cas rare vu le flux armer/capturer).
-      if (armedTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: armedTrackId }));
+      // train de jouer. Couvre la piste armée ET toutes celles lancées pendant la prise (04/11 : la leçon Versioning
+      // passe de la rue au club en changeant de morceau, le second continuait de jouer après l'arrêt).
+      new Set([armedTrackId].concat(newPassEvents.map(e => e.detail && e.detail.trackId)).filter(Boolean))
+        .forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
       videoEl.pause();
       recordBtn.classList.remove('recording');
       recordLabel.textContent = tr('captureStartBtn');

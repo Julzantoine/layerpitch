@@ -18,6 +18,9 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('page pack : la vidéo de la bibliothèque se joue ici, son coupé', /<video src="\$\{escapeHtml\(parsed\.url\)\}" controls muted playsinline><\/video>/.test(pack));
   check('atelier : choix du pack, outil, dialogue de la vidéo, leçon', /id="atelierPackSelect"/.test(atelier) && /async function setupCaptureTrigger\(pack, container, opts\)/.test(atelier)
     && /id="videoCaptureDialog"/.test(atelier) && /function openCapturePanel/.test(atelier) && /atelier-lecons\.js/.test(atelier) && /capture-versioning\.js/.test(atelier));
+  // 04/11 : ces trois fonctions s'étaient perdues au déplacement (21/10), l'atelier ne pouvait plus rien enregistrer.
+  check('atelier : la capture démarre, s’arrête et montre la piste armée', ['startCapture', 'stopCapture', 'updateArmedStatusDisplay'].every(f => new RegExp('function ' + f + '\\(').test(atelier)));
+  check('atelier : arrêter la capture arrête aussi les morceaux lancés pendant la prise', /new Set\(\[armedTrackId\]\.concat\(newPassEvents\.map/.test(atelier));
   check('atelier : studio = packs achetés par l’équipe, compositeur = ses packs', /client\.rpc\('my_team_purchases'\)/.test(atelier) && /\.eq\('owner_id', composerId\)/.test(atelier));
   check('atelier : plus besoin du réglage « Tester en jeu » du pack', !/if \(!pack\.videoTestModeEnabled\) return/.test(atelier));
   check('atelier : données publiées du compositeur du pack (le sien ou le vendeur)', /lastResolvedOwnerId = owner\.owner_id/.test(atelier) && /loadSiteDataFromPostgres\(owner\.owner_id\)/.test(atelier));
@@ -78,6 +81,11 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('atelier : pack choisi (rechargé), la leçon reprend à « Choisir la vidéo »', second.opened[0].selector === '.video-capture-trigger-btn' && second.opened[second.opened.length - 1].final);
   const keys = new Set(first.all.flatMap(s => [s.titleKey, s.textKey]));
   check('leçon (atelier) : ' + keys.size + ' textes présents en FR et EN', [...keys].every(has));
+  // 04/11 : la capture suit la vidéo muette, une bulle par moment clé (rue, entrée dans le club, batterie, clavier, glaçons).
+  const order = second.opened.map(s => s.titleKey);
+  check('atelier : rue (statique armé) → club → couche 2 → couche 3 → glaçons → arrêt', ['pvArmTitle', 'pvRecordTitle', 'pvStreetTitle', 'pvClubTitle', 'pvDrumsTitle', 'pvKeysTitle', 'pvIceTitle', 'pvStopTitle']
+    .every((k, i, a) => order.indexOf(k) >= 0 && (i === 0 || order.indexOf(k) === order.indexOf(a[i - 1]) + 1)));
+  check('pack Music City : les morceaux à couches du club portent le Sfx « Glaçons »', /withGlacons\(DEMO_TRACKS_JAZZ\.find\(t => t\.title === 'Jazz Hi Lay\. Add\.'\)\), withGlacons\(DEMO_TRACK_JAZZ_LO_ADD\)/.test(read('api/demo-client.js')));
   const src43 = read('src/backstage/43-visite-guidee.js');
   const lv = src43.slice(src43.indexOf("{ id: 'versioning'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning'")));
   check('leçon (Backstage) : onglet Vidéo → Atelier → bloc vidéo, sans page pack', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)

@@ -28,15 +28,28 @@
     };
     const $ = sel => document.querySelector(sel);
     const hasPack = new URLSearchParams(location.search).has('id');
+    // Morceaux du pack « Music City » (api/demo-client.js) et instants clés de la vidéo muette (04/11, en secondes) :
+    // porte du club 13,5 · entrée 15,8 · fondu puis la salle se remplit 19,3-20,3 · assis au bar ~24 · glaçons 31,4-33,1 · fin 37,7.
+    const STREET = 't-jazz-lo', CLUB = 'bmvidtfhvfa5tt';
+    const row = id => document.querySelector(`.track-row-wrapper[data-track-id="${id}"]`); // (la frise de capture porte aussi data-track-id)
+    const layerBtn = n => { const r = row(CLUB); return r ? r.querySelectorAll('.vert-layer-btn')[n] : null; };
+    const videoAt = s => { const v = $('#videoCaptureEl'); return !!(v && v.currentTime >= s); };
     const steps = [
       { titleKey: 'pvWelcomeTitle', textKey: 'pvWelcomeText' },
       { selector: '#atelierPackSelect', titleKey: 'pvPackTitle', textKey: 'pvPackText', done: () => !!($('#atelierPackSelect') && $('#atelierPackSelect').value) },
       { selector: '.video-capture-trigger-btn', titleKey: 'pvOpenTitle', textKey: 'pvOpenText', clickDone: true },
       { selector: '#videoCaptureDropzone', titleKey: 'pvVideoTitle', textKey: 'pvVideoText', done: () => !!$('#videoCaptureEl'),
         drops: ready() ? [{ kind: 'file', label: KIT.video.label, url: KIT.video.url, name: KIT.video.name }] : [] },
-      { selector: '.video-capture-arm-track-btn', titleKey: 'pvArmTitle', textKey: 'pvArmText', done: () => !!$('.video-capture-arm-track-btn.armed') },
+      // Passage 1, la rue : le morceau statique, armé, démarre avec la vidéo.
+      { selector: () => row(STREET) && row(STREET).querySelector('.video-capture-arm-track-btn'), titleKey: 'pvArmTitle', textKey: 'pvArmText',
+        done: () => !!(row(STREET) && row(STREET).querySelector('.video-capture-arm-track-btn.armed')) },
       { selector: '#videoCaptureRecordBtn', titleKey: 'pvRecordTitle', textKey: 'pvRecordText', clickDone: true },
-      { selector: () => document.querySelector('[data-track-id] [data-role="playBtn"]'), titleKey: 'pvPlayTitle', textKey: 'pvPlayText' },
+      { selector: '#videoCaptureEl', titleKey: 'pvStreetTitle', textKey: 'pvStreetText', done: () => videoAt(13) },
+      // Passage 2, le club : le morceau à couches, une couche par musicien, puis les glaçons au bar.
+      { selector: () => row(CLUB) && row(CLUB).querySelector('[data-role="playBtn"]'), titleKey: 'pvClubTitle', textKey: 'pvClubText', clickDone: true },
+      { selector: () => layerBtn(1), titleKey: 'pvDrumsTitle', textKey: 'pvDrumsText', clickDone: true },
+      { selector: () => layerBtn(2), titleKey: 'pvKeysTitle', textKey: 'pvKeysText', clickDone: true },
+      { selector: () => row(CLUB) && row(CLUB).querySelector('.stinger-btn[data-sfx-id="sfx-glacons"]'), titleKey: 'pvIceTitle', textKey: 'pvIceText', clickDone: true },
       { selector: '#videoCaptureRecordBtn', titleKey: 'pvStopTitle', textKey: 'pvStopText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
         drops: [{ kind: 'text', label: 'Music City : de la rue au club', value: 'Music City : de la rue au club' }] },
