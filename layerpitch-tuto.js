@@ -47,10 +47,14 @@
   function switchToDemo() { window.LayerPitchSupabaseClient = { getClient: () => window.LayerPitchDemoClient }; }
   // Entrée complète pour les pages à balises <script> statiques : porte (si fermée) puis bascule. `leaveTo` : page de repli pour un refus.
   // `opts.adminOnly` : page réservée aux admins même quand le tutoriel public est ouvert (leçons « Préproduction » pas encore vérifiées, 26/10).
+  // Leçons jouées hors du Backstage et réservées aux admins jusqu'à leur feu vert, quelle que soit la page qui les accueille (05/11 :
+  // « Jouer en direct sur une vidéo », sur la page du pack). À retirer de cette liste à l'ouverture de la leçon.
+  const ADMIN_ONLY_LESSONS = ['live-play'];
+  const lessonAdminOnly = () => ADMIN_ONLY_LESSONS.includes(new URLSearchParams(window.location.search).get('lesson'));
   async function enter(leaveTo, opts) {
     if (!isOn()) return false;
     await ready;
-    if ((!publicOpen() || (opts && opts.adminOnly)) && !(await adminGate())) { window.location.replace(leaveTo || window.location.pathname); await new Promise(() => {}); }
+    if ((!publicOpen() || (opts && opts.adminOnly) || lessonAdminOnly()) && !(await adminGate())) { window.location.replace(leaveTo || window.location.pathname); await new Promise(() => {}); }
     switchToDemo();
     return true;
   }
@@ -86,5 +90,5 @@
     document.head.appendChild(s);
   }
   loadUmami();
-  window.LayerPitchTuto = { track, ready, publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter };
+  window.LayerPitchTuto = { track, ready, publicOpen, isOn, adminGate, accessLevel, switchToDemo, enter, ADMIN_ONLY_LESSONS };
 })();

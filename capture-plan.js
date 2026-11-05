@@ -389,7 +389,25 @@
           return list.sort(byT);
         };
         const runs = events.filter(e => e.name === 'layer_run' && e.detail.trackId === trackId).sort(byT);
-        const gens = events.filter(e => e.name === 'layer_gen' && e.detail.trackId === trackId).sort(byT);
+        let gens = events.filter(e => e.name === 'layer_gen' && e.detail.trackId === trackId).sort(byT);
+        // Montage à la souris (05/11) : morceau posé dans la frise sans jamais avoir été joué (aucune écoute ni génération enregistrée).
+        // Moteur quantifié : on refait les générations du lecteur (29-moteur-quantifie.js) -- la première depuis le point de départ du
+        // morceau dès le premier bloc posé (intro comprise), les suivantes depuis l'entrée de boucle, une par tour, la queue de chacune
+        // chevauchant la suivante -- jusqu'à la fin du dernier bloc, où la musique s'arrête. Sans cela, les couches bouclaient le fichier
+        // entier (intro et queue comprises) et se décalaient.
+        if (!runs.length && !gens.length && segs.length && track.loopEngine === 'quantized') {
+          const spb = 60 / (Number(track.bpm) || 120), bpb = Number(track.beatsPerBar) || 4;
+          const loopIn = (Number(track.loopInBeat) || 0) * spb;
+          const loopOut = Math.max(loopIn + spb, (Number(track.loopOutBeat) || bpb * 4) * spb);
+          const startSec = Math.min((Number(track.startTrackBeat) || 0) * spb, loopIn);
+          const t0 = Math.min(...segs.map(x => x.t)), tEnd = Math.max(...segs.map(x => x.t + x.detail.duration));
+          for (let t = t0, off = startSec, n = 0; t < tEnd - 1e-3 && n < 10000; n++) {
+            gens.push({ t, name: 'layer_gen', detail: { trackId, bufferOffset: off } });
+            t += off < loopIn ? loopOut - off : loopOut - loopIn;
+            off = loopIn;
+          }
+          if (firstStopAfter(stops, t0) == null) stops.push(tEnd);
+        }
         const covered = [];
         // Moteur simple : chaque couche tourne en boucle depuis le démarrage (une seule source par couche et par écoute).
         runs.forEach(r => {

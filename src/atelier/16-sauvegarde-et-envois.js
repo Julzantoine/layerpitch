@@ -70,6 +70,18 @@ async function loadFfmpegWasm(onProgress) {
 
 function findCaptureTrack(trackId) { return (window.__lpCaptureLibrary.library || []).find(t => t.id === trackId); }
 function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary || []).find(s => s.id === sfxId); }
+// Bibliothèque limitée au pack ouvert (05/11) : ce que la frise et le Versioning proposent. findCaptureTrack / findCaptureSfx gardent
+// toute la bibliothèque (relire un ancien montage).
+function capturePackLibrary() {
+  const lib = window.__lpCaptureLibrary || {};
+  if (!lib.packTrackIds) return lib;
+  const trackIds = new Set(lib.packTrackIds);
+  const sfxIds = new Set(lib.packSfxIds || []);
+  return Object.assign({}, lib, {
+    library: (lib.library || []).filter(t => trackIds.has(t.id)),
+    sfxLibrary: (lib.sfxLibrary || []).filter(s => sfxIds.has(s.id)),
+  });
+}
 
 async function fetchAsUint8Array(url) {
   const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)

@@ -191,6 +191,17 @@ async function renderVideoLibrary() {
   const listEl = document.getElementById('videoLibraryList');
   const quotaEl = document.getElementById('videoLibraryQuota');
   if (!listEl) return;
+  // Page rechargée sur l'onglet Vidéo (05/11, retour de Jules-Antoine : « mes vidéos ne s'affichent pas ») : l'onglet est rouvert avant que
+  // les scripts du serveur (chargés à la demande) soient là -- la liste plantait en silence. On les attend, et toute erreur s'affiche.
+  try {
+    await loadPostgresReadScripts();
+    await renderVideoLibraryNow(listEl, quotaEl);
+  } catch (e) {
+    console.error('LayerPitch — bibliothèque vidéo :', e);
+    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
+  }
+}
+async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
   const { videos, quotaGb, usedBytes, interrupted = [] } = await loadMyVideos();
@@ -384,6 +395,18 @@ function notifyAtelierPacksChanged() {
   if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return;
   try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'packsChanged' }, location.origin); } catch (e) { /* cadre pas encore prêt : il lira la base à son ouverture */ }
 }
+// Atelier en plein écran (05/11, demande de Jules-Antoine : « trop petit, ingérable ») : le cadre couvre toute la fenêtre, le bouton reste
+// en haut à droite pour revenir (ou Échap). Pas l'API plein écran du navigateur : les bulles du tutoriel doivent rester visibles.
+function setVideoAtelierFull(on) {
+  document.body.classList.toggle('video-atelier-full', on);
+  const btn = document.getElementById('videoAtelierFullBtn');
+  if (btn) btn.textContent = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull');
+}
+(function wireVideoAtelierFull() {
+  const btn = document.getElementById('videoAtelierFullBtn');
+  if (btn) btn.addEventListener('click', () => setVideoAtelierFull(!document.body.classList.contains('video-atelier-full')));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('video-atelier-full')) setVideoAtelierFull(false); });
+})();
 // Ouvre l'atelier (onglet Vidéo → Atelier), sur un pack et un montage s'ils sont donnés (Versioning, bloc vidéo d'un AdReel).
 function openVideoAtelier(opts) {
   openTab('videoLibrary');
@@ -397,6 +420,10 @@ function openVideoAtelier(opts) {
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier') return;
   if (e.data.type === 'lessonDone' && typeof onAtelierLessonDone === 'function') onAtelierLessonDone();
+  // Bulles de l'atelier à l'écran : la bulle du Backstage (« Dans l'atelier ») se cache, pour n'en avoir qu'une à la fois (05/11).
+  if (e.data.type === 'lessonOpen') document.body.classList.add('lp-atelier-lesson-open');
+  if (e.data.type === 'lessonClose' || e.data.type === 'lessonDone') document.body.classList.remove('lp-atelier-lesson-open');
+  if (e.data.type === 'lessonDone') setVideoAtelierFull(false); // fin de la partie atelier : retour au Backstage, pour sa dernière bulle
   // Enregistrement dans l'atelier : listes à jour (index des montages des blocs vidéo, bibliothèque, Versioning).
   if (e.data.type === 'changed') {
     videoVersioningIndexPromise = null;

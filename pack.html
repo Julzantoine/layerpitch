@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1793907839975">
+<link rel="stylesheet" href="player.css?v=1793908884006">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -461,11 +461,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793907839975"></script>
-<script src="layerpitch-notify.js?v=1793907839975"></script>
-<script src="public-page.js?v=1793907839975"></script>
-<script src="layerpitch-seller-contact.js?v=1793907839975"></script>
-<script src="player.js?v=1793907839975"></script>
+<script src="layerpitch-i18n.js?v=1793908884006"></script>
+<script src="layerpitch-notify.js?v=1793908884006"></script>
+<script src="public-page.js?v=1793908884006"></script>
+<script src="layerpitch-seller-contact.js?v=1793908884006"></script>
+<script src="player.js?v=1793908884006"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -753,17 +753,22 @@ function isMultiScreen() {
   try { return !!(window.screen && window.screen.isExtended); } catch (e) { return false; }
 }
 
-function videoTestUrl(parsed) {
-  return `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+// resume (facultatif) : { t, muted } — moment de lecture et état du son à reprendre quand on détache ou
+// qu'on raccroche la vidéo, pour qu'elle ne reparte pas du début.
+function videoTestUrl(parsed, resume) {
+  let url = `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+  if (resume && resume.t > 0) url += `&t=${Math.floor(resume.t)}`;
+  if (resume && resume.muted === false) url += '&muted=0';
+  return url;
 }
 
 // Positionnement approximatif sur le second écran : sans permission Window Management, on ne connaît pas
 // la vraie disposition des écrans, donc on décale simplement la fenêtre de la largeur de l'écran principal.
 // Fonctionne bien pour la disposition la plus courante (écrans côte à côte) ; à défaut, la personne peut
 // toujours la déplacer elle-même — les navigateurs se souviennent en général de la position choisie.
-function openInWindow(parsed) {
+function openInWindow(parsed, resume) {
   const left = (window.screen && window.screen.width) ? window.screen.width : 0;
-  window.open(videoTestUrl(parsed), '_blank', `left=${left},top=40,width=960,height=600`);
+  window.open(videoTestUrl(parsed, resume), '_blank', `left=${left},top=40,width=960,height=600`);
   trackPublicEvent('video_test_open', { service: parsed.service, mode: 'window' });
 }
 
@@ -776,11 +781,11 @@ function closeVideoPanel() {
 
 // parsed : { service: 'youtube' | 'vimeo', id } (lien collé), ou { service: 'library', url, title } (vidéo de la bibliothèque du
 // visiteur connecté, 21/10) -- celle-ci se joue directement ici, son coupé, comme le ferait la fenêtre YouTube/Vimeo.
-function openInPanel(parsed) {
+function openInPanel(parsed, resume) {
   const panel = document.getElementById('videoTestPanel');
   const media = parsed.service === 'library'
     ? `<video src="${escapeHtml(parsed.url)}" controls muted playsinline></video>`
-    : `<iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe>`;
+    : `<iframe src="${videoTestUrl(parsed, resume)}" allow="autoplay"></iframe>`;
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('videoTestPanelTitle')}</span>
@@ -797,13 +802,29 @@ function openInPanel(parsed) {
   const detachBtn = document.getElementById('videoTestDetachBtn');
   // Une vidéo de la bibliothèque reste dans la page (pas de fenêtre séparée prévue pour elle).
   if (parsed.service === 'library') detachBtn.hidden = true;
-  else detachBtn.addEventListener('click', () => {
+  else detachBtn.addEventListener('click', async () => {
+    // L'iframe est sur le même site : on lui demande où en est la vidéo avant de la fermer.
+    let resume = null;
+    try {
+      const frame = panel.querySelector('iframe');
+      if (frame && frame.contentWindow && frame.contentWindow.lpGetVideoState) resume = await frame.contentWindow.lpGetVideoState();
+    } catch (e) { resume = null; }
     closeVideoPanel();
-    openInWindow(parsed);
+    openInWindow(parsed, resume);
   });
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  trackPublicEvent('video_test_open', { service: parsed.service, mode: 'embedded' });
+  if (!(resume && resume.redock)) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  trackPublicEvent('video_test_open', { service: parsed.service, mode: (resume && resume.redock) ? 'redocked' : 'embedded' });
 }
+
+// « Raccrocher à la page » depuis la fenêtre détachée (video-test.html) : elle nous renvoie la vidéo et
+// le moment où elle en était, on la remet dans le panneau à côté du lecteur.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.type !== 'layerpitch-video-redock') return;
+  if ((d.service !== 'youtube' && d.service !== 'vimeo') || !d.id) return;
+  openInPanel({ service: d.service, id: String(d.id) }, { t: Number(d.t) || 0, muted: d.muted !== false, redock: true });
+});
 
 // Ouverture du dialogue « Tester en jeu ». Visiteur connecté à un compte LayerPitch (21/10, décidé par Jules-Antoine) : en plus du
 // lien YouTube/Vimeo, une vidéo de SA bibliothèque (compositeur, ou studio de son équipe). Les scripts du compte ne sont chargés
@@ -821,7 +842,11 @@ let openVideoTestDialog = () => document.getElementById('videoTestDialog').showM
   async function loadLibrary() {
     if (loaded) return;
     loaded = true;
-    try {
+    // Leçon « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play) : la vidéo muette de « Music City » est proposée ici,
+    // comme une vidéo de la bibliothèque (compte fictif, rien n'est lu ni enregistré). Même fichier que la leçon Versioning de l'atelier.
+    if (window.LayerPitchPackLessons && window.LayerPitchPackLessons.active()) {
+      videoTestLibrary = [window.LayerPitchPackLessons.KIT.video];
+    } else try {
       await loadPurchaseScripts();
       const { session } = await window.LayerPitchAuth.getSession();
       if (!session) return;
@@ -1167,7 +1192,32 @@ document.getElementById('publicEmbedCopyBtn').addEventListener('click', async ()
   });
 })();
 window.addEventListener('load', init);
+// Leçon guidée « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play, voir pack-lecons.js) : le moteur des bulles et la leçon ne
+// sont chargés QUE dans ce cas (jamais pour un visiteur ordinaire de la page). La porte d'entrée du tutoriel (layerpitch-tuto.js, appelée au
+// chargement des données) a déjà renvoyé un non-admin vers la page normale ; la leçon démarre une fois le pack affiché.
+(function setupPackLesson() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('tuto') || q.get('lesson') !== 'live-play') return;
+  const css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = lpVersioned('layerpitch-guide.css');
+  document.head.appendChild(css);
+  // Boutons des bulles (layerpitch-guide.css s'appuie sur les .btn de la page qui l'accueille, absents ici) : mêmes règles que l'atelier.
+  const btnCss = document.createElement('style');
+  btnCss.textContent = '.tour-card .btn{font:inherit;font-size:12px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}'
+    + '.tour-card .btn:hover{border-color:var(--accent);color:var(--accent)}.tour-card .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}.tour-card .btn-primary:hover{opacity:.9;color:#fff}';
+  document.head.appendChild(btnCss);
+  const scripts = lpLoadScriptsInOrder(['./layerpitch-guide.js', './pack-lecons.js']);
+  window.addEventListener('load', () => scripts.then(() => {
+    let waited = 0;
+    const timer = setInterval(() => {
+      waited += 200;
+      if (document.querySelector('.video-test-trigger-btn')) { clearInterval(timer); window.LayerPitchPackLessons.init({ lang: pageLang }).start(); }
+      else if (waited > 60000) clearInterval(timer);
+    }, 200);
+  }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
+})();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1793907839975"></script>
+<script src="layerpitch-preview-tuto.js?v=1793908884006"></script>
 </body>
 </html>
