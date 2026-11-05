@@ -424,7 +424,8 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
+// `page: 'pack'` (05/11, leçon « Jouer en direct sur une vidéo ») : la page publique du pack d'exemple « Music City » (pack-lecons.js).
+function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; if (l && l.page === 'pack') return 'pack.html?id=p-music-city'; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
@@ -1092,6 +1093,11 @@ const LESSONS = [
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
+  // Leçon « Jouer en direct sur une vidéo » (05/11, idée de Jules-Antoine : la leçon Versioning de l'atelier se fait désormais à la souris, le jeu en
+  // direct a sa propre leçon). Elle se joue sur la page PUBLIQUE du pack « Music City » (pack.html?id=p-music-city&tuto&lesson=live-play,
+  // pack-lecons.js) : « Tester en jeu », la vidéo muette, la rue puis le club, couche par couche, les glaçons. Réservée aux admins jusqu'à son
+  // feu vert (ici `adminOnly`, et ADMIN_ONLY_LESSONS de layerpitch-tuto.js pour la page du pack). Titre « 6 bis » : renuméroter à l'ouverture.
+  { id: 'live-play', theme: 'pitch', public: true, adminOnly: true, page: 'pack', titleKey: 'lpvTitle', descKey: 'lpvDesc' },
   // Leçon « Intégrer un lecteur sur un site web » (25/10, ?tuto&lesson=embed, rechargement obligatoire d'où `reload`) : le code d'intégration d'un pack (même principe pour une collection et
   // la liste de morceaux d'un AdReel), puis l'autorisation donnée aux visiteurs (Réseaux sociaux). Adresse d'exemple en mode tutoriel (30-packs.js).
   { id: 'embed', theme: 'pitch', public: true, reload: true, titleKey: 'leTitle', descKey: 'leDesc', steps: [
@@ -1251,11 +1257,15 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 // Leçon qui suit la leçon en cours dans le menu (ou null) : proposée sur la bulle finale.
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
-  const next = i >= 0 ? LESSONS[i + 1] : null;
+  // Une leçon réservée aux admins (pas encore ouverte) est sautée pour les autres : la bulle finale propose celle d'après (05/11).
+  let j = i + 1;
+  while (i >= 0 && LESSONS[j] && LESSONS[j].adminOnly && !lessonOpenToMe(LESSONS[j])) j++;
+  const next = i >= 0 ? LESSONS[j] : null;
   // Les leçons à rechargement (compte fictif propre) sont proposées aussi : startLesson recharge la page sur la bonne leçon. Le numéro affiché est celui du titre (« 3 · … »).
-  if (!(next && next.steps && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
-  const num = /^(\d+)\s·/.exec(tr(next.titleKey));
-  return { lesson: next, n: num ? Number(num[1]) : i + 2 };
+  // Leçon sur une autre page (`page`, sans étapes ici) : startLesson y mène.
+  if (!(next && (next.steps || next.page) && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
+  const num = /^(\d+(?: bis)?)\s·/.exec(tr(next.titleKey));
+  return { lesson: next, n: num ? num[1] : j + 1 };
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,

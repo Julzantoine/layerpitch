@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1793868456181">
+<link rel="stylesheet" href="player.css?v=1793868967439">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -461,11 +461,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793868456181"></script>
-<script src="layerpitch-notify.js?v=1793868456181"></script>
-<script src="public-page.js?v=1793868456181"></script>
-<script src="layerpitch-seller-contact.js?v=1793868456181"></script>
-<script src="player.js?v=1793868456181"></script>
+<script src="layerpitch-i18n.js?v=1793868967439"></script>
+<script src="layerpitch-notify.js?v=1793868967439"></script>
+<script src="public-page.js?v=1793868967439"></script>
+<script src="layerpitch-seller-contact.js?v=1793868967439"></script>
+<script src="player.js?v=1793868967439"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -821,7 +821,11 @@ let openVideoTestDialog = () => document.getElementById('videoTestDialog').showM
   async function loadLibrary() {
     if (loaded) return;
     loaded = true;
-    try {
+    // Leçon « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play) : la vidéo muette de « Music City » est proposée ici,
+    // comme une vidéo de la bibliothèque (compte fictif, rien n'est lu ni enregistré). Même fichier que la leçon Versioning de l'atelier.
+    if (window.LayerPitchPackLessons && window.LayerPitchPackLessons.active()) {
+      videoTestLibrary = [window.LayerPitchPackLessons.KIT.video];
+    } else try {
       await loadPurchaseScripts();
       const { session } = await window.LayerPitchAuth.getSession();
       if (!session) return;
@@ -1167,7 +1171,32 @@ document.getElementById('publicEmbedCopyBtn').addEventListener('click', async ()
   });
 })();
 window.addEventListener('load', init);
+// Leçon guidée « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play, voir pack-lecons.js) : le moteur des bulles et la leçon ne
+// sont chargés QUE dans ce cas (jamais pour un visiteur ordinaire de la page). La porte d'entrée du tutoriel (layerpitch-tuto.js, appelée au
+// chargement des données) a déjà renvoyé un non-admin vers la page normale ; la leçon démarre une fois le pack affiché.
+(function setupPackLesson() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('tuto') || q.get('lesson') !== 'live-play') return;
+  const css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = lpVersioned('layerpitch-guide.css');
+  document.head.appendChild(css);
+  // Boutons des bulles (layerpitch-guide.css s'appuie sur les .btn de la page qui l'accueille, absents ici) : mêmes règles que l'atelier.
+  const btnCss = document.createElement('style');
+  btnCss.textContent = '.tour-card .btn{font:inherit;font-size:12px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}'
+    + '.tour-card .btn:hover{border-color:var(--accent);color:var(--accent)}.tour-card .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}.tour-card .btn-primary:hover{opacity:.9;color:#fff}';
+  document.head.appendChild(btnCss);
+  const scripts = lpLoadScriptsInOrder(['./layerpitch-guide.js', './pack-lecons.js']);
+  window.addEventListener('load', () => scripts.then(() => {
+    let waited = 0;
+    const timer = setInterval(() => {
+      waited += 200;
+      if (document.querySelector('.video-test-trigger-btn')) { clearInterval(timer); window.LayerPitchPackLessons.init({ lang: pageLang }).start(); }
+      else if (waited > 60000) clearInterval(timer);
+    }, 200);
+  }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
+})();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1793868456181"></script>
+<script src="layerpitch-preview-tuto.js?v=1793868967439"></script>
 </body>
 </html>
