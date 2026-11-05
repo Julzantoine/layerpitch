@@ -11,7 +11,7 @@ const { JSDOM } = require('jsdom');
   const inlineSrc = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
   check('fermé au public par défaut (règle unique dans layerpitch-tuto.js)', /let flagOpen = false;/.test(read('layerpitch-tuto.js')));
-  check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO\) window\.LayerPitchShell/.test(inlineSrc));
+  check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO(?: && !SOLO_MAP)?\) window\.LayerPitchShell/.test(inlineSrc));
 
   // Dans le test seulement, on ouvre le tutoriel (sans quoi le verrou admin renvoie vers la liste des projets).
   const opened = inlineSrc;

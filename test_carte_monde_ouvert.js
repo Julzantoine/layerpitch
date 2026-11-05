@@ -194,6 +194,37 @@ const { JSDOM } = require('jsdom');
     view.destroy();
   }
 
+  // ---- Plein écran et fenêtre détachée (05/11)
+  {
+    const tr = (k, v) => k + (v ? JSON.stringify(v) : '');
+    const host = w.document.createElement('div'); w.document.body.appendChild(host);
+    const calls = [];
+    let fsReq = 0, fsExit = 0;
+    host.requestFullscreen = () => { fsReq++; Object.defineProperty(w.document, 'fullscreenElement', { value: host, configurable: true }); return Promise.resolve(); };
+    w.document.exitFullscreen = () => { fsExit++; Object.defineProperty(w.document, 'fullscreenElement', { value: null, configurable: true }); return Promise.resolve(); };
+    const maps = [{ id: 'mx', title: 'X', data: { nodes: [{ id: 'a', type: 'start', x: 0, y: 0 }], edges: [] } }];
+    const view = w.LayerPitchLevelMap.mount(host, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps, save: async m => { calls.push('save:' + m.id); return { id: m.id }; }, remove: async () => ({}),
+      detach: m => calls.push('detach:' + m.id) });
+    check('plein écran : bouton proposé, et « Détacher » quand la page le permet', !!host.querySelector('#lmMax') && !!host.querySelector('#lmDetach') && !host.querySelector('#lmAttach'));
+    host.querySelector('#lmMax').click();
+    check('plein écran : la carte passe au premier plan (classe + API du navigateur)', view.state.maximized && host.classList.contains('lm-max') && fsReq === 1);
+    check('plein écran : la zone de dessin prend la hauteur de l\'écran', /px$/.test(host.querySelector('#lmCanvas').style.height));
+    Object.defineProperty(w.document, 'fullscreenElement', { value: null, configurable: true }); w.document.dispatchEvent(new w.Event('fullscreenchange'));
+    check('Échap (sortie du plein écran par le navigateur) : la carte reprend sa place', !view.state.maximized && !host.classList.contains('lm-max') && host.querySelector('#lmCanvas').style.height === '');
+    host.querySelector('#lmMax').click(); host.querySelector('#lmMax').click();
+    check('« Quitter le plein écran » : sortie demandée au navigateur', !view.state.maximized && fsExit === 1);
+    view.state.dirty = true;
+    host.querySelector('#lmDetach').click(); await flush(); await flush();
+    check('« Détacher » : la carte est enregistrée d\'abord, puis la page ouvre la fenêtre', calls.join() === 'save:mx,detach:mx');
+    view.destroy();
+    const host2 = w.document.createElement('div'); w.document.body.appendChild(host2);
+    const view2 = w.LayerPitchLevelMap.mount(host2, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps, save: async m => ({ id: m.id }), remove: async () => ({}), fill: true, attach: m => calls.push('attach:' + m.id) });
+    check('fenêtre détachée : « Rattacher » à la place de « Détacher », zone de dessin à la hauteur de la fenêtre', !!host2.querySelector('#lmAttach') && !host2.querySelector('#lmDetach') && /px$/.test(host2.querySelector('#lmCanvas').style.height));
+    host2.querySelector('#lmAttach').click(); await flush(); await flush();
+    check('« Rattacher » : la page ferme la fenêtre', calls.includes('attach:mx'));
+    view2.destroy();
+  }
+
   console.log(failures ? failures + ' échec(s)' : 'Tout est vert');
   process.exit(failures ? 1 : 0);
 })();

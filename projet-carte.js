@@ -559,6 +559,9 @@
       .lm-set { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 18px; }
       .lm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .lm-row input[type="number"] { width: 80px; } .lm-row select { width: auto; flex: 1 1 130px; }
       .lm-status { font-size: 11.5px; color: var(--text-dimmer); font-family: var(--font-mono); }
+      .lm-viewbtns { margin-left: auto; display: inline-flex; gap: 6px; flex-wrap: wrap; }
+      .lm-max { position: fixed; inset: 0; z-index: 9000; background: var(--bg, #f5f6f8); overflow: auto; padding: 10px 14px; }
+      .lm-max:fullscreen { background: var(--bg, #f5f6f8); } .lm-max > .card, .lm-fill > .card { margin-bottom: 8px; } .lm-max > .card:first-child > .hint, .lm-max > .card:first-child > h2, .lm-fill > .card:first-child > .hint, .lm-fill > .card:first-child > h2 { display: none; }
       .lm-sep { display: inline-block; width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
       .lm-zone .lm-zshape { fill: var(--lm-zc); fill-opacity: .13; stroke: var(--lm-zc); stroke-width: 2; cursor: move; vector-effect: non-scaling-stroke; }
       .lm-canvas.playing .lm-zone .lm-zshape { cursor: pointer; }
@@ -622,6 +625,7 @@
   }
   function mount(host, ctx) {
     ensureStyle();
+    host.classList.toggle('lm-fill', !!ctx.fill); // fenêtre détachée : la carte remplit la fenêtre, sans titre ni introduction
     const tr = ctx.tr;
     const ask = ctx.ask || ((m, v) => askText(m, v, { ok: tr('map_ok'), cancel: tr('map_cancel') }));
     const confirmDlg = ctx.confirm || (m => window.LayerPitchNotify.confirm(m, { okLabel: tr('map_delete'), danger: true }));
@@ -691,10 +695,45 @@
           ${ctx.canEdit ? `<button class="btn" id="lmNew" type="button">${esc(tr('map_new'))}</button>` : ''}
           ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}${ctx.linkSections ? `<button class="btn" id="lmLinkSec" type="button" title="${esc(tr('map_linkSectionsHint'))}">🗂 ${esc(tr('map_linkSections'))}${ctx.linkedNames && ctx.linkedNames(cur()) ? ' · ' + esc(ctx.linkedNames(cur())) : ''}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
           <span class="lm-status">${esc(st.status)}</span>
+          <span class="lm-viewbtns">${cur() ? `<button class="btn${st.maximized ? ' primary' : ''}" id="lmMax" type="button" title="${esc(tr(st.maximized ? 'map_fullscreenExitHint' : 'map_fullscreenHint'))}">${st.maximized ? '🗗' : '⛶'} ${esc(tr(st.maximized ? 'map_fullscreenExit' : 'map_fullscreen'))}</button>` : ''}${cur() && ctx.detach ? `<button class="btn" id="lmDetach" type="button" title="${esc(tr('map_detachHint'))}">⧉ ${esc(tr('map_detach'))}</button>` : ''}${ctx.attach ? `<button class="btn" id="lmAttach" type="button" title="${esc(tr('map_attachHint'))}">↩ ${esc(tr('map_attach'))}</button>` : ''}</span>
         </div></div>
         ${map ? editorHtml(map) : `<div class="card"><div class="empty">${esc(tr('map_none'))}</div></div>`}`;
       wireHeader();
-      if (map) { if (audio) audio.setMap(map); wireEditor(map); drawCanvas(); renderInspector(); renderLibrary(); renderSettings(); refreshNow(); }
+      if (map) { if (audio) audio.setMap(map); wireEditor(map); sizeCanvas(); drawCanvas(); renderInspector(); renderLibrary(); renderSettings(); refreshNow(); }
+    }
+    // ---- Plein écran et fenêtre détachée (05/11 : « sur mon ordi, c'est souvent trop petit »)
+    // Plein écran : la carte (éditeur entier) passe au premier plan et occupe tout l'écran (API plein écran du navigateur, sinon toute la
+    // fenêtre) ; la zone de dessin prend alors toute la hauteur disponible. Même chose en permanence dans une fenêtre détachée (ctx.fill).
+    const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+    function setMaximized(on) {
+      if (!!on === !!st.maximized) return;
+      st.maximized = !!on;
+      host.classList.toggle('lm-max', st.maximized);
+      if (st.maximized) {
+        const req = host.requestFullscreen || host.webkitRequestFullscreen;
+        if (req) { try { const r = req.call(host); if (r && r.catch) r.catch(() => {}); } catch (e) { /* refusé : la carte occupe quand même toute la fenêtre */ } }
+      } else if (fsEl() === host) { const ex = document.exitFullscreen || document.webkitExitFullscreen; if (ex) { try { const r = ex.call(document); if (r && r.catch) r.catch(() => {}); } catch (e) { /* déjà sorti */ } } }
+      render(); fit(); st.refit = true; setTimeout(() => { if (st.refit) { st.refit = false; sizeCanvas(); fit(); } }, 350); // le plein écran arrive un peu après
+      const c = host.querySelector('#lmCanvas'); if (c) c.focus();
+    }
+    // Échap (ou le bouton du navigateur) fait sortir du plein écran : la carte revient à sa place dans la page.
+    const onFsChange = () => { if (st.maximized && fsEl() !== host && !st.leavingFs) { st.maximized = false; host.classList.remove('lm-max'); render(); fit(); } };
+    document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
+    function sizeCanvas() {
+      const c = host.querySelector('#lmCanvas'); if (!c) return;
+      if (!st.maximized && !ctx.fill) { c.style.height = ''; host.querySelectorAll('.lm-side').forEach(x => { x.style.maxHeight = ''; }); return; }
+      // Hauteur restante sous la zone de dessin, moins la ligne de bilan.
+      c.style.height = Math.max(320, Math.round(window.innerHeight - Math.max(0, c.getBoundingClientRect().top) - 44)) + 'px';
+      host.querySelectorAll('.lm-side').forEach(x => { x.style.maxHeight = Math.max(320, Math.round(window.innerHeight - Math.max(0, x.getBoundingClientRect().top) - 16)) + 'px'; });
+    }
+    let resizeTimer = null;
+    const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (st.maximized || ctx.fill) { sizeCanvas(); if (st.refit) { st.refit = false; fit(); } else drawCanvas(); } }, 120); };
+    window.addEventListener('resize', onResize);
+    // Avant de détacher ou de rattacher : la balade s'arrête, le plein écran se ferme et tout est enregistré.
+    async function leaveForWindow() {
+      if (st.play && audio) togglePlay(false);
+      if (st.maximized) setMaximized(false);
+      clearTimeout(saveTimer); await flush();
     }
     function editorHtml(map) {
       const s = summary(map);
@@ -731,6 +770,9 @@
       };
       const rn = host.querySelector('#lmRename');
       if (rn) rn.onclick = async () => { const m = cur(); const t = await ask(tr('map_askName'), m.title); if (t == null) return; m.title = t.trim(); touch(); render(); };
+      const mx = host.querySelector('#lmMax'); if (mx) mx.onclick = () => setMaximized(!st.maximized);
+      const dt = host.querySelector('#lmDetach'); if (dt) dt.onclick = async () => { await leaveForWindow(); ctx.detach(cur()); };
+      const at = host.querySelector('#lmAttach'); if (at) at.onclick = async () => { await leaveForWindow(); ctx.attach(cur()); };
       const lks = host.querySelector('#lmLinkSec');
       if (lks) lks.onclick = () => ctx.linkSections(cur()); // relier la carte à des sections du Projet (fait par la page)
       const dlf = host.querySelector('#lmDownload');
@@ -1608,7 +1650,9 @@
 
     render();
     fit();
-    return { flush, state: st, render, audio, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; if (audio) audio.stop(0.2); } };
+    return { flush, state: st, render, audio, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
+      window.removeEventListener('resize', onResize); document.removeEventListener('fullscreenchange', onFsChange); document.removeEventListener('webkitfullscreenchange', onFsChange);
+      if (st.maximized) { st.leavingFs = true; host.classList.remove('lm-max'); if (fsEl() === host && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } } };
   }
 
   window.LayerPitchLevelMap = { model, mount };
