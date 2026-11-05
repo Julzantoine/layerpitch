@@ -20,16 +20,22 @@ function hasAnyExample() {
 }
 
 // Ajout au chargement : une seule tentative par ouverture de page ; le serveur décide (feu vert, déjà fait, langue).
+// examplesSeedPromise : les questions de profil (46) attendent la fin de l'ajout, pour ne pas s'ouvrir avant son message.
 let examplesSeedTried = false;
-async function seedMyExamplesIfNeeded() {
-  if (examplesSeedTried || isTutoMode()) return;
+let examplesSeedPromise = null;
+function seedMyExamplesIfNeeded() {
+  if (examplesSeedTried || isTutoMode()) return examplesSeedPromise || Promise.resolve();
   examplesSeedTried = true;
+  examplesSeedPromise = seedMyExamplesNow();
+  return examplesSeedPromise;
+}
+async function seedMyExamplesNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
     if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }
     if (data && data.seeded) {
       log(tr('examplesSeededMsg'), 'ok');
-      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
     }
   } catch (e) { console.warn('seed_my_examples() injoignable :', e && e.message); }
 }
