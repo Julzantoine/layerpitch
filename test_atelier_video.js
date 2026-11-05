@@ -83,9 +83,18 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon (atelier) : ' + keys.size + ' textes présents en FR et EN', [...keys].every(has));
   // 04/11 : la capture suit la vidéo muette, une bulle par moment clé (rue, entrée dans le club, batterie, clavier, glaçons).
   const order = second.opened.map(s => s.titleKey);
-  check('atelier : rue (statique armé) → club → couche 2 → couche 3 → glaçons → arrêt', ['pvArmTitle', 'pvRecordTitle', 'pvStreetTitle', 'pvClubTitle', 'pvDrumsTitle', 'pvKeysTitle', 'pvIceTitle', 'pvStopTitle']
+  // 05/11 : un seul morceau, « Jazz Lo Lay. Add. » armé (contrebasse dans la rue), puis ses couches ; la version le remplace par « Jazz Hi Lay. Add. ».
+  check('atelier, à la souris : vidéo → dans la frise : contrebasse, batterie, clavier, glaçons, verre → écoute → nom', ['pvVideoTitle', 'pvBassTitle', 'pvDrumsTitle', 'pvKeysTitle', 'pvIceTitle', 'pvGlassTitle', 'pvHearTitle', 'pvNameTitle']
     .every((k, i, a) => order.indexOf(k) >= 0 && (i === 0 || order.indexOf(k) === order.indexOf(a[i - 1]) + 1)));
   check('pack Music City : les morceaux à couches du club portent le Sfx « Glaçons »', /withGlacons\(DEMO_TRACKS_JAZZ\.find\(t => t\.title === 'Jazz Hi Lay\. Add\.'\)\), withGlacons\(DEMO_TRACK_JAZZ_LO_ADD\)/.test(read('api/demo-client.js')));
+  const al = read('atelier-lecons.js');
+  check('atelier : la version demande de choisir Jazz Hi Lay. Add.', /const LO = 'bmvzpxrmghud9j', HI = 'bmvidtfhvfa5tt'/.test(al) && /sel\.value === HI/.test(al) && !/pvClub/.test(al));
+  check('atelier (leçon) : seulement les deux morceaux à couches dans le pack', /DEMO_TRACKS_ATELIER = \['Jazz Lo Lay\. Add\.', 'Jazz Hi Lay\. Add\.'\]/.test(read('api/demo-client.js')));
+  check('atelier : la prise s’arrête toute seule à la fin de la vidéo, sans déborder', /videoEl\.addEventListener\('ended', \(\) => \{ if \(videoCaptureState\) recordBtn\.click\(\); \}\)/.test(read('atelier.html')) && /Number\.isFinite\(dur\) \? dur : Infinity/.test(read('atelier.html')));
+  check('pack Music City : glaçons et verre', /\['sfx-glacons', 'sfx-verre'\]\.includes\(x\.id\)/.test(read('api/demo-client.js')));
+  check('frise sans capture : morceaux du pack proposés, bouton « Écouter le montage »', /handTrackIds/.test(read('atelier.html')) && /id="videoCaptureListenBtn"/.test(read('atelier.html')));
+  check('frise : ajout au double-clic, départ de couche jusqu’à la fin de la musique, pistes vides pour les Sfx du morceau, tête de lecture déplaçable', /addEventListener\('dblclick'/.test(read('atelier.html')) && /musicEnd > t \+ 0\.5/.test(read('atelier.html')) && /sfxGroups\[sid\] = \{ 0: \[\] \}/.test(read('atelier.html')) && /vct-scrub/.test(read('atelier.html')));
+  check('atelier : la vidéo reste accrochée en haut quand on fait défiler', /function pinCaptureVideo/.test(read('atelier.html')) && /video-capture-pinned \{ position: fixed; top: 0/.test(read('atelier.html')));
   const src43 = read('src/backstage/43-visite-guidee.js');
   const lv = src43.slice(src43.indexOf("{ id: 'versioning'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning'")));
   check('leçon (Backstage) : onglet Vidéo → Atelier → bloc vidéo, sans page pack', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)
