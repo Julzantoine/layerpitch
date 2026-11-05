@@ -21,8 +21,8 @@ function closeCapturePanel() {
 
 // Image accrochée en haut (05/11, demande de Jules-Antoine) : vidéo au-dessus de la page (atelier dans le cadre du Backstage, écran étroit),
 // quand on fait défiler vers les morceaux, les Sfx ou la frise, la vidéo reste fixée en haut de l'écran (au plus 40 % de sa hauteur).
-// Une marque sans hauteur, posée avant la vidéo, dit si elle est sortie par le haut ; une cale garde sa place dans la page. Côte à côte
-// (≥ 1280 px, panneau déjà « sticky ») ou panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
+// Une marque sans hauteur, posée avant la vidéo, dit si elle est sortie par le haut ; une cale garde sa place dans la page. Vaut aussi
+// côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
   const wrap = panel.querySelector('.video-test-panel-frame-wrap');
@@ -30,20 +30,26 @@ function pinCaptureVideo(panel) {
   const mark = document.createElement('div');
   const spacer = document.createElement('div');
   wrap.before(mark, spacer);
-  const wide = window.matchMedia('(min-width: 1280px)');
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
-    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && !wide.matches && mark.getBoundingClientRect().top < 0;
+    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
     wrap.classList.toggle('video-capture-pinned', pinned);
     if (pinned) {
       const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
+      // Le panneau n'est plus forcément centré (05/11 : grande colonne à gauche, morceaux à droite) : l'image accrochée suit sa colonne.
+      const r = panel.getBoundingClientRect();
       wrap.style.width = w + 'px';
-      spacer.style.height = (panel.clientWidth * 9 / 16) + 'px';
+      wrap.style.left = (r.left + (panel.clientWidth - w) / 2) + 'px';
+      wrap.style.transform = 'none';
+      spacer.style.height = wrap.dataset.restHeight || (panel.clientWidth * 9 / 16) + 'px';
       root.style.scrollPaddingTop = (w * 9 / 16 + 12) + 'px';
     } else {
       wrap.style.width = '';
+      wrap.style.left = '';
+      wrap.style.transform = '';
       spacer.style.height = '';
+      wrap.dataset.restHeight = wrap.offsetHeight + 'px'; // hauteur réelle au repos (plafonnée à 56vh dans l'atelier)
       root.style.scrollPaddingTop = '';
     }
   };
