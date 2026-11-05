@@ -31,17 +31,22 @@ function isMultiScreen() {
   try { return !!(window.screen && window.screen.isExtended); } catch (e) { return false; }
 }
 
-function videoTestUrl(parsed) {
-  return `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+// resume (facultatif) : { t, muted } — moment de lecture et état du son à reprendre quand on détache ou
+// qu'on raccroche la vidéo, pour qu'elle ne reparte pas du début.
+function videoTestUrl(parsed, resume) {
+  let url = `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+  if (resume && resume.t > 0) url += `&t=${Math.floor(resume.t)}`;
+  if (resume && resume.muted === false) url += '&muted=0';
+  return url;
 }
 
 // Positionnement approximatif sur le second écran : sans permission Window Management, on ne connaît pas
 // la vraie disposition des écrans, donc on décale simplement la fenêtre de la largeur de l'écran principal.
 // Fonctionne bien pour la disposition la plus courante (écrans côte à côte) ; à défaut, la personne peut
 // toujours la déplacer elle-même — les navigateurs se souviennent en général de la position choisie.
-function openInWindow(parsed) {
+function openInWindow(parsed, resume) {
   const left = (window.screen && window.screen.width) ? window.screen.width : 0;
-  window.open(videoTestUrl(parsed), '_blank', `left=${left},top=40,width=960,height=600`);
+  window.open(videoTestUrl(parsed, resume), '_blank', `left=${left},top=40,width=960,height=600`);
   trackPublicEvent('video_test_open', { service: parsed.service, mode: 'window' });
 }
 
@@ -54,11 +59,11 @@ function closeVideoPanel() {
 
 // parsed : { service: 'youtube' | 'vimeo', id } (lien collé), ou { service: 'library', url, title } (vidéo de la bibliothèque du
 // visiteur connecté, 21/10) -- celle-ci se joue directement ici, son coupé, comme le ferait la fenêtre YouTube/Vimeo.
-function openInPanel(parsed) {
+function openInPanel(parsed, resume) {
   const panel = document.getElementById('videoTestPanel');
   const media = parsed.service === 'library'
     ? `<video src="${escapeHtml(parsed.url)}" controls muted playsinline></video>`
-    : `<iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe>`;
+    : `<iframe src="${videoTestUrl(parsed, resume)}" allow="autoplay"></iframe>`;
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('videoTestPanelTitle')}</span>
@@ -75,13 +80,29 @@ function openInPanel(parsed) {
   const detachBtn = document.getElementById('videoTestDetachBtn');
   // Une vidéo de la bibliothèque reste dans la page (pas de fenêtre séparée prévue pour elle).
   if (parsed.service === 'library') detachBtn.hidden = true;
-  else detachBtn.addEventListener('click', () => {
+  else detachBtn.addEventListener('click', async () => {
+    // L'iframe est sur le même site : on lui demande où en est la vidéo avant de la fermer.
+    let resume = null;
+    try {
+      const frame = panel.querySelector('iframe');
+      if (frame && frame.contentWindow && frame.contentWindow.lpGetVideoState) resume = await frame.contentWindow.lpGetVideoState();
+    } catch (e) { resume = null; }
     closeVideoPanel();
-    openInWindow(parsed);
+    openInWindow(parsed, resume);
   });
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  trackPublicEvent('video_test_open', { service: parsed.service, mode: 'embedded' });
+  if (!(resume && resume.redock)) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  trackPublicEvent('video_test_open', { service: parsed.service, mode: (resume && resume.redock) ? 'redocked' : 'embedded' });
 }
+
+// « Raccrocher à la page » depuis la fenêtre détachée (video-test.html) : elle nous renvoie la vidéo et
+// le moment où elle en était, on la remet dans le panneau à côté du lecteur.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.type !== 'layerpitch-video-redock') return;
+  if ((d.service !== 'youtube' && d.service !== 'vimeo') || !d.id) return;
+  openInPanel({ service: d.service, id: String(d.id) }, { t: Number(d.t) || 0, muted: d.muted !== false, redock: true });
+});
 
 // Ouverture du dialogue « Tester en jeu ». Visiteur connecté à un compte LayerPitch (21/10, décidé par Jules-Antoine) : en plus du
 // lien YouTube/Vimeo, une vidéo de SA bibliothèque (compositeur, ou studio de son équipe). Les scripts du compte ne sont chargés

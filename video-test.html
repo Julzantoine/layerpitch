@@ -24,6 +24,15 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.4); transition: background 0.15s ease, transform 0.1s ease;
   }
   #sound-toggle-btn.visible { display: flex; }
+  /* Raccrocher : visible seulement quand cette page est une fenêtre détachée (pas dans le panneau de pack.html). */
+  #redock-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 10; display: none; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(20, 20, 20, 0.72); color: #fff; cursor: pointer; backdrop-filter: blur(4px);
+    font: 500 13px system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  }
+  #redock-btn.visible { display: flex; }
+  #redock-btn:hover { background: rgba(20, 20, 20, 0.9); border-color: rgba(255,255,255,0.35); }
   #sound-toggle-btn:hover { background: rgba(20, 20, 20, 0.88); }
   #sound-toggle-btn:active { transform: scale(0.94); }
 </style>
@@ -31,11 +40,12 @@
 <body>
 <div id="player-wrap"><div id="yt-target"></div></div>
 <button id="sound-toggle-btn" type="button" aria-label="">🔇</button>
+<button id="redock-btn" type="button"><span aria-hidden="true">⤡</span> <span data-i18n="redockBtn">Raccrocher à la page</span></button>
 <div id="error-box">
   <div class="msg" data-i18n="errorMsg">Impossible de charger cette vidéo ici.</div>
   <div class="hint" data-i18n="errorHint">Vérifie qu'elle est publique et intégrable (pas restreinte "propriétaire uniquement" côté YouTube, ou "à mots de passe" côté Vimeo).</div>
 </div>
-<script src="layerpitch-i18n.js?v=1793865410418"></script>
+<script src="layerpitch-i18n.js?v=1793868109317"></script>
 <script>
 // Fenêtre transitoire (ouverte par pack.html) : pas d'interrupteur de langue ici, on hérite simplement
 // de la langue transmise par pack.html via l'URL. Dictionnaire dans layerpitch-i18n.js (zone "videoTest").
@@ -103,6 +113,42 @@ soundBtn.addEventListener('click', function () {
 const params = new URLSearchParams(location.search);
 const service = params.get('service');
 const id = params.get('id');
+// Moment de reprise (en secondes) et état du son, transmis quand on détache / raccroche : la vidéo
+// continue là où elle en était au lieu de repartir du début.
+const startAt = Math.max(0, Math.floor(parseFloat(params.get('t')) || 0));
+const startUnmuted = params.get('muted') === '0';
+
+// Où en est la vidéo (lu par pack.html au moment de détacher, et par le bouton Raccrocher).
+window.lpGetVideoState = function () {
+  if (activePlayerKind === 'youtube' && ytPlayerRef && ytPlayerRef.getCurrentTime) {
+    return Promise.resolve({ t: ytPlayerRef.getCurrentTime() || 0, muted: isMuted });
+  }
+  if (activePlayerKind === 'vimeo' && vimeoPlayerRef) {
+    return vimeoPlayerRef.getCurrentTime().then(function (t) { return { t: t || 0, muted: isMuted }; })
+      .catch(function () { return { t: 0, muted: isMuted }; });
+  }
+  return Promise.resolve({ t: 0, muted: true });
+};
+
+// Bouton Raccrocher : seulement dans une fenêtre ouverte par pack.html (pas dans le panneau intégré,
+// ni si la page d'origine a été fermée entre-temps). Il renvoie la vidéo dans le panneau de la page.
+const redockBtn = document.getElementById('redock-btn');
+function openerAlive() {
+  try { return !!(window.opener && !window.opener.closed && window.opener.location.origin === location.origin); }
+  catch (e) { return false; }
+}
+if (window.top === window && openerAlive()) {
+  redockBtn.title = tv('redockBtn');
+  redockBtn.classList.add('visible');
+  redockBtn.addEventListener('click', function () {
+    window.lpGetVideoState().then(function (st) {
+      if (!openerAlive()) { redockBtn.classList.remove('visible'); return; }
+      window.opener.postMessage({ type: 'layerpitch-video-redock', service: service, id: id, t: st.t, muted: st.muted }, location.origin);
+      try { window.opener.focus(); } catch (e) {}
+      window.close();
+    });
+  });
+}
 
 if (!service || !id) {
   showError();
@@ -119,14 +165,18 @@ if (!service || !id) {
       videoId: id,
       width: '100%',
       height: '100%',
-      playerVars: { autoplay: 1, mute: 1, playsinline: 1 },
+      playerVars: { autoplay: 1, mute: 1, playsinline: 1, start: startAt },
       events: {
         onReady: function (e) {
           clearTimeout(safetyTimer);
           ytPlayerRef = e.target;
           e.target.mute();
+          if (startAt) e.target.seekTo(startAt, true);
           e.target.playVideo();
           isMuted = true;
+          // Son déjà réactivé avant de détacher / raccrocher : on le remet (peut être refusé par le
+          // navigateur sans clic dans cette fenêtre — le bouton son reste alors sur « coupé »).
+          if (startUnmuted) { e.target.unMute(); isMuted = e.target.isMuted(); }
           showSoundBtn();
         },
         onError: function () { clearTimeout(safetyTimer); showError(); }
@@ -142,7 +192,7 @@ if (!service || !id) {
     activePlayerKind = 'vimeo';
     document.getElementById('yt-target').outerHTML =
       '<iframe id="vimeoIframe" src="https://player.vimeo.com/video/' + encodeURIComponent(id) +
-      '?autoplay=1&muted=1&playsinline=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+      '?autoplay=1&muted=1&playsinline=1' + (startAt ? '#t=' + startAt + 's' : '') + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
     const iframe = document.getElementById('vimeoIframe');
     const player = new Vimeo.Player(iframe);
     vimeoPlayerRef = player;
@@ -150,6 +200,7 @@ if (!service || !id) {
     player.ready().then(function () {
       clearTimeout(safetyTimer);
       isMuted = true;
+      if (startUnmuted) { player.setMuted(false).then(function () { isMuted = false; updateSoundBtnUI(); }).catch(function () {}); }
       showSoundBtn();
     }).catch(function () { clearTimeout(safetyTimer); showError(); });
     player.on('error', function () { clearTimeout(safetyTimer); showError(); });

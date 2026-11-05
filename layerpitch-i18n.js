@@ -4300,6 +4300,7 @@ window.LAYERPITCH_I18N = {
       errorHint: 'Vérifie qu\'elle est publique et intégrable (pas restreinte "propriétaire uniquement" côté YouTube, ou "à mots de passe" côté Vimeo).',
       unmuteBtn: 'Activer le son de la vidéo',
       muteBtn: 'Couper le son de la vidéo',
+      redockBtn: 'Raccrocher à la page',
     },
     admin: {
       pageTitle: 'LayerPitch — Panneau admin',
@@ -9250,6 +9251,7 @@ window.LAYERPITCH_I18N = {
       errorHint: 'Make sure it\'s public and embeddable (not restricted to "owner only" on YouTube, or "password protected" on Vimeo).',
       unmuteBtn: 'Turn on video sound',
       muteBtn: 'Mute video sound',
+      redockBtn: 'Reattach to the page',
     },
     admin: {
       pageTitle: 'LayerPitch — Admin panel',
