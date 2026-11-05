@@ -120,7 +120,11 @@ let openVideoTestDialog = () => document.getElementById('videoTestDialog').showM
   async function loadLibrary() {
     if (loaded) return;
     loaded = true;
-    try {
+    // Leçon « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play) : la vidéo muette de « Music City » est proposée ici,
+    // comme une vidéo de la bibliothèque (compte fictif, rien n'est lu ni enregistré). Même fichier que la leçon Versioning de l'atelier.
+    if (window.LayerPitchPackLessons && window.LayerPitchPackLessons.active()) {
+      videoTestLibrary = [window.LayerPitchPackLessons.KIT.video];
+    } else try {
       await loadPurchaseScripts();
       const { session } = await window.LayerPitchAuth.getSession();
       if (!session) return;

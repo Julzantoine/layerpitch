@@ -65,6 +65,23 @@ const path = require('path');
     check('vertical retouché : bloc ajouté hors écoute -> la couche joue, en boucle, calée sur la phase du morceau', !!extra && extra.loop && near(extra.offset, (40 - 1) % 8));
   }
 
+  // ---- Montage à la souris (05/11) : morceau quantifié jamais joué, couches posées dans la frise -> générations du lecteur refaites ----
+  {
+    const hand = Object.assign({}, quant, { id: 'h', bpm: 120, beatsPerBar: 4, loopInBeat: 2, loopOutBeat: 10, startTrackBeat: 0 }); // entrée 1 s, sortie 5 s, tour 4 s
+    tracks.h = hand;
+    const ev = [
+      { t: 2, name: 'layer_segment', detail: { trackId: 'h', layerIndex: 0, duration: 12 } },
+      { t: 6, name: 'layer_segment', detail: { trackId: 'h', layerIndex: 1, duration: 8 } },
+    ];
+    const vs = plan(ev).voices.filter(v => v.track.id === 'h');
+    const l0 = vs.filter(v => v.targetKey === 'layer:0').sort((x, y) => x.start - y.start);
+    check('à la souris : 1re génération au premier bloc, depuis le départ du morceau (intro comprise)', l0.length && l0[0].start === 2 && l0[0].offset === 0);
+    check('à la souris : générations suivantes à chaque tour, depuis l\'entrée de boucle', l0.length === 3 && l0[1].start === 7 && l0[1].offset === 1 && l0[2].start === 11 && l0[2].offset === 1);
+    check('à la souris : plus de boucle du fichier entier, tout s\'arrête à la fin du dernier bloc', vs.every(v => !v.loop && v.stop === 14));
+    const l1 = vs.filter(v => v.targetKey === 'layer:1');
+    check('à la souris : la 2e couche suit les mêmes générations, muette avant son bloc', l1.length === 3 && at(l1[0].gain.auto, 2) === 0);
+  }
+
   // ---- Vertical quantifié : une génération par tour, jouée jusqu'au bout ; l'intensité ne touche que la génération en cours ----
   {
     const raw = [

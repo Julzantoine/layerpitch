@@ -77,19 +77,35 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
     return { all: sbl.window.__L.steps, opened };
   };
   const first = runLesson('?tuto&lesson=versioning'), second = runLesson('?id=p-music-city&tuto&lesson=versioning');
-  check('atelier : sans pack, la leçon fait choisir le pack', first.opened.length === 2 && first.opened[1].selector === '#atelierPackSelect');
+  check('atelier : sans pack, la leçon fait directement choisir le pack', first.opened.length === 1 && first.opened[0].selector === '#atelierPackSelect');
   check('atelier : pack choisi (rechargé), la leçon reprend à « Choisir la vidéo »', second.opened[0].selector === '.video-capture-trigger-btn' && second.opened[second.opened.length - 1].final);
   const keys = new Set(first.all.flatMap(s => [s.titleKey, s.textKey]));
   check('leçon (atelier) : ' + keys.size + ' textes présents en FR et EN', [...keys].every(has));
   // 04/11 : la capture suit la vidéo muette, une bulle par moment clé (rue, entrée dans le club, batterie, clavier, glaçons).
+  const src43pre = read('src/backstage/43-visite-guidee.js');
   const order = second.opened.map(s => s.titleKey);
-  check('atelier : rue (statique armé) → club → couche 2 → couche 3 → glaçons → arrêt', ['pvArmTitle', 'pvRecordTitle', 'pvStreetTitle', 'pvClubTitle', 'pvDrumsTitle', 'pvKeysTitle', 'pvIceTitle', 'pvStopTitle']
+  // 05/11 : un seul morceau, « Jazz Lo Lay. Add. » armé (contrebasse dans la rue), puis ses couches ; la version le remplace par « Jazz Hi Lay. Add. ».
+  check('atelier, à la souris : vidéo → dans la frise : rue jusqu’à ~16 s, contrebasse, batterie, clavier, glaçons, verre → écoute → nom', ['pvVideoTitle', 'pvStreetTitle', 'pvStreetEndTitle', 'pvBassTitle', 'pvDrumsTitle', 'pvKeysTitle', 'pvIceTitle', 'pvGlassTitle', 'pvHearTitle', 'pvNameTitle']
     .every((k, i, a) => order.indexOf(k) >= 0 && (i === 0 || order.indexOf(k) === order.indexOf(a[i - 1]) + 1)));
   check('pack Music City : les morceaux à couches du club portent le Sfx « Glaçons »', /withGlacons\(DEMO_TRACKS_JAZZ\.find\(t => t\.title === 'Jazz Hi Lay\. Add\.'\)\), withGlacons\(DEMO_TRACK_JAZZ_LO_ADD\)/.test(read('api/demo-client.js')));
-  const src43 = read('src/backstage/43-visite-guidee.js');
+  const al = read('atelier-lecons.js');
+  check('atelier : la version demande de choisir Jazz Hi Lay. Add.', /const LO = 'bmvzpxrmghud9j', HI = 'bmvidtfhvfa5tt'/.test(al) && /sel\.value === HI/.test(al) && !/pvClub/.test(al));
+  check('atelier (leçon) : la rue (bas volume) et les deux morceaux à couches dans le pack', /DEMO_TRACKS_ATELIER = \[DEMO_TRACK_STREET_ATELIER\]\.concat\(\['Jazz Lo Lay\. Add\.', 'Jazz Hi Lay\. Add\.'\]/.test(read('api/demo-client.js')));
+  check('atelier : la prise s’arrête toute seule à la fin de la vidéo, sans déborder', /videoEl\.addEventListener\('ended', \(\) => \{ if \(videoCaptureState\) recordBtn\.click\(\); \}\)/.test(read('atelier.html')) && /Number\.isFinite\(dur\) \? dur : Infinity/.test(read('atelier.html')));
+  check('pack Music City : glaçons et verre', /\['sfx-glacons', 'sfx-verre'\]\.includes\(x\.id\)/.test(read('api/demo-client.js')));
+  check('frise sans capture : morceaux du pack proposés, bouton « Écouter le montage »', /handTrackIds/.test(read('atelier.html')) && /id="videoCaptureListenBtn"/.test(read('atelier.html')));
+  check('frise : ajout au double-clic, couche qui entre à la mesure suivante, départ de couche jusqu’à la fin de la musique, pistes vides pour les Sfx du morceau, tête de lecture déplaçable', /addEventListener\('dblclick'/.test(read('atelier.html')) && /musicEnd > at \+ 0\.5/.test(read('atelier.html')) && /Math\.ceil\(\(at - anchor\) \/ bar - 1e-3\) \* bar/.test(read('atelier.html')) && /sfxGroups\[sid\] = \{ 0: \[\] \}/.test(read('atelier.html')) && /vct-scrub/.test(read('atelier.html')));
+  check('une seule bulle à la fois : le Backstage cache la sienne pendant celles de l’atelier ; leçon lancée aussi sans pack', /lp-atelier-lesson-open \.tour-root-lesson \{ display: none; \}/.test(read('layerpitch-backstage.html')) && /type === 'lessonOpen'/.test(read('layerpitch-backstage.html')) && /atelierTell\('lessonOpen'\)/.test(read('atelier.html')) && /atelierPickPackHint'\)\)\); startAtelierLessonIfAsked\(\); return;/.test(read('atelier.html')));
+  check('plein écran de l’atelier (bouton, étape de la leçon) ; une seule écoute à la fois', /id="videoAtelierFullBtn"/.test(read('layerpitch-backstage.html')) && /lvFullTitle/.test(src43pre) && /if \(versioning\) versioning\.stop\(\)/.test(read('atelier.html')) && /if \(montageListen && e\.target\.closest/.test(read('atelier.html')));
+  check('atelier : la vidéo reste accrochée en haut quand on fait défiler', /function pinCaptureVideo/.test(read('atelier.html')) && /video-capture-pinned \{ position: fixed; top: 0/.test(read('atelier.html')));
+  const src43 = src43pre;
   const lv = src43.slice(src43.indexOf("{ id: 'versioning'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning'")));
-  check('leçon (Backstage) : onglet Vidéo → Atelier → bloc vidéo, sans page pack', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)
-    && /\[data-role="versionNew"\]/.test(lv) && !/page: 'pack'/.test(src43) && /reload: true, titleKey/.test(lv) && !/soon: true/.test(lv));
+  check('leçon (Backstage) : onglet Vidéo → Atelier, sans page pack ; s’arrête à la sortie de l’atelier', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)
+    && !/versionNew/.test(lv) && !/page: 'pack'/.test(lv) && /reload: true, titleKey/.test(lv) && !/soon: true/.test(lv));
+  // 05/11 : la partie « bloc vidéo d'un AdReel » est sa propre leçon, juste après.
+  const lva = src43.slice(src43.indexOf("{ id: 'versioning-adreel'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning-adreel'")));
+  check('leçon « Montrer les versions dans un AdReel » : juste après, bloc vidéo, versions, nouvelle version', src43.indexOf("{ id: 'versioning-adreel'") > src43.indexOf("{ id: 'versioning'") && /\[data-role="versionSelect"\]/.test(lva) && /\[data-role="versionNew"\]/.test(lva) && /reload: true/.test(lva)
+    && [...lva.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && /\['versioning', 'versioning-adreel'\]\.includes\(lessonParam\(\)\)/.test(read('api/demo-client.js')));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));
 
@@ -106,7 +122,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon « Annoter » : onglet Vidéos, version, instant, note adressée', /data-tab="videos"/.test(ann) && /lp-video-versions select/.test(ann) && /noteHere/.test(ann) && /noteTo/.test(ann) && /noteAdd/.test(ann));
   const akeys = [...ann.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]).concat(['plAnnTitle', 'plAnnDesc']);
   check('leçon « Annoter » : ' + akeys.length + ' textes présents en FR et EN', akeys.every(has));
-  check('leçon « Annoter » : au menu du Backstage (Préproduction), « bientôt » tant que les vidéos manquent', /\{ id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true/.test(src43));
+  check('leçon « Annoter » : ouverte au menu du Backstage (Préproduction), chaque geste exigé', /\{ id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', titleKey/.test(src43) && !/id: 'pj-annotate'[^\n]*soon: true/.test(pl) && /v\.paused && v\.currentTime >= 7/.test(ann) && /joshua/.test(ann));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

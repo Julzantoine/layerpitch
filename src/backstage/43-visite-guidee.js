@@ -424,7 +424,8 @@ const LESSON_THEMES = [
   { id: 'preprod', titleKey: 'lessonThemePreprod' },
 ];
 // Page où se joue une leçon : le Backstage lui-même, ou une autre page du mode tutoriel (liste des projets, espace Projet).
-function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
+// `page: 'pack'` (05/11, leçon « Jouer en direct sur une vidéo ») : la page publique du pack d'exemple « Music City » (pack-lecons.js).
+function lessonPageUrl(l) { if (l && l.steps) return window.location.pathname; if (l && l.page === 'pack') return 'pack.html?id=p-music-city'; return l && l.page === 'projet' ? 'projet.html' : (l && l.page === 'projets' ? 'projets.html' : window.location.pathname); }
 // Adresse complète d'une leçon dans le mode tutoriel (la page de la leçon + ?tuto&lesson=…).
 function lessonTutoUrl(l, id) { const base = lessonPageUrl(l); return base + (base.includes('?') ? '&' : '?') + 'tuto&lesson=' + encodeURIComponent(id) + '&lang=' + currentLang(); }
 function lessonIsPublic(lesson) { return !!(lesson && lesson.public); }
@@ -1092,6 +1093,11 @@ const LESSONS = [
     { selector: '#packsContainer [data-action="preview-pack"]', titleKey: 'lpPreviewTitle', textKey: 'lpPreviewText', clickDone: true },
     { titleKey: 'lpEndTitle', textKey: 'lpEndText', final: true },
   ] },
+  // Leçon « Jouer en direct sur une vidéo » (05/11, idée de Jules-Antoine : la leçon Versioning de l'atelier se fait désormais à la souris, le jeu en
+  // direct a sa propre leçon). Elle se joue sur la page PUBLIQUE du pack « Music City » (pack.html?id=p-music-city&tuto&lesson=live-play,
+  // pack-lecons.js) : « Tester en jeu », la vidéo muette, la rue puis le club, couche par couche, les glaçons. Réservée aux admins jusqu'à son
+  // feu vert (ici `adminOnly`, et ADMIN_ONLY_LESSONS de layerpitch-tuto.js pour la page du pack). Titre « 6 bis » : renuméroter à l'ouverture.
+  { id: 'live-play', theme: 'pitch', public: true, adminOnly: true, page: 'pack', titleKey: 'lpvTitle', descKey: 'lpvDesc' },
   // Leçon « Intégrer un lecteur sur un site web » (25/10, ?tuto&lesson=embed, rechargement obligatoire d'où `reload`) : le code d'intégration d'un pack (même principe pour une collection et
   // la liste de morceaux d'un AdReel), puis l'autorisation donnée aux visiteurs (Réseaux sociaux). Adresse d'exemple en mode tutoriel (30-packs.js).
   { id: 'embed', theme: 'pitch', public: true, reload: true, titleKey: 'leTitle', descKey: 'leDesc', steps: [
@@ -1191,9 +1197,8 @@ const LESSONS = [
   // La vidéo en dernier (02/11) : Versioning puis Annoter, après la carte de niveau.
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
   // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette de « Music City »
-  // (la rue de Jazz City, puis le club), capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
-  // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
-  // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
+  // (la rue de Jazz City, puis le club), poser la musique 1 dans la frise, enregistrer le montage, version musique 2, écoute en direct. La partie
+  // « bloc vidéo d'un AdReel » est devenue sa propre leçon le 05/11 (versioning-adreel, juste après). Suite : annoter le montage (espace Projet).
   // Ouverte le 04/11 : la vidéo muette (music-city-gameplay-muette.mp4, KIT d'atelier-lecons.js) est en ligne.
   { id: 'versioning', theme: 'preprod', public: true, reload: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
@@ -1202,7 +1207,16 @@ const LESSONS = [
     { selector: '#panelVideoLibrary [data-video-subtab="capture"]', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
       done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
     // La suite se passe DANS l'atelier (ses propres bulles) ; cette étape avance seule quand l'atelier a fini sa partie.
+    // 05/11 : l'atelier en plein écran avant de commencer (dans le cadre, il était trop petit et les cibles sortaient de l'écran).
+    { selector: '#videoAtelierFullBtn', titleKey: 'lvFullTitle', textKey: 'lvFullText', done: () => document.body.classList.contains('video-atelier-full') },
     { selector: '#videoAtelierFrame', titleKey: 'lvInAtelierTitle', textKey: 'lvInAtelierText', done: () => atelierLessonFinished },
+    { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
+  ] },
+  // Leçon « Montrer les versions dans un AdReel » (05/11, détachée de « Versioning vidéo » à la demande de Jules-Antoine) : le bloc vidéo d'un AdReel,
+  // la vidéo du montage d'exemple « Music City » (déjà prêt, deux musiques, préparé par le faux serveur), la version montrée d'abord, le menu des
+  // versions, « Créer une version vidéo ». Se suit sans avoir fait la leçon précédente.
+  { id: 'versioning-adreel', theme: 'preprod', public: true, reload: true, titleKey: 'lvaTitle', descKey: 'lvaDesc', steps: [
+    { titleKey: 'lvaWelcomeTitle', textKey: 'lvaWelcomeText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'lvAdreelTitle', textKey: 'lvAdreelText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
     { selector: '.block-editor-card[data-type="video"] [data-role="addBtn"]', titleKey: 'laVideoItemTitle', textKey: 'laVideoItemText', clickDone: true, done: () => blocks.some(b => b.type === 'video' && (b.videos || []).length >= 1) },
@@ -1214,9 +1228,10 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionShown"]', titleKey: 'lvBlockMenuTitle', textKey: 'lvBlockMenuText' },
     // Explication seulement : dans un vrai compte, ce bouton rouvre l'atelier sur ce montage.
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
-    { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
+    { titleKey: 'lvaEndTitle', textKey: 'lvaEndText', final: true },
   ] },
-  { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
+  { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
   // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
   // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
   { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
@@ -1251,11 +1266,15 @@ function lessonMarkDone(id) { try { const d = lessonsDone(); d[id] = true; local
 // Leçon qui suit la leçon en cours dans le menu (ou null) : proposée sur la bulle finale.
 function nextLessonOf(lessonId) {
   const i = LESSONS.findIndex(l => l.id === lessonId);
-  const next = i >= 0 ? LESSONS[i + 1] : null;
+  // Une leçon réservée aux admins (pas encore ouverte) est sautée pour les autres : la bulle finale propose celle d'après (05/11).
+  let j = i + 1;
+  while (i >= 0 && LESSONS[j] && LESSONS[j].adminOnly && !lessonOpenToMe(LESSONS[j])) j++;
+  const next = i >= 0 ? LESSONS[j] : null;
   // Les leçons à rechargement (compte fictif propre) sont proposées aussi : startLesson recharge la page sur la bonne leçon. Le numéro affiché est celui du titre (« 3 · … »).
-  if (!(next && next.steps && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
-  const num = /^(\d+)\s·/.exec(tr(next.titleKey));
-  return { lesson: next, n: num ? Number(num[1]) : i + 2 };
+  // Leçon sur une autre page (`page`, sans étapes ici) : startLesson y mène.
+  if (!(next && (next.steps || next.page) && next.theme === LESSONS[i].theme && !next.soon && lessonOpenToMe(next) && lessonPlayable(next) && (!next.needs || flagOpen(next.needs)))) return null;
+  const num = /^(\d+(?: bis)?)\s·/.exec(tr(next.titleKey));
+  return { lesson: next, n: num ? num[1] : j + 1 };
 }
 const GUIDE = window.LayerPitchGuide.create({
   tr,

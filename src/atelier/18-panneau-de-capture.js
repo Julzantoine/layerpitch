@@ -10,6 +10,94 @@ function closeCapturePanel() {
   if (detached && !detached.closed) detached.close();
 }
 
+// Image accrochée en haut (05/11, demande de Jules-Antoine) : vidéo au-dessus de la page (atelier dans le cadre du Backstage, écran étroit),
+// quand on fait défiler vers les morceaux, les Sfx ou la frise, la vidéo reste fixée en haut de l'écran (au plus 40 % de sa hauteur).
+// Une marque sans hauteur, posée avant la vidéo, dit si elle est sortie par le haut ; une cale garde sa place dans la page. Côte à côte
+// (≥ 1280 px, panneau déjà « sticky ») ou panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
+// des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
+function pinCaptureVideo(panel) {
+  const wrap = panel.querySelector('.video-test-panel-frame-wrap');
+  if (!wrap) return;
+  const mark = document.createElement('div');
+  const spacer = document.createElement('div');
+  wrap.before(mark, spacer);
+  const wide = window.matchMedia('(min-width: 1280px)');
+  const root = document.documentElement;
+  const update = () => {
+    if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
+    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && !wide.matches && mark.getBoundingClientRect().top < 0;
+    wrap.classList.toggle('video-capture-pinned', pinned);
+    if (pinned) {
+      const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
+      wrap.style.width = w + 'px';
+      spacer.style.height = (panel.clientWidth * 9 / 16) + 'px';
+      root.style.scrollPaddingTop = (w * 9 / 16 + 12) + 'px';
+    } else {
+      wrap.style.width = '';
+      spacer.style.height = '';
+      root.style.scrollPaddingTop = '';
+    }
+  };
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+}
+
+// Image masquée pendant l'incrustation (05/11, demande de Jules-Antoine : l'incrustation sert à gagner de la place, l'écran « en cours de
+// lecture en mode incrustation » ne doit pas rester). Chrome / Safari préviennent (enterpictureinpicture) : l'image se replie et revient
+// toute seule. Firefox ne prévient pas (son incrustation n'est pas visible par la page) : bouton ▭ dans l'en-tête, et « Réafficher
+// l'image ». La vidéo n'est pas retirée (hauteur nulle seulement) : elle continue de jouer et de piloter la capture.
+function wireCaptureImageHiding(panel, videoEl) {
+  const setHidden = (hidden) => {
+    panel.classList.toggle('video-capture-image-hidden', hidden);
+    window.dispatchEvent(new Event('scroll')); // l'image accrochée (pinCaptureVideo) se remet à jour
+  };
+  panel.querySelector('#videoCaptureHideImageBtn').addEventListener('click', () => setHidden(!panel.classList.contains('video-capture-image-hidden')));
+  panel.querySelector('#videoCaptureShowImageBtn').addEventListener('click', () => {
+    setHidden(false);
+    if (document.pictureInPictureElement === videoEl && document.exitPictureInPicture) document.exitPictureInPicture().catch(() => {});
+  });
+  videoEl.addEventListener('enterpictureinpicture', () => setHidden(true));
+  videoEl.addEventListener('leavepictureinpicture', () => setHidden(false));
+}
+
+// Plein écran de tout l'atelier (05/11, demande de Jules-Antoine : trop chargé dans le cadre du Backstage). Le cadre l'autorise
+// (allow="fullscreen" côté Backstage et studio). Tous les boutons .atelier-fullscreen-toggle suivent l'état, Échap compris.
+function atelierIsFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleAtelierFullscreen() {
+  const root = document.documentElement;
+  if (atelierIsFullscreen()) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (req) { const r = req.call(root); if (r && r.catch) r.catch(e => console.warn('LayerPitch — plein écran refusé :', e)); }
+  }
+}
+function syncAtelierFullscreenButtons() {
+  const on = atelierIsFullscreen();
+  document.body.classList.toggle('atelier-fullscreen', on);
+  document.querySelectorAll('.atelier-fullscreen-toggle').forEach(b => {
+    const label = tr(on ? 'atelierFullscreenExitBtn' : 'atelierFullscreenBtn');
+    b.title = label; b.setAttribute('aria-label', label);
+    if (b.dataset.withText) b.textContent = (on ? '✕ ' : '⛶ ') + label;
+  });
+}
+function wireAtelierFullscreenButtons(root) {
+  const can = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  root.querySelectorAll('.atelier-fullscreen-toggle').forEach(b => {
+    if (b.dataset.fsBound) return;
+    b.dataset.fsBound = '1';
+    if (!can) { b.hidden = true; return; }
+    b.addEventListener('click', toggleAtelierFullscreen);
+  });
+  if (!document.__lpFsWatched) {
+    document.__lpFsWatched = true;
+    document.addEventListener('fullscreenchange', syncAtelierFullscreenButtons);
+    document.addEventListener('webkitfullscreenchange', syncAtelierFullscreenButtons);
+  }
+  syncAtelierFullscreenButtons();
+}
+
 // Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
 // écouteurs déjà posés dessus (bouton d'enregistrement, glisser sur la frise, etc.), puisque déplacer
 // un nœud DOM via appendChild ne détruit jamais ses écouteurs. Les feuilles <style> de la page sont
@@ -49,13 +137,17 @@ function openCapturePanel(file, opts) {
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
+    <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -87,6 +179,7 @@ function openCapturePanel(file, opts) {
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
+  pinCaptureVideo(panel);
   updateArmedStatusDisplay(); // reflète tout de suite une piste déjà armée avant l'ouverture du panneau
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
@@ -175,6 +268,8 @@ function openCapturePanel(file, opts) {
   let pendingBaseEvents = [];
   function refreshActionButtons() {
     setExportButtonsDisabled(lastEvents.length === 0);
+    if (montageListen) stopMontageListen(); // la frise a changé : l'écoute en cours n'est plus à jour
+    else listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
     saveBtn.disabled = lastEvents.length === 0;
     // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
     additiveLabel.hidden = lastEvents.length === 0;
@@ -183,6 +278,51 @@ function openCapturePanel(file, opts) {
   // Nombre de gestes affiché : les repères techniques de la capture (générations, arrêts, commandes de volume) ne
   // comptent pas.
   function captureCountText(evs) { return tr('captureEventCount').replace('{n}', evs.filter(e => CAPTURE_MARK_NAMES.indexOf(e.name) === -1 && e.name.indexOf('embr_') !== 0 || e.name === 'embr_loop_select').length); }
+  // Écouter le montage (05/11, montage à la souris) : la musique de la frise est calculée (même rendu que l'export), puis jouée avec la
+  // vidéo depuis la tête de lecture. Pause de la vidéo = fin de l'écoute. Une retouche de la frise demande une nouvelle écoute.
+  const listenBtn = document.getElementById('videoCaptureListenBtn');
+  let montageListen = null;
+  const stopMontageListen = () => {
+    const l = montageListen; montageListen = null;
+    if (l) l.stop();
+    listenBtn.textContent = tr('captureListenBtn');
+    listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
+  };
+  listenBtn.addEventListener('click', async () => {
+    if (montageListen) { stopMontageListen(); return; }
+    if (videoCaptureState || !lastEvents.length) return;
+    if (versioning) versioning.stop(); // et l'inverse : une écoute de version en cours s'arrête
+    listenBtn.disabled = true;
+    listenBtn.textContent = tr('versioningPreparingListen');
+    try {
+      const plan = window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan;
+      const buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+      const P = window.LayerPlayerCore;
+      await P.resumeAudio();
+      const ac = P.audioContext();
+      const src = ac.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ac.destination);
+      const from = videoEl.currentTime || 0;
+      src.start(ac.currentTime + 0.05, Math.min(from, buffer.duration));
+      videoEl.play().catch(() => {});
+      const onPause = () => stopMontageListen();
+      videoEl.addEventListener('pause', onPause);
+      montageListen = { stop() { videoEl.removeEventListener('pause', onPause); try { src.stop(); } catch (e) { /* déjà arrêtée */ } if (!videoEl.paused) videoEl.pause(); } };
+      src.onended = () => { if (montageListen) stopMontageListen(); };
+      listenBtn.disabled = false;
+      listenBtn.textContent = tr('captureStopListenBtn');
+    } catch (e) {
+      console.error(e);
+      montageListen = null;
+      listenBtn.textContent = tr('captureListenBtn');
+      listenBtn.disabled = false;
+      countEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
+    }
+  });
+  // Fin de la vidéo pendant une prise (05/11, retour de Jules-Antoine) : la capture s'arrête toute seule, comme au clic sur « Arrêter
+  // la capture » (la musique s'arrête aussi) -- sinon la musique continuait et la frise s'allongeait bien au-delà de l'image.
+  videoEl.addEventListener('ended', () => { if (videoCaptureState) recordBtn.click(); });
   recordBtn.addEventListener('click', () => {
     if (videoCaptureState) {
       // Fusionne avec la prise précédente (passe additive) si demandé à l'armement de CET enregistrement
@@ -475,7 +615,7 @@ function openCapturePanel(file, opts) {
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
       sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
-      library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      library: capturePackLibrary(), findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
@@ -493,8 +633,19 @@ function openCapturePanel(file, opts) {
       },
     });
     capturePanelVersioning = versioning;
+    // Une seule musique à la fois (05/11, retour de Jules-Antoine : les deux se superposaient) : tout bouton du Versioning (créer une
+    // version, l'écouter…) arrête d'abord l'écoute du montage.
+    versioningHost.addEventListener('click', e => { if (montageListen && e.target.closest && e.target.closest('[data-act]')) stopMontageListen(); }, true);
   }
   // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
+  // Frise prête dès l'ouverture (montage à la souris, 05/11) : les morceaux du pack et leurs couches vides, à remplir au double-clic.
+  // Redessinée quand la vidéo connaît sa durée (la frise couvre toute la vidéo).
+  const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
+    countEl.textContent = captureCountText(lastEvents);
+    refreshActionButtons();
+  }, laneOverrides, collapsedGroups, videoEl);
+  renderEditableTimeline();
+  videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });
   if (opts.montageId) {
     saveStatus.textContent = tr('captureLoading');
     loadVideoCapture(opts.montageId).then(capture => {
@@ -508,6 +659,8 @@ function openCapturePanel(file, opts) {
     closeCapturePanel();
   });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
+  wireCaptureImageHiding(panel, videoEl);
+  wireAtelierFullscreenButtons(panel);
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
