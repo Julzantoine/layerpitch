@@ -1,6 +1,6 @@
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
   function stopSimple(keepPosition) {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     if (keepPosition !== false) {
       offsetAt = computeElapsed();
     }

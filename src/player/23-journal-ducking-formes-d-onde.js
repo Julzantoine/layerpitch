@@ -81,6 +81,7 @@
   // démarre dès la moitié du Sfx et s'étale sur une rampe longue — quitte à se terminer après la fin du
   // Sfx lui-même, plutôt que la remontée courte et collée à la toute fin d'avant.
   function duckMainTrack(sfxDurationSec, atTime) {
+    if (lpFadeOutTimer) return; // le morceau s'éteint (fondu à l'arrêt) : le duck le ferait remonter
     const now = atTime != null ? atTime : ctx.currentTime;
     trackMasterGain.gain.cancelScheduledValues(now);
     trackMasterGain.gain.setValueAtTime(trackMasterGain.gain.value, now);
