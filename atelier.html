@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793908552664">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793908552664">
+<link rel="stylesheet" href="player.css?v=1793909869289">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793909869289">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -391,10 +391,24 @@
   .atelier-fullscreen-btn:hover { border-color: var(--accent); color: var(--accent); }
   .atelier-fullscreen-btn[hidden] { display: none; }
   html:fullscreen, html:fullscreen body { background: var(--bg, #fff); overflow-y: auto; }
-  /* Plein écran sur grand écran : panneau vidéo plus large que les 400 px du côte à côte habituel. */
-  @media (min-width: 1280px) {
-    body.atelier-fullscreen.video-panel-active { max-width: none; padding: 16px 24px; }
-    body.atelier-fullscreen.video-panel-active .video-test-panel { width: min(52vw, 900px); }
+  /* Hiérarchie inversée (05/11, demande de Jules-Antoine : « les infos statiques ont beaucoup de place, l'atelier très peu ») :
+     dès qu'une vidéo est ouverte, le panneau de capture prend toute la largeur disponible et le reste (choix du pack, étapes,
+     morceaux à déclencher) devient une colonne étroite à droite, accrochée pendant le défilement. Remplace, pour l'atelier
+     seulement, le côte à côte de la page pack (contenu 760 px + panneau 400 px, src/pack/02-styles.css). */
+  body.video-panel-active { max-width: none; padding: 16px 20px 40px; align-items: stretch; }
+  body.video-panel-active .video-test-panel { width: 100%; max-width: none; }
+  body.video-panel-active .page { max-width: none; width: 100%; }
+  body.video-panel-active .video-test-panel-frame-wrap { max-height: 56vh; }
+  body.video-panel-active .atelier-intro { display: none; }
+  body.video-panel-active .atelier-head { margin-bottom: 16px; }
+  body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
+  body.video-panel-active .atelier-pack-name { font-size: 15px; }
+  body.video-panel-active .atelier-steps { font-size: 12px; line-height: 1.5; }
+  body.video-panel-active #content .video-capture-trigger-btn { margin-bottom: 16px; }
+  @media (min-width: 960px) {
+    body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: flex-start; margin: 0; gap: 20px; }
+    body.video-panel-active .video-test-panel { order: 1; flex: 1 1 auto; min-width: 0; width: auto; position: static; }
+    body.video-panel-active .page { order: 2; flex: 0 0 300px; width: 300px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 4px; }
   }
   /* Image masquée pendant l'incrustation (05/11, voir wireCaptureImageHiding) : la vidéo garde sa place dans le DOM, hauteur nulle. */
   .video-capture-image-hidden-note { display: none; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: #bbb; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; }
@@ -448,16 +462,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793908552664"></script>
-<script src="layerpitch-notify.js?v=1793908552664"></script>
-<script src="public-page.js?v=1793908552664"></script>
-<script src="player.js?v=1793908552664"></script>
-<script src="capture-plan.js?v=1793908552664"></script>
-<script src="capture-render.js?v=1793908552664"></script>
-<script src="capture-retarget.js?v=1793908552664"></script>
-<script src="capture-versioning.js?v=1793908552664"></script>
-<script src="layerpitch-guide.js?v=1793908552664"></script>
-<script src="atelier-lecons.js?v=1793908552664"></script>
+<script src="layerpitch-i18n.js?v=1793909869289"></script>
+<script src="layerpitch-notify.js?v=1793909869289"></script>
+<script src="public-page.js?v=1793909869289"></script>
+<script src="player.js?v=1793909869289"></script>
+<script src="capture-plan.js?v=1793909869289"></script>
+<script src="capture-render.js?v=1793909869289"></script>
+<script src="capture-retarget.js?v=1793909869289"></script>
+<script src="capture-versioning.js?v=1793909869289"></script>
+<script src="layerpitch-guide.js?v=1793909869289"></script>
+<script src="atelier-lecons.js?v=1793909869289"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1975,8 +1989,8 @@ function closeCapturePanel() {
 
 // Image accrochée en haut (05/11, demande de Jules-Antoine) : vidéo au-dessus de la page (atelier dans le cadre du Backstage, écran étroit),
 // quand on fait défiler vers les morceaux, les Sfx ou la frise, la vidéo reste fixée en haut de l'écran (au plus 40 % de sa hauteur).
-// Une marque sans hauteur, posée avant la vidéo, dit si elle est sortie par le haut ; une cale garde sa place dans la page. Côte à côte
-// (≥ 1280 px, panneau déjà « sticky ») ou panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
+// Une marque sans hauteur, posée avant la vidéo, dit si elle est sortie par le haut ; une cale garde sa place dans la page. Vaut aussi
+// côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
   const wrap = panel.querySelector('.video-test-panel-frame-wrap');
@@ -1984,20 +1998,26 @@ function pinCaptureVideo(panel) {
   const mark = document.createElement('div');
   const spacer = document.createElement('div');
   wrap.before(mark, spacer);
-  const wide = window.matchMedia('(min-width: 1280px)');
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
-    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && !wide.matches && mark.getBoundingClientRect().top < 0;
+    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
     wrap.classList.toggle('video-capture-pinned', pinned);
     if (pinned) {
       const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
+      // Le panneau n'est plus forcément centré (05/11 : grande colonne à gauche, morceaux à droite) : l'image accrochée suit sa colonne.
+      const r = panel.getBoundingClientRect();
       wrap.style.width = w + 'px';
-      spacer.style.height = (panel.clientWidth * 9 / 16) + 'px';
+      wrap.style.left = (r.left + (panel.clientWidth - w) / 2) + 'px';
+      wrap.style.transform = 'none';
+      spacer.style.height = wrap.dataset.restHeight || (panel.clientWidth * 9 / 16) + 'px';
       root.style.scrollPaddingTop = (w * 9 / 16 + 12) + 'px';
     } else {
       wrap.style.width = '';
+      wrap.style.left = '';
+      wrap.style.transform = '';
       spacer.style.height = '';
+      wrap.dataset.restHeight = wrap.offsetHeight + 'px'; // hauteur réelle au repos (plafonnée à 56vh dans l'atelier)
       root.style.scrollPaddingTop = '';
     }
   };
