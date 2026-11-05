@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793867118474">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793867631766">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2008,19 +2008,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793867118474"></script>
-<script src="layerpitch-i18n.js?v=1793867118474"></script>
-<script src="layerpitch-import-engine.js?v=1793867118474"></script>
-<script src="layerpitch-appearance.js?v=1793867118474"></script>
-<script src="layerpitch-album-shared.js?v=1793867118474"></script>
-<script src="layerpitch-album-editor.js?v=1793867118474"></script>
-<script src="layerpitch-shell.js?v=1793867118474"></script>
-<script src="layerpitch-social-icons.js?v=1793867118474"></script>
-<script src="layerpitch-notify.js?v=1793867118474"></script>
-<script src="layerpitch-guide.js?v=1793867118474"></script>
-<script src="layerpitch-lesson-previews.js?v=1793867118474"></script>
-<script src="layerpitch-help.js?v=1793867118474"></script>
-<script src="player.js?v=1793867118474"></script>
+<script src="layerpitch-tuto.js?v=1793867631766"></script>
+<script src="layerpitch-i18n.js?v=1793867631766"></script>
+<script src="layerpitch-import-engine.js?v=1793867631766"></script>
+<script src="layerpitch-appearance.js?v=1793867631766"></script>
+<script src="layerpitch-album-shared.js?v=1793867631766"></script>
+<script src="layerpitch-album-editor.js?v=1793867631766"></script>
+<script src="layerpitch-shell.js?v=1793867631766"></script>
+<script src="layerpitch-social-icons.js?v=1793867631766"></script>
+<script src="layerpitch-notify.js?v=1793867631766"></script>
+<script src="layerpitch-guide.js?v=1793867631766"></script>
+<script src="layerpitch-lesson-previews.js?v=1793867631766"></script>
+<script src="layerpitch-help.js?v=1793867631766"></script>
+<script src="player.js?v=1793867631766"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -17706,16 +17706,22 @@ function hasAnyExample() {
 }
 
 // Ajout au chargement : une seule tentative par ouverture de page ; le serveur décide (feu vert, déjà fait, langue).
+// examplesSeedPromise : les questions de profil (46) attendent la fin de l'ajout, pour ne pas s'ouvrir avant son message.
 let examplesSeedTried = false;
-async function seedMyExamplesIfNeeded() {
-  if (examplesSeedTried || isTutoMode()) return;
+let examplesSeedPromise = null;
+function seedMyExamplesIfNeeded() {
+  if (examplesSeedTried || isTutoMode()) return examplesSeedPromise || Promise.resolve();
   examplesSeedTried = true;
+  examplesSeedPromise = seedMyExamplesNow();
+  return examplesSeedPromise;
+}
+async function seedMyExamplesNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
     if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }
     if (data && data.seeded) {
       log(tr('examplesSeededMsg'), 'ok');
-      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
     }
   } catch (e) { console.warn('seed_my_examples() injoignable :', e && e.message); }
 }
@@ -17812,7 +17818,8 @@ document.getElementById('btnRemoveExamples').addEventListener('click', async () 
  * « Passer » toujours visible. Les réponses donnent 4-5 leçons essentielles, en tête du menu Tutoriel (« Tes essentiels »,
  * cochées une fois faites) ; pour « les deux », un bouton « Explorer aussi la voie studio / compositeur ». PAS de lien
  * « refaire le questionnaire » (décision de Jules-Antoine). Comptes déjà inscrits (visite déjà faite) : les questions sont
- * proposées une fois, à la prochaine connexion. Mode tutoriel (sans compte) : inchangé, double choix comme avant. */
+ * proposées une fois, à la prochaine connexion, seulement une fois les messages de la cloche lus (5/11 : la bulle s'ouvrait
+ * par-dessus le message des exemples, qu'on ne pouvait plus lire), avec leur propre titre (pas « Pour finir »). Mode tutoriel (sans compte) : inchangé, double choix comme avant. */
 const ESSENTIAL_LESSONS = {
   'composer-starting': ['embranchement', 'additive', 'adreel-intro', 'adreel'],
   'composer-contracts': ['embranchement', 'additive', 'pj-map-music', 'versioning'],
@@ -17868,7 +17875,7 @@ async function saveMyOnboardingProfile(answers) {
 let profileQuiz = null;
 function profileQuizStep(opts) {
   profileQuiz = { answers: {}, q: opts && opts.only === 'composer' ? 'career' : 'role', done: false, saved: false, only: opts && opts.only };
-  return { titleKey: 'profileQTitle', textKey: 'profileQIntro', profileQuiz: true };
+  return { titleKey: opts && opts.alone ? 'profileQTitleAlone' : 'profileQTitle', textKey: 'profileQIntro', profileQuiz: true };
 }
 const PROFILE_QUESTIONS = {
   role: { key: 'profileQRole', options: [['composer', 'profileQRoleComposer'], ['studio', 'profileQRoleStudio'], ['both', 'profileQRoleBoth']] },
@@ -17955,13 +17962,35 @@ function tourFinalStep() {
   }
   return tourChoiceStep();
 }
-// Comptes déjà inscrits (visite déjà faite ou refusée) : les questions seules, une fois, à la prochaine connexion.
+// Comptes déjà inscrits (visite déjà faite ou refusée) : les questions seules, une fois, à la prochaine connexion. Elles attendent
+// la fin de l'ajout des exemples, puis que les messages de LayerPitch de la cloche soient lus et la cloche refermée : sinon la
+// bulle recouvrait le message des exemples, illisible tant qu'elle restait ouverte (retour du 5/11).
+function inboxHasUnreadAnnouncement(items) { return (items || []).some(it => it.unread && it.kind === 'announcement'); }
+function inboxBellOpen() { const dd = document.getElementById('inboxBellDropdown'); return !!(dd && !dd.hidden); }
+function whenInboxRead() {
+  const shell = window.LayerPitchShell;
+  if (!shell || !shell.onInbox) return Promise.resolve();
+  return new Promise(resolve => {
+    let items = null, done = false, obs = null;
+    const check = () => {
+      if (done || items === null || inboxHasUnreadAnnouncement(items) || inboxBellOpen()) return;
+      done = true;
+      if (obs) obs.disconnect();
+      resolve();
+    };
+    shell.onInbox(list => { items = list; check(); }); // appelé à chaque relève, et quand la cloche marque les messages vus
+    const dd = document.getElementById('inboxBellDropdown');
+    if (dd && window.MutationObserver) { obs = new MutationObserver(check); obs.observe(dd, { attributes: true, attributeFilter: ['hidden'] }); }
+  });
+}
 let profileQuizOffered = false;
 async function offerProfileQuizIfNeeded() {
   if (profileQuizOffered || !profileQuizOpen() || guide) return;
   profileQuizOffered = true;
   if ((await loadMyOnboardingProfile()) !== null || guide) return;
-  setTimeout(() => { if (!guide) openGuide('tour', [profileQuizStep()]); }, 900);
+  if (typeof examplesSeedPromise !== 'undefined' && examplesSeedPromise) { try { await examplesSeedPromise; } catch (e) { /* sans exemples, on continue */ } }
+  await whenInboxRead();
+  setTimeout(() => { if (!guide && myOnboardingProfile === null) openGuide('tour', [profileQuizStep({ alone: true })]); }, 900);
 }
 
 // ---- « Tes essentiels » en tête du menu Tutoriel ----
@@ -17985,7 +18014,7 @@ function essentialsMenuHtml(tick) {
 function switchEssentialsPath(path) {
   const p = myOnboardingProfile;
   if (!p || p.role !== 'both') return;
-  if (path === 'composer' && !p.career) { if (!guide) openGuide('tour', [profileQuizStep({ only: 'composer' })]); return; }
+  if (path === 'composer' && !p.career) { if (!guide) openGuide('tour', [profileQuizStep({ only: 'composer', alone: true })]); return; }
   try { localStorage.setItem(ESSENTIALS_VIEW_STORAGE, path); } catch (e) { /* le temps de la page seulement */ }
   trackBackstageEvent('essentials_switch', { path });
   renderTutorialMenu();
