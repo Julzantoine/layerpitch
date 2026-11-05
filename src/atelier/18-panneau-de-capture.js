@@ -233,6 +233,7 @@ function openCapturePanel(file, opts) {
   listenBtn.addEventListener('click', async () => {
     if (montageListen) { stopMontageListen(); return; }
     if (videoCaptureState || !lastEvents.length) return;
+    if (versioning) versioning.stop(); // et l'inverse : une écoute de version en cours s'arrête
     listenBtn.disabled = true;
     listenBtn.textContent = tr('versioningPreparingListen');
     try {
@@ -574,6 +575,9 @@ function openCapturePanel(file, opts) {
       },
     });
     capturePanelVersioning = versioning;
+    // Une seule musique à la fois (05/11, retour de Jules-Antoine : les deux se superposaient) : tout bouton du Versioning (créer une
+    // version, l'écouter…) arrête d'abord l'écoute du montage.
+    versioningHost.addEventListener('click', e => { if (montageListen && e.target.closest && e.target.closest('[data-act]')) stopMontageListen(); }, true);
   }
   // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
   // Frise prête dès l'ouverture (montage à la souris, 05/11) : les morceaux du pack et leurs couches vides, à remplir au double-clic.

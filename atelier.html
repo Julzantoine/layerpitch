@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793868967439">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793868967439">
+<link rel="stylesheet" href="player.css?v=1793903790123">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793903790123">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -429,16 +429,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793868967439"></script>
-<script src="layerpitch-notify.js?v=1793868967439"></script>
-<script src="public-page.js?v=1793868967439"></script>
-<script src="player.js?v=1793868967439"></script>
-<script src="capture-plan.js?v=1793868967439"></script>
-<script src="capture-render.js?v=1793868967439"></script>
-<script src="capture-retarget.js?v=1793868967439"></script>
-<script src="capture-versioning.js?v=1793868967439"></script>
-<script src="layerpitch-guide.js?v=1793868967439"></script>
-<script src="atelier-lecons.js?v=1793868967439"></script>
+<script src="layerpitch-i18n.js?v=1793903790123"></script>
+<script src="layerpitch-notify.js?v=1793903790123"></script>
+<script src="public-page.js?v=1793903790123"></script>
+<script src="player.js?v=1793903790123"></script>
+<script src="capture-plan.js?v=1793903790123"></script>
+<script src="capture-render.js?v=1793903790123"></script>
+<script src="capture-retarget.js?v=1793903790123"></script>
+<script src="capture-versioning.js?v=1793903790123"></script>
+<script src="layerpitch-guide.js?v=1793903790123"></script>
+<script src="atelier-lecons.js?v=1793903790123"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1526,8 +1526,18 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         const musicEnd = Math.max(0, ...events.filter(o => o.detail && o.detail.trackId === tId).map(o => o.t + ((o.name === 'layer_segment' || o.name === 'fx_segment') ? o.detail.duration : 0)));
         // Rien après (montage à la souris, première couche posée) : jusqu'à la fin de la vidéo.
         const videoEnd = (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0;
-        const end = musicEnd > t + 0.5 ? musicEnd : (videoEnd > t + 0.5 ? videoEnd : t + 3);
-        events.push({ t, name: 'layer_segment', detail: { trackId: tId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: end - t } });
+        // Morceau quantifié qui joue déjà : la couche entre à la mesure suivante (05/11, demande de Jules-Antoine), sur la grille du morceau,
+        // comptée depuis son premier bloc.
+        let at = t;
+        const trk = findCaptureTrack(tId);
+        const starts = events.filter(o => o.name === 'layer_segment' && o.detail.trackId === tId).map(o => o.t);
+        if (trk && trk.loopEngine === 'quantized' && starts.length) {
+          const anchor = Math.min(...starts);
+          const bar = (Number(trk.beatsPerBar) || 4) * 60 / (Number(trk.bpm) || 120);
+          if (at > anchor && bar > 0) at = anchor + Math.ceil((at - anchor) / bar - 1e-3) * bar;
+        }
+        const end = musicEnd > at + 0.5 ? musicEnd : (videoEnd > at + 0.5 ? videoEnd : at + 3);
+        events.push({ t: at, name: 'layer_segment', detail: { trackId: tId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: end - at } });
       } else if (kind === 'loop') {
         events.push({ t, name: 'embr_loop_select', detail: { trackId: trackEl.dataset.addTrackId, loopId: trackEl.dataset.addLoopId } });
       } else if (kind === 'sfx') {
@@ -2153,6 +2163,7 @@ function openCapturePanel(file, opts) {
   listenBtn.addEventListener('click', async () => {
     if (montageListen) { stopMontageListen(); return; }
     if (videoCaptureState || !lastEvents.length) return;
+    if (versioning) versioning.stop(); // et l'inverse : une écoute de version en cours s'arrête
     listenBtn.disabled = true;
     listenBtn.textContent = tr('versioningPreparingListen');
     try {
@@ -2494,6 +2505,9 @@ function openCapturePanel(file, opts) {
       },
     });
     capturePanelVersioning = versioning;
+    // Une seule musique à la fois (05/11, retour de Jules-Antoine : les deux se superposaient) : tout bouton du Versioning (créer une
+    // version, l'écouter…) arrête d'abord l'écoute du montage.
+    versioningHost.addEventListener('click', e => { if (montageListen && e.target.closest && e.target.closest('[data-act]')) stopMontageListen(); }, true);
   }
   // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
   // Frise prête dès l'ouverture (montage à la souris, 05/11) : les morceaux du pack et leurs couches vides, à remplir au double-clic.

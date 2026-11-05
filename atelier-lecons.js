@@ -32,16 +32,21 @@
     // porte du club 13,5 · entrée 15,8 · fondu puis la salle se remplit 19,3-20,3 · assis au bar ~24 · glaçons 31,4-33,1 · fin 37,7.
     // Un seul morceau d'un bout à l'autre (05/11) : « Jazz Lo Lay. Add. » démarre sur sa contrebasse, les couches arrivent quand la salle se remplit ;
     // la version le remplace par « Jazz Hi Lay. Add. » (même mode, trois couches aussi).
-    const LO = 'bmvzpxrmghud9j', HI = 'bmvidtfhvfa5tt';
+    const LO = 'bmvzpxrmghud9j', HI = 'bmvidtfhvfa5tt', STREET = 'bmvzsfnd1c3n9o';
     const row = id => document.querySelector(`.track-row-wrapper[data-track-id="${id}"]`); // (la frise de capture porte aussi data-track-id)
     const layerBtn = n => { const r = row(LO); return r ? r.querySelectorAll('.vert-layer-btn')[n] : null; };
     const videoAt = s => { const v = $('#videoCaptureEl'); return !!(v && v.currentTime >= s); };
     // Montage « à la souris » (05/11, demande de Jules-Antoine : « pas en temps réel, ce serait galère ») : pas de capture, on double-clique
-    // dans la frise pour poser le départ de la contrebasse (début), de la batterie (~20 s), du clavier (~24 s), les glaçons (~31 s) et le
-    // verre (~34 s). Chaque bloc doit tomber dans sa fenêtre de temps (il se glisse ensuite si besoin). Le jeu en direct a sa propre leçon (page pack).
+    // dans la frise pour poser le départ de la contrebasse (début), de la batterie (~9 s), du clavier (~18 s), les glaçons (32 s) et le
+    // verre (~34 s) ; les couches entrent à la mesure suivante (frise). Chaque bloc doit tomber dans sa fenêtre de temps (il se glisse ensuite si besoin). Le jeu en direct a sa propre leçon (page pack).
     const lane = sel => document.querySelector(`#videoCaptureTimeline .vct-lane-track${sel}`);
-    const layerLane = n => lane(`[data-addable="layer"][data-add-track-id="${LO}"][data-add-level="${n}"]`);
+    const layerLane = (n, id) => lane(`[data-addable="layer"][data-add-track-id="${id || LO}"][data-add-level="${n}"]`);
     const sfxLane = id => lane(`[data-addable="sfx"][data-add-sfx-id="${id}"]`);
+    // Fin du bloc de la rue (en secondes), pour l'étape « jusqu'à la porte du club ».
+    const blockEnd = el => {
+      const tl = $('#videoCaptureTimeline'), total = tl && tl.__vctTotal, bk = el && el.querySelector('.vct-block');
+      return bk && total ? (parseFloat(bk.style.left) + parseFloat(bk.style.width)) / 100 * total : null;
+    };
     const blockIn = (el, from, to) => {
       const tl = $('#videoCaptureTimeline'), total = tl && tl.__vctTotal;
       return !!(el && total && [...el.querySelectorAll('.vct-block')].some(bk => { const t = parseFloat(bk.style.left) / 100 * total; return t >= from && t <= to; }));
@@ -55,11 +60,14 @@
         drops: ready() ? [{ kind: 'file', label: KIT.video.label, url: KIT.video.url, name: KIT.video.name }] : [] },
       // Montage à la souris (05/11) : sans capture, tout se pose dans la frise au double-clic -- la contrebasse dès le début, les autres
       // couches à leur moment, puis les bruitages ; on écoute, puis on enregistre.
+      // La rue d'abord (05/11) : l'ambiance « Street+Footsteps », doucement, de 0 s jusqu'à l'entrée dans le club (~16 s).
+      { selector: () => layerLane(0, STREET), titleKey: 'pvStreetTitle', textKey: 'pvStreetText', done: () => blockIn(layerLane(0, STREET), 0, 2) },
+      { selector: () => layerLane(0, STREET), titleKey: 'pvStreetEndTitle', textKey: 'pvStreetEndText', done: () => { const e = blockEnd(layerLane(0, STREET)); return e != null && e >= 13.5 && e <= 18; } },
       { selector: () => layerLane(0), titleKey: 'pvBassTitle', textKey: 'pvBassText', done: () => blockIn(layerLane(0), 0, 3) },
-      { selector: () => layerLane(1), titleKey: 'pvDrumsTitle', textKey: 'pvDrumsText', done: () => blockIn(layerLane(1), 17, 23) },
-      { selector: () => layerLane(2), titleKey: 'pvKeysTitle', textKey: 'pvKeysText', done: () => blockIn(layerLane(2), 21, 27) },
-      { selector: () => sfxLane('sfx-glacons'), titleKey: 'pvIceTitle', textKey: 'pvIceText', done: () => blockIn(sfxLane('sfx-glacons'), 29, 34) },
-      { selector: () => sfxLane('sfx-verre'), titleKey: 'pvGlassTitle', textKey: 'pvGlassText', done: () => blockIn(sfxLane('sfx-verre'), 31, 38) },
+      { selector: () => layerLane(1), titleKey: 'pvDrumsTitle', textKey: 'pvDrumsText', done: () => blockIn(layerLane(1), 6.5, 11.5) },
+      { selector: () => layerLane(2), titleKey: 'pvKeysTitle', textKey: 'pvKeysText', done: () => blockIn(layerLane(2), 15, 20) },
+      { selector: () => sfxLane('sfx-glacons'), titleKey: 'pvIceTitle', textKey: 'pvIceText', done: () => blockIn(sfxLane('sfx-glacons'), 30.5, 33.5) },
+      { selector: () => sfxLane('sfx-verre'), titleKey: 'pvGlassTitle', textKey: 'pvGlassText', done: () => blockIn(sfxLane('sfx-verre'), 32.5, 38) },
       { selector: '#videoCaptureListenBtn', titleKey: 'pvHearTitle', textKey: 'pvHearText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
         drops: [{ kind: 'text', label: 'Music City : de la rue au club', value: 'Music City : de la rue au club' }] },

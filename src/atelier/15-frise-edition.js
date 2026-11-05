@@ -595,8 +595,18 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         const musicEnd = Math.max(0, ...events.filter(o => o.detail && o.detail.trackId === tId).map(o => o.t + ((o.name === 'layer_segment' || o.name === 'fx_segment') ? o.detail.duration : 0)));
         // Rien après (montage à la souris, première couche posée) : jusqu'à la fin de la vidéo.
         const videoEnd = (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0;
-        const end = musicEnd > t + 0.5 ? musicEnd : (videoEnd > t + 0.5 ? videoEnd : t + 3);
-        events.push({ t, name: 'layer_segment', detail: { trackId: tId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: end - t } });
+        // Morceau quantifié qui joue déjà : la couche entre à la mesure suivante (05/11, demande de Jules-Antoine), sur la grille du morceau,
+        // comptée depuis son premier bloc.
+        let at = t;
+        const trk = findCaptureTrack(tId);
+        const starts = events.filter(o => o.name === 'layer_segment' && o.detail.trackId === tId).map(o => o.t);
+        if (trk && trk.loopEngine === 'quantized' && starts.length) {
+          const anchor = Math.min(...starts);
+          const bar = (Number(trk.beatsPerBar) || 4) * 60 / (Number(trk.bpm) || 120);
+          if (at > anchor && bar > 0) at = anchor + Math.ceil((at - anchor) / bar - 1e-3) * bar;
+        }
+        const end = musicEnd > at + 0.5 ? musicEnd : (videoEnd > at + 0.5 ? videoEnd : at + 3);
+        events.push({ t: at, name: 'layer_segment', detail: { trackId: tId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: end - at } });
       } else if (kind === 'loop') {
         events.push({ t, name: 'embr_loop_select', detail: { trackId: trackEl.dataset.addTrackId, loopId: trackEl.dataset.addLoopId } });
       } else if (kind === 'sfx') {
