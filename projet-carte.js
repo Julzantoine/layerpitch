@@ -673,6 +673,19 @@
       clearTimeout(saveTimer);
       saveTimer = setTimeout(flush, 700);
     }
+    // Des sons ont été posés ou retirés : on les charge d'avance (prêts pour la balade) et, si l'on se balade, l'endroit où l'on se tient
+    // les fait entendre tout de suite, sans devoir repartir puis revenir (05/11).
+    function soundsChanged(refs) {
+      if (!audio) return;
+      if (refs && refs.length) audio.preload(refs);
+      if (!st.play) return;
+      const map = curData();
+      if (freeWalk() && st.avatar) {
+        const g = governorAt(map, st.avatar.x, st.avatar.y, st.modeId, st.freeCombat);
+        if (refKey(g) !== refKey(st.gov)) { followHere(true); return; }
+      }
+      audio.refresh();
+    }
     async function flush() {
       const m = cur();
       if (!m || saving || !ctx.canEdit) return;
@@ -1111,7 +1124,7 @@
         withDroppedRefs(ev, refs => {
           let any = false;
           for (const ref of refs) if (addSound(map, { kind: t.kind, id: t.id }, 'main', ref)) any = true;
-          if (any) { st.sel = { kind: t.kind, id: t.id }; touch(); drawCanvas(); renderInspector(); }
+          if (any) { st.sel = { kind: t.kind, id: t.id }; touch(); drawCanvas(); renderInspector(); soundsChanged(refs); }
         });
       });
       const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
@@ -1231,8 +1244,8 @@
       on('#lmDeleteSel', 'click', deleteSelection);
       on('#lmAltAdd', 'click', () => { st.altOpen = altKey; renderInspector(); });
       on('#lmAltName', 'input', e => { setAltName(map, target, e.target.value); touch(); });
-      on('#lmAltRemove', 'click', () => { clearAlt(map, target); st.altOpen = null; touch(); drawCanvas(); renderInspector(); });
-      box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const [slot, i] = b.dataset.rm.split(':'); if (removeSound(map, target, slot, Number(i))) { touch(); drawCanvas(); renderInspector(); } });
+      on('#lmAltRemove', 'click', () => { clearAlt(map, target); st.altOpen = null; touch(); drawCanvas(); renderInspector(); soundsChanged(null); });
+      box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const [slot, i] = b.dataset.rm.split(':'); if (removeSound(map, target, slot, Number(i))) { touch(); drawCanvas(); renderInspector(); soundsChanged(null); } });
       box.querySelectorAll('.lm-slot[data-slot]').forEach(sl => {
         sl.addEventListener('dragover', ev => { if (ctx.canEdit && acceptsSound(ev)) { ev.preventDefault(); sl.classList.add('drop'); } });
         sl.addEventListener('dragleave', () => sl.classList.remove('drop'));
@@ -1241,7 +1254,7 @@
           withDroppedRefs(ev, refs => {
             let any = false;
             for (const ref of refs) if (addSound(map, target, sl.dataset.slot, ref)) any = true;
-            if (any) { touch(); drawCanvas(); renderInspector(); }
+            if (any) { touch(); drawCanvas(); renderInspector(); soundsChanged(refs); }
           });
         });
       });
@@ -1250,7 +1263,7 @@
       box.querySelectorAll('.lm-slot[data-slot]').forEach(sl => {
         if (!ctx.canEdit) return;
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = tr('map_addPicked'); b.disabled = !st.picked;
-        b.onclick = () => { if (st.picked && addSound(map, target, sl.dataset.slot, st.picked)) { touch(); drawCanvas(); renderInspector(); } };
+        b.onclick = () => { if (st.picked && addSound(map, target, sl.dataset.slot, st.picked)) { touch(); drawCanvas(); renderInspector(); soundsChanged([st.picked]); } };
         sl.appendChild(b);
       });
     }
@@ -1378,7 +1391,7 @@
     }
     function wireOpenWorldSettings(box, map) {
       if (!ctx.canEdit) return;
-      const changed = () => { touch(); renderSettings(); drawCanvas(); if (freeWalk()) followHere(true); };
+      const changed = refs => { touch(); renderSettings(); drawCanvas(); soundsChanged(Array.isArray(refs) ? refs : null); };
       // Image choisie : elle se pose à sa taille réelle (2400 de large au plus), centrée sur la vue, sous tout le reste.
       const placeImage = async (ref) => {
         let w = 1600, h = 1000;
@@ -1420,9 +1433,9 @@
         const slot = row.querySelector('[data-mode-slot]');
         slot.addEventListener('dragover', ev => { if (acceptsSound(ev)) { ev.preventDefault(); slot.classList.add('drop'); } });
         slot.addEventListener('dragleave', () => slot.classList.remove('drop'));
-        slot.addEventListener('drop', ev => { slot.classList.remove('drop'); ev.preventDefault(); withDroppedRefs(ev, refs => { let any = false; refs.forEach(r => { if (addSound(map, t, 'main', r)) any = true; }); if (any) changed(); }); });
+        slot.addEventListener('drop', ev => { slot.classList.remove('drop'); ev.preventDefault(); withDroppedRefs(ev, refs => { let any = false; refs.forEach(r => { if (addSound(map, t, 'main', r)) any = true; }); if (any) changed(refs); }); });
         const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.marginTop = '4px'; b.textContent = tr('map_addPicked'); b.disabled = !st.picked;
-        b.onclick = () => { if (st.picked && addSound(map, t, 'main', st.picked)) changed(); }; slot.appendChild(b);
+        b.onclick = () => { if (st.picked && addSound(map, t, 'main', st.picked)) changed([st.picked]); }; slot.appendChild(b);
       });
     }
 
@@ -1507,7 +1520,7 @@
       render();
       // On se place tout de suite : sur l'élément sélectionné, à défaut sur le Début de la carte (puis flèches, clic, Espace, C).
       // Carte avec des zones : balade libre, le personnage part du Début (ou de l'élément sélectionné).
-      if (on) { audio.setMap(curData()); const c = host.querySelector('#lmCanvas'); if (c) c.focus(); if (hasZones(curData())) placeAvatar(null); else startFromSelection(); }
+      if (on) { audio.setMap(curData()); const c = host.querySelector('#lmCanvas'); if (c) c.focus(); if (hasZones(curData())) { placeAvatar(null); audio.preloadMap(); } else startFromSelection(); }
     }
 
     // ---- Balade libre (monde ouvert, 27/10) : un clic donne une destination, les flèches ou ZQSD pilotent ; la musique suit la règle

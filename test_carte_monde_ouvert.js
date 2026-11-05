@@ -131,6 +131,48 @@ const { JSDOM } = require('jsdom');
     check('lecteur : changer de carte avec le même morceau ne le relance pas', p.state.music.id === 'galop' && log.filter(l => l === 'track:galop start').length === starts);
   }
 
+  // ---- Balade plus fluide (05/11) : un morceau pas encore chargé, un son déposé là où l'on se tient, le préchargement des voisins
+  {
+    const clock = { t: 100, timers: [] }, voices = {}, preloads = [];
+    const ready = {};
+    const env = {
+      now: () => clock.t,
+      schedule: (fn, at) => { const timer = { fn, at, live: true }; clock.timers.push(timer); return () => { timer.live = false; }; },
+      voiceFactory: async ref => {
+        const k = ref.kind + ':' + ref.id;
+        if (!voices[k]) voices[k] = { playing: false, level: 0, start(l) { this.playing = true; this.level = l; }, setLevel(l) { this.level = l; }, stop() { this.playing = false; }, isPlaying() { return this.playing; }, nextBoundary: () => null, isReady: () => ready[k] !== false };
+        return voices[k];
+      },
+      preload: async ref => { preloads.push(ref.id); return null; },
+      onChange: () => {}
+    };
+    const advance = async sec => { const to = clock.t + sec; for (;;) { const due = clock.timers.filter(x => x.live && x.at <= to).sort((a, b) => a.at - b.at)[0]; if (!due) break; due.live = false; clock.t = Math.max(clock.t, due.at); due.fn(); await flush(); } clock.t = to; await flush(); };
+    const m = M.emptyMap();
+    const a = M.addNode(m, 'start', 0, 0, 'A'), b = M.addNode(m, 'place', 200, 0, 'B'), c = M.addNode(m, 'place', 400, 0, 'C');
+    const e1 = M.addEdge(m, a.id, b.id); M.addEdge(m, b.id, c.id);
+    M.addSound(m, { kind: 'node', id: a.id }, 'main', T('a')); M.addSound(m, { kind: 'node', id: b.id }, 'main', T('lourd')); M.addSound(m, { kind: 'node', id: c.id }, 'main', T('c'));
+    M.addSound(m, { kind: 'edge', id: e1.id }, 'main', T('a')); // le parcours garde la musique de A
+    m.defaults.transition = { style: 'crossfade', sec: 1, sync: 'immediate' };
+    const p = A.createPlayer(env); p.setMap(m);
+    await p.goTo({ kind: 'node', id: a.id }); await advance(2);
+    check('préchargement : en arrivant, les morceaux des endroits voisins sont chargés d\'avance', preloads.includes('a') && !preloads.includes('lourd')); // A n'a pour voisin que son parcours (sans son)
+    await p.goTo({ kind: 'edge', id: e1.id }); await advance(1);
+    check('préchargement : depuis le parcours, le morceau de B (au bout) est chargé d\'avance', preloads.includes('lourd'));
+    ready['track:lourd'] = false;
+    voices['track:lourd'] = null;
+    const going = p.goTo({ kind: 'node', id: b.id }); await flush(); await advance(1); // pas d'attente : goTo se termine quand le morceau est prêt
+    check('morceau pas encore chargé : la musique en cours continue, « chargement de… » affiché', voices['track:a'].playing && p.state.notReady === 'lourd');
+    ready['track:lourd'] = true; await new Promise(r => setTimeout(r, 150)); await going; await advance(2);
+    check('une fois chargé : la transition part et le nouveau morceau joue au bon niveau', p.state.music.id === 'lourd' && voices['track:lourd'].playing && voices['track:lourd'].level === 1 && !voices['track:a'].playing && !p.state.notReady);
+    M.addSound(m, { kind: 'node', id: c.id }, 'main', T('c2'));
+    m.nodes.find(n => n.id === b.id).sounds.main = []; M.addSound(m, { kind: 'node', id: b.id }, 'main', T('nouveau'));
+    await p.refresh(); await advance(2);
+    check('son déposé là où l\'on se tient : il joue tout de suite, sans repartir', p.state.music.id === 'nouveau');
+    p.preload([T('x1'), { kind: 'sfx', id: 'bruit' }, T('x1')]);
+    await flush();
+    check('préchargement : morceaux seulement, une seule fois chacun', preloads.filter(x => x === 'x1').length === 1 && !preloads.includes('bruit'));
+  }
+
   // ---- Éditeur : zones, sous-cartes, balade libre
   {
     const tr = (k, v) => k + (v ? JSON.stringify(v) : '');

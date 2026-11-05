@@ -29,7 +29,7 @@
       return { labels: safe(() => v.sequenceLabels()) || [], current: safe(() => v.sequenceCurrent()), reachable: safe(() => v.sequenceReachable()) || [], pending: safe(() => v.sequencePending()) };
     };
     // Morceau monté mais dont les fichiers ne sont pas encore chargés : le titre de ce qu'on attend (sinon null).
-    const notReadyOf = () => (musicVoice && musicVoice.isReady && !safe(() => musicVoice.isReady()) ? (st.music && st.music.title) || true : null);
+    const notReadyOf = () => (st.waiting ? st.waiting : musicVoice && musicVoice.isReady && !safe(() => musicVoice.isReady()) ? (st.music && st.music.title) || true : null);
     // Un morceau séquentiel change de séquence tout seul (au repère choisi, ou au bout de son emplacement) sans en avertir la carte :
     // tant qu'il joue, on relit son état quatre fois par seconde et on prévient la page seulement quand il a changé.
     let seqTimer = null, seqSig = '';
@@ -96,8 +96,36 @@
       const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : Math.max(0, Math.min(n - 1, auto));
       safe(() => voice.setIntensity(want)); st.layerLevel = want;
     }
+    // Attente qu'une voix soit chargée (vérifiée dix fois par seconde, deux minutes au plus) ; abandonnée si l'on est déjà reparti ailleurs.
+    function waitReady(voice, my) {
+      const t0 = Date.now();
+      return new Promise(resolve => {
+        const tick = () => {
+          if (my !== token) return resolve(false);
+          if (safe(() => voice.isReady()) || Date.now() - t0 > 120000) return resolve(true);
+          setTimeout(tick, 100); // horloge ordinaire : l'horloge audio est figée tant que le son n'est pas réveillé
+        };
+        tick();
+      });
+    }
+    // Préchargement : les morceaux des endroits voisins sont montés (et leurs fichiers chargés) avant qu'on y arrive. Sans compteur de
+    // chargement : rien ne s'affiche, tout se fait en fond.
+    const preloaded = new Set();
+    function preload(refs) {
+      const fn = env.preload || env.voiceFactory;
+      (refs || []).filter(r => r && (r.kind === 'track' || r.kind === 'asset')).forEach(r => {
+        const k = model.refKey(r); if (preloaded.has(k) || preloaded.size >= 40) return;
+        preloaded.add(k);
+        Promise.resolve().then(() => fn(r)).catch(() => preloaded.delete(k));
+      });
+    }
+    const refsOf = item => (item && item.sounds ? (item.sounds.main || []).concat(item.sounds.combat || []) : []);
+    function preloadAround(pos) {
+      if (!map || !pos) return;
+      preload(model.neighbors(map, pos).map(n => itemAt(n)).reduce((a, it) => a.concat(refsOf(it)), refsOf(itemAt(pos))));
+    }
     async function enter() {
-      const my = ++token;
+      const my = ++token; st.waiting = null;
       if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
       setRoom();
       const want = wantedMusic();
@@ -116,6 +144,18 @@
       // Bascule d'une musique à l'autre : le son de transition de l'élément (facultatif) est joué comme jingle de passage.
       if (st.switchStinger) { tr = Object.assign({}, tr, { stinger: st.switchStinger }); st.switchStinger = null; }
       const incomingPromise = want && want.ref ? load(want.ref) : Promise.resolve(null);
+      // Un morceau pas encore chargé : la musique en cours continue (« Chargement de… » affiché) jusqu'à ce qu'il soit prêt, puis la
+      // transition part au repère suivant. Avant (05/11), l'ancienne s'éteignait et la nouvelle arrivait plus tard, ou muette.
+      if (want && want.ref) {
+        const pre = await incomingPromise;
+        if (my !== token) return;
+        if (pre && pre.isReady && !safe(() => pre.isReady())) {
+          st.waiting = want.ref.title || true; notify();
+          await waitReady(pre, my);
+          if (my !== token) return;
+          st.waiting = null;
+        }
+      }
       const outgoing = musicVoice;
       // Quand ? Au prochain repère de la grille du son qui joue (mesure, temps…), sinon tout de suite.
       let at = env.now();
@@ -150,6 +190,8 @@
 
     return {
       setMap(m) { map = m; },
+      // Balade libre : toutes les musiques de la carte (zones, déplacements, cercles), une fois.
+      preloadMap() { if (map) preload([].concat(...(map.zones || []).map(refsOf), ...(map.modes || []).map(refsOf), ...map.nodes.map(refsOf))); },
       get state() { return snapshot(); },
       // Se placer sur un élément ou un parcours : démarre la lecture si besoin.
       async goTo(target) {
@@ -160,7 +202,7 @@
         if (!st.position || st.position.kind !== target.kind || st.position.id !== target.id) st.intensity = null; // nouveau lieu : la couche redevient automatique
         st.position = { kind: target.kind, id: target.id };
         if (!model.hasAltMusic(map, st.position)) st.combat = false;
-        st.playing = true; await enter(); return true;
+        st.playing = true; st.waiting = null; const p = enter(); preloadAround(st.position); await p; return true;
       },
       // Balade libre (monde ouvert, 27/10) : la page calcule qui joue là où se tient le personnage (cercle d'élément, mode de déplacement,
       // zone ; model.governorAt) et le fond d'ambiance de l'endroit ; le lecteur ne bouge que si l'un des deux change. target null : rien ne
@@ -176,9 +218,13 @@
         if (!same) st.intensity = null;
         if (same && t && combat !== st.combat) { const it = itemAt(t); st.switchStinger = (it && it.altTransition) || null; }
         st.free = true; st.roomOverride = room; st.via = null;
-        st.position = t; st.combat = combat; st.playing = true;
+        st.position = t; st.combat = combat; st.playing = true; st.waiting = null;
         await enter(); return true;
       },
+      // Les sons de l'endroit ont changé pendant la balade (un morceau déposé là où l'on se tient) : on les rejoue tout de suite.
+      async refresh() { if (st.playing && (st.position || st.free)) await enter(); },
+      // Charger d'avance des sons (un morceau déposé sur la carte, ceux d'une balade libre) ; ils sont prêts quand on y arrive.
+      preload,
       // Flèche : voisin dans la direction demandée.
       async step(dx, dy) {
         if (!map || !st.position) return null;
@@ -213,7 +259,7 @@
         [musicVoice, roomVoice, stingerVoice].forEach(v => { if (v) { v.setLevel(0, sec); const vv = v; env.schedule(() => safe(() => vv.stop()), env.now() + sec + 0.05); } });
         musicVoice = null; roomVoice = null; stingerVoice = null; lastMusicKey = null;
         if (seqTimer) { clearInterval(seqTimer); seqTimer = null; }
-        st.playing = false; st.music = null; st.room = null; notify();
+        st.playing = false; st.music = null; st.room = null; st.waiting = null; notify();
       },
       async resume() { if (st.position || st.free) { st.playing = true; await enter(); } },
       // Réglage fait pendant l'écoute (niveau du fond d'ambiance).

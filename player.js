@@ -7061,19 +7061,25 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       };
       if (!tick()) lpLoopTimer = setInterval(() => { if (tick()) { clearInterval(lpLoopTimer); lpLoopTimer = null; } }, 100);
     }
-    let lpWaitTimer = null;
+    let lpWaitTimer = null, lpPendingRamp = null;
     const lpCancelWait = () => { if (lpWaitTimer) { clearInterval(lpWaitTimer); lpWaitTimer = null; } };
     wrapper.lpControl = {
       // Démarrer : si les fichiers du morceau ne sont pas encore chargés (le chargement est asynchrone), on attend qu'ils le soient (au plus
       // 2 minutes) au lieu de « jouer » dans le vide ; stop() annule l'attente. isReady() : les fichiers sont chargés.
+      // Un réglage de niveau demandé pendant l'attente (le fondu d'entrée de la Carte : start(0) puis setLevel(1, durée)) est gardé et joué
+      // au démarrage : sans cela, un morceau pas encore chargé démarrait à 0 et restait muet (05/11, « ça ne marche pas du premier coup »).
       start(level) {
-        const go = () => { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); };
-        lpCancelWait();
+        const go = () => {
+          if (!playing) playThisTrack(true);
+          trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime);
+          if (lpPendingRamp) { const r = lpPendingRamp; lpPendingRamp = null; rampTo(r.level, r.sec); }
+        };
+        lpCancelWait(); lpPendingRamp = null;
         if (ready || playing) { go(); return; }
         let waited = 0;
         lpWaitTimer = setInterval(() => { waited += 100; if (ready) { lpCancelWait(); go(); } else if (waited > 120000) lpCancelWait(); }, 100);
       },
-      stop() { lpCancelWait(); if (playing) stopAllSources(false); },
+      stop() { lpCancelWait(); lpPendingRamp = null; if (playing) stopAllSources(false); },
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
       // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
@@ -7099,7 +7105,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
-      setLevel: rampTo,
+      setLevel(level, sec) { if (lpWaitTimer) { lpPendingRamp = { level, sec }; return; } rampTo(level, sec); },
       isPlaying: () => playing,
       onEnded(cb) { lpEndedCb = cb; },
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
