@@ -157,7 +157,10 @@
   // la capture l'enregistre (le lancer depuis sa propre ligne de Sfx couperait le morceau en cours, sans rien enregistrer).
   const withGlacons = t => Object.assign({}, t, { track_sfx: [{ sfx_id: 'sfx-glacons', position: 0 }] });
   const DEMO_TRACKS = [DEMO_TRACK_JAZZ_SFX, DEMO_TRACKS_HYBRID.find(t => t.title === 'Jazz Hi Static'), withGlacons(DEMO_TRACKS_JAZZ.find(t => t.title === 'Jazz Hi Lay. Add.')), withGlacons(DEMO_TRACK_JAZZ_LO_ADD)];
-  const DEMO_SFX_MUSIC_CITY = DEMO_SFX.filter(x => x.id === 'sfx-glacons');
+  const DEMO_SFX_MUSIC_CITY = DEMO_SFX.filter(x => ['sfx-glacons', 'sfx-verre'].includes(x.id)); // les glaçons, puis il se sert à boire (05/11)
+  // Leçon « Versioning vidéo » (05/11, demande de Jules-Antoine) : un seul morceau d'un bout à l'autre de la vidéo, « Jazz Lo Lay. Add. » pour la
+  // première musique, « Jazz Hi Lay. Add. » pour la version ; l'atelier ne montre que ces deux-là (moins de lignes : la vidéo reste à l'écran).
+  const DEMO_TRACKS_ATELIER = ['Jazz Lo Lay. Add.', 'Jazz Hi Lay. Add.'].map(title => Object.assign({}, DEMO_TRACKS.find(t => t.title === title), { track_sfx: DEMO_SFX_MUSIC_CITY.map((x, i) => ({ sfx_id: x.id, position: i })) }));
   // Morceaux du pack « 8 bits Comptines » de Jules-Antoine (copiés de sa base en lecture seule, fichiers publics sous media.layerpitch.com/audio/<id>/) : leçon « Vendre des assets audio » (pack, 26/10).
   const DEMO_TRACKS_8BIT = [{"id":"bmruc7dbdxf1i0","folder_id":null,"title":"Les Petits Poissons","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"98.14","base":"https://media.layerpitch.com/audio/bmruc7dbdxf1i0/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.877,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.065Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]},{"id":"bmruc9x0htabo1","folder_id":null,"title":"Doucement s'en va le jour","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"108.54","base":"https://media.layerpitch.com/audio/bmruc9x0htabo1/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.864,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.345Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]},{"id":"bmruccnxudcuy8","folder_id":null,"title":"Dans la Forêt Lointaine","description":"","mode":"static","loopable":false,"implementation_note":"","no_ai_override":null,"loop_engine":"simple","bpm":"120","beats_per_bar":4,"loop_grid_unit":"bars","loop_in_beat":"0","loop_out_beat":"16","start_track_beat":"0","max_loops":null,"max_chain_loops":null,"normalize_volume":false,"duration":"112.82","base":"https://media.layerpitch.com/audio/bmruccnxudcuy8/","randomize_sections":false,"layers":[{"fx":null,"file":"0-niveau-1.ogg","gain":0.95,"label":"Niveau 1","duration":0,"localUrl":null,"originalFileName":null}],"intro":null,"outro":null,"loops":[],"sections":[],"created_at":"2026-08-31T10:53:12.519Z","updated_at":"2026-10-22T11:40:53.405Z","owner_id":"demo-composer","fx":null,"fx_triggers":[],"fx_sliders":[],"tags":[],"retired_at":null,"protected":false,"segment_slots":[],"track_sfx":[]}];
   // Leçon « C'est quoi un AdReel ? » (23/10, ?tuto&lesson=adreel-intro) : le Main AdReel de Daniel Orcman, DÉJÀ REMPLI (mêmes quatre villes que la leçon suivante).
@@ -219,8 +222,8 @@
   // vidéo du compte fictif. Le bloc vidéo propose alors de choisir la version affichée. FICHIERS À DÉPOSER par Jules-Antoine dans
   // media.layerpitch.com/tuto/ sous ces noms (tant qu'ils manquent, la vidéo ne se lit pas, la leçon se déroule quand même).
   const MC_VIDEOS = [
-    { id: 'vid-music-city-1', title: 'Music City : gameplay, musique 1', file: 'music-city-gameplay-musique1.mp4', versionTitle: 'Musique 1 : la rue en Jazz Lo, le club en Jazz Hi' },
-    { id: 'vid-music-city-2', title: 'Music City : gameplay, musique 2', file: 'music-city-gameplay-musique2.mp4', versionTitle: 'Musique 2 : la rue en Jazz Hi, le club en Jazz Lo' },
+    { id: 'vid-music-city-1', title: 'Music City : gameplay, musique 1', file: 'music-city-gameplay-musique1.mp4', versionTitle: 'Musique 1 : Jazz Lo Lay. Add.' },
+    { id: 'vid-music-city-2', title: 'Music City : gameplay, musique 2', file: 'music-city-gameplay-musique2.mp4', versionTitle: 'Musique 2 : Jazz Hi Lay. Add.' },
   ];
   const MC_CAPTURE = { id: 'cap-music-city', packId: 'p-music-city', title: 'Music City : de la rue au club', videoFilename: 'music-city-gameplay-muette.mp4', lastExportVideoId: 'vid-music-city-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
@@ -238,9 +241,9 @@
     if (table === 'packs' && projectPage) return DEMO_PACKS;
     // Atelier vidéo (21/10 : l'outil de capture a quitté la page du pack pour l'atelier, ouvert dans le Backstage).
     const packPage = onAtelierPage();
-    if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS;
+    if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS_ATELIER;
     if (packPage && isVersioning() && table === 'sfx_library') return DEMO_SFX_MUSIC_CITY;
-    if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
+    if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true, pack_tracks: DEMO_TRACKS_ATELIER.map((t, i) => ({ track_id: t.id, position: i })) }));
     return null;
   };
 

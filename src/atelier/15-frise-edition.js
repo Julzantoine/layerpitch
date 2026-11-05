@@ -31,7 +31,11 @@ function positionCapturePlayhead(container, videoEl) {
 function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl) {
   laneOverrides = laneOverrides || {};
   collapsedGroups = collapsedGroups || {};
-  if (!events.length) {
+  // Montage à la souris (05/11, demande de Jules-Antoine) : sans prise, la frise propose déjà chaque morceau en couches ou statique
+  // du pack, ses couches en pistes vides : un double-clic sur une couche la fait démarrer là (jusqu'à la fin de la vidéo), on n'est plus
+  // obligé de capturer d'abord. Les autres modes (séquentiel, embranchement…) passent toujours par une prise.
+  const handTrackIds = editable ? ((window.__lpCaptureLibrary && window.__lpCaptureLibrary.library) || []).filter(t => t.mode === 'vertical' || t.mode === 'static').map(t => t.id) : [];
+  if (!events.length && !handTrackIds.length) {
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
@@ -48,7 +52,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
-  const total = Math.max(lastT + 1, 5); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement
+  const total = Math.max(lastT + 1, 5, (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
 
@@ -113,6 +117,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const vi = e.detail.variationIndex;
     (sfxGroups[sid] = sfxGroups[sid] || {})[vi] = (sfxGroups[sid][vi] || []).concat(e);
   });
+  // Sfx des morceaux de la prise jamais déclenchés pendant celle-ci (05/11, demande de Jules-Antoine : poser les gestes dans la frise
+  // plutôt qu'en direct) : une piste vide « RR1 » par Sfx, pour pouvoir l'ajouter au double-clic.
+  if (editable) {
+    [...new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean).concat(handTrackIds))].forEach(tId => {
+      const trk = findCaptureTrack(tId);
+      ((trk && trk.sfxIds) || []).forEach(sid => { if (!sfxGroups[sid] && findCaptureSfx(sid)) sfxGroups[sid] = { 0: [] }; });
+    });
+  }
   let lanesHtml = '';
   Object.keys(sfxGroups).forEach(sid => {
     const sfx = findCaptureSfx(sid);
@@ -141,6 +153,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       musicTrackIds.push(e.detail.trackId);
     }
   });
+  handTrackIds.forEach(id => { if (musicTrackIds.indexOf(id) === -1) musicTrackIds.push(id); });
   musicTrackIds.forEach(trackId => {
     const track = findCaptureTrack(trackId);
     if (!track) return;
@@ -214,7 +227,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     } else {
       const trackLayerEvents = events.filter(e => e.name === 'layer_segment' && e.detail.trackId === trackId);
       const layers = track.layers || [];
-      if (trackLayerEvents.length) {
+      if (trackLayerEvents.length || handTrackIds.indexOf(trackId) !== -1) {
         // Calques indépendants (matérialisés une fois pour toutes à l'arrêt de la capture par
         // materializeLayerSegments -- voir ce commentaire pour le raisonnement) : chaque layer_segment a
         // son propre début + durée, comme un stinger, sans lien avec les autres calques ni avec un
@@ -315,6 +328,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
   `;
   positionCapturePlayhead(container, videoEl);
+  // Tête de lecture déplaçable (05/11, demande de Jules-Antoine) : cliquer ou glisser sur la règle des temps place la vidéo à cet
+  // instant (la ligne rouge suit). Pas pendant une prise : l'horloge de la capture est calée sur la vidéo qui défile.
+  const scrubRuler = container.querySelector('.vct-ruler');
+  if (scrubRuler && videoEl) {
+    scrubRuler.classList.add('vct-scrub');
+    scrubRuler.title = tr('captureScrubHint');
+    scrubRuler.addEventListener('pointerdown', ev => {
+      if (videoCaptureState) return;
+      ev.preventDefault();
+      const seek = e => {
+        const r = scrubRuler.getBoundingClientRect();
+        const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        videoEl.currentTime = Math.min(f * total, Number.isFinite(videoEl.duration) ? videoEl.duration : f * total);
+        positionCapturePlayhead(container, videoEl);
+      };
+      seek(ev);
+      if (scrubRuler.setPointerCapture) scrubRuler.setPointerCapture(ev.pointerId);
+      const up = () => { scrubRuler.removeEventListener('pointermove', seek); scrubRuler.removeEventListener('pointerup', up); scrubRuler.removeEventListener('pointercancel', up); };
+      scrubRuler.addEventListener('pointermove', seek);
+      scrubRuler.addEventListener('pointerup', up);
+      scrubRuler.addEventListener('pointercancel', up);
+    });
+  }
   container.querySelectorAll('.vct-track-group-header').forEach(headerEl => {
     headerEl.addEventListener('click', () => {
       const key = headerEl.dataset.groupKey;
@@ -546,14 +582,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // départ 3s pour les calques/boucles (ajustable ensuite) ; les stingers gardent leur longueur d'origine
   // tant qu'on ne retouche pas leur durée. `ev.target !== trackEl` exclut les clics qui viennent en fait
   // d'un bloc existant (déjà géré par startDrag/selectBlock).
+  // Double-clic (05/11, demande de Jules-Antoine) : un simple clic dans une zone vide ajoutait un bloc par mégarde.
   container.querySelectorAll('.vct-lane-track[data-addable]').forEach(trackEl => {
-    trackEl.addEventListener('click', (ev) => {
+    trackEl.addEventListener('dblclick', (ev) => {
       if (ev.target !== trackEl) return;
       const rect = trackEl.getBoundingClientRect();
       const t = Math.max(0, (ev.clientX - rect.left) / rect.width * total);
       const kind = trackEl.dataset.addable;
       if (kind === 'layer') {
-        events.push({ t, name: 'layer_segment', detail: { trackId: trackEl.dataset.addTrackId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: 3 } });
+        // Départ d'une couche : elle joue jusqu'à la fin de la musique de ce morceau dans la prise (ou 3 s s'il n'y a rien après).
+        const tId = trackEl.dataset.addTrackId;
+        const musicEnd = Math.max(0, ...events.filter(o => o.detail && o.detail.trackId === tId).map(o => o.t + ((o.name === 'layer_segment' || o.name === 'fx_segment') ? o.detail.duration : 0)));
+        // Rien après (montage à la souris, première couche posée) : jusqu'à la fin de la vidéo.
+        const videoEnd = (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0;
+        const end = musicEnd > t + 0.5 ? musicEnd : (videoEnd > t + 0.5 ? videoEnd : t + 3);
+        events.push({ t, name: 'layer_segment', detail: { trackId: tId, layerIndex: parseInt(trackEl.dataset.addLevel, 10), duration: end - t } });
       } else if (kind === 'loop') {
         events.push({ t, name: 'embr_loop_select', detail: { trackId: trackEl.dataset.addTrackId, loopId: trackEl.dataset.addLoopId } });
       } else if (kind === 'sfx') {

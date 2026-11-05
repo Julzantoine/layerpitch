@@ -63,7 +63,9 @@ function stopCapture() {
   if (!videoCaptureState) return [];
   // Fin de la prise : ce qui jouait s'arrête ici (l'arrêt réel de la musique suit, une fois l'enregistrement fermé) --
   // sans ce repère, le rendu laisserait sonner les boucles au-delà de la fin de la capture.
-  const tEnd = videoCaptureState.stamp(window.LayerPlayerCore.audioNow());
+  // (jamais après la fin de la vidéo : arrêtée à sa fin, la prise ne déborde pas de l'image)
+  const dur = videoCaptureState.videoEl && videoCaptureState.videoEl.duration;
+  const tEnd = Math.min(videoCaptureState.stamp(window.LayerPlayerCore.audioNow()), Number.isFinite(dur) ? dur : Infinity);
   [...new Set(videoCaptureState.events.map(e => e.detail && e.detail.trackId).filter(Boolean))]
     .forEach(trackId => videoCaptureState.events.push({ t: tEnd, name: 'voices_stop', detail: { trackId } }));
   document.removeEventListener('layerpitch-capture-mark', videoCaptureState.markHandler);
