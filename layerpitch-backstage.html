@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793905711397">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793907420411">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2017,19 +2017,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793905711397"></script>
-<script src="layerpitch-i18n.js?v=1793905711397"></script>
-<script src="layerpitch-import-engine.js?v=1793905711397"></script>
-<script src="layerpitch-appearance.js?v=1793905711397"></script>
-<script src="layerpitch-album-shared.js?v=1793905711397"></script>
-<script src="layerpitch-album-editor.js?v=1793905711397"></script>
-<script src="layerpitch-shell.js?v=1793905711397"></script>
-<script src="layerpitch-social-icons.js?v=1793905711397"></script>
-<script src="layerpitch-notify.js?v=1793905711397"></script>
-<script src="layerpitch-guide.js?v=1793905711397"></script>
-<script src="layerpitch-lesson-previews.js?v=1793905711397"></script>
-<script src="layerpitch-help.js?v=1793905711397"></script>
-<script src="player.js?v=1793905711397"></script>
+<script src="layerpitch-tuto.js?v=1793907420411"></script>
+<script src="layerpitch-i18n.js?v=1793907420411"></script>
+<script src="layerpitch-import-engine.js?v=1793907420411"></script>
+<script src="layerpitch-appearance.js?v=1793907420411"></script>
+<script src="layerpitch-album-shared.js?v=1793907420411"></script>
+<script src="layerpitch-album-editor.js?v=1793907420411"></script>
+<script src="layerpitch-shell.js?v=1793907420411"></script>
+<script src="layerpitch-social-icons.js?v=1793907420411"></script>
+<script src="layerpitch-notify.js?v=1793907420411"></script>
+<script src="layerpitch-guide.js?v=1793907420411"></script>
+<script src="layerpitch-lesson-previews.js?v=1793907420411"></script>
+<script src="layerpitch-help.js?v=1793907420411"></script>
+<script src="player.js?v=1793907420411"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -14990,6 +14990,17 @@ async function renderVideoLibrary() {
   const listEl = document.getElementById('videoLibraryList');
   const quotaEl = document.getElementById('videoLibraryQuota');
   if (!listEl) return;
+  // Page rechargée sur l'onglet Vidéo (05/11, retour de Jules-Antoine : « mes vidéos ne s'affichent pas ») : l'onglet est rouvert avant que
+  // les scripts du serveur (chargés à la demande) soient là -- la liste plantait en silence. On les attend, et toute erreur s'affiche.
+  try {
+    await loadPostgresReadScripts();
+    await renderVideoLibraryNow(listEl, quotaEl);
+  } catch (e) {
+    console.error('LayerPitch — bibliothèque vidéo :', e);
+    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
+  }
+}
+async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
   const { videos, quotaGb, usedBytes, interrupted = [] } = await loadMyVideos();

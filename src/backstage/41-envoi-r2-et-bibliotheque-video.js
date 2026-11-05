@@ -191,6 +191,17 @@ async function renderVideoLibrary() {
   const listEl = document.getElementById('videoLibraryList');
   const quotaEl = document.getElementById('videoLibraryQuota');
   if (!listEl) return;
+  // Page rechargée sur l'onglet Vidéo (05/11, retour de Jules-Antoine : « mes vidéos ne s'affichent pas ») : l'onglet est rouvert avant que
+  // les scripts du serveur (chargés à la demande) soient là -- la liste plantait en silence. On les attend, et toute erreur s'affiche.
+  try {
+    await loadPostgresReadScripts();
+    await renderVideoLibraryNow(listEl, quotaEl);
+  } catch (e) {
+    console.error('LayerPitch — bibliothèque vidéo :', e);
+    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
+  }
+}
+async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
   const { videos, quotaGb, usedBytes, interrupted = [] } = await loadMyVideos();
