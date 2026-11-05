@@ -25,7 +25,7 @@ function pinCaptureVideo(panel) {
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
-    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !wide.matches && mark.getBoundingClientRect().top < 0;
+    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && !wide.matches && mark.getBoundingClientRect().top < 0;
     wrap.classList.toggle('video-capture-pinned', pinned);
     if (pinned) {
       const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
@@ -41,6 +41,61 @@ function pinCaptureVideo(panel) {
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);
   update();
+}
+
+// Image masquée pendant l'incrustation (05/11, demande de Jules-Antoine : l'incrustation sert à gagner de la place, l'écran « en cours de
+// lecture en mode incrustation » ne doit pas rester). Chrome / Safari préviennent (enterpictureinpicture) : l'image se replie et revient
+// toute seule. Firefox ne prévient pas (son incrustation n'est pas visible par la page) : bouton ▭ dans l'en-tête, et « Réafficher
+// l'image ». La vidéo n'est pas retirée (hauteur nulle seulement) : elle continue de jouer et de piloter la capture.
+function wireCaptureImageHiding(panel, videoEl) {
+  const setHidden = (hidden) => {
+    panel.classList.toggle('video-capture-image-hidden', hidden);
+    window.dispatchEvent(new Event('scroll')); // l'image accrochée (pinCaptureVideo) se remet à jour
+  };
+  panel.querySelector('#videoCaptureHideImageBtn').addEventListener('click', () => setHidden(!panel.classList.contains('video-capture-image-hidden')));
+  panel.querySelector('#videoCaptureShowImageBtn').addEventListener('click', () => {
+    setHidden(false);
+    if (document.pictureInPictureElement === videoEl && document.exitPictureInPicture) document.exitPictureInPicture().catch(() => {});
+  });
+  videoEl.addEventListener('enterpictureinpicture', () => setHidden(true));
+  videoEl.addEventListener('leavepictureinpicture', () => setHidden(false));
+}
+
+// Plein écran de tout l'atelier (05/11, demande de Jules-Antoine : trop chargé dans le cadre du Backstage). Le cadre l'autorise
+// (allow="fullscreen" côté Backstage et studio). Tous les boutons .atelier-fullscreen-toggle suivent l'état, Échap compris.
+function atelierIsFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleAtelierFullscreen() {
+  const root = document.documentElement;
+  if (atelierIsFullscreen()) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (req) { const r = req.call(root); if (r && r.catch) r.catch(e => console.warn('LayerPitch — plein écran refusé :', e)); }
+  }
+}
+function syncAtelierFullscreenButtons() {
+  const on = atelierIsFullscreen();
+  document.body.classList.toggle('atelier-fullscreen', on);
+  document.querySelectorAll('.atelier-fullscreen-toggle').forEach(b => {
+    const label = tr(on ? 'atelierFullscreenExitBtn' : 'atelierFullscreenBtn');
+    b.title = label; b.setAttribute('aria-label', label);
+    if (b.dataset.withText) b.textContent = (on ? '✕ ' : '⛶ ') + label;
+  });
+}
+function wireAtelierFullscreenButtons(root) {
+  const can = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  root.querySelectorAll('.atelier-fullscreen-toggle').forEach(b => {
+    if (b.dataset.fsBound) return;
+    b.dataset.fsBound = '1';
+    if (!can) { b.hidden = true; return; }
+    b.addEventListener('click', toggleAtelierFullscreen);
+  });
+  if (!document.__lpFsWatched) {
+    document.__lpFsWatched = true;
+    document.addEventListener('fullscreenchange', syncAtelierFullscreenButtons);
+    document.addEventListener('webkitfullscreenchange', syncAtelierFullscreenButtons);
+  }
+  syncAtelierFullscreenButtons();
 }
 
 // Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
@@ -82,11 +137,14 @@ function openCapturePanel(file, opts) {
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <div class="video-test-panel-actions">
+        <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
+    <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
@@ -556,7 +614,7 @@ function openCapturePanel(file, opts) {
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
       sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
-      library: window.__lpCaptureLibrary, findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      library: capturePackLibrary(), findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
@@ -597,6 +655,8 @@ function openCapturePanel(file, opts) {
     closeCapturePanel();
   });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
+  wireCaptureImageHiding(panel, videoEl);
+  wireAtelierFullscreenButtons(panel);
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
