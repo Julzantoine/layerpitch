@@ -8,7 +8,8 @@
  * « Passer » toujours visible. Les réponses donnent 4-5 leçons essentielles, en tête du menu Tutoriel (« Tes essentiels »,
  * cochées une fois faites) ; pour « les deux », un bouton « Explorer aussi la voie studio / compositeur ». PAS de lien
  * « refaire le questionnaire » (décision de Jules-Antoine). Comptes déjà inscrits (visite déjà faite) : les questions sont
- * proposées une fois, à la prochaine connexion. Mode tutoriel (sans compte) : inchangé, double choix comme avant. */
+ * proposées une fois, à la prochaine connexion, seulement une fois les messages de la cloche lus (5/11 : la bulle s'ouvrait
+ * par-dessus le message des exemples, qu'on ne pouvait plus lire), avec leur propre titre (pas « Pour finir »). Mode tutoriel (sans compte) : inchangé, double choix comme avant. */
 const ESSENTIAL_LESSONS = {
   'composer-starting': ['embranchement', 'additive', 'adreel-intro', 'adreel'],
   'composer-contracts': ['embranchement', 'additive', 'pj-map-music', 'versioning'],
@@ -64,7 +65,7 @@ async function saveMyOnboardingProfile(answers) {
 let profileQuiz = null;
 function profileQuizStep(opts) {
   profileQuiz = { answers: {}, q: opts && opts.only === 'composer' ? 'career' : 'role', done: false, saved: false, only: opts && opts.only };
-  return { titleKey: 'profileQTitle', textKey: 'profileQIntro', profileQuiz: true };
+  return { titleKey: opts && opts.alone ? 'profileQTitleAlone' : 'profileQTitle', textKey: 'profileQIntro', profileQuiz: true };
 }
 const PROFILE_QUESTIONS = {
   role: { key: 'profileQRole', options: [['composer', 'profileQRoleComposer'], ['studio', 'profileQRoleStudio'], ['both', 'profileQRoleBoth']] },
@@ -151,13 +152,35 @@ function tourFinalStep() {
   }
   return tourChoiceStep();
 }
-// Comptes déjà inscrits (visite déjà faite ou refusée) : les questions seules, une fois, à la prochaine connexion.
+// Comptes déjà inscrits (visite déjà faite ou refusée) : les questions seules, une fois, à la prochaine connexion. Elles attendent
+// la fin de l'ajout des exemples, puis que les messages de LayerPitch de la cloche soient lus et la cloche refermée : sinon la
+// bulle recouvrait le message des exemples, illisible tant qu'elle restait ouverte (retour du 5/11).
+function inboxHasUnreadAnnouncement(items) { return (items || []).some(it => it.unread && it.kind === 'announcement'); }
+function inboxBellOpen() { const dd = document.getElementById('inboxBellDropdown'); return !!(dd && !dd.hidden); }
+function whenInboxRead() {
+  const shell = window.LayerPitchShell;
+  if (!shell || !shell.onInbox) return Promise.resolve();
+  return new Promise(resolve => {
+    let items = null, done = false, obs = null;
+    const check = () => {
+      if (done || items === null || inboxHasUnreadAnnouncement(items) || inboxBellOpen()) return;
+      done = true;
+      if (obs) obs.disconnect();
+      resolve();
+    };
+    shell.onInbox(list => { items = list; check(); }); // appelé à chaque relève, et quand la cloche marque les messages vus
+    const dd = document.getElementById('inboxBellDropdown');
+    if (dd && window.MutationObserver) { obs = new MutationObserver(check); obs.observe(dd, { attributes: true, attributeFilter: ['hidden'] }); }
+  });
+}
 let profileQuizOffered = false;
 async function offerProfileQuizIfNeeded() {
   if (profileQuizOffered || !profileQuizOpen() || guide) return;
   profileQuizOffered = true;
   if ((await loadMyOnboardingProfile()) !== null || guide) return;
-  setTimeout(() => { if (!guide) openGuide('tour', [profileQuizStep()]); }, 900);
+  if (typeof examplesSeedPromise !== 'undefined' && examplesSeedPromise) { try { await examplesSeedPromise; } catch (e) { /* sans exemples, on continue */ } }
+  await whenInboxRead();
+  setTimeout(() => { if (!guide && myOnboardingProfile === null) openGuide('tour', [profileQuizStep({ alone: true })]); }, 900);
 }
 
 // ---- « Tes essentiels » en tête du menu Tutoriel ----
@@ -181,7 +204,7 @@ function essentialsMenuHtml(tick) {
 function switchEssentialsPath(path) {
   const p = myOnboardingProfile;
   if (!p || p.role !== 'both') return;
-  if (path === 'composer' && !p.career) { if (!guide) openGuide('tour', [profileQuizStep({ only: 'composer' })]); return; }
+  if (path === 'composer' && !p.career) { if (!guide) openGuide('tour', [profileQuizStep({ only: 'composer', alone: true })]); return; }
   try { localStorage.setItem(ESSENTIALS_VIEW_STORAGE, path); } catch (e) { /* le temps de la page seulement */ }
   trackBackstageEvent('essentials_switch', { path });
   renderTutorialMenu();

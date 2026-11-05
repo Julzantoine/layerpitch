@@ -104,6 +104,21 @@ const fs = require('fs');
   stored = { skipped: true }; ev('myOnboardingProfile = undefined; profileQuizOffered = false');
   ev('offerProfileQuizIfNeeded()'); await settle(1100);
   check('déjà proposées (passées) : plus jamais', !ev('guide'));
+  stored = null; ev('myOnboardingProfile = undefined; profileQuizOffered = false');
+  check('questions seules : leur propre titre, pas « Pour finir »', ev("tr(profileQuizStep({ alone: true }).titleKey)") === 'Tes leçons essentielles');
+
+  // ---- Message non lu dans la cloche (5/11) : les questions attendent qu'il soit lu et la cloche refermée
+  ev(`(() => { const ls = []; let items = [{ kind: 'announcement', unread: true, title: 'Des exemples pour jouer' }];
+    window.__inbox = { set(v) { items = v; ls.forEach(f => f(items)); } };
+    window.LayerPitchShell = Object.assign({}, window.LayerPitchShell, { onInbox(f) { ls.push(f); f(items); } });
+    let dd = document.getElementById('inboxBellDropdown'); if (!dd) { dd = document.createElement('div'); dd.id = 'inboxBellDropdown'; document.body.appendChild(dd); } dd.hidden = true; })()`);
+  ev('offerProfileQuizIfNeeded()'); await settle(1100);
+  check('message de la cloche non lu : pas de questions par-dessus', !ev('guide'));
+  ev("document.getElementById('inboxBellDropdown').hidden = false; window.__inbox.set([{ kind: 'announcement', unread: false }])"); await settle(1100);
+  check('cloche ouverte (message lu) : toujours rien', !ev('guide'));
+  ev("document.getElementById('inboxBellDropdown').hidden = true"); await settle(1100);
+  check('cloche refermée : les questions s\'ouvrent, titre « Tes leçons essentielles »', ev('!!guide && guide.steps[0].profileQuiz') && /Tes leçons essentielles/.test(card().textContent) && !/Pour finir/.test(card().textContent));
+  ev('profileQuiz = null; closeBackstageTour()'); await settle();
 
   // ---- Admin
   const adminHtml = fs.readFileSync('admin.html', 'utf8');
