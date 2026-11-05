@@ -34,7 +34,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // Montage à la souris (05/11, demande de Jules-Antoine) : sans prise, la frise propose déjà chaque morceau en couches ou statique
   // du pack, ses couches en pistes vides : un double-clic sur une couche la fait démarrer là (jusqu'à la fin de la vidéo), on n'est plus
   // obligé de capturer d'abord. Les autres modes (séquentiel, embranchement…) passent toujours par une prise.
-  const handTrackIds = editable ? ((window.__lpCaptureLibrary && window.__lpCaptureLibrary.library) || []).filter(t => t.mode === 'vertical' || t.mode === 'static').map(t => t.id) : [];
+  const handTrackIds = editable ? (capturePackLibrary().library || []).filter(t => t.mode === 'vertical' || t.mode === 'static').map(t => t.id) : [];
   if (!events.length && !handTrackIds.length) {
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;

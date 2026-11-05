@@ -122,6 +122,13 @@ async function init() {
     window.__lpCaptureLibrary = {
       library: data.library || [], sfxLibrary: data.sfxLibrary || [], sfxFolders: data.sfxFolders || [],
       composerName: (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || '',
+      // Ce que l'atelier PROPOSE (05/11, retour de Jules-Antoine : toute la bibliothèque s'affichait) : les morceaux du pack, ses Sfx et
+      // ceux de ses morceaux. Le reste de la bibliothèque sert seulement à relire un montage qui citerait un morceau sorti du pack.
+      packTrackIds: (pack.trackIds || []).slice(),
+      packSfxIds: [...new Set((pack.sfxIds || []).concat(...(pack.trackIds || []).map(id => {
+        const t = (data.library || []).find(x => x.id === id);
+        return (t && t.sfxIds) || [];
+      })))],
     };
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 
@@ -181,4 +188,4 @@ function startAtelierLessonIfAsked() {
   }
 }
 
-window.addEventListener('load', init);
+window.addEventListener('load', () => { wireAtelierFullscreenButtons(document); init(); });
