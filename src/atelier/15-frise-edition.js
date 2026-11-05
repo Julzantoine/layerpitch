@@ -124,6 +124,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const trk = findCaptureTrack(tId);
       ((trk && trk.sfxIds) || []).forEach(sid => { if (!sfxGroups[sid] && findCaptureSfx(sid)) sfxGroups[sid] = { 0: [] }; });
     });
+    // Et les Sfx rattachés au pack lui-même (05/11, pack « Joris » : 3 Sfx au pack, aucun sur ses morceaux -> frise sans Sfx).
+    (capturePackLibrary().sfxLibrary || []).forEach(s => { if (!sfxGroups[s.id]) sfxGroups[s.id] = { 0: [] }; });
   }
   let lanesHtml = '';
   Object.keys(sfxGroups).forEach(sid => {
