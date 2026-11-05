@@ -376,7 +376,7 @@
         <button class="btn btn-small" type="button" data-tour="skip">${esc(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
         ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${esc(tr('tourPrev'))}</button>` : ''}
-        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${esc(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
+        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${esc(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+(?: bis)?\s·\s/, '') }))}</button>` : ''}
         ${auto
           /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
              franchie, revue avec « Précédent » */

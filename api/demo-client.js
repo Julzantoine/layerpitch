@@ -224,6 +224,7 @@
   ];
   const MC_CAPTURE = { id: 'cap-music-city', packId: 'p-music-city', title: 'Music City : de la rue au club', videoFilename: 'music-city-gameplay-muette.mp4', lastExportVideoId: 'vid-music-city-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
+  const isLivePlayPackPage = () => lessonParam() === 'live-play' && !!(window.location && /\/pack\.html$/.test(window.location.pathname));
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
     const projectPage = !!(window.location && /\/projets?\.html$/.test(window.location.pathname));
@@ -241,6 +242,11 @@
     if (packPage && isVersioning() && table === 'tracks') return DEMO_TRACKS;
     if (packPage && isVersioning() && table === 'sfx_library') return DEMO_SFX_MUSIC_CITY;
     if (packPage && isVersioning() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
+    // Leçon « Jouer en direct sur une vidéo » (05/11, pack.html?id=p-music-city&tuto&lesson=live-play) : la page publique du pack « Music City »,
+    // case « Tester en jeu » cochée, pour jouer les morceaux sur la vidéo muette pendant qu'elle défile (rien n'est enregistré).
+    if (isLivePlayPackPage() && table === 'tracks') return DEMO_TRACKS;
+    if (isLivePlayPackPage() && table === 'sfx_library') return DEMO_SFX_MUSIC_CITY;
+    if (isLivePlayPackPage() && table === 'packs') return DEMO_PACKS.map(p => Object.assign({}, p, { video_test_mode_enabled: true }));
     return null;
   };
 

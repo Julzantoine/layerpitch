@@ -14,6 +14,7 @@ Tranches de la même page, collées dans l'ordre de leur nom. Les `.js` sont des
 | 12-test-en-jeu-lecteur-video.js | « Tester en jeu » : vidéo YouTube/Vimeo (ou de sa bibliothèque, si connecté) à côté du lecteur |
 | 20-demarrage-de-la-page.js | démarrage de la page (rendu du pack, lecteurs, achat) |
 | 21-integration-publique.js | bouton « intégrer » public |
+| 22-lecon-jeu-en-direct.js | leçon « Jouer en direct sur une vidéo » (?tuto&lesson=live-play) : charge layerpitch-guide.js + pack-lecons.js, seulement pour elle |
 | 90-fin.html | fermeture du script et de la page |
 
 Après modification : `npm run build` (et `npm run bump-version` si un `.js` servi aux navigateurs a changé).
