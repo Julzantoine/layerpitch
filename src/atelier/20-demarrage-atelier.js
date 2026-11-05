@@ -106,7 +106,8 @@ async function init() {
         location.search = next.toString();
       });
     }
-    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); return; }
+    // Pas encore de pack : la leçon démarre quand même (sa bulle « Choisis le pack » montre la liste).
+    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); startAtelierLessonIfAsked(); return; }
 
     // Données publiées du compositeur du pack (le sien, ou celui qui a vendu le pack au studio) : mêmes données que la page publique.
     const { data: packRows } = await client.from('packs').select('id, owner_id').eq('id', packId);
@@ -125,7 +126,7 @@ async function init() {
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 
     container.innerHTML = `<div class="atelier-pack-name">${escapeHtml(pack.title)}</div>
-      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
+      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
     const musicContainer = document.createElement('div');
     musicContainer.className = 'pub-section';
     container.appendChild(musicContainer);
@@ -175,7 +176,8 @@ function startAtelierLessonIfAsked() {
     document.body.classList.add('has-preview-banner');
   }
   if (atelierParams.get('lesson') === 'versioning') {
-    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone') }).start(), 600);
+    // Ouverte / fermée : le Backstage cache sa propre bulle pendant que celles de l'atelier sont à l'écran (une seule bulle à la fois).
+    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone'), onOpen: () => atelierTell('lessonOpen'), onClose: () => atelierTell('lessonClose') }).start(), 600);
   }
 }
 

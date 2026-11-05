@@ -71,8 +71,10 @@
       { titleKey: 'pvAtelierEndTitle', textKey: 'pvAtelierEndText', final: true },
     ];
     // Pack déjà choisi (l'atelier vient d'être rechargé sur lui) : on reprend après « choisir le pack ».
-    const run = hasPack ? steps.slice(2) : steps.slice(0, 2);
-    const G = window.LayerPitchGuide.create({ tr, onLessonDone: ctx.onDone && hasPack ? (() => ctx.onDone()) : undefined });
+    // Sans pack : directement « Choisis le pack » -- l'accueil est déjà fait par la bulle du Backstage, et une bulle sans cible se plaçait au
+    // milieu du cadre de l'atelier, souvent hors de l'écran (05/11).
+    const run = hasPack ? steps.slice(2) : steps.slice(1, 2);
+    const G = window.LayerPitchGuide.create({ tr, onLessonDone: ctx.onDone && hasPack ? (() => ctx.onDone()) : undefined, onOpen: ctx.onOpen, onClose: ctx.onClose });
     return { start: () => { if (!ready()) return false; G.open('lesson', run, 'versioning'); return true; }, guide: G, steps };
   }
 

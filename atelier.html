@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793868045296">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793868045296">
+<link rel="stylesheet" href="player.css?v=1793868456181">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793868456181">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -429,16 +429,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793868045296"></script>
-<script src="layerpitch-notify.js?v=1793868045296"></script>
-<script src="public-page.js?v=1793868045296"></script>
-<script src="player.js?v=1793868045296"></script>
-<script src="capture-plan.js?v=1793868045296"></script>
-<script src="capture-render.js?v=1793868045296"></script>
-<script src="capture-retarget.js?v=1793868045296"></script>
-<script src="capture-versioning.js?v=1793868045296"></script>
-<script src="layerpitch-guide.js?v=1793868045296"></script>
-<script src="atelier-lecons.js?v=1793868045296"></script>
+<script src="layerpitch-i18n.js?v=1793868456181"></script>
+<script src="layerpitch-notify.js?v=1793868456181"></script>
+<script src="public-page.js?v=1793868456181"></script>
+<script src="player.js?v=1793868456181"></script>
+<script src="capture-plan.js?v=1793868456181"></script>
+<script src="capture-render.js?v=1793868456181"></script>
+<script src="capture-retarget.js?v=1793868456181"></script>
+<script src="capture-versioning.js?v=1793868456181"></script>
+<script src="layerpitch-guide.js?v=1793868456181"></script>
+<script src="atelier-lecons.js?v=1793868456181"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2820,7 +2820,8 @@ async function init() {
         location.search = next.toString();
       });
     }
-    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); return; }
+    // Pas encore de pack : la leçon démarre quand même (sa bulle « Choisis le pack » montre la liste).
+    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); startAtelierLessonIfAsked(); return; }
 
     // Données publiées du compositeur du pack (le sien, ou celui qui a vendu le pack au studio) : mêmes données que la page publique.
     const { data: packRows } = await client.from('packs').select('id, owner_id').eq('id', packId);
@@ -2839,7 +2840,7 @@ async function init() {
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 
     container.innerHTML = `<div class="atelier-pack-name">${escapeHtml(pack.title)}</div>
-      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
+      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
     const musicContainer = document.createElement('div');
     musicContainer.className = 'pub-section';
     container.appendChild(musicContainer);
@@ -2889,7 +2890,8 @@ function startAtelierLessonIfAsked() {
     document.body.classList.add('has-preview-banner');
   }
   if (atelierParams.get('lesson') === 'versioning') {
-    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone') }).start(), 600);
+    // Ouverte / fermée : le Backstage cache sa propre bulle pendant que celles de l'atelier sont à l'écran (une seule bulle à la fois).
+    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone'), onOpen: () => atelierTell('lessonOpen'), onClose: () => atelierTell('lessonClose') }).start(), 600);
   }
 }
 

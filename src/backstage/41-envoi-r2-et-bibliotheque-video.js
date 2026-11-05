@@ -397,6 +397,9 @@ function openVideoAtelier(opts) {
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier') return;
   if (e.data.type === 'lessonDone' && typeof onAtelierLessonDone === 'function') onAtelierLessonDone();
+  // Bulles de l'atelier à l'écran : la bulle du Backstage (« Dans l'atelier ») se cache, pour n'en avoir qu'une à la fois (05/11).
+  if (e.data.type === 'lessonOpen') document.body.classList.add('lp-atelier-lesson-open');
+  if (e.data.type === 'lessonClose' || e.data.type === 'lessonDone') document.body.classList.remove('lp-atelier-lesson-open');
   // Enregistrement dans l'atelier : listes à jour (index des montages des blocs vidéo, bibliothèque, Versioning).
   if (e.data.type === 'changed') {
     videoVersioningIndexPromise = null;

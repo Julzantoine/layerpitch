@@ -887,6 +887,8 @@
   .admin-preview-banner[hidden] { display: none; }
   .tuto-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border-bottom: 1px solid #b9d3ec; padding: 8px 12px; font-size: 12px; color: #1d4a73; margin: -32px -20px 16px; }
   .tuto-banner[hidden] { display: none; }
+  /* Leçon Versioning : bulles de l'atelier (dans son cadre) à l'écran -> la bulle du Backstage se cache, une seule à la fois (05/11). */
+  body.lp-atelier-lesson-open .tour-root-lesson .tour-card { display: none; }
   .backstage-welcome { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #2f80c0; border-radius: 6px; background: var(--bg); }
   .backstage-welcome[hidden] { display: none; }
   .backstage-welcome-text { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
