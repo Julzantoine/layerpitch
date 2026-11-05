@@ -57,10 +57,14 @@ Les fichiers sont des **tranches de la même page**, collées dans l'ordre de le
 | 36-style-de-forme-d-onde.js | style de forme d'onde |
 | 37-theme-carte-des-chemins.js | thème de la carte des chemins |
 | 38-chargement.js | chargement du catalogue (loadData) |
-| 39-brouillon-automatique.js | brouillon automatique |
+| 39-brouillon-automatique.js | brouillon automatique ; Cmd+S / Ctrl+S = « Sauvegarder / publier » |
 | 40-conversion-wav-ogg.js | conversion WAV -> OGG |
 | 41-envoi-r2-et-bibliotheque-video.js | envoi des fichiers (R2), bibliothèque vidéo |
 | 42-publication.js | publication |
+| 43-visite-guidee.js | visite guidée et leçons du tutoriel |
+| 44-recherche-rapide.js | Cmd+P / Ctrl+P : recherche rapide (onglets, morceaux, Sfx, AdReels, packs, collections, albums), feu vert quick_search |
+| 45-exemples.js | exemples préchargés (4/11) : ajout au chargement, étiquette « Exemple », garde-fous (fichiers, protection, copie, pages publiques), « Retirer les exemples » |
+| 46-questions-de-profil.js | questions de profil en fin de visite (4/11), « Tes essentiels » en tête du menu Tutoriel, bouton « autre voie » |
 | 90-fin.html | fin du script principal, petit script de fin, fermeture de la page |
 
 Après modification : `npm run build` (et `npm run bump-version` si un `.js` servi aux navigateurs a changé).

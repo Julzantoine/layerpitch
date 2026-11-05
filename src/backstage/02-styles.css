@@ -220,6 +220,7 @@
   .btn-small { padding: 5px 10px; font-size: 11px; }
   .btn-icon { padding: 5px 9px; font-size: 12px; }
   .btn-icon svg { width: 14px; height: 14px; display: block; }
+  .btn-tutorial { display: inline-flex; align-items: center; gap: 6px; padding-right: 22px; }
   .btn-toggle-collapse { font-size: 15px; padding: 4px 10px; font-weight: 600; }
   .btn-danger:hover { border-color: #c0392b; color: #c0392b; }
   .btn-primary { border-color: #2f80c0; color: #2f80c0; }
@@ -257,6 +258,7 @@
   .video-subpanel { display: none; margin-top: 6px; }
   .video-subpanel.active { display: block; }
   /* Atelier vidéo (21/10) : atelier.html dans un cadre, assez haut pour le lecteur, la vidéo et la frise (il défile à l'intérieur). */
+  .video-atelier-unsaved-note { margin-top: 10px; padding: 8px 12px; border: 1px solid #2f80c0; border-radius: 8px; background: rgba(47,128,192,0.08); color: var(--text, inherit); font-size: 13px; }
   .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -441,6 +443,18 @@
   #newAdReelModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #newAdReelModal h3 { font-size: 13px; margin-bottom: 12px; color: var(--text); }
   #newAdReelModal .actions { justify-content: flex-end; }
+  /* Recherche rapide Cmd/Ctrl+P (27/10, 44-recherche-rapide.js) */
+  #quickSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 0; z-index: 1100; }
+  #quickSearchOverlay[hidden] { display: none; }
+  #quickSearchOverlay .qs-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; width: 520px; max-width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.18); overflow: hidden; }
+  #quickSearchOverlay .qs-input { width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 14px 16px; font-size: 15px; background: transparent; color: var(--text); outline: none; }
+  #quickSearchOverlay .qs-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+  #quickSearchOverlay .qs-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
+  #quickSearchOverlay .qs-item.active { background: var(--accent-soft); }
+  #quickSearchOverlay .qs-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #quickSearchOverlay .qs-kind { flex-shrink: 0; font-size: 11px; color: var(--text-dimmer); }
+  #quickSearchOverlay .qs-empty { padding: 14px 10px; font-size: 13px; color: var(--text-dim); }
+  #quickSearchOverlay .qs-hint { border-top: 1px solid var(--border); padding: 8px 16px; font-size: 11px; color: var(--text-dimmer); }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
   #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -469,6 +483,7 @@
      droite. Réutilise .seq-two-col/.seq-master-list/.seq-detail-col/.seq-master-item déjà en place. */
   .org-folder-group { margin-bottom: 10px; }
   .org-folder-header { display: flex; align-items: center; gap: 6px; padding: 2px; margin-bottom: 4px; }
+  .org-folder-pack-btn { flex: 0 0 auto; white-space: nowrap; }
   .org-folder-title { flex: 1; font-weight: 600; font-size: 13px; border: 1px solid transparent; background: transparent; padding: 3px 4px; border-radius: 4px; }
   .org-folder-title:hover, .org-folder-title:focus { border-color: var(--border); }
   .org-folder-dropzone, .org-root-dropzone { display: flex; flex-direction: column; gap: 4px; min-height: 10px; padding: 2px 0 2px 4px; border-radius: 6px; }
@@ -872,6 +887,9 @@
   .admin-preview-banner[hidden] { display: none; }
   .tuto-banner { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border-bottom: 1px solid #b9d3ec; padding: 8px 12px; font-size: 12px; color: #1d4a73; margin: -32px -20px 16px; }
   .tuto-banner[hidden] { display: none; }
+  .backstage-welcome { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #2f80c0; border-radius: 6px; background: var(--bg); }
+  .backstage-welcome[hidden] { display: none; }
+  .backstage-welcome-text { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
   .account-menu-item-static { padding: 6px 12px; font-size: 12px; }
   .account-menu-item-static[hidden] { display: none; }
   .admin-preview-label { display: flex; flex-direction: column; gap: 4px; color: var(--text-dim); }
@@ -943,6 +961,7 @@
   .tutorial-menu-group[hidden] { display: none; }
   .tutorial-menu-section strong { font-size: 14px; font-weight: 700; color: var(--text); }
   .tutorial-menu-section small { font-size: 11.5px; color: var(--text-dim); }
+  .tutorial-section-badge { display: inline-block; vertical-align: 2px; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #d63a2a; color: #fff; box-sizing: border-box; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
   .account-menu-item.tutorial-menu-lesson { padding-left: 20px; }
   .tutorial-menu-lesson .tutorial-menu-text b { font-weight: 500; font-size: 13px; }
   .tutorial-menu-empty { font-size: 12px; color: var(--text-dimmer); padding: 2px 10px 8px 20px; }
@@ -980,3 +999,38 @@
   .waveform-style-card canvas { width: 100%; height: 56px; display: block; }
   .waveform-style-card:hover { border-color: var(--accent); }
   .waveform-style-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); font-weight: 600; }
+/* Séquentiel hybride (31/10) : le lecteur d'une section sans son en-tête, le parent porte Lecture et Stop. La section qui n'est pas
+   entendue reste mesurée hors de l'écran (ses formes d'onde gardent leur taille) ; sa queue peut encore sonner. */
+.hybrid-blocks { display: flex; gap: 6px; margin: 10px 0; }
+.hybrid-blocks .seq-block { flex: 1; min-width: 0; }
+.hybrid-children { position: relative; overflow: hidden; }
+.hybrid-child > .track-row { display: none; }
+.hybrid-child > .track-row-details { max-height: none !important; overflow: visible; }
+.hybrid-child .track-row-details-inner { padding-left: 0; }
+.hybrid-child [data-role="status"] { display: none; }
+.hybrid-child-offstage { position: absolute; left: -200%; top: 0; width: 100%; visibility: hidden; }
+
+.hybrid-points { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 6px; }
+.hybrid-point { width: 22px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: transparent; color: var(--text-dim); font-size: 10px; cursor: pointer; }
+.hybrid-point.is-bar { border-left: 2px solid var(--text-dim); }
+.hybrid-point.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.hybrid-map { margin-bottom: 10px; }
+.hybrid-map .seq-map-graph { padding-bottom: 4px; }
+.hybrid-branches-block .hybrid-branch-btn { border-style: dashed; }
+
+.hybrid-branches-editor { margin: 14px 0 4px 18px; padding: 10px 12px 12px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
+.hybrid-branches-editor .list-block { background: var(--bg-card, #fff); }
+.hybrid-branches-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.hybrid-skip-intro, .hybrid-free-return { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.hybrid-skip-intro input, .hybrid-free-return input { width: auto; margin: 0; }
+/* Exemples préchargés (4/11, 45-exemples.js) : étiquette « Exemple » et ligne d'explication, dans le bleu du Backstage. */
+.lp-example-badge { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); margin-left: 6px; white-space: nowrap; }
+.lp-example-notice { margin: 8px 0 4px; padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--accent-soft); color: var(--text, inherit); }
+/* Questions de profil (4/11, 46-questions-de-profil.js) : dans la bulle de fin de visite. */
+.profile-quiz-q { font-weight: 600; margin: 10px 0 6px; }
+.profile-essentials { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.profile-essentials .btn { text-align: left; justify-content: flex-start; }

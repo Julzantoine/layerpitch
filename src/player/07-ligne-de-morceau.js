@@ -4,6 +4,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
   // (true/false) prime sur le réglage global, sinon on suit le réglage global. Pas affiché du tout si
   // le badge collectif (tout le catalogue certifié) est déjà montré une fois pour tout le bloc.
   const isNoAiCertified = !suppressIndividualBadge && ((track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : !!globalNoAiCertified);
+  if (track.mode === HYBRID_MODE) return buildHybridRow(track, isNoAiCertified);
   const supported = PLAYABLE_MODES.includes(track.mode);
   const isStatic = track.mode === 'static';
   const isVerticalRandom = track.mode === 'vertical-random';

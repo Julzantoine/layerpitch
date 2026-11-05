@@ -242,3 +242,21 @@
 .stinger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .stinger-btn svg { width: 10px; height: 10px; }
 .placeholder-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dimmer); border: 1px dashed var(--border); border-radius: 4px; padding: 8px 12px; display: inline-block; }
+
+/* Séquentiel hybride (31/10) : le lecteur d'une section sans son en-tête, le parent porte Lecture et Stop. La section qui n'est pas
+   entendue reste mesurée hors de l'écran (ses formes d'onde gardent leur taille) ; sa queue peut encore sonner. */
+.hybrid-blocks { display: flex; gap: 6px; margin: 10px 0; }
+.hybrid-blocks .seq-block { flex: 1; min-width: 0; }
+.hybrid-children { position: relative; overflow: hidden; }
+.hybrid-child > .track-row { display: none; }
+.hybrid-child > .track-row-details { max-height: none !important; overflow: visible; }
+.hybrid-child .track-row-details-inner { padding-left: 0; }
+.hybrid-child [data-role="status"] { display: none; }
+.hybrid-child-offstage { position: absolute; left: -200%; top: 0; width: 100%; visibility: hidden; }
+
+.hybrid-branches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.hybrid-branch-btn.is-chosen { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.hybrid-map { margin-bottom: 10px; }
+.hybrid-map .seq-map-graph { padding-bottom: 4px; }
+.hybrid-branches-block .hybrid-branch-btn { border-style: dashed; }

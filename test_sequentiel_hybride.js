@@ -1,0 +1,357 @@
+// Séquentiel hybride (31/10) : le passage d'une section à l'autre tombe pile sur la fin de boucle, sans couper la queue.
+const { JSDOM } = require('jsdom');
+const fs = require('fs');
+const path = require('path');
+let failures = 0;
+function check(label, cond) { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; }
+const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8');
+
+(async () => {
+  const fakeFiles = []; // le contenu d'un faux fichier est son numéro : le lecteur recopie les octets avant de décoder
+  const starts = []; // { file, when, offset, node }
+  const dom = new JSDOM(`<!DOCTYPE html><html><body><div id="host"></div><script>${read('layerpitch-i18n.js')}</script><script>${read('player.js').replace(/<\/script/gi, '<\\/script')}</script></body></html>`, {
+    url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
+    beforeParse(win) {
+      const epoch = Date.now();
+      function Ctx() { this.destination = {}; this.state = 'running'; }
+      Object.defineProperty(Ctx.prototype, 'currentTime', { get() { return (Date.now() - epoch) / 1000; } });
+      Ctx.prototype.resume = () => Promise.resolve();
+      Ctx.prototype.createGain = () => ({ gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }, connect() {}, disconnect() {} });
+      Ctx.prototype.createBufferSource = function () {
+        const c = this;
+        const n = { buffer: null, onended: null, loop: false, stoppedAt: null, playbackRate: { value: 1 }, connect() {},
+          fire() { if (!n.ended) { n.ended = true; if (n.onended) n.onended(); } },
+          arm(at) { clearTimeout(n.timer); n.timer = setTimeout(n.fire, Math.max(0, at - c.currentTime) * 1000); },
+          stop(at) { n.stoppedAt = at == null ? c.currentTime : at; n.arm(n.stoppedAt); },
+          start(when, offset) { starts.push({ file: n.buffer && n.buffer.file, when, offset, node: n }); if (!n.loop) n.arm(when + n.buffer.duration - (offset || 0)); } };
+        return n;
+      };
+      Ctx.prototype.decodeAudioData = ab => Promise.resolve({ duration: fakeFiles[new Uint8Array(ab)[0]].duration, file: fakeFiles[new Uint8Array(ab)[0]].name, numberOfChannels: 1, length: 100, sampleRate: 44100, getChannelData: () => new Float32Array(100) });
+      win.AudioContext = Ctx;
+      win.ResizeObserver = win.ResizeObserver || function () { return { observe() {}, disconnect() {} }; };
+    },
+  });
+  const { window } = dom;
+  await new Promise(r => setTimeout(r, 50));
+  const Core = window.LayerPlayerCore;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const waitUntil = async (fn, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await sleep(20); } return fn(); };
+  const click = el => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const file = (name, duration) => { fakeFiles.push({ name, duration }); const n = fakeFiles.length - 1; return { name, arrayBuffer: () => Promise.resolve(new Uint8Array([n]).buffer) }; };
+  const base = { description: '', base: 'https://example.invalid/', publishedAt: Date.now(), sfxIds: [] };
+  // Layering additif quantifié : boucle de 0,4 s, fichier de 0,7 s (0,3 s de queue).
+  const vertical = (id, name) => ({ ...base, id, title: id, mode: 'vertical', loopEngine: 'quantized', bpm: 150, beatsPerBar: 1, loopGridUnit: 'beats', loopInBeat: 0, loopOutBeat: 1, startTrackBeat: 0, duration: 0.7, layers: [{ label: 'a', localFile: file(name + '1.wav', 0.7) }, { label: 'b', localFile: file(name + '2.wav', 0.7) }] });
+  const stat = (id, name, loopable, duration) => ({ ...base, id, title: id, mode: 'static', loopable, loopEngine: 'simple', duration, layers: [{ label: 'a', localFile: file(name + '.wav', duration) }] });
+  const mount = sections => {
+    const track = { ...base, id: 'h' + Math.random(), title: 'Hybride', mode: 'hybrid-sequential', duration: 0, layers: [], sections };
+    const row = Core.buildTrackRow(track, null, false);
+    window.document.getElementById('host').appendChild(row);
+    Core.initTrackPlayer(track, row);
+    return row;
+  };
+  const rolePlay = row => row.querySelector('[data-role="playBtn"]');
+  const rows = row => [...row.querySelectorAll('.hybrid-child')];
+  const shown = row => rows(row).findIndex(r => !r.classList.contains('hybrid-child-offstage'));
+  const firstStart = name => starts.find(s => s.file === name);
+  const nearly = (a, b) => Math.abs(a - b) < 1e-6;
+  // Machine chargée : le clic peut arriver un temps plus tard. Ce qui compte est de tomber pile sur la grille.
+  const onGrid = (sec, unit) => sec > 0 && Math.abs(sec / unit - Math.round(sec / unit)) < 1e-5;
+
+  // ---- Enchaînement automatique : additif (2 boucles) -> statique en boucle (2 fois) -> statique sans boucle ----
+  const row = mount([
+    { id: 's1', label: 'Exploration', maxLoops: 2, track: vertical('v', 'v') },
+    { id: 's2', label: 'Tension', maxLoops: 2, track: stat('l', 'loop', true, 0.5) },
+    { id: 's3', label: 'Fin', maxLoops: null, track: stat('e', 'end', false, 0.4) },
+    { id: 's4', label: 'Sans fichier', maxLoops: null, track: { ...base, id: 'x', mode: 'static', layers: [{}] } },
+    { id: 's5', label: 'Morceau supprimé', maxLoops: null, track: null },
+  ]);
+  check('sections sans fichier ou supprimées ignorées', row.querySelectorAll('[data-role="hybridMapNodes"] .seq-map-node').length === 3);
+  check('un lecteur par section', rows(row).length === 3);
+  check('bouton Lecture actif une fois tout chargé', await waitUntil(() => !rolePlay(row).disabled, 2000));
+  click(rolePlay(row));
+  check('la première section démarre', await waitUntil(() => firstStart('v1.wav'), 500));
+  check('elle est affichée', shown(row) === 0);
+  check('deuxième section programmée', await waitUntil(() => firstStart('loop.wav'), 3000));
+  const gens = starts.filter(s => s.file === 'v1.wav');
+  check('additif : deux passages, pas un de plus', gens.length === 2);
+  check('passage pile à la fin de la boucle', nearly(firstStart('loop.wav').when, gens[0].when + 0.8));
+  check('les deux couches du dernier passage ne sont pas coupées (queue)', starts.filter(s => s.file.startsWith('v')).every(s => s.node.stoppedAt == null));
+  check('affichage changé au moment du passage', await waitUntil(() => shown(row) === 1, 2000));
+  check('dernière section programmée', await waitUntil(() => firstStart('end.wav'), 3000));
+  check('statique en boucle : deux tours exacts', nearly(firstStart('end.wav').when, firstStart('loop.wav').when + 1));
+  check('le statique en boucle s\'arrête pile', nearly(firstStart('loop.wav').node.stoppedAt, firstStart('end.wav').when));
+  check('fin naturelle de la chaîne', await waitUntil(() => rolePlay(row).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000));
+  check('plus aucune section active', !row.querySelector('.seq-map-node.current'));
+
+  // ---- Bouton « Section suivante » sur une section sans limite ; arrêt et relance ----
+  starts.length = 0;
+  const row2 = mount([
+    { id: 'a', label: 'A', maxLoops: 0, track: vertical('va', 'a') },
+    { id: 'b', label: 'B', maxLoops: 0, track: stat('lb', 'b', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(row2).disabled, 2000);
+  const next = row2.querySelector('[data-role="hybridNext"]');
+  click(rolePlay(row2));
+  await sleep(900);
+  check('sans limite : la section continue de boucler', starts.filter(s => s.file === 'a1.wav').length >= 3);
+  click(next);
+  check('demande visible sur le bouton', next.disabled);
+  check('la section suivante est programmée', await waitUntil(() => firstStart('b.wav'), 2500));
+  const aGens = starts.filter(s => s.file === 'a1.wav');
+  check('passage sur la frontière de boucle', nearly(firstStart('b.wav').when, aGens[aGens.length - 1].when + 0.4));
+  check('section B affichée', await waitUntil(() => shown(row2) === 1, 2000));
+  check('dernière section : le bouton mène à la fin', /fin|end/i.test(next.textContent));
+  click(next);
+  const stopAt = firstStart('b.wav').node.stoppedAt;
+  check('la fin est demandée pour le prochain tour', stopAt != null && stopAt > firstStart('b.wav').when);
+  check('et le morceau s\'arrête', await waitUntil(() => rolePlay(row2).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 2000));
+
+  // ---- Pause et reprise, puis Stop ----
+  starts.length = 0;
+  const row3 = mount([
+    { id: 'c', label: 'C', maxLoops: 2, track: vertical('vc', 'c') },
+    { id: 'd', label: 'D', maxLoops: 1, track: stat('ld', 'd', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(row3).disabled, 2000);
+  click(rolePlay(row3));
+  await sleep(150);
+  click(rolePlay(row3));
+  check('pause : icône Lecture', rolePlay(row3).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'));
+  const during = starts.length;
+  await sleep(1200);
+  check('pause : rien de nouveau ne démarre', starts.length === during);
+  click(rolePlay(row3));
+  check('reprise : la section suivante arrive quand même', await waitUntil(() => firstStart('d.wav'), 3000));
+  const stopBtn = row3.querySelector('[data-role="stopBtn"]');
+  await waitUntil(() => shown(row3) === 1, 2000);
+  click(stopBtn);
+  check('stop : tout est coupé', firstStart('d.wav').node.stoppedAt != null && !row3.querySelector('.seq-map-node.current'));
+  check('stop : le bouton Stop disparaît', stopBtn.style.display === 'none');
+
+  // ---- Sortie avant la fin : prochain temps, mesure, point de transition ; repli sur la fin de boucle ----
+  const longVert = (id, name, loopBeats) => ({ ...vertical(id, name), loopOutBeat: loopBeats, duration: loopBeats * 0.4 + 0.3, layers: [{ label: 'a', localFile: file(name + '1.wav', loopBeats * 0.4 + 0.3) }, { label: 'b', localFile: file(name + '2.wav', loopBeats * 0.4 + 0.3) }] });
+  const exitCase = async (label, name, sectionOpts, beats) => {
+    starts.length = 0;
+    const r = mount([
+      { id: 'x', label: 'X', maxLoops: 0, ...sectionOpts, track: { ...longVert('v' + name, name, beats), beatsPerBar: 4 } },
+      { id: 'y', label: 'Y', maxLoops: 0, track: stat('n' + name, name + 'next', true, 0.5) },
+    ]);
+    await waitUntil(() => !rolePlay(r).disabled, 2000);
+    click(rolePlay(r));
+    await waitUntil(() => firstStart(name + '1.wav'), 500);
+    await sleep(50);
+    click(r.querySelector('[data-role="hybridNext"]'));
+    await waitUntil(() => firstStart(name + 'next.wav'), 4000);
+    const offsetFromGen = firstStart(name + 'next.wav').when - starts.filter(s => s.file === name + '1.wav' && s.when <= firstStart(name + 'next.wav').when).pop().when;
+    const out = { r, offset: offsetFromGen, stop: firstStart(name + '1.wav').node.stoppedAt, next: firstStart(name + 'next.wav').when };
+    await sleep(100);
+    return out;
+  };
+  const beatExit = await exitCase('temps', 't', { switchMode: 'beat', fadeSec: 0.2 }, 8);
+  check('prochain temps : tombe sur la grille des temps', onGrid(beatExit.offset, 0.4));
+  check('la section quittée s\'arrête à la fin du fondu', nearly(beatExit.stop, beatExit.next + 0.2));
+  const barExit = await exitCase('mesure', 'm', { switchMode: 'bar', fadeSec: 0 }, 8);
+  check('prochaine mesure : 4 temps', onGrid(barExit.offset, 1.6));
+  const pointExit = await exitCase('point', 'p', { switchMode: 'point', transitionPoints: [6, 2], fadeSec: 0 }, 8);
+  check('point de transition : le prochain dans l\'ordre du morceau', (Math.abs(pointExit.offset - 0.8) < 1e-6 || Math.abs(pointExit.offset - 2.4) < 1e-6));
+  const noPoint = await exitCase('sans point', 'q', { switchMode: 'point', transitionPoints: [], fadeSec: 0 }, 4);
+  check('aucun point : fin de boucle, queue intacte', Math.abs(noPoint.offset - 1.6) < 1e-6 && noPoint.stop == null);
+  // Statique en boucle, sortie au prochain temps : même logique sur le moteur simple.
+  starts.length = 0;
+  const rs = mount([
+    { id: 'a', label: 'A', maxLoops: 0, switchMode: 'beat', fadeSec: 0, track: { ...stat('sb', 'sb', true, 4), bpm: 150, beatsPerBar: 4 } },
+    { id: 'b', label: 'B', maxLoops: 0, track: stat('sc', 'sc', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rs).disabled, 2000);
+  click(rolePlay(rs));
+  await waitUntil(() => firstStart('sb.wav'), 500);
+  await sleep(100);
+  click(rs.querySelector('[data-role="hybridNext"]'));
+  await waitUntil(() => firstStart('sc.wav'), 2000);
+  check('statique : passage au prochain temps', onGrid(firstStart('sc.wav').when - firstStart('sb.wav').when, 0.4));
+  // Dernière section réglée « au prochain temps » : aller vers la fin attend quand même la fin de boucle, sans couper la queue.
+  starts.length = 0;
+  const rl = mount([{ id: 'a', label: 'A', maxLoops: 0, switchMode: 'beat', fadeSec: 0.1, track: longVert('ve', 'e', 4) }]);
+  await waitUntil(() => !rolePlay(rl).disabled, 2000);
+  click(rolePlay(rl));
+  await sleep(100);
+  click(rl.querySelector('[data-role="hybridNext"]'));
+  check('fin du morceau : la boucle finit et sa queue n\'est pas coupée', await waitUntil(() => rolePlay(rl).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 4000) && starts.filter(x => x.file === 'e1.wav').every(x => x.node.stoppedAt == null || x.node.stoppedAt >= x.when + 1.9));
+
+  // ---- Fichier de transition : joué au passage, la suite démarre à sa fin ou après N mesures ----
+  starts.length = 0;
+  const rt = mount([
+    { id: 'a', label: 'A', maxLoops: 1, transition: { localFile: file('trans.wav', 0.6) }, track: vertical('va2', 'ta') },
+    { id: 'b', label: 'B', maxLoops: 1, transition: { localFile: file('trans2.wav', 2), bars: 1 }, track: { ...stat('lt', 'tb', true, 0.5), bpm: 120, beatsPerBar: 4 } },
+    { id: 'c', label: 'C', maxLoops: null, transition: { localFile: file('jamais.wav', 1) }, track: { ...stat('et', 'tc', false, 0.3), bpm: 240, beatsPerBar: 2 } },
+  ]);
+  check('chargement avec transitions', await waitUntil(() => !rolePlay(rt).disabled, 2000));
+  click(rolePlay(rt));
+  check('transition programmée', await waitUntil(() => firstStart('trans.wav'), 3000));
+  check('section suivante après le fichier entier', await waitUntil(() => firstStart('tb.wav'), 3000) && nearly(firstStart('tb.wav').when, firstStart('trans.wav').when + 0.6));
+  check('transition jouée à la fin de boucle', nearly(firstStart('trans.wav').when, firstStart('ta1.wav').when + 0.4));
+  check('durée en mesures : tempo de la section suivante', await waitUntil(() => firstStart('tc.wav'), 4000) && nearly(firstStart('tc.wav').when, firstStart('trans2.wav').when + 0.5));
+  check('pas de transition après la dernière section', await waitUntil(() => rolePlay(rt).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000) && !firstStart('jamais.wav'));
+
+  // ---- Les autres modes comme sections ----
+  const seqTrack = (id, n) => ({ ...base, id, title: id, mode: 'sequential', bpm: 150, beatsPerBar: 1, layers: [], intro: null, outro: { label: 'o', localFile: file(n + 'out.wav', 0.3) },
+    segmentSlots: [{ id: 'q1', label: 'q', bpm: 150, beatsPerBar: 1, repeatCount: 1, alternatives: [{ label: 'q', bars: 2, localFile: file(n + '.wav', 0.8) }] }] });
+  const vrTrack = (id, n) => ({ ...base, id, title: id, mode: 'vertical-random', layers: [], sections: [{ id: 'w1', label: 'w', bpm: 150, beatsPerBar: 1, startTrackBeat: 0, loopInBeat: 0, loopOutBeat: 2, maxLoops: null, pools: [{ id: 'p', label: 'P', alternatives: [{ label: 'a', localFile: file(n + '.wav', 0.8) }] }] }] });
+  const embrTrack = (id, n) => ({ ...base, id, title: id, mode: 'embranchement-vertical', bpm: 150, beatsPerBar: 1, layers: [], loops: [
+    { id: 'l1', label: 'A', bars: 2, isInitial: true, duration: 0.8, loopInBeat: 0, loopOutBeat: 2, localFile: file(n + '1.wav', 0.8) }, { id: 'l2', label: 'B', bars: 2, duration: 0.8, localFile: file(n + '2.wav', 0.8) }] });
+  const after = name => stat('z' + name, name + 'next', true, 0.5);
+  const chainCase = async (track, name, opts) => {
+    starts.length = 0;
+    const r = mount([{ id: 'a', label: 'A', ...opts, track }, { id: 'b', label: 'B', maxLoops: 0, track: after(name) }]);
+    check(name + ' : section reconnue', r.querySelectorAll('.hybrid-child').length === 2);
+    await waitUntil(() => !rolePlay(r).disabled, 2000);
+    click(rolePlay(r));
+    return r;
+  };
+  const rq = await chainCase(seqTrack('sq', 'sq'), 'sq', { maxLoops: 0 });
+  await waitUntil(() => firstStart('sq.wav'), 800);
+  await sleep(50);
+  click(rq.querySelector('[data-role="hybridNext"]'));
+  check('séquentiel : fin demandée, outro puis section suivante', await waitUntil(() => firstStart('sqnext.wav'), 4000) && nearly(firstStart('sqnext.wav').when, firstStart('sqout.wav').when + 0.3));
+  click(rq.querySelector('[data-role="stopBtn"]'));
+  const rv = await chainCase(vrTrack('vr', 'vr'), 'vr', { maxLoops: 1 });
+  check('vertical-random : un tour puis section suivante', await waitUntil(() => firstStart('vrnext.wav'), 4000) && nearly(firstStart('vrnext.wav').when, firstStart('vr.wav').when + 0.8));
+  click(rv.querySelector('[data-role="stopBtn"]'));
+  const re = await chainCase(embrTrack('em', 'em'), 'em', { maxLoops: 2 });
+  check('embranchement : deux boucles puis section suivante', await waitUntil(() => firstStart('emnext.wav'), 4000) && nearly(firstStart('emnext.wav').when, firstStart('em1.wav').when + 1.6));
+  check('embranchement : les boucles ne sont pas coupées (queue)', starts.filter(s => s.file.startsWith('em1')).every(s => s.node.stoppedAt == null));
+  click(re.querySelector('[data-role="stopBtn"]'));
+  const rc = await chainCase(embrTrack('ec', 'ec'), 'ec', { maxLoops: 0, switchMode: 'beat', fadeSec: 0 });
+  await waitUntil(() => firstStart('ec1.wav'), 800);
+  await sleep(50);
+  click(rc.querySelector('[data-role="hybridNext"]'));
+  check('embranchement : sortie au prochain temps', await waitUntil(() => firstStart('ecnext.wav'), 2000) && onGrid(firstStart('ecnext.wav').when - firstStart('ec1.wav').when, 0.4));
+  click(rc.querySelector('[data-role="stopBtn"]'));
+  const rb = await chainCase(vrTrack('vb', 'vb'), 'vb', { maxLoops: 0, switchMode: 'bar', fadeSec: 0 });
+  await waitUntil(() => firstStart('vb.wav'), 800);
+  await sleep(50);
+  click(rb.querySelector('[data-role="hybridNext"]'));
+  check('vertical-random : sortie à la prochaine mesure de sa section', await waitUntil(() => firstStart('vbnext.wav'), 2000) && onGrid(firstStart('vbnext.wav').when - firstStart('vb.wav').when, 0.4));
+  click(rb.querySelector('[data-role="stopBtn"]'));
+
+  // ---- Embranchements entre sections ----
+  starts.length = 0;
+  const rbr = mount([
+    { id: 'a', label: 'Exploration', maxLoops: 2, transitionPoints: [1], fadeSec: 0, branches: [
+      { id: 'toC', targetId: 'c', label: 'Combat', switchMode: 'end', transition: { localFile: file('brtrans.wav', 0.3) } },
+      { id: 'toEnd', targetId: 'end', label: 'Quitter', switchMode: 'end' },
+      { id: 'pt', targetId: 'b', label: 'Fuite', switchMode: 'point' },
+      { id: 'bad', targetId: 'introuvable', label: 'X' } ], track: vertical('ba', 'ba') },
+    { id: 'b', label: 'Fuite', maxLoops: 0, track: stat('bb', 'bb', true, 0.5) },
+    { id: 'c', label: 'Combat', maxLoops: 1, branches: [{ id: 'back', targetId: 'a', label: 'Retour' }], defaultNext: 'b', track: stat('bc', 'bc', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rbr).disabled, 2000);
+  click(rolePlay(rbr));
+  await waitUntil(() => firstStart('ba1.wav'), 800);
+  const brBtns = () => [...rbr.querySelectorAll('[data-branch]')];
+  check('boutons d\'embranchement à la place de « Section suivante »', brBtns().map(b => b.textContent).join('|') === '→ Combat|→ Quitter|→ Fuite' && rbr.querySelector('[data-role="hybridNext"]').parentElement.style.display === 'none');
+  await sleep(1000);
+  check('sans choix : la section boucle (nombre de boucles ignoré)', starts.filter(x => x.file === 'ba1.wav').length >= 3 && !firstStart('bb.wav') && !firstStart('bc.wav'));
+  click(brBtns()[0]);
+  check('choix marqué', brBtns()[0].classList.contains('is-chosen'));
+  check('chemin choisi : son fichier de transition, puis la cible', await waitUntil(() => firstStart('bc.wav'), 3000) && nearly(firstStart('bc.wav').when, firstStart('brtrans.wav').when + 0.3));
+  const baGens = starts.filter(x => x.file === 'ba1.wav' && x.when < firstStart('brtrans.wav').when);
+  check('fin de section : transition à la fin de boucle', nearly(firstStart('brtrans.wav').when, baGens[baGens.length - 1].when + 0.4));
+  check('après le nombre de boucles : section par défaut', await waitUntil(() => firstStart('bb.wav'), 3000) && nearly(firstStart('bb.wav').when, firstStart('bc.wav').when + 0.5));
+  click(rbr.querySelector('[data-role="stopBtn"]'));
+  // Retour vers une section déjà jouée, et sortie au point de transition.
+  starts.length = 0;
+  const rp = mount([
+    { id: 'a', label: 'A', maxLoops: 0, transitionPoints: [1], fadeSec: 0, branches: [{ id: 'p', targetId: 'b', label: 'Vers B', switchMode: 'point' }], track: { ...longVert('pa', 'pa', 4) } },
+    { id: 'b', label: 'B', maxLoops: 0, branches: [{ id: 'r', targetId: 'a', label: 'Retour' }, { id: 'e', targetId: 'end', label: 'Fin' }], track: stat('pb', 'pb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rp).disabled, 2000);
+  click(rolePlay(rp));
+  await waitUntil(() => firstStart('pa1.wav'), 800);
+  click(rp.querySelector('[data-branch="p"]'));
+  check('au prochain point : avant la fin de boucle', await waitUntil(() => firstStart('pb.wav'), 2000) && onGrid(firstStart('pb.wav').when - firstStart('pa1.wav').when, 0.4) && firstStart('pb.wav').when - firstStart('pa1.wav').when < 1.6 - 1e-6);
+  await waitUntil(() => rp.querySelector('[data-branch="r"]'), 2000);
+  const paCount = starts.filter(x => x.file === 'pa1.wav').length;
+  click(rp.querySelector('[data-branch="r"]'));
+  check('retour vers une section déjà jouée', await waitUntil(() => starts.filter(x => x.file === 'pa1.wav').length > paCount, 3000));
+  await waitUntil(() => rp.querySelector('[data-branch="p"]'), 2000);
+  click(rp.querySelector('[data-branch="p"]'));
+  await waitUntil(() => rp.querySelector('[data-branch="e"]') && shown(rp) === 1, 3000);
+  click(rp.querySelector('[data-branch="e"]'));
+  check('« Fin du morceau » : le morceau s\'arrête', await waitUntil(() => rolePlay(rp).querySelector('svg').innerHTML.includes('M8 5v14l11-7z'), 3000));
+
+  // ---- Carte des chemins, et intro sautée en arrivant par un passage ----
+  starts.length = 0;
+  const introVert = (id, n) => ({ ...vertical(id, n), startTrackBeat: 0, loopInBeat: 1, loopOutBeat: 2, duration: 1.1, layers: [{ label: 'a', localFile: file(n + '1.wav', 1.1) }, { label: 'b', localFile: file(n + '2.wav', 1.1) }] });
+  const rm = mount([
+    { id: 'a', label: 'A', maxLoops: 1, track: introVert('ia', 'ia') },
+    { id: 'b', label: 'B', maxLoops: 1, track: introVert('ib', 'ib') },
+    { id: 'c', label: 'C', maxLoops: 1, skipIntro: false, track: introVert('ic', 'ic') }, // ancien champ skipIntro: false (partout en base) : ignoré
+    { id: 'd', label: 'D', maxLoops: 1, keepIntro: true, track: introVert('id', 'id') }, // case décochée : l'intro est gardée
+  ]);
+  check('carte : une case par section, des flèches dans l\'ordre', rm.querySelectorAll('.seq-map-node').length === 4 && rm.querySelectorAll('.seq-map-edge').length === 3);
+  await waitUntil(() => !rolePlay(rm).disabled, 2000);
+  click(rolePlay(rm));
+  await waitUntil(() => firstStart('ia1.wav'), 800);
+  check('carte : la section en cours est marquée, la suivante cliquable', rm.querySelector('.seq-map-node.current').dataset.mapIdx === '0' && rm.querySelector('.seq-map-node.selectable').dataset.mapIdx === '1');
+  check('première section : l\'intro est jouée', firstStart('ia1.wav').offset === 0);
+  check('2e section : départ au point d\'entrée de boucle, toutes les couches', await waitUntil(() => firstStart('ib1.wav'), 3000) && Math.abs(firstStart('ib1.wav').offset - 0.4) < 1e-9 && Math.abs(firstStart('ib2.wav').offset - 0.4) < 1e-9);
+  check('3e section (même réglée « ne pas sauter ») : intro sautée aussi', await waitUntil(() => firstStart('ic1.wav'), 3000) && Math.abs(firstStart('ic1.wav').offset - 0.4) < 1e-9);
+  check('section avec la case décochée : intro jouée', await waitUntil(() => firstStart('id1.wav'), 3000) && firstStart('id1.wav').offset === 0);
+  click(rm.querySelector('[data-role="stopBtn"]'));
+
+  // ---- Intro sautée au passage, pour les autres modes (séquentiel et vertical-random : fichier d'intro ; embranchement : Départ→Entrée) ----
+  const introCase = async (label, track, introFile, mainFile, expectOffset) => {
+    starts.length = 0;
+    const r = mount([{ id: 'a', label: 'A', maxLoops: 1, track: vertical('p' + label, 'p' + label) }, { id: 'b', label: 'B', maxLoops: 0, track }]);
+    await waitUntil(() => !rolePlay(r).disabled, 2000);
+    click(rolePlay(r));
+    const heard = await waitUntil(() => firstStart(mainFile), 3000);
+    await sleep(150);
+    if (introFile) check(label + ' en 2e position : fichier d\'intro jamais joué, la section démarre dans sa boucle', heard && !firstStart(introFile));
+    else check(label + ' en 2e position : départ au point d\'entrée de boucle', heard && Math.abs(firstStart(mainFile).offset - expectOffset) < 1e-9);
+    click(r.querySelector('[data-role="stopBtn"]'));
+  };
+  await introCase('séquentiel', { ...seqTrack('si', 'si'), intro: { label: 'i', localFile: file('siintro.wav', 0.4) } }, 'siintro.wav', 'si.wav');
+  await introCase('vertical-random', { ...vrTrack('vi', 'vi'), intro: { label: 'i', localFile: file('viintro.wav', 0.4) } }, 'viintro.wav', 'vi.wav');
+  const embrIntro = embrTrack('ei', 'ei');
+  embrIntro.loops = embrIntro.loops.map(l => ({ ...l, duration: 1.2, bars: 2, startTrackBeat: 0, loopInBeat: 1, loopOutBeat: 3 }));
+  await introCase('embranchement', embrIntro, null, 'ei1.wav', 0.4);
+  // Contre-épreuve : en 1re position, le fichier d'intro du séquentiel est bien joué.
+  starts.length = 0;
+  const rsf = mount([{ id: 'a', label: 'A', maxLoops: 1, track: { ...seqTrack('sf', 'sf'), intro: { label: 'i', localFile: file('sfintro.wav', 0.4) } } }]);
+  await waitUntil(() => !rolePlay(rsf).disabled, 2000);
+  click(rolePlay(rsf));
+  check('séquentiel en 1re position : l\'intro est jouée', await waitUntil(() => firstStart('sfintro.wav'), 2000));
+  click(rsf.querySelector('[data-role="stopBtn"]'));
+
+  // ---- Retour libre vers une section déjà jouée ----
+  starts.length = 0;
+  const rr = mount([
+    { id: 'a', label: 'A', maxLoops: 1, freeReturn: true, track: vertical('ra', 'ra') },
+    { id: 'b', label: 'B', maxLoops: 0, freeReturn: true, branches: [{ id: 'fin', targetId: 'end' }], track: stat('rb', 'rb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rr).disabled, 2000);
+  click(rolePlay(rr));
+  await waitUntil(() => shown(rr) === 1, 3000);
+  const labels = () => [...rr.querySelectorAll('.hybrid-branch-btn')].map(b => b.textContent);
+  check('retour libre : la section jouée est proposée, la fin a un libellé simple', labels().join('|') === '→ Fin du morceau|↩ A');
+  check('retour libre : case cliquable sur la carte', !!rr.querySelector('.seq-map-node.selectable[data-map-idx="0"]'));
+  const raBefore = starts.filter(x => x.file === 'ra1.wav').length;
+  click(rr.querySelector('.seq-map-node.selectable[data-map-idx="0"]'));
+  check('retour libre : on revient à la section A', await waitUntil(() => starts.filter(x => x.file === 'ra1.wav').length > raBefore, 3000));
+  click(rr.querySelector('[data-role="stopBtn"]'));
+  starts.length = 0;
+  const rn = mount([
+    { id: 'a', label: 'A', maxLoops: 1, track: vertical('na', 'na') },
+    { id: 'b', label: 'B', maxLoops: 0, track: stat('nb', 'nb', true, 0.5) },
+  ]);
+  await waitUntil(() => !rolePlay(rn).disabled, 2000);
+  click(rolePlay(rn));
+  await waitUntil(() => shown(rn) === 1, 3000);
+  check('sans retour libre : aucune section jouée proposée', !rn.querySelector('.hybrid-branch-btn') && !rn.querySelector('.seq-map-node.selectable'));
+  click(rn.querySelector('[data-role="stopBtn"]'));
+
+  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+  process.exit(failures === 0 ? 0 : 1);
+})().catch(e => { console.error('TEST THREW:', e); process.exit(1); });

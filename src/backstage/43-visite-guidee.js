@@ -40,7 +40,8 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
 const LESSON_THEMES_OPEN = ['engine', 'pitch'];
-function lessonOpenToMe(lesson) { return !lesson || LESSON_THEMES_OPEN.includes(lesson.theme) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin); }
+// `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
+function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
 // URL de chaque fichier d'exemple (nom de fichier -> URL), à renseigner quand les fichiers seront en ligne (stockage
 // des médias, avec CORS ouvert à l'origine du Backstage). Tant qu'un nom manque, le bouton « Utiliser » n'apparaît pas.
@@ -285,6 +286,94 @@ const LESSON_SAMPLE_NAMES = {
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
+// Leçon « Hybride à sections » : les 6 morceaux Jazz de la bibliothèque du faux serveur (identifiants de la base de Jules-Antoine, api/demo-client.js)
+// et les noms des 7 sections de son morceau « A little walk in Music City », dans l'ordre où la leçon les crée.
+const LH_TRACKS = { lo: 'bmvjfdonbsfnkd', seq: 'bmvidx6a4320my', add: 'bmvidtfhvfa5tt', embr: 'bmvidp6unbjfkq', hi: 'bmvilh6aprhhug', rand: 'bmvin15j2vxt4p' };
+const LH_POINTS = { 0: [4, 12, 20], 2: [4, 20] };
+const LH_NAMES = ['Meet me there', 'This way?', 'Or this one?', 'Would you like to walk a bit more?', 'This is so pretty over there', 'This place is so nice', 'I would like it never ends'];
+function lhSec(i) { const t = lessonTrack(); return (t && t.mode === 'hybrid-sequential' && t.sections && t.sections[i]) || null; }
+function lhBranch(i, bi) { const s = lhSec(i); return (s && s.branches && s.branches[bi]) || null; }
+function lhSecIs(i, key) { const s = lhSec(i); return !!s && s.trackId === LH_TRACKS[key]; }
+function lhSecNamed(i) { const s = lhSec(i); return !!s && (s.label || '').trim().toLowerCase() === LH_NAMES[i].toLowerCase(); }
+function lhRow(i) { return document.querySelector(`#libraryDetail [data-role="hybridSections"] > .list-block:nth-child(${i + 1})`); }
+function lhField(i, name) { const r = lhRow(i); return r ? r.querySelector(`[data-hybrid="${name}"]`) : null; }
+// Leçon « 9 · Mode hybride à sections » (sans embranchement) : trois sections bout à bout, d'après « Music City_Hyb. Seq. » de Jules-Antoine (base : bmvzpsnbudo0k8).
+// Chaque étape demande un geste (03/11) : les sections sont ajoutées dans l'ordre LHS_ORDER, puis « Monter » remet le séquentiel en tête (LHS_FINAL) ;
+// la 2e section (« Le club », en couches) tourne 2 fois et passe à la suite sur des points de transition (ceux de Jules-Antoine sur ce morceau dans « A little walk »).
+// Un séquentiel n'a pas de frise unique : il ne peut pas avoir de points, d'où le passage par la 2e section.
+const LHS_ORDER = ['add', 'seq', 'lo'];
+const LHS_FINAL = ['seq', 'add', 'lo'];
+const LHS_NAME = 'Le club';
+const LHS_POINTS = [4, 20];
+function lhsOrderIs(keys, n) { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential' && keys.slice(0, n).every((k, i) => t.sections && t.sections[i] && t.sections[i].trackId === LH_TRACKS[k]); }
+function lhsOrderOk(n) { return lhsOrderIs(LHS_ORDER, n); }
+function lhsAddSec() { const t = lessonTrack(); return (t && t.mode === 'hybrid-sequential' && (t.sections || []).find(s => s.trackId === LH_TRACKS.add)) || null; }
+function lhsMapPreviewHtml() {
+  const W = 94, H = 44, y = 10, gap = 22; // 3 cases + flèches, puis « Fin » dans les ~40 px restants
+  const boxes = [['Jazz Hi Seq. Branch.', tr('lhMapSeqPlain')], [LHS_NAME, tr('lhMapAddPlain')], ['Jazz Lo Static +FX', tr('lhMapStatic')]];
+  let svg = '';
+  boxes.forEach(([n, sub], k) => {
+    const x = 4 + k * (W + gap);
+    svg += `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="5" fill="var(--bg-card, var(--bg))" stroke="var(--accent)"/>`
+      + `<text x="${x + W / 2}" y="${y + 19}" text-anchor="middle" font-size="8.5" fill="var(--text)">${escapeHtml(n)}</text>`
+      + `<text x="${x + W / 2}" y="${y + H - 8}" text-anchor="middle" font-size="7" fill="var(--text-dim)">${escapeHtml(sub)}</text>`;
+    const x2 = x + W + gap;
+    svg += `<path d="M${x + W} ${y + H / 2} L${x2 - 4} ${y + H / 2}" stroke="var(--border)" stroke-width="1.4" fill="none"/><path d="M${x2 - 8} ${y + H / 2 - 3} L${x2 - 3} ${y + H / 2} L${x2 - 8} ${y + H / 2 + 3}" stroke="var(--border)" stroke-width="1.4" fill="none"/>`;
+  });
+  const xe = 4 + 3 * (W + gap);
+  svg += `<rect x="${xe - 4}" y="${y + 6}" width="${400 - xe}" height="${H - 12}" rx="5" fill="none" stroke="var(--border)"/><text x="${(xe - 4 + 400) / 2 - 2}" y="${y + H / 2 + 3}" text-anchor="middle" font-size="8" fill="var(--text-dim)">${escapeHtml(tr('lhsMapEnd'))}</text>`;
+  return `<svg class="tour-map-preview" viewBox="0 0 400 64" role="img" aria-label="${escapeAttr(tr('lhsMapAria'))}">${svg}</svg>`;
+}
+// Aperçu de la carte finale (2e bulle de la leçon) : « A little walk in Music City » en arbre, de gauche à droite, comme la carte des chemins.
+// Sections 1 à 7 puis la fin ; sous chaque nom, seulement le mode de lecture du morceau (demande de Jules-Antoine, 02/11).
+function lhMapPreviewHtml() {
+  const W = 96, H = 44, col = [4, 112, 220, 336], rowY = [8, 60, 112, 164];
+  const node = (x, y, n, sub, w) => {
+    const words = String(n).split(' '); const lines = [''];
+    words.forEach(wd => { const cur = lines[lines.length - 1]; if ((cur + ' ' + wd).trim().length > 17 && cur) lines.push(wd); else lines[lines.length - 1] = (cur + ' ' + wd).trim(); });
+    const txt = lines.slice(0, 2).map((l, k) => `<text x="${x + (w || W) / 2}" y="${y + 14 + k * 10}" text-anchor="middle" font-size="8.5" fill="var(--text)">${escapeHtml(l)}</text>`).join('');
+    return `<rect x="${x}" y="${y}" width="${w || W}" height="${H}" rx="5" fill="var(--bg-card, var(--bg))" stroke="var(--accent)"/>${txt}`
+      + (sub ? `<text x="${x + (w || W) / 2}" y="${y + H - 5}" text-anchor="middle" font-size="7" fill="var(--text-dim)">${escapeHtml(sub)}</text>` : '');
+  };
+  const line = (x1, y1, x2, y2) => `<path d="M${x1} ${y1} C${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}" fill="none" stroke="var(--border)" stroke-width="1.4"/>`;
+  const mid = r => r + H / 2;
+  const leaves = [[LH_NAMES[3], tr('lhMapEmbr')], [LH_NAMES[4], tr('lhMapStatic')], [LH_NAMES[5], tr('lhMapRandom')], [LH_NAMES[6], tr('lhMapStatic')]];
+  const rootY = (rowY[1] + rowY[2]) / 2, aY = (rowY[0] + rowY[1]) / 2, bY = (rowY[2] + rowY[3]) / 2;
+  let svg = line(col[0] + W, mid(rootY), col[1], mid(aY)) + line(col[0] + W, mid(rootY), col[1], mid(bY));
+  [0, 1].forEach(k => { svg += line(col[1] + W, mid(aY), col[2], mid(rowY[k])); svg += line(col[1] + W, mid(bY), col[2], mid(rowY[k + 2])); });
+  rowY.forEach(y => { svg += line(col[2] + W, mid(y), col[3], mid(rootY)); });
+  svg += node(col[0], rootY, LH_NAMES[0], tr('lhMapRoot')) + node(col[1], aY, LH_NAMES[1], tr('lhMapSeq')) + node(col[1], bY, LH_NAMES[2], tr('lhMapAdd'));
+  leaves.forEach(([n, sub], k) => { svg += node(col[2], rowY[k], n, sub); });
+  svg += node(col[3], rootY, tr('hybridBranchEnd'), '', 60);
+  return `<svg class="tour-map-preview" viewBox="0 0 400 216" role="img" aria-label="${escapeAttr(tr('lhMapAria'))}">${svg}</svg>`;
+}
+// Points de transition posés sur la frise d'une section : exactement ceux du morceau de Jules-Antoine (en temps, 0 = 1er temps de la mesure 1).
+function lhPoints(i) { const r = lhRow(i); return r ? r.querySelector('[data-role="hybridPoints"]') : null; }
+function lhPointsAre(i, beats) { const s = lhSec(i); return !!s && (s.transitionPoints || []).slice().sort((a, b) => a - b).join() === beats.join(); }
+// Flèches au-dessus des cases de la frise où poser les points (début des mesures visées), comme la flèche « mesure 9 » de la leçon Statique.
+function lhPointArrows(i, beats) {
+  return (beats || LH_POINTS[i]).map(beat => ({ bar: beat / 4 + 1, label: '', point: () => {
+    const p = lhPoints(i); const cell = p && p.querySelector(`[data-beat="${beat}"]`);
+    if (!cell) return null;
+    const r = cell.getBoundingClientRect();
+    return r.width ? { x: r.left + r.width / 2, y: r.top - 2 } : null;
+  } }));
+}
+function lhBranchSwitch(i, bi, mode) { const b = lhBranch(i, bi); return !!b && b.switchMode === mode; }
+function lhBranchField(i, bi, name) { const r = lhRow(i); const card = r && r.querySelectorAll('[data-role="branchList"] > .list-block')[bi]; return card ? card.querySelector(`[data-branch="${name}"]`) : null; }
+// Les branches restantes du morceau de Jules-Antoine, posées par la leçon une fois le tronc fait : 2 → 5, 3 → 6 et 7 ; 5, 6 et 7 → fin. Une seule fois.
+function lhCompleteMap() {
+  const t = lessonTrack();
+  if (!t || t.mode !== 'hybrid-sequential' || (t.sections || []).length !== 4) return;
+  const secs = t.sections;
+  const section = (key, label) => { const s = { id: genId(), label, trackId: LH_TRACKS[key], maxLoops: null, switchMode: 'end', transitionPoints: [], fadeSec: 0.5, transition: null, branches: [], defaultNext: null, skipIntro: false, freeReturn: hybridFreeReturn(t) }; secs.push(s); return s; };
+  const branch = (from, targetId) => { from.branches = from.branches || []; from.branches.push({ id: genId(), targetId, label: '', switchMode: 'end', transition: null }); };
+  const s5 = section('hi', LH_NAMES[4]); branch(secs[1], s5.id); branch(s5, 'end');
+  const s6 = section('rand', LH_NAMES[5]); branch(secs[2], s6.id); branch(s6, 'end');
+  const s7 = section('hi', LH_NAMES[6]); branch(secs[2], s7.id); branch(s7, 'end');
+  hasUnsavedEdits = true;
+  renderLibrary();
+}
 // La boucle de détour de la leçon d'embranchement n'est montrée que lorsque son fichier d'exemple est en ligne.
 function lessonDetourReady() { return lessonStepFileNames({ names: 'embrDetour' }).every(n => !!LESSON_SAMPLE_URLS[n]); }
 // done(ctx) : true quand le geste est fait -> la leçon avance seule. clickDone : un clic sur la cible suffit.
@@ -301,8 +390,8 @@ const HINTS_DIALOG_STEP = { selector: '.vrs-batch-overlay .vrs-batch-modal', tit
   onBack: () => { const o = document.querySelector('.vrs-batch-overlay'); if (o) o.remove(); } }; // « Précédent » ferme la fenêtre : elle ne reste pas devant l'étape revue
 // Thèmes du menu « Tutoriel » : les leçons y sont regroupées. `public` (sur une leçon) = ouverte dans la version sans compte
 // (mode démo) ; les autres y restent visibles avec la mention « nécessite un compte ». Un thème sans leçon s'affiche « bientôt ».
-// Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay d'« Alone in the Barque », la même que celle de la leçon « Versioning »).
-const LESSON_ADREEL_VIDEO = { title: 'Gameplay d’Alone in the Barque : traversée du ponton à la cabane' };
+// Titre de la vidéo du bloc vidéo de la leçon AdReel (gameplay de « Music City », la même que celle de la leçon « Versioning »).
+const LESSON_ADREEL_VIDEO = { title: 'Gameplay de Music City : de la rue au club de jazz' };
 // Leçon Versioning : l'atelier (cadre) a fini sa partie (message « lessonDone », voir 41-envoi-r2-et-bibliotheque-video.js).
 let atelierLessonFinished = false;
 function onAtelierLessonDone() { atelierLessonFinished = true; }
@@ -748,6 +837,102 @@ const LESSONS = [
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lvxListenTitle', textKey: 'lvxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lvxEndTitle', textKey: 'lvxEndText', final: true },
   ] },
+  // Leçon « 9 · Mode hybride à sections » (02/11 soir, ?tuto&lesson=hybrid-seq) : des sections bout à bout, SANS embranchement (celles-ci viennent à la
+  // leçon 10). Refait « Music City_Hyb. Seq. » de Jules-Antoine avec les morceaux Jazz du faux serveur (mêmes que la leçon 10) ; les réglages qu'il a laissés
+  // par défaut sont présentés sans être changés.
+  { id: 'hybrid-seq', theme: 'engine', public: true, reload: true, titleKey: 'lessonHybridSeqTitle', descKey: 'lessonHybridSeqDesc', steps: [
+    { titleKey: 'lhsWelcomeTitle', textKey: 'lhsWelcomeText' },
+    { titleKey: 'lhsMapTitle', textKey: 'lhsMapText', preview: 'hybridSeqMap' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lhLibTitle', textKey: 'lhLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lhModeTitle', textKey: 'lhModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential'; } },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAddTitle', textKey: 'lhsAddText', done: () => !!lhSec(0) },
+    { selector: () => lhField(0, 'track'), titleKey: 'lhsTrack1Title', textKey: 'lhsTrack1Text', done: () => lhsOrderOk(1) },
+    { selector: () => lhField(0, 'label'), titleKey: 'lhsNameTitle', textKey: 'lhsNameText',
+      done: () => { const s = lhSec(0); return !!s && (s.label || '').trim().toLowerCase() === LHS_NAME.toLowerCase(); }, drops: [{ kind: 'text', label: LHS_NAME, value: LHS_NAME }] },
+    { selector: () => lhField(0, 'loops'), titleKey: 'lhsLoopsTitle', textKey: 'lhsLoopsText', done: () => { const s = lhSec(0); return !!s && s.maxLoops === 2; } },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd2Title', textKey: 'lhsAdd2Text', done: () => !!lhSec(1) },
+    { selector: () => lhField(1, 'track'), titleKey: 'lhsTrack2Title', textKey: 'lhsTrack2Text', done: () => lhsOrderOk(2) },
+    { selector: () => lhRow(0) && lhRow(0).querySelector('[data-role="hybridTransFile"]'), titleKey: 'lhsTransTitle', textKey: 'lhsTransText' },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhsAdd3Title', textKey: 'lhsAdd3Text', done: () => !!lhSec(2) },
+    { selector: () => lhField(2, 'track'), titleKey: 'lhsTrack3Title', textKey: 'lhsTrack3Text', done: () => lhsOrderOk(3) },
+    { selector: () => lhField(1, 'up'), titleKey: 'lhsOrderTitle', textKey: 'lhsOrderText', done: () => lhsOrderIs(LHS_FINAL, 3) },
+    { selector: () => lhField(1, 'switch'), titleKey: 'lhsSwitchTitle', textKey: 'lhsSwitchText',
+      done: () => { const s = lhsAddSec(); return !!s && s.switchMode === 'point'; } },
+    { selector: () => lhPoints(1), titleKey: 'lhsPointsTitle', textKey: 'lhsPointsText', arrow: lhPointArrows(1, LHS_POINTS), done: () => lhPointsAre(1, LHS_POINTS) },
+    // Case « sauter l'intro » (cochée par défaut hors 1re section, réglage du lecteur fait dans une autre session) : présentée, pas imposée.
+    { selector: () => { const r = lhRow(1); return (r && r.querySelector('.hybrid-skip-intro')) || lhField(1, 'track'); }, titleKey: 'lhsSkipTitle', textKey: 'lhsSkipText' },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lhsListenTitle', textKey: 'lhsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lhsEndTitle', textKey: 'lhsEndText', final: true },
+  ] },
+  // Leçon « 10 · Mode hybride à embranchement » (02/11, d'abord « Hybride à sections », ?tuto&lesson=hybrid, rechargement obligatoire d'où `reload`) : on refait « A little walk in Music City » de Jules-Antoine,
+  // un arbre de 7 sections qui puisent dans les 6 morceaux Jazz déjà présents dans la bibliothèque du faux serveur (api/demo-client.js). L'apprenant pose à la main
+  // le tronc (1 → 2 | 3, puis 2 → 4 → fin) avec les moments de passage et les points de transition ; la leçon complète ensuite les branches restantes, identiques (voir lhCompleteMap). Ouverte à tous le 02/11
+  // (le faux serveur ouvre `hybrid_sequential` pour la leçon, même si le feu vert reste fermé dans les vrais comptes).
+  { id: 'hybrid', theme: 'engine', public: true, reload: true, titleKey: 'lessonHybridTitle', descKey: 'lessonHybridDesc', steps: [
+    { titleKey: 'lhWelcomeTitle', textKey: 'lhWelcomeText' },
+    { titleKey: 'lhMapTitle', textKey: 'lhMapText', preview: 'hybridMap' },
+    { selector: '.nav-item[data-tab="library"]', titleKey: 'lhLibTitle', textKey: 'lhLibText',
+      done: () => { const p = document.querySelector('.backstage-panel[data-panel="library"]'); return !!(p && p.classList.contains('active')); } },
+    { selector: '#btnAddLibraryTrack', titleKey: 'lsAddTitle', textKey: 'lsAddText',
+      enter: (c) => { c.baseLen = library.length; }, done: (c) => library.length > c.baseLen },
+    { selector: '#libraryDetail select[data-field="mode"]', titleKey: 'lhModeTitle', textKey: 'lhModeText',
+      done: () => { const t = lessonTrack(); return !!t && t.mode === 'hybrid-sequential'; } },
+    { selector: '#libraryDetail [data-role="hybridAdd"]', titleKey: 'lhAddTitle', textKey: 'lhAddText',
+      done: () => !!lhSec(0) },
+    { selector: () => lhField(0, 'track'), titleKey: 'lhTrack1Title', textKey: 'lhTrack1Text', done: () => lhSecIs(0, 'lo') },
+    { selector: () => lhField(0, 'label'), titleKey: 'lhName1Title', textKey: 'lhName1Text', done: () => lhSecNamed(0),
+      drops: [{ kind: 'text', label: LH_NAMES[0], value: LH_NAMES[0] }] },
+    { selector: () => lhField(0, 'loops'), titleKey: 'lhLoopsTitle', textKey: 'lhLoopsText' },
+    // Réglages de « A little walk in Music City » (02/11) : section 1 au prochain point (mesures 2, 4 et 6), ses deux chemins aussi ;
+    // section 2 à la prochaine mesure ; section 3 au prochain point (mesures 2 et 6), ses chemins en fin de section.
+    { selector: () => lhField(0, 'switch'), titleKey: 'lhSwitchTitle', textKey: 'lhSwitchText', done: () => { const s = lhSec(0); return !!s && s.switchMode === 'point'; } },
+    { selector: () => lhPoints(0), titleKey: 'lhPointsTitle', textKey: 'lhPointsText', arrow: lhPointArrows(0), done: () => lhPointsAre(0, LH_POINTS[0]) },
+    { selector: () => lhField(0, 'fade'), titleKey: 'lhFadeTitle', textKey: 'lhFadeText' },
+    // Seule section du morceau : le premier embranchement crée tout seul la section où il mène (18i-sequentiel-hybride.js).
+    { selector: () => lhField(0, 'addBranch'), titleKey: 'lhBranch1Title', textKey: 'lhBranch1Text',
+      done: () => { const b = lhBranch(0, 0); return !!b && !!lhSec(1) && b.targetId === lhSec(1).id; } },
+    { selector: () => lhField(0, 'addBranch'), titleKey: 'lhBranch2Title', textKey: 'lhBranch2Text',
+      done: () => !!lhBranch(0, 1) },
+    { selector: () => lhBranchField(0, 1, 'target'), titleKey: 'lhNewTitle', textKey: 'lhNewText',
+      done: () => { const b = lhBranch(0, 1); return !!b && !!lhSec(2) && b.targetId === lhSec(2).id; } },
+    { selector: () => lhBranchField(0, 0, 'switch'), titleKey: 'lhBranchSw1Title', textKey: 'lhBranchSw1Text', done: () => lhBranchSwitch(0, 0, 'point') },
+    { selector: () => lhBranchField(0, 1, 'switch'), titleKey: 'lhBranchSw2Title', textKey: 'lhBranchSw2Text', done: () => lhBranchSwitch(0, 1, 'point') },
+    { selector: () => lhBranchField(0, 0, 'label'), titleKey: 'lhLabelTitle', textKey: 'lhLabelText' },
+    { selector: () => lhField(0, 'defaultNext'), titleKey: 'lhDefaultTitle', textKey: 'lhDefaultText' },
+    { selector: () => lhField(1, 'track'), titleKey: 'lhTrack2Title', textKey: 'lhTrack2Text', done: () => lhSecIs(1, 'seq') },
+    { selector: () => lhField(1, 'label'), titleKey: 'lhName2Title', textKey: 'lhName2Text', done: () => lhSecNamed(1),
+      drops: [{ kind: 'text', label: LH_NAMES[1], value: LH_NAMES[1] }] },
+    { selector: () => lhField(1, 'switch'), titleKey: 'lhSwitch2Title', textKey: 'lhSwitch2Text', done: () => { const s = lhSec(1); return !!s && s.switchMode === 'bar'; } },
+    { selector: () => lhField(2, 'track'), titleKey: 'lhTrack3Title', textKey: 'lhTrack3Text', done: () => lhSecIs(2, 'add') },
+    { selector: () => lhField(2, 'label'), titleKey: 'lhName3Title', textKey: 'lhName3Text', done: () => lhSecNamed(2),
+      drops: [{ kind: 'text', label: LH_NAMES[2], value: LH_NAMES[2] }] },
+    { selector: () => lhField(2, 'switch'), titleKey: 'lhSwitch3Title', textKey: 'lhSwitch3Text', done: () => { const s = lhSec(2); return !!s && s.switchMode === 'point'; } },
+    { selector: () => lhPoints(2), titleKey: 'lhPoints3Title', textKey: 'lhPoints3Text', arrow: lhPointArrows(2), done: () => lhPointsAre(2, LH_POINTS[2]) },
+    // 2e étage : la section 2 mène à une nouvelle section (la 4e), qui mène à la fin du morceau.
+    { selector: () => lhField(1, 'addBranch'), titleKey: 'lhBranch3Title', textKey: 'lhBranch3Text',
+      done: () => !!lhBranch(1, 0) },
+    { selector: () => lhBranchField(1, 0, 'target'), titleKey: 'lhNew2Title', textKey: 'lhNew2Text',
+      done: () => { const b = lhBranch(1, 0); return !!b && !!lhSec(3) && b.targetId === lhSec(3).id; } },
+    { selector: () => lhField(3, 'track'), titleKey: 'lhTrack4Title', textKey: 'lhTrack4Text', done: () => lhSecIs(3, 'embr') },
+    { selector: () => lhField(3, 'label'), titleKey: 'lhName4Title', textKey: 'lhName4Text', done: () => lhSecNamed(3),
+      drops: [{ kind: 'text', label: LH_NAMES[3], value: LH_NAMES[3] }] },
+    { selector: () => lhField(3, 'addBranch'), titleKey: 'lhEnd1Title', textKey: 'lhEnd1Text',
+      done: () => !!lhBranch(3, 0) },
+    { selector: () => lhBranchField(3, 0, 'target'), titleKey: 'lhEnd2Title', textKey: 'lhEnd2Text',
+      done: () => { const b = lhBranch(3, 0); return !!b && b.targetId === 'end'; } },
+    { selector: '#libraryDetail [data-role="hybridSections"]', titleKey: 'lhRestTitle', textKey: 'lhRestText', enter: lhCompleteMap },
+    // Retour libre (02/11) : sans cette case, une fois un embranchement passé, on ne peut plus revenir en arrière (aucun chemin n'y ramène).
+    { selector: '#libraryDetail [data-hybrid="freeReturn"]', titleKey: 'lhFreeTitle', textKey: 'lhFreeText',
+      done: () => { const t = lessonTrack(); return !!t && (t.sections || []).length > 0 && t.sections.every(s => s.freeReturn); } },
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lhListenTitle', textKey: 'lhListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
+    { titleKey: 'lhEndTitle', textKey: 'lhEndText', final: true },
+  ] },
   // Leçon « C'est quoi un AdReel ? » (23/10) : visite d'un Main AdReel DÉJÀ REMPLI (api/demo-client.js, ?tuto&lesson=adreel-intro). Aucun geste d'écriture : on lit, on déplie, on prévisualise.
   // L'annuaire des compositeurs n'existe PAS encore : le texte final le présente comme « à venir ».
   { id: 'adreel-intro', theme: 'pitch', public: true, reload: true, titleKey: 'liTitle', descKey: 'liDesc', steps: [
@@ -998,13 +1183,19 @@ const LESSONS = [
   { id: 'pj-create', theme: 'preprod', public: true, page: 'projets', titleKey: 'plCreateTitle', descKey: 'plCreateDesc', steps: preprodEntrySteps('pj-create', 'plCreateIntroText') },
   { id: 'pj-chat', theme: 'preprod', public: true, page: 'projet', titleKey: 'plChatTitle', descKey: 'plChatDesc', steps: preprodEntrySteps('pj-chat', 'plEntryIntroText') },
   { id: 'pj-moodboard', theme: 'preprod', public: true, page: 'projet', titleKey: 'plBoardTitle', descKey: 'plBoardDesc', steps: preprodEntrySteps('pj-moodboard', 'plEntryIntroText') },
+  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
+  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
+  // « Musique » et « balade » : la carte « Music City » de Jules-Antoine (WALK_MAP dans api/demo-projects.js), ouvertes le 02/11.
+  { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc', steps: preprodEntrySteps('pj-map-music', 'plEntryIntroText') },
+  { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc', steps: preprodEntrySteps('pj-map-walk', 'plEntryIntroText') },
+  // La vidéo en dernier (02/11) : Versioning puis Annoter, après la carte de niveau.
   // Leçon « Versioning vidéo » (21/10, refaite le même jour : elle se joue dans le Backstage, pas sur la page du pack). Parcours choisi par
-  // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette d'« Alone in the
-  // Barque », capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
+  // Jules-Antoine : onglet Vidéo → Atelier ; DANS l'atelier (cadre, atelier-lecons.js) : choisir le pack, la vidéo muette de « Music City »
+  // (la rue de Jazz City, puis le club), capturer la musique 1, enregistrer le montage, version musique 2, écoute en direct ; puis, ici, le bloc vidéo d'un AdReel :
   // la vidéo du montage, ses versions, « Créer une version vidéo » qui rouvre l'atelier. Suite : annoter le montage (espace Projet).
   // `reload` : le faux serveur prépare le montage d'exemple déjà publié (deux musiques) pour la partie « bloc vidéo ».
-  // « bientôt » tant que la vidéo muette (alone-gameplay-muette.mp4) n'est pas en ligne (KIT d'atelier-lecons.js).
-  { id: 'versioning', theme: 'preprod', public: true, reload: true, soon: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+  // Ouverte le 04/11 : la vidéo muette (music-city-gameplay-muette.mp4, KIT d'atelier-lecons.js) est en ligne.
+  { id: 'versioning', theme: 'preprod', public: true, reload: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
     { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
       done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
@@ -1025,13 +1216,15 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvEndTitle', textKey: 'lvEndText', final: true },
   ] },
-  { id: 'pj-music', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMusicTitle', descKey: 'plMusicDesc', steps: preprodEntrySteps('pj-music', 'plEntryIntroText') },
-  { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos d'« Alone » manquent
-  { id: 'pj-map-build', theme: 'preprod', public: true, page: 'projet', titleKey: 'plMapBuildTitle', descKey: 'plMapBuildDesc', steps: preprodEntrySteps('pj-map-build', 'plEntryIntroText') },
-  // « Musique » et « balade » attendent les fichiers sonores d'exemple (kit MAP_MUSIC dans projet-lecons.js) : « bientôt » d'ici là.
-  { id: 'pj-map-music', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
-  { id: 'pj-map-walk', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
+  { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', soon: true, titleKey: 'plAnnTitle', descKey: 'plAnnDesc' }, // projet-lecons.js ; « bientôt » tant que les vidéos de « Music City » manquent
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
+  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
+  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
+// 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
+// Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
+LESSONS.forEach(l => { if (l.steps && !l.page && window.LayerPitchLessonPreviews && window.LayerPitchLessonPreviews.has(l.id)) l.steps.splice(1, 0, window.LayerPitchLessonPreviews.step(l.id)); });
 
 // Le moteur de bulles (affichage, avancement des étapes, clavier, déplacement) est partagé avec les autres pages :
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
@@ -1042,7 +1235,7 @@ function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
 // Leçons à faire (23/10) : celles ouvertes à tous, disponibles, pas encore terminées dans ce navigateur. Tant qu'il en reste, la pastille
 // de l'icône « Tutoriel » ne disparaît pas ; chacune a aussi sa propre pastille dans le menu.
-function lessonAvailable(l) { return lessonOpenToMe(l) && LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
+function lessonAvailable(l) { return lessonOpenToMe(l) && LESSON_THEMES_OPEN.includes(l.theme) && !l.soon && !l.adminOnly && !(l.needs && !flagOpen(l.needs)); } // pastilles : leçons ouvertes à tous seulement
 function lessonsToDo() { const done = lessonsDone(); return LESSONS.filter(l => lessonAvailable(l) && !done[l.id]); }
 function syncTutorialBadge() {
   const badge = document.getElementById('tutorialMenuBadge');
@@ -1068,13 +1261,19 @@ const GUIDE = window.LayerPitchGuide.create({
   tr,
   nextLesson: nextLessonOf,
   startLesson: id => startLesson(id),
+  // Choix de fin de visite : dans le vrai compte, la leçon s'ouvre dans une nouvelle fenêtre (compte fictif), comme depuis le menu « Tutoriel ».
+  startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
   onTourDone: tourMarkDone,
-  onClose: () => { hideDirectoryBackdrop(); renderTutorialMenu(); },
+  onClose: () => { hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
   cardExtras(step) {
+    if (step.profileQuiz) return profileQuizHtml(); // questions de profil (46-questions-de-profil.js)
+    if (step.preview === 'hybridMap') return lhMapPreviewHtml();
+    if (step.preview === 'hybridSeqMap') return lhsMapPreviewHtml();
+    if (step.preview && window.LayerPitchLessonPreviews) return window.LayerPitchLessonPreviews.html(step.preview, tr);
     const sample = step.sampleKey ? LESSON_SAMPLE_FILES[step.sampleKey] : undefined;
     const canUse = lessonSampleReady(step);
     const many = lessonStepFileNames(step).length > 1;
@@ -1084,6 +1283,7 @@ const GUIDE = window.LayerPitchGuide.create({
       + (step.sampleKey && !sample && !canUse ? `<div class="tour-sample tour-sample-soon">${escapeHtml(tr('lessonSampleSoon'))}</div>` : '');
   },
   wireCard(card, step) {
+    if (step.profileQuiz) { wireProfileQuiz(card); return; }
     // Lien « Télécharger le fichier d'exemple » : pour la façon « bouton » (choisir le fichier sur son ordinateur). Le fichier vient d'un
     // autre domaine : on le charge puis on le propose en téléchargement, l'attribut `download` seul serait ignoré.
     const dl = card.querySelector('[data-tour="download"]');
@@ -1125,10 +1325,23 @@ Object.defineProperty(window, 'guide', { get: () => GUIDE.state(), configurable:
 const guideStepTarget = GUIDE.stepTarget, guideStepIsDone = GUIDE.stepIsDone, guideGo = GUIDE.go, finishGuide = GUIDE.finish, renderGuideStep = GUIDE.render, guideTick = GUIDE.tick;
 function openGuide(kind, steps, lessonId) { GUIDE.open(kind, steps, lessonId); }
 function closeBackstageTour() { GUIDE.close(); }
+// Fin de la visite, dans le mode tutoriel comme dans le vrai compte (27/10, demande de Jules-Antoine) : double choix, enchaîner sur la première leçon du moteur audio
+// ou sur celle de « Pitcher et vendre ». Chaque choix n'apparaît que si sa leçon est jouable ici.
+function tourChoiceStep() {
+  const first = theme => LESSONS.find(l => l.theme === theme && l.steps && !l.soon && lessonPlayable(l) && !(l.needs && !flagOpen(l.needs)));
+  const choices = [['engine', 'tourChoiceEngine'], ['pitch', 'tourChoicePitch']]
+    .map(([theme, labelKey]) => { const l = first(theme); return l ? { labelKey, lesson: l.id } : null; }).filter(Boolean);
+  return choices.length && lessonsAccessOpen() ? { titleKey: 'tourChoiceTitle', textKey: 'tourChoiceText', choices } : null;
+}
+let tourProfileWaited = false;
 function startBackstageTour() {
   if (guide) return;
+  // Questions de profil (4/11) : leur présence en fin de visite dépend des réponses déjà enregistrées, lues une fois.
+  if (profileQuizOpen() && myOnboardingProfile === undefined && !tourProfileWaited) { tourProfileWaited = true; loadMyOnboardingProfile().then(startBackstageTour); return; }
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
-  openGuide('tour', TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
+  const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
+  const choice = tourFinalStep(); // questions de profil / tes essentiels, ou le double choix d'avant (46-questions-de-profil.js)
+  openGuide('tour', choice ? steps.concat(choice) : steps);
 }
 // Leçons du thème « pitch » : elles partent toujours de l'onglet Contenu, sur le Main AdReel (on peut avoir laissé le tutoriel sur un autre onglet ou un autre AdReel).
 // Fond « annuaire » d'une étape de leçon : la vraie page publique de l'annuaire, derrière la bulle (retirée à la sortie de l'étape et à la fermeture).
@@ -1196,7 +1409,7 @@ function renderTutorialMenu() {
   if (!list) return;
   const done = lessonsDone();
   const tick = '<svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-  list.innerHTML = `
+  list.innerHTML = `${essentialsMenuHtml(tick)}
     <button class="account-menu-item" type="button" data-tutorial="tour">
       <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr('accountMenuTour'))}</b><small>${escapeHtml(tr('tutorialTourDesc'))}</small></span></span>
       ${tourAlreadyDone() ? tick : ''}
@@ -1209,7 +1422,10 @@ function renderTutorialMenu() {
       // coupé en titre + sous-titre au « : » ; les leçons en dessous, en retrait et moins appuyées.
       const [thMain, ...thRest] = tr(th.titleKey).split(' : ');
       const folded = foldedLessonThemes().has(th.id);
-      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
+      // Section repliée (retour de Jules-Antoine, 27/10) : ses leçons à faire sont cachées, leur nombre s'affiche donc à côté du titre.
+      const toDo = folded ? items.filter(l => lessonAvailable(l) && !done[l.id]).length : 0;
+      const toDoBadge = toDo ? ` <span class="tutorial-section-badge" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}">${toDo}</span>` : '';
+      return `<button type="button" class="tutorial-menu-section" data-fold-theme="${th.id}" aria-expanded="${!folded}"><span class="tutorial-menu-section-text"><strong>${escapeHtml(thMain)}${toDoBadge}</strong>${thRest.length ? `<small>${escapeHtml(capitalizeFirst(thRest.join(' : ')))}</small>` : ''}</span><svg class="tutorial-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="tutorial-menu-group"${folded ? ' hidden' : ''}>` + (items.length ? items.map(l => `
       <button class="account-menu-item tutorial-menu-lesson" type="button" data-tutorial="${l.id}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}>
         <span class="account-menu-item-label"><span class="tutorial-menu-text"><b>${escapeHtml(tr(l.titleKey))}</b><small>${escapeHtml(!lessonOpenToMe(l) || lessonPlayable(l) ? tr(l.descKey) : tr('tutoNeedsAccount'))}</small></span></span>
         ${!lessonOpenToMe(l) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : !lessonPlayable(l) ? `<span class="nav-badge">${escapeHtml(tr('tutoAccountBadge'))}</span>` : (l.soon || (l.needs && !flagOpen(l.needs))) ? `<span class="nav-badge">${escapeHtml(tr('comingSoonBadge'))}</span>` : (done[l.id] ? tick : (lessonAvailable(l) ? `<span class="tutorial-todo-dot" title="${escapeAttr(tr('tutorialToDoBadge'))}" aria-label="${escapeAttr(tr('tutorialToDoBadge'))}"></span>` : ''))}
@@ -1228,7 +1444,7 @@ function initTutorialMenuUi() {
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     const willOpen = dropdown.hidden;
-    if (willOpen) renderTutorialMenu();
+    if (willOpen) { renderTutorialMenu(); trackBackstageEvent('tutorial_menu_open'); }
     dropdown.hidden = !willOpen;
     btn.setAttribute('aria-expanded', String(willOpen));
     if (willOpen) document.dispatchEvent(new CustomEvent('lp-header-menu-open', { detail: 'tutorial' }));
@@ -1237,6 +1453,8 @@ function initTutorialMenuUi() {
   document.addEventListener('click', (e) => { if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== btn) closeMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   dropdown.addEventListener('click', (e) => {
+    const sw = e.target.closest('[data-essentials-switch]');
+    if (sw) { e.stopPropagation(); switchEssentialsPath(sw.dataset.essentialsSwitch); if (guide) closeMenu(); return; }
     const fold = e.target.closest('[data-fold-theme]');
     if (fold) {
       // Le menu est redessiné : le bouton cliqué sort alors du DOM et le clic remonté au document paraîtrait « hors menu » (fermeture). On l'arrête ici.
@@ -1256,6 +1474,19 @@ function initTutorialMenuUi() {
     startLesson(id, { restart: true });
   });
 }
+// Première connexion (30/10, retours de bêta : visite passée inaperçue) : une vraie fenêtre propose la visite, au lieu d'une bulle qui part seule.
+// Une seule fois par navigateur : refuser vaut « déjà proposée » ; le bouton Tutoriel et le menu du compte la relancent ensuite.
+let tourOffered = false;
+function offerBackstageTour() {
+  if (tourOffered) return;
+  tourOffered = true;
+  trackBackstageEvent('tour_offer_shown');
+  setTimeout(async () => {
+    const go = await window.LayerPitchNotify.confirm(tr('tourOfferText'), { okLabel: tr('tourOfferStart'), cancelLabel: tr('tourOfferLater') });
+    trackBackstageEvent(go ? 'tour_offer_start' : 'tour_offer_later');
+    if (go) startBackstageTour(); else tourMarkDone();
+  }, 600);
+}
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels) : montre le menu et lance la visite la toute
 // première fois, sans jamais la relancer ensuite.
 function syncBackstageTour() {
@@ -1271,8 +1502,37 @@ function syncBackstageTour() {
   if (wanted && lessonsOpen && !guide && !window.__lessonAutoStarted) { window.__lessonAutoStarted = true; // Le niveau d'accès (admin ou non) se résout en réseau : on attend qu'il soit connu (6 s au plus) avant de lancer la leçon, sinon une leçon réservée aux admins ne démarrait « pas du tout » quand la réponse arrivait après 0,9 s.
     const tryStart = left => { const l = LESSONS.find(x => x.id === wanted); if (!l || lessonPlayable(l) || left <= 0) startLesson(wanted); else setTimeout(() => tryStart(left - 1), 400); };
     setTimeout(() => tryStart(15), 900); return; }
-  if (open && !tourAlreadyDone() && !guide) setTimeout(startBackstageTour, 600);
+  // Mode tutoriel sans leçon demandée (adresse publique layerpitch-backstage.html?tuto, 27/10) : la visite guidée part directement, à chaque
+  // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
+  if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
+  if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
+  else offerProfileQuizIfNeeded(); // comptes déjà inscrits : les questions de profil seules, une fois (46-questions-de-profil.js)
+  if (profileQuizOpen() && myOnboardingProfile === undefined) loadMyOnboardingProfile().then(() => { if (lessonsOpen) renderTutorialMenu(); });
 }
+// Accueil tant que la bibliothèque est vide (30/10, retours de bêta : tuto interactif pas vu, pas de morceau prêt pour essayer). Attend un
+// chargement réussi pour ne pas clignoter à l'ouverture, jamais en mode tutoriel. « Plus tard » vaut pour ce navigateur.
+const WELCOME_DISMISSED_STORAGE = 'layerpitch_welcome_dismissed_v1';
+function welcomeDismissed() { try { return localStorage.getItem(WELCOME_DISMISSED_STORAGE) === '1'; } catch (e) { return false; } }
+let welcomeShownTracked = false;
+function syncBackstageWelcome() {
+  const box = document.getElementById('backstageWelcome');
+  if (!box) return;
+  box.hidden = !(dataLoadOk && !isTutoMode() && library.length === 0 && !welcomeDismissed());
+  if (!box.hidden && !welcomeShownTracked) { welcomeShownTracked = true; trackBackstageEvent('welcome_tuto_shown'); }
+}
+(function wireBackstageWelcome() {
+  const start = document.getElementById('btnWelcomeTuto');
+  const dismiss = document.getElementById('btnWelcomeDismiss');
+  if (start) start.addEventListener('click', () => {
+    trackBackstageEvent('welcome_tuto_start');
+    window.open(lessonTutoUrl(LESSONS.find(l => l.id === 'static'), 'static'), '_blank', 'noopener');
+  });
+  if (dismiss) dismiss.addEventListener('click', () => {
+    trackBackstageEvent('welcome_tuto_dismiss');
+    try { localStorage.setItem(WELCOME_DISMISSED_STORAGE, '1'); } catch (e) { /* stockage indisponible */ }
+    document.getElementById('backstageWelcome').hidden = true;
+  });
+})();
 (function wireTourMenu() {
   const item = document.getElementById('accountMenuTour');
   if (item) item.addEventListener('click', () => {

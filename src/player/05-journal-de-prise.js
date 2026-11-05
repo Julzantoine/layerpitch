@@ -175,11 +175,14 @@ function getModeLabel(mode, track) {
     vertical: t('modeVertical'),
     'vertical-random': t('modeVerticalRandom'),
     sequential: hasSeqBranching ? t('modeSequentialBranching') : t('modeSequential'),
-    'embranchement-vertical': t('modeEmbranchementVertical')
+    'embranchement-vertical': t('modeEmbranchementVertical'),
+    [HYBRID_MODE]: t('modeHybridSequential')
   };
   return map[mode] || mode;
 }
-const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical'];
+const HYBRID_MODE = 'hybrid-sequential'; // voir 34-sequentiel-hybride.js
+const HYBRID_SECTION_MODES = ['static', 'vertical', 'sequential', 'vertical-random', 'embranchement-vertical']; // tout sauf un autre hybride
+const PLAYABLE_MODES = ['static', 'vertical', 'vertical-random', 'sequential', 'embranchement-vertical', HYBRID_MODE];
 
 function layerHasSource(l) { return !!(l && (l.localFile || l.localUrl || l.file)); }
 

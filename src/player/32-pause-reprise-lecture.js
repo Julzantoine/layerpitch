@@ -131,6 +131,8 @@
   }
   function stopAllSources(keepPosition) {
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
+    if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
+    chainGens = []; chainEmbrMarker = null;
     playing = false;
     playingTrackIds.delete(track.id); releaseWakeLockIfIdle();
     // Annule toute rampe de ducking en cours et revient à 1 immédiatement — sinon une prochaine lecture
@@ -348,6 +350,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !playing) return;
     resumeAudioContext();
+    if (chainHooks && ctx.state === 'running') return; // section d'un hybride : la relancer casserait le passage déjà calculé
     // Séquentiel et vertical-random (bug trouvé le 13/08) : le chemin générique ci-dessous arrêtait tout
     // puis relançait la chaîne via un tout nouveau tirage (isContinuation=true préserve la position dans
     // la CHAÎNE, mais le bloc en cours au moment du passage en arrière-plan était perdu, remplacé par un
@@ -433,6 +436,27 @@
       },
       stop() { lpCancelWait(); if (playing) stopAllSources(false); },
       isReady: () => !!ready,
+      // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
+      // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
+      startAt(when, skipIntro) {
+        chainStartAt = when; chainFinishRequested = false; chainSkipIntro = !!skipIntro;
+        if (chainSkipIntro && useQuantizedLoop) offsetAt = loopInSec;
+        playThisTrack(true);
+        chainSkipIntro = false;
+      },
+      finishAtLoopEnd() { chainRequestEnd(); },
+      // Quitter la section avant sa fin : au prochain temps, à la prochaine mesure ou au prochain point de transition (temps du fichier).
+      // Rien d'atteignable avant la fin de la boucle : la fin de boucle, avec sa queue.
+      finishAt(mode, points, fadeSec) {
+        chainFinishRequested = true;
+        if (!playing) return;
+        const target = mode === 'beat' || mode === 'bar' || mode === 'point' ? chainNextExitSec(mode, points) : null;
+        if (target != null) chainCutAt(target, fadeSec);
+        else chainRequestEnd();
+      },
+      pause: () => pauseThisTrack(),
+      resume: () => playThisTrack(true),
+      reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },

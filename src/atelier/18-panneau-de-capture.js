@@ -198,9 +198,10 @@ function openCapturePanel(file, opts) {
       // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
       // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
       // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
-      // train de jouer. Ne couvre que la piste ARMÉE -- si le compositeur a manuellement démarré une
-      // AUTRE piste sans l'armer, celle-là continue (limite connue, cas rare vu le flux armer/capturer).
-      if (armedTrackId) document.dispatchEvent(new CustomEvent('stop-track', { detail: armedTrackId }));
+      // train de jouer. Couvre la piste armée ET toutes celles lancées pendant la prise (04/11 : la leçon Versioning
+      // passe de la rue au club en changeant de morceau, le second continuait de jouer après l'arrêt).
+      new Set([armedTrackId].concat(newPassEvents.map(e => e.detail && e.detail.trackId)).filter(Boolean))
+        .forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
       videoEl.pause();
       recordBtn.classList.remove('recording');
       recordLabel.textContent = tr('captureStartBtn');

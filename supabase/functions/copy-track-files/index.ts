@@ -39,10 +39,12 @@ Deno.serve(async (req) => {
 
     const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
     if (composerError || !composerId) return json({ error: 'Non autorisé.' }, 403);
-    const { data: source } = await adminClient.from('tracks').select('owner_id, protected').eq('id', fromTrackId).maybeSingle();
+    const { data: source } = await adminClient.from('tracks').select('owner_id, protected, example_source_id').eq('id', fromTrackId).maybeSingle();
     if (!source) return json({ error: 'Morceau d\'origine introuvable (publie-le d\'abord).' }, 404);
     if (source.owner_id !== composerId) return json({ error: 'Ce morceau ne t\'appartient pas.' }, 403);
     if (source.protected) return json({ error: 'Ce morceau est protégé : retire la protection, copie-le, puis remets-la.' }, 409);
+    // Exemple préchargé (4/11) : ses fichiers sont ceux de la source, audio/<id de la copie>/ est vide -- rien à copier, refusé.
+    if (source.example_source_id) return json({ error: 'Exemple : il ne peut pas être copié. Pour ta propre musique, crée un nouveau morceau.' }, 409);
     const { data: existing } = await adminClient.from('tracks').select('id').eq('id', toTrackId).maybeSingle();
     if (existing) return json({ error: 'La destination existe déjà.' }, 409);
 

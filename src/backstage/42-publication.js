@@ -81,7 +81,16 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
       // Vertical-random (fusionné avec l'ex-"vertical random séquentiel" le 30/07) : chaque section porte
       // désormais son propre tempo/timeline, comme un vrai segment Wwise indépendant — plus de
       // fixedLayers/randomGroups au niveau du morceau, tout vit dans sections[].pools[].
-      sections: (t.sections || []).map(sec => ({
+      sections: t.mode === 'hybrid-sequential' ? (t.sections || []).map(sec => ({
+        id: sec.id, label: sec.label || '', trackId: sec.trackId || null, maxLoops: sec.maxLoops != null ? sec.maxLoops : null,
+        switchMode: sec.switchMode || 'end', transitionPoints: sec.transitionPoints || [], fadeSec: sec.fadeSec != null ? sec.fadeSec : 0.5,
+        transition: (sec.transition && (sec.transition.remoteFile || sec.transition.pendingFile)) ? { file: sec.transition.remoteFile || null, localUrl: sec.transition.remoteFile ? null : pendingPreviewUrl(sec.transition.pendingFile), originalFileName: sec.transition.originalFileName || null, bars: sec.transition.bars || null } : null,
+        branches: (sec.branches || []).filter(b => b.targetId).map(b => ({ id: b.id, targetId: b.targetId, label: b.label || '', switchMode: b.switchMode === 'point' ? 'point' : 'end',
+          transition: (b.transition && (b.transition.remoteFile || b.transition.pendingFile)) ? { file: b.transition.remoteFile || null, localUrl: b.transition.remoteFile ? null : pendingPreviewUrl(b.transition.pendingFile), originalFileName: b.transition.originalFileName || null, bars: b.transition.bars || null } : null })),
+        defaultNext: sec.defaultNext || null,
+        keepIntro: !!sec.keepIntro,
+        freeReturn: !!sec.freeReturn,
+      })) : (t.sections || []).map(sec => ({
         id: sec.id, label: sec.label || '',
         referencesSectionId: sec.referencesSectionId || null,
         bpm: sec.bpm || 120, beatsPerBar: sec.beatsPerBar || 4,
@@ -224,6 +233,9 @@ async function publishAll() {
     // dans chacune des 3 boucles ci-dessous (un seul composer_profiles.plan pour tout le compositeur).
     // Bloque la publication plutôt que de deviner un palier si la session/RPC échoue -- même logique que
     // le garde-fou dataLoadOk ci-dessus, jamais de publication avec un palier incertain.
+    // Exemples préchargés (4/11) : vérifiés AVANT tout envoi (pas de nouveau fichier son, jamais dans une page publique).
+    const exampleProblem = examplePublishProblem();
+    if (exampleProblem) throw new Error(exampleProblem);
     log(tr('resolvingEffectivePlan'));
     await loadPostgresReadScripts();
     const { status: planStatus, error: planError } = await window.LayerPitchSubscriptions.getTrialStatus();
@@ -372,7 +384,8 @@ async function publishAll() {
     }
     for (const track of library) {
       if (!track.id) track.id = slug(track.title);
-      track.base = `${MEDIA_BASE}audio/${track.id}/`;
+      // Exemple préchargé (4/11) : ses fichiers sont ceux de la source (base figée, aussi en base) -- jamais audio/<id de la copie>/.
+      if (!isExample(track)) track.base = `${MEDIA_BASE}audio/${track.id}/`;
       const isStatic = track.mode === 'static';
       const hadPendingAudio = trackAudioItems(track).some(it => it.pendingFile);
       const layersToPublish = isStatic ? (track.layers || []).slice(0, 1) : (track.layers || []);
@@ -450,6 +463,27 @@ async function publishAll() {
       }
       for (let sci = 0; sci < (track.sections || []).length; sci++) {
         const section = track.sections[sci];
+        if (section.transition && section.transition.pendingFile) { // séquentiel hybride : fichier de transition vers la section suivante
+          log(tr('convertingGeneric', { title: track.title, label: tr('transitionFallbackShort') }));
+          const { bytes, measure } = await wavFileToOgg(section.transition.pendingFile);
+          const fileName = `section-${section.id}-transition.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await r2PutFile(path, bytes, 'audio/ogg');
+          section.transition.remoteFile = fileName; section.transition.originalFileName = section.transition.pendingFile.name; section.transition.pendingFile = null; section.transition._measure = measure;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
+        for (const branch of (section.branches || [])) { // séquentiel hybride : fichier propre à un embranchement
+          if (!branch.transition || !branch.transition.pendingFile) continue;
+          log(tr('convertingGeneric', { title: track.title, label: tr('transitionFallbackShort') }));
+          const { bytes, measure } = await wavFileToOgg(branch.transition.pendingFile);
+          const fileName = `section-${section.id}-branch-${branch.id}-transition.ogg`;
+          const path = `audio/${track.id}/${fileName}`;
+          log(tr('uploadingPath', { path }));
+          await r2PutFile(path, bytes, 'audio/ogg');
+          branch.transition.remoteFile = fileName; branch.transition.originalFileName = branch.transition.pendingFile.name; branch.transition.pendingFile = null; branch.transition._measure = measure;
+          log(tr('uploadedPath', { path }), 'ok');
+        }
         for (let pi = 0; pi < (section.pools || []).length; pi++) {
           const pool = section.pools[pi];
           for (let ai = 0; ai < pool.alternatives.length; ai++) {
@@ -506,7 +540,7 @@ async function publishAll() {
     }
     for (const sfx of sfxLibrary) {
       if (!sfx.id) sfx.id = genId();
-      sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`;
+      if (!isExample(sfx)) sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`; // exemple (4/11) : fichiers de la source
       for (let ai = 0; ai < (sfx.alternatives || []).length; ai++) {
         const alt = sfx.alternatives[ai];
         if (alt.pendingFile) {
@@ -532,6 +566,19 @@ async function publishAll() {
       const { ok, error } = await window.LayerPitchTracks.syncFolders(kind, folders);
       if (!ok) throw new Error('Écriture des dossiers (' + kind + ') échouée — publication arrêtée : ' + error);
     }
+    // Sfx AVANT morceaux, packs et AdReels (04/11) : un morceau ou un pack qui cite un Sfx tout neuf (jamais enregistré) était
+    // refusé par la base (« Sfx introuvable »), et la sauvegarde s'arrêtait là. Les Sfx ne dépendent que de leurs dossiers (juste au-dessus).
+    log('Écriture en base : Sfx...');
+    const pgSfxErrors = [];
+    for (const sfx of data.sfxLibrary) {
+      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
+      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
+    }
+    if (pgSfxErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
+
     log('Écriture en base : morceaux...');
     const pgErrors = [];
     for (const track of data.library) {
@@ -564,17 +611,6 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée :\n' + pgAdReelErrors.join('\n'));
     }
     log(`Écriture en base : ${data.adReels.length} AdReel(s) OK.`, 'ok');
-
-    log('Écriture en base : Sfx...');
-    const pgSfxErrors = [];
-    for (const sfx of data.sfxLibrary) {
-      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
-      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
-    }
-    if (pgSfxErrors.length) {
-      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
-    }
-    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
 
     log('Écriture en base : collections...');
     const pgCollectionErrors = [];
@@ -620,6 +656,7 @@ async function publishAll() {
     renderSocials();
     rebuildAllCards();
     renderPacks();
+    if (typeof notifyAtelierPacksChanged === 'function') notifyAtelierPacksChanged();
     // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
     // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
     if (retiredDeletes.length) window.LayerPitchNotify.info(tr('deleteRetiredAlert', { list: retiredDeletes.join('\n') }));

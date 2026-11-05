@@ -1,4 +1,6 @@
-    if (!isSequential) {
+    if (isHybrid) {
+      renderHybridEditor(el.querySelector('[data-role="hybridEditor"]'), track, ti);
+    } else if (!isSequential) {
       // ---- Disposition maître-détail généralisée à tous les modes non séquentiels (18/08) : mêmes 3
       // entrées virtuelles (Infos du morceau / Sfx / Infos additionnelles) qu'en séquentiel, réutilisant
       // seqSelectedSlotIndex (déjà générique, clé = track.id) et le même gestionnaire délégué

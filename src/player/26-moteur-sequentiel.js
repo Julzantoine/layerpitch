@@ -148,6 +148,10 @@
     if (!buffer) return;
     const off = offsetSec || 0;
     const total = totalDurationSec != null ? totalDurationSec : ((fillDurationSec != null) ? fillDurationSec + off : buffer.duration);
+    if (chainHooks) {
+      const tempo = seqSlotTiming(track, slotIdx != null ? (track.segmentSlots || [])[slotIdx] : (track.segmentSlots || [])[0]);
+      chainNoteGen(ctxStartTime, off, tempo.secondsPerBeat, tempo.beatsPerBar, fillDurationSec != null ? off + fillDurationSec : buffer.duration);
+    }
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     applyTrackPitchRate(src, ctxStartTime);
@@ -249,12 +253,14 @@
       if (!next) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(seqNextStartCtxTime);
         return;
       }
       scheduleSeqGeneration(seqNextStartCtxTime, next.buffer, next.label, next.kind, next.terminal ? null : next.durationSec, next.gain, 0, null, next.terminal, next.slotIdx, next.desc, next.fromSlotIdx, next.toSlotIdx);
       if (next.terminal) {
         clearInterval(seqSchedulerTimer); seqSchedulerTimer = null;
         armSeqFinalEnd();
+        if (chainHooks) chainHooks.onFinalBoundary(seqNextStartCtxTime + next.buffer.duration / trackPitchRatio);
         return;
       }
       seqNextStartCtxTime += next.durationSec / trackPitchRatio;
@@ -302,9 +308,9 @@
       seqMapFrontierIdx = -1;
       seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
     }
-    const now = startSoon(); // toutes les voix sur un même instant, juste après (voir startSoon)
+    const now = engineStartTime(); // toutes les voix sur un même instant, juste après (voir startSoon)
     let firstBuffer, firstLabel, firstDurationSec, firstKind, firstGain, firstDesc, firstSlotIdx = -1;
-    if (!isContinuation && introBuffer) {
+    if (!isContinuation && introBuffer && !chainSkipIntro) {
       // L'intro n'appartient à aucun emplacement — son tempo suit celui du premier emplacement de la
       // chaîne (position 0, point de départ conventionnel), même principe que le vertical-random dont
       // l'intro suit le tempo de la première section jouable.

@@ -43,6 +43,8 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     renderLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-library-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('library', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-library-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
@@ -89,6 +91,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   }
   if (btn.dataset.action === 'toggle-track-protection') {
     const track = library[ti];
+    if (isExample(track)) { window.LayerPitchNotify.error(tr('exampleNoProtect')); return; }
     const target = !track.protected;
     window.LayerPitchNotify.confirm(tr(target ? 'trackProtectConfirm' : 'trackUnprotectConfirm', { title: track.title || track.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') }).then(async ok => {
       if (!ok) return;
@@ -111,7 +114,8 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
   if (btn.dataset.action === 'remove-track') {
     // Demande confirmation avant de retirer le morceau : il disparaît aussi des AdReels et Packs qui l'utilisent.
     const tk = library[ti];
-    const usedIn = adReels.filter(a => a.trackIds.includes(tk.id)).length + packs.filter(p => (p.trackIds || []).includes(tk.id)).length;
+    const usedIn = adReels.filter(a => a.trackIds.includes(tk.id)).length + packs.filter(p => (p.trackIds || []).includes(tk.id)).length
+      + library.filter(l => l.mode === 'hybrid-sequential' && (l.sections || []).some(sec => sec.trackId === tk.id)).length;
     const title = tk.title || tr('trackFallback', { n: ti + 1 });
     if (!(await window.LayerPitchNotify.confirm(tr(usedIn ? 'deleteTrackConfirmUsed' : 'deleteTrackConfirm', { title, n: usedIn }), { danger: true }))) return;
     if (library[ti] !== tk) return; // données rechargées pendant la question : l'index ne désigne plus ce morceau
@@ -124,6 +128,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     library.splice(ti, 1);
     adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
     packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
+    library.forEach(l => { if (l.mode === 'hybrid-sequential') l.sections = (l.sections || []).filter(sec => sec.trackId !== removedId); });
     trackBackstageEvent('track_delete', {});
   }
   else if (btn.dataset.action === 'add-fx-trigger') {
@@ -320,6 +325,18 @@ document.getElementById('libraryContainer').addEventListener('input', e => {
       if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
     }
     else if (field === 'mode') {
+      // Les sections d'un hybride et celles du vertical-random partagent le même champ : on ne mélange jamais les deux. Un morceau qui a
+      // déjà des sections à lui ne devient pas hybride (ses fichiers seraient perdus) ; un hybride qui change de mode repart sans section.
+      if (e.target.value === 'hybrid-sequential') {
+        if ((library[ti].sections || []).some(sec => (sec.pools || []).length)) {
+          window.LayerPitchNotify.info(tr('hybridNeedsNewTrack'));
+          renderLibrary();
+          return;
+        }
+        library[ti].sections = [];
+      } else if (library[ti].mode === 'hybrid-sequential') {
+        library[ti].sections = [];
+      }
       library[ti].mode = e.target.value;
       if (e.target.value === 'vertical-random') {
         if (!library[ti].intro) library[ti].intro = { label: 'Intro', bars: 8, remoteFile: null, pendingFile: null };

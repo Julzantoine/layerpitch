@@ -50,6 +50,16 @@ function htmlToText(html: string): string {
     .split('\n').map((l) => l.trim()).join('\n').trim();
 }
 
+// Proposition du tutoriel public (30/10), ajoutée au mail : sans objet pour un studio (les leçons publiques parlent de la musique du
+// compositeur) ni pour qui nous écrit depuis le tutoriel lui-même.
+const TUTORIAL_URL = 'https://beta.layerpitch.com/layerpitch-backstage.html?tuto';
+const TUTORIAL_COPY: Record<string, string> = {
+  fr: `<p>En attendant, tu peux déjà essayer LayerPitch : le tutoriel interactif te guide pas à pas, sans compte et avec des morceaux d'exemple.</p>
+        <p><a href="${TUTORIAL_URL}&amp;lang=fr" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Faire le tutoriel</a></p>`,
+  en: `<p>In the meantime, you can already try LayerPitch: the interactive tutorial guides you step by step, with no account and with sample tracks.</p>
+        <p><a href="${TUTORIAL_URL}&amp;lang=en" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Try the tutorial</a></p>`,
+};
+
 const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
   fr: {
     subject: 'Merci pour ton intérêt pour LayerPitch !',
@@ -57,6 +67,7 @@ const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
       <div style="font-family:sans-serif;color:#262521;max-width:480px;">
         <p>Hey ! Merci de ton intérêt pour LayerPitch !</p>
         <p>Demande bien reçue, on te tient au courant rapidement !</p>
+        {{TUTORIAL}}
       </div>`,
   },
   en: {
@@ -65,11 +76,12 @@ const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
       <div style="font-family:sans-serif;color:#262521;max-width:480px;">
         <p>Hey! Thanks for your interest in LayerPitch!</p>
         <p>Request received, we'll be in touch soon!</p>
+        {{TUTORIAL}}
       </div>`,
   },
 };
 
-async function sendConfirmationEmail(to: string, lang: string) {
+async function sendConfirmationEmail(to: string, lang: string, offerTutorial: boolean) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
   if (!apiKey || !fromAddress) {
@@ -79,11 +91,12 @@ async function sendConfirmationEmail(to: string, lang: string) {
     return { ok: false, error: 'Secrets Resend non configurés côté Supabase.' };
   }
   const copy = CONFIRMATION_COPY[lang] || CONFIRMATION_COPY.fr;
+  const html = copy.html.replace('{{TUTORIAL}}', offerTutorial ? (TUTORIAL_COPY[lang] || TUTORIAL_COPY.fr) : '');
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: fromAddress, to, subject: copy.subject, html: copy.html, text: htmlToText(copy.html), reply_to: 'contact@layerpitch.com' }),
+      body: JSON.stringify({ from: fromAddress, to, subject: copy.subject, html, text: htmlToText(html), reply_to: 'contact@layerpitch.com' }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -189,7 +202,8 @@ Deno.serve(async (req) => {
     // Envoyé après l'insertion réussie : la demande est déjà en sécurité côté LayerPitch même si
     // l'email de confirmation échoue (secrets manquants, Resend indisponible) -- jamais perdre une
     // vraie demande pour un souci d'email de courtoisie.
-    const emailResult = await sendConfirmationEmail(v_email, v_lang);
+    const offerTutorial = v_intent !== 'studio' && !(v_message && v_message.startsWith('Depuis le tutoriel'));
+    const emailResult = await sendConfirmationEmail(v_email, v_lang, offerTutorial);
     if (!emailResult.ok) {
       console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
     }

@@ -1,7 +1,22 @@
 // opts.concurrent (6/10, Carte de niveau du Projet) : ce lecteur joue EN MÊME TEMPS que d'autres (fond d'ambiance, morceau qui entre pendant
 // que l'autre s'éteint) au lieu d'arrêter le morceau actif ; il expose alors wrapper.lpControl (voir 32-pause-reprise-lecture.js).
 function initTrackPlayer(track, wrapper, elementColors, opts) {
+  if (track.mode === HYBRID_MODE) return initHybridPlayer(track, wrapper, elementColors);
   const concurrent = !!(opts && opts.concurrent);
+  // Section d'un séquentiel hybride (31/10) : le chef d'orchestre impose l'instant de départ (chainStartAt) et peut demander de finir à
+  // la fin de la boucle en cours (chainFinishRequested) ; onFinalBoundary reçoit alors l'instant où la section suivante doit démarrer.
+  const chainHooks = (opts && opts.chain) || null;
+  let chainStartAt = null, chainFinishRequested = false, chainCutTimer = null, chainSkipIntro = false;
+  let chainGens = [], chainEmbrLoops = 0, chainEmbrMarker = null; // ce qui a été programmé : position dans le fichier et tempo à cet instant
+  function chainNoteGen(at, offset, secondsPerBeat, beatsPerBar, limit) {
+    if (chainHooks) chainGens.push({ at, offset, secondsPerBeat, beatsPerBar, limit });
+  }
+  function engineStartTime() {
+    if (chainStartAt == null) return startSoon();
+    const when = Math.max(chainStartAt, ctx.currentTime + 0.005);
+    chainStartAt = null;
+    return when;
+  }
   // Fin naturelle d'un morceau lancé par programme (Carte de niveau, écoute aléatoire des albums) : lpEndedCb est appelée une seule fois quand
   // le morceau se termine TOUT SEUL ; un arrêt demandé (Stop, pause, autre morceau) lève lpManualStop et ne l'appelle pas.
   let lpEndedCb = null, lpManualStop = false;

@@ -63,6 +63,8 @@ function captureMark(name, detail) {
 }
 // captureExtra : détails utiles à la seule capture vidéo (jamais envoyés aux statistiques).
 function trackPublicEvent(name, detail, captureExtra) {
+  // Section d'un séquentiel hybride : les statistiques comptent le morceau d'origine.
+  if (detail && typeof detail.trackId === 'string' && detail.trackId.includes('~')) detail = Object.assign({}, detail, { trackId: detail.trackId.split('~')[0] });
   captureMark(name, captureExtra ? Object.assign({}, detail, captureExtra) : detail);
   try {
     if (!window.umami) return;

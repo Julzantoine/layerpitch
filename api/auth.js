@@ -272,7 +272,21 @@
     return error ? { sales: null, error: error.message } : { sales: data, error: null };
   }
 
-  window.LayerPitchAuth = { getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
+  // « Connecter un assistant » (3/11, migrations 20261102010000 et 20261103010000) : { open, tokens, limits } ; open=false tant que le feu vert est fermé.
+  async function getAssistantStatus() {
+    const { data, error } = await getClient().rpc('my_assistant_status');
+    return error ? { status: null, error: error.message } : { status: data, error: null };
+  }
+  async function createAssistantToken(label, days) {
+    const { data, error } = await getClient().rpc('create_assistant_token', { p_label: label, p_days: days });
+    return error ? { token: null, error: error.message } : { token: data, error: null };
+  }
+  async function revokeAssistantToken(id) {
+    const { error } = await getClient().rpc('revoke_assistant_token', { p_id: id });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  window.LayerPitchAuth = { getAssistantStatus, createAssistantToken, revokeAssistantToken, getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
     getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,

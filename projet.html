@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793095617212">
-<link rel="stylesheet" href="player.css?v=1793095617212">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793868006226">
+<link rel="stylesheet" href="player.css?v=1793868006226">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -166,6 +166,9 @@
   .choice input { width: auto; margin: 0; }
   @media (max-width: 560px) { .bubble { max-width: 100%; } .grid { grid-template-columns: 1fr; } }
   /* Mode démonstration (?demo) : lecture seule. La discussion et la barre latérale restent visibles mais inertes. */
+  /* Même bandeau que les leçons du Backstage : une fine bande bleue, le texte et « Quitter » ; la leçon se lance depuis le menu des tutos. */
+  .tuto-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border: 1px solid #b9d3ec; border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; font-size: 12px; color: #1d4a73; }
+  .tuto-banner .btn { padding: 3px 10px; font-size: 12px; }
   .demo-banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--text); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
   body.demo #chat { pointer-events: none; opacity: .55; user-select: none; }
   .demo-shell { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; background: #eceef2; border-right: 1px solid var(--border); padding: 18px 14px; overflow: auto; pointer-events: none; user-select: none; opacity: .6; }
@@ -185,27 +188,29 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793095617212"></script>
-<script src="layerpitch-notify.js?v=1793095617212"></script>
-<script src="player.js?v=1793095617212"></script>
-<script src="api/supabase-client.js?v=1793095617212"></script>
-<script src="api/auth.js?v=1793095617212"></script>
-<script src="layerpitch-appearance.js?v=1793095617212"></script>
-<script src="layerpitch-shell.js?v=1793095617212"></script>
-<script src="api/tracks.js?v=1793095617212"></script>
-<script src="api/packs.js?v=1793095617212"></script>
-<script src="api/albums.js?v=1793095617212"></script>
-<script src="api/studio.js?v=1793095617212"></script>
-<script src="api/adreels.js?v=1793095617212"></script>
-<script src="api/demo-client.js?v=1793095617212"></script>
-<script src="api/demo-projects.js?v=1793095617212"></script>
-<script src="layerpitch-guide.js?v=1793095617212"></script>
-<script src="projet-lecons.js?v=1793095617212"></script>
-<script src="layerpitch-video-versions.js?v=1793095617212"></script>
-<script src="api/projects.js?v=1793095617212"></script>
-<script src="api/sfx.js?v=1793095617212"></script>
-<script src="projet-carte-audio.js?v=1793095617212"></script>
-<script src="projet-carte.js?v=1793095617212"></script>
+<script src="layerpitch-i18n.js?v=1793868006226"></script>
+<script src="layerpitch-notify.js?v=1793868006226"></script>
+<script src="player.js?v=1793868006226"></script>
+<script src="api/supabase-client.js?v=1793868006226"></script>
+<script src="api/auth.js?v=1793868006226"></script>
+<script src="layerpitch-appearance.js?v=1793868006226"></script>
+<script src="layerpitch-shell.js?v=1793868006226"></script>
+<script src="api/tracks.js?v=1793868006226"></script>
+<script src="api/packs.js?v=1793868006226"></script>
+<script src="api/albums.js?v=1793868006226"></script>
+<script src="api/studio.js?v=1793868006226"></script>
+<script src="api/adreels.js?v=1793868006226"></script>
+<script src="api/demo-client.js?v=1793868006226"></script>
+<script src="api/demo-projects.js?v=1793868006226"></script>
+<script src="layerpitch-tuto.js?v=1793868006226"></script>
+<script src="layerpitch-guide.js?v=1793868006226"></script>
+<script src="layerpitch-lesson-previews.js?v=1793868006226"></script>
+<script src="projet-lecons.js?v=1793868006226"></script>
+<script src="layerpitch-video-versions.js?v=1793868006226"></script>
+<script src="api/projects.js?v=1793868006226"></script>
+<script src="api/sfx.js?v=1793868006226"></script>
+<script src="projet-carte-audio.js?v=1793868006226"></script>
+<script src="projet-carte.js?v=1793868006226"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -218,12 +223,12 @@ const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k)
 // qui restent fermées : tout passe par les RPC). Tous les droits sont vérifiés côté serveur.
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo'); // Projet de démonstration public, en lecture seule
-// MODE TUTORIEL (?tuto, 20/10) : Projet fictif « Alone in the Barque » sur un faux serveur local (api/demo-projects.js), où l'on peut
+// MODE TUTORIEL (?tuto, 20/10) : Projet fictif « Music City » sur un faux serveur local (api/demo-projects.js), où l'on peut
 // écrire librement ; rien n'est enregistré, tout repart de zéro au rechargement. Fermé au public tant que Jules-Antoine ne l'a pas
 // ouvert (comme le tutoriel du Backstage) : seul un admin réellement connecté y entre. Pour ouvrir à tous : tutoPublicOpen() -> true.
 const TUTO = params.has('tuto') && !DEMO;
 const tutoReady = TUTO ? window.LayerPitchTuto.enter('./projets.html', { adminOnly: true }) : Promise.resolve(); // porte d'entrée unique : layerpitch-tuto.js
-const projectId = params.get('id') || (DEMO ? 'demo' : (TUTO ? 'demo-barque' : null));
+const projectId = params.get('id') || (DEMO ? 'demo' : (TUTO ? 'demo-music-city' : null));
 const pageLang = (params.get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
 function tr(key, vars) {
   const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, projects: {} }, en: { shared: {}, projects: {} } };
@@ -255,7 +260,7 @@ function demoProjects() {
   };
   return new Proxy(realPJ, { get: (t, k) => k in reads ? reads[k] : (typeof t[k] === 'function' ? async () => demoBlocked() : t[k]) });
 }
-const PJ = DEMO ? demoProjects() : (TUTO ? window.LayerPitchDemoProjects.create({ seedMap: ['pj-map-music', 'pj-map-walk'].includes(params.get('lesson')), seedMontage: params.get('lesson') === 'pj-annotate' }) : realPJ);
+const PJ = DEMO ? demoProjects() : (TUTO ? window.LayerPitchDemoProjects.create({ seedMap: ['pj-map-music', 'pj-map-walk'].includes(params.get('lesson')), seedMapMusic: params.get('lesson') === 'pj-map-walk', seedVitrine: params.get('lesson') === 'pj-vitrine', seedVitrineBuilt: params.get('lesson') === 'pj-vitrine-look', seedMontage: params.get('lesson') === 'pj-annotate' }) : realPJ);
 const clock = s => { s = Math.max(0, Math.floor(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const content = $('content');
 const S = { tab: 'board', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
@@ -263,6 +268,8 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
 const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
+// Les leçons se lancent depuis le menu des tutos (?lesson=…) ; exposées pour les tests, qui les enchaînent sur une seule page.
+if (TUTO) window.LayerPitchTutoLessons = TUTO_LESSONS;
 // ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « Sans section » ----
 // S.sections = { sections: [{ id, parentId, title, position }], links: [{ sectionId, assetId }] }, ou null tant que le feu vert
 // 'project_sections' est fermé (ou en démonstration) : alors rien n'apparaît. S.sel = 'all' | 'none' | identifiant de section.
@@ -794,7 +801,7 @@ const TABS = ['board', 'map', 'videos', 'images', 'music', 'showcase', 'activity
 function render() {
   const p = S.project;
   content.innerHTML = `
-    ${TUTO ? `<div class="demo-banner"><span>${esc(tr('tutoBannerText'))}</span><span class="bar" style="gap:6px">${TUTO_LESSONS.list.filter(l => l.page === 'projet' && !l.soon).map(l => `<button class="btn" type="button" data-tutolesson="${esc(l.id)}">${esc(tr(l.titleKey))}</button>`).join('')}<a class="btn primary" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></span></div>` : ''}
+    ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
     ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
@@ -1947,7 +1954,7 @@ async function renderShowcase(panel) {
             ? (admin ? esc(tr('vitrineSecretLink')) + ' : ' + `<a href="${esc(vitrineUrl(v))}" target="_blank" rel="noopener">${esc(vitrineUrl(v))}</a>` : esc(tr('vitrineSecretAdminOnly')))
             : `<a href="${esc(vitrineUrl(v))}" target="_blank" rel="noopener">${esc(vitrineUrl(v))}</a>${v.published ? '' : ' · ' + esc(tr('vitrineNotYetOnline'))}`}</div></div>
         <button class="btn" type="button" data-edit="${esc(v.id)}">${esc(tr('edit'))}</button>
-        <a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>
+        <a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}${TUTO ? '&tuto' : ''}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>
         <button class="btn" type="button" data-stats="${esc(v.id)}">${esc(tr('vitrineStats'))}</button>
         ${admin && v.audience === 'publisher' ? `<button class="btn" type="button" data-copy="${esc(v.id)}">${esc(tr('copyLink'))}</button><button class="btn" type="button" data-renew="${esc(v.id)}">${esc(tr('renewLink'))}</button>` : ''}
         ${admin || !v.published ? `<button class="btn danger" type="button" data-delv="${esc(v.id)}">${esc(tr('delete'))}</button>` : ''}
@@ -2037,7 +2044,7 @@ async function renderVitrineEditor(panel) {
       <div id="vBlocks"></div>
       <div class="bar" style="margin-top:10px">${VITRINE_BLOCK_TYPES.map(k => `<button class="btn" type="button" data-addblock="${k}">+ ${esc(tr('vblock_' + k))}</button>`).join('')}</div>
     </div>
-    <div class="card"><div class="bar"><button class="btn primary" type="button" id="vSave">${esc(tr('save'))}</button>${v.id ? `<a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>` : ''}</div><div class="msg" id="vMsg2"></div></div>`;
+    <div class="card"><div class="bar"><button class="btn primary" type="button" id="vSave">${esc(tr('save'))}</button>${v.id ? `<a class="btn" href="vitrine.html?id=${encodeURIComponent(v.id)}&lang=${pageLang}${TUTO ? '&tuto' : ''}" target="_blank" rel="noopener">${esc(tr('vitrinePreview'))}</a>` : ''}</div><div class="msg" id="vMsg2"></div></div>`;
   const collect = () => {
     v.audience = (panel.querySelector('[name="vAud"]:checked') || {}).value || v.audience;
     v.title = $('vTitle2').value; v.subtitle = $('vSub').value;
@@ -2049,15 +2056,16 @@ async function renderVitrineEditor(panel) {
     v.theme.bgImageOpacity = Number($('vBgOp').value);
     v.theme.separator = Object.assign({ color: '#E2E2E6', thickness: 1 }, v.theme.separator || {}, { visible: $('vSep').checked });
   };
-  panel.querySelectorAll('[name="vAud"]').forEach(r => r.onchange = () => { collect(); renderVitrineEditor(panel); });
+  // syncVitrineBlocks avant chaque redessin : sinon le texte tapé dans les blocs (texte, liens, légende) est perdu.
+  panel.querySelectorAll('[name="vAud"]').forEach(r => r.onchange = () => { collect(); syncVitrineBlocks(panel); renderVitrineEditor(panel); });
   $('vBack').onclick = () => { S.vitrineDraft = null; renderShowcase(panel); };
   if ($('vFromReel')) $('vFromReel').onchange = e => {
     const a = S.myAdReels.find(x => x.id === e.target.value); if (!a) return;
-    collect(); v.theme = JSON.parse(JSON.stringify(a.profile.theme)); // copie unique, jamais un lien (décision du 28/09)
+    collect(); syncVitrineBlocks(panel); v.theme = JSON.parse(JSON.stringify(a.profile.theme)); // copie unique, jamais un lien (décision du 28/09)
     renderVitrineEditor(panel); window.LayerPitchNotify.info(tr('appearanceCopied', { title: a.label || a.id }));
   };
   panel.querySelectorAll('[data-addblock]').forEach(b => b.onclick = () => {
-    collect();
+    collect(); syncVitrineBlocks(panel);
     const k = b.dataset.addblock;
     v.blocks.push(Object.assign({ id: newBlockId(), type: k }, VITRINE_KINDS[k] ? { assetIds: [] } : {}, k === 'links' ? { links: [{ label: '', url: '' }] } : {}, k === 'text' ? { title: '', content: '', align: 'left' } : {}));
     renderVitrineEditor(panel);
@@ -2197,7 +2205,6 @@ function lockDemo() {
   });
   document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
 }
-if (TUTO) content.addEventListener('click', e => { const b = e.target.closest('[data-tutolesson]'); if (b) TUTO_LESSONS.start(b.dataset.tutolesson); });
 if (DEMO) {
   document.body.classList.add('demo');
   // Les onglets se dessinent après coup (données chargées, images) : on reverrouille à chaque changement.

@@ -163,7 +163,8 @@ function initCookieBanner() {
   function hide() { banner.hidden = true; if (reopenBtn) reopenBtn.hidden = false; }
   function show() { banner.hidden = false; if (reopenBtn) reopenBtn.hidden = true; }
   const consent = getCookieConsent();
-  if (consent) { apply(consent.choice); hide(); } else { show(); }
+  // Lecteur ouvert dans l'annuaire (from=directory) : pas de bandeau par-dessus les morceaux ; sans choix mémorisé, Clarity reste éteint.
+  if (consent) { apply(consent.choice); hide(); } else if (new URLSearchParams(location.search).get('from') !== 'directory') { show(); }
   const acceptBtn = document.getElementById('cookieAcceptBtn');
   const refuseBtn = document.getElementById('cookieRefuseBtn');
   if (acceptBtn) acceptBtn.addEventListener('click', () => { setCookieConsent('accepted'); apply('accepted'); hide(); });

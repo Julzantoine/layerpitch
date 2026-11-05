@@ -47,7 +47,7 @@ function albumAutoTakeOpen() { return typeof isTutoMode === 'function' && isTuto
 function albumEditorConfig(al) {
   const A = () => window.LayerPitchAlbums;
   return {
-    tracks: () => library.map(t => ({ id: t.id, title: t.title || t.id })),
+    tracks: () => library.filter(t => !t.exampleSourceId).map(t => ({ id: t.id, title: t.title || t.id })), // jamais d'exemple dans un album (4/11)
     trackTitle: albumTrackTitle,
     mediaBase: MEDIA_BASE + 'images/',
     // Version officielle automatique : admin seulement (nouvelles fonctions, feu vert pas encore donné) ; dans le tutoriel, pour un admin seulement

@@ -6,68 +6,8 @@
    Réservé au feu vert bulk_drop (même famille que les dépôts groupés). Décisions : layerpitch-docs/decisions/2026-10-11-mcp-et-import-de-dossier.md.
    Volontairement : seuls les fichiers de la RACINE du dossier sont importés ; les sous-dossiers sont signalés, pas
    avalés (un dossier « V2 » ne doit pas doubler les couches). */
-const FOLDER_IMPORT_MODES = ['vertical-random', 'vertical', 'sequential', 'embranchement-vertical'];
-const FOLDER_IMPORT_AUDIO_RE = /\.(wav|mp3)$/i;
-// Un fichier « Transition #1.wav » : audio joué à la bascule vers une boucle d'un embranchement (11/10, dossier réel de
-// Jules-Antoine : « #1 … », « #2 … », « Transition #1 », « Transition #2 »).
-function isTransitionFile(name) {
-  return /(?:^|[^a-z0-9])transitions?(?:$|[^a-z0-9])/i.test((name || '').replace(/\.[^/.]+$/, ''));
-}
-// Numéro « #N » (ou « 1. » en tête) d'un nom, pour relier une transition à sa boucle.
-// Le numéro doit être isolé : « #1bis_SecretLever_Transition » n'est PAS le « #1 » d'une boucle (11/10, dossier RobotAdventure).
-function folderImportNumber(name) {
-  const m = (name || '').match(/#\s*(\d+(?:[.,]\d+)?)(?![A-Za-z0-9])/) || (name || '').match(/^\s*(\d+)\s*[.\-_ ]/);
-  return m ? m[1].replace(',', '.') : null;
-}
-// Boucles + transitions rattachées : par numéro commun, puis par ordre pour les transitions restantes.
-function pairLoopsWithTransitions(files) {
-  const transitions = files.filter(f => isTransitionFile(f.name));
-  const loops = files.filter(f => !isTransitionFile(f.name));
-  if (!loops.length) return { loops: files, transitions: [], pairs: [] };
-  const taken = new Set();
-  const pairs = loops.map(l => {
-    const n = folderImportNumber(l.name);
-    const t = n && transitions.find(x => !taken.has(x) && folderImportNumber(x.name) === n);
-    if (t) taken.add(t);
-    return { loop: l, transition: t || null };
-  });
-  const rest = transitions.filter(t => !taken.has(t));
-  pairs.forEach(pr => { if (!pr.transition && rest.length) pr.transition = rest.shift(); });
-  return { loops, transitions, pairs, unassigned: rest };
-}
 if (typeof window !== 'undefined') { window.isTransitionFile = isTransitionFile; window.folderImportNumber = folderImportNumber; window.pairLoopsWithTransitions = pairLoopsWithTransitions; }
-const folderImportByName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
-// Structure la plus probable pour un dossier, avec la raison (affichée au compositeur). Pure : testée sans page.
-// Ordre : le nom du dossier d'abord (il l'a écrit), puis l'intensité dans les noms, puis les alternatives numérotées,
-// puis une intro/outro, sinon une couche par fichier.
-function guessFolderStructure(folderName, files) {
-  const n = nameFamilyKey(folderName || '');
-  if (/embranch|branching/.test(n)) return { mode: 'embranchement-vertical', why: 'name' };
-  if (/random|aleatoire/.test(n) && /vertical|layer|couche/.test(n)) return { mode: 'vertical-random', why: 'name' };
-  if (/sequenti/.test(n)) return { mode: 'sequential', why: 'name' };
-  if (/layer|vertical|couche/.test(n)) return { mode: 'vertical', why: 'name' };
-  // Des transitions rattachées à des boucles : un embranchement. Prudence : « Transition » est aussi un nom courant dans
-  // un séquentiel (« #1bis_SecretLever_Transition »), donc : jamais avec intro/outro, et seulement si chaque transition
-  // porte le numéro d'une boucle ou si le dossier n'a pas de familles d'alternatives.
-  const transFiles = files.filter(f => isTransitionFile(f.name)), otherFiles = files.filter(f => !isTransitionFile(f.name));
-  if (transFiles.length && otherFiles.length && !otherFiles.some(f => guessSequentialRole(f.name) !== 'segment')) {
-    const loopNumbers = new Set(otherFiles.map(f => folderImportNumber(f.name)).filter(Boolean));
-    const allNumbered = transFiles.every(t => { const n = folderImportNumber(t.name); return n && loopNumbers.has(n); });
-    if (allNumbered) return { mode: 'embranchement-vertical', why: 'transitions' };
-    // Une transition qui ne porte le numéro d'aucune boucle : embranchement, ou séquentiel avec une bifurcation ? Rien ne
-    // le dit dans les noms -> on le demande, on ne présélectionne rien (RobotAdventure : séquentiel à embranchement).
-    if (!groupFilesByNameFamily(otherFiles, false).groups.some(x => x.files.length >= 2)) return { mode: 'vertical', why: 'transitionsUnclear' };
-  }
-  // Un seul fichier (21/10) : un morceau statique, une seule piste -- ni couches, ni étapes, ni boucles à empiler.
-  if (files.length === 1) return { mode: 'static', why: 'single' };
-  const intensity = files.filter(f => /(?:^|[^a-z])(?:low|med|medium|mid|high)[\s_-]?intensit|intensit/i.test(f.name)).length;
-  if (files.length >= 2 && intensity >= 2) return { mode: 'vertical', why: 'intensity' };
-  const g = groupFilesByNameFamily(files, true);
-  if (g.groups.some(x => x.files.length >= 2)) return { mode: 'vertical-random', why: 'variants' };
-  if (g.intro || g.outro) return { mode: 'sequential', why: 'introOutro' };
-  return { mode: 'vertical', why: 'default' };
-}
 if (typeof window !== 'undefined') window.guessFolderStructure = guessFolderStructure;
 
 // ---- Lecture d'un dossier : glisser-déposer (entrées du système de fichiers) ou sélecteur de dossier ----
@@ -135,6 +75,8 @@ function newFolderImportTrack(title, mode) {
   if (mode === 'embranchement-vertical') { t.bpm = 120; t.beatsPerBar = 4; t.loops = []; }
   return t;
 }
+// Import déposé par un assistant (3/11) : appelé une fois, quand le morceau est créé (16b-imports-en-attente.js efface alors la zone d'attente).
+let activeFolderImport = null;
 function registerImportedTrack(track, fileCount) {
   library.push(track);
   manageLibrarySelectedId = track.id;
@@ -143,24 +85,8 @@ function registerImportedTrack(track, fileCount) {
   renderLibrary();
   if (blockTracksRefresh) blockTracksRefresh(); packTracksRefreshers.forEach(fn => fn());
   window.LayerPitchNotify.info(tr('importFolderDone', { title: track.title, n: fileCount }));
-}
-// Slots du séquentiel : « Door #1.1 », « Door #1.2 » forment le slot « Door #1 » (variations) ; « Door #2 » est un autre slot.
-// Plus fin que la famille de noms des pools, qui réunirait « Door #1 » et « Door #2 » en un seul groupe.
-function groupFilesBySequentialSlot(files) {
-  let intro = null, outro = null;
-  const order = [], bySlot = new Map();
-  files.forEach(f => {
-    const role = guessSequentialRole(f.name);
-    if (role === 'intro' && !intro) { intro = f; return; }
-    if (role === 'outro' && !outro) { outro = f; return; }
-    const base = titleFromFilenameStrippingHints(f.name);
-    const m = base.match(/^(.*\d)\s*[.,]\s*\d+$/);
-    const label = m ? m[1].trim() : base;
-    const key = nameFamilyKey(label);
-    if (!bySlot.has(key)) { bySlot.set(key, { label, files: [] }); order.push(key); }
-    bySlot.get(key).files.push(f);
-  });
-  return { intro, outro, groups: order.map(k => bySlot.get(k)) };
+  const done = activeFolderImport; activeFolderImport = null;
+  if (done) done();
 }
 if (typeof window !== 'undefined') window.groupFilesBySequentialSlot = groupFilesBySequentialSlot;
 
@@ -432,7 +358,11 @@ function openFolderImportDialog(folder) {
   // Jules-Antoine : « le moteur croit toujours que c'est du layering »). Le défaut vertical n'est qu'un repli interne.
   // Décision du 11/10 : on ne présélectionne QUE si le nom du dossier le dit ; toute autre devinette est une suggestion
   // affichée, que le compositeur accepte d'un clic (chaque compositeur nomme ses fichiers à sa manière).
-  const noClue = guess.why !== 'name';
+  // Dossier déposé par un assistant (3/11) : la structure qu'il propose est présélectionnée, modifiable comme toute proposition.
+  const preset = folder.presetMode || null;
+  if (preset) { guess.mode = preset; guess.why = 'assistant'; }
+  activeFolderImport = folder.onRegistered || null; // un import manuel ultérieur n'efface jamais une zone d'attente
+  const noClue = !preset && guess.why !== 'name';
   const state = { mode: noClue ? '' : guess.mode, title: folder.name || titleFromFilename(files[0].name) };
   const overlay = document.createElement('div');
   overlay.className = 'vrs-batch-overlay';
@@ -451,7 +381,7 @@ function openFolderImportDialog(folder) {
       <input type="text" data-fi="title" value="${escapeAttr(state.title)}">
       <label style="margin-top:12px">${tr('importFolderStructureLabel')}</label>
       <select data-fi="mode">${noClue ? `<option value="" selected>${tr('importFolderChoosePlaceholder')}</option>` : ''}${(files.length === 1 ? ['static', ...FOLDER_IMPORT_MODES] : FOLDER_IMPORT_MODES).map(m => `<option value="${m}"${m === state.mode ? ' selected' : ''}>${tr(optionLabel[m])}</option>`).join('')}</select>
-      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr('importFolderWhy_name') })
+      <div class="hint-inline">${!noClue ? tr('importFolderGuess', { why: tr(preset ? 'importFolderWhy_assistant' : 'importFolderWhy_name') })
         : (guess.why === 'default' ? tr('importFolderNoClue')
         : (guess.why === 'transitionsUnclear' ? tr('importFolderNoClueTransition')
         : tr('importFolderSuggestion', { mode: tr(optionLabel[guess.mode]), why: tr('importFolderWhy_' + guess.why) })))}

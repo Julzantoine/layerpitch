@@ -40,6 +40,8 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     renderSfxLibrary();
     return;
   }
+  const packFromFolderBtn = e.target.closest('[data-action="pack-from-sfx-folder"]');
+  if (packFromFolderBtn) { createPackFromFolder('sfx', packFromFolderBtn.dataset.folderId); return; }
   const folderDeleteBtn = e.target.closest('[data-action="delete-sfx-folder"]');
   if (folderDeleteBtn) {
     const fid = folderDeleteBtn.dataset.folderId;
@@ -53,6 +55,7 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
   const protectBtn = e.target.closest('[data-action="toggle-sfx-protection"]');
   if (protectBtn) {
     const sfx = sfxLibrary[parseInt(protectBtn.dataset.si, 10)];
+    if (isExample(sfx)) { window.LayerPitchNotify.error(tr('exampleNoProtect')); return; }
     const target = !sfx.protected;
     if (!await window.LayerPitchNotify.confirm(tr(target ? 'sfxProtectConfirm' : 'sfxUnprotectConfirm', { title: sfx.title || sfx.id }), { okLabel: tr(target ? 'trackProtectBtn' : 'trackUnprotectBtn') })) return;
     protectBtn.disabled = true; protectBtn.textContent = tr('trackProtectBusy');

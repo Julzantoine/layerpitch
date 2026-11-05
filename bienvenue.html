@@ -87,11 +87,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793095617212"></script>
-<script src="api/supabase-client.js?v=1793095617212"></script>
-<script src="api/auth.js?v=1793095617212"></script>
-<script src="api/subscriptions.js?v=1793095617212"></script>
-<script src="api/access-requests.js?v=1793095617212"></script>
+<script src="layerpitch-i18n.js?v=1793868006226"></script>
+<script src="api/supabase-client.js?v=1793868006226"></script>
+<script src="api/auth.js?v=1793868006226"></script>
+<script src="api/subscriptions.js?v=1793868006226"></script>
+<script src="api/access-requests.js?v=1793868006226"></script>
 <script>
 const urlLang = new URLSearchParams(location.search).get('lang');
 const pageLang = urlLang === 'en' ? 'en' : 'fr';
@@ -120,7 +120,10 @@ function tr(key) {
   const I18N = window.LAYERPITCH_I18N || { fr: { welcome: {} }, en: { welcome: {} } };
   const dict = I18N[currentLang()] || I18N.fr;
   const dictFr = I18N.fr;
-  return (dict.welcome && dict.welcome[key]) || (dictFr.welcome && dictFr.welcome[key]) || key;
+  // shared porte les textes communs à toutes les pages (bandeau cookies notamment) : sans ce repli,
+  // le bandeau affichait ses clés brutes (cookieBannerTitle…) au lieu des phrases.
+  return (dict.welcome && dict.welcome[key]) || (dict.shared && dict.shared[key])
+    || (dictFr.welcome && dictFr.welcome[key]) || (dictFr.shared && dictFr.shared[key]) || key;
 }
 document.documentElement.lang = currentLang();
 document.querySelectorAll('[data-i18n]').forEach(el => { const v = tr(el.dataset.i18n); if (v) el.textContent = v; });

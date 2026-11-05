@@ -1,0 +1,38 @@
+# LayerPitch (beta.layerpitch.com) — consignes aux robots (27/10, chantier SEO/GEO, décision de Jules-Antoine) :
+# moteurs de recherche et IA qui CHERCHENT pour citer : bienvenus ; robots qui aspirent le contenu pour ENTRAÎNER une IA : refusés.
+# Les pages d'un AdReel ne sont servies aux moteurs que si sa case « Indexable » est cochée (voir cloudflare/LISEZMOI.md).
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://beta.layerpitch.com/sitemap-adreels.xml

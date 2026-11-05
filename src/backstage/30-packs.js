@@ -24,6 +24,7 @@ function renderPacks() {
           <button class="btn btn-icon btn-toggle-collapse" data-action="toggle-collapse-pack" data-pi="${pi}" type="button">${packCollapsed ? '▸' : '▾'}</button>
           <input type="text" class="seq-header-title" data-pack-field="title" data-pi="${pi}" value="${escapeAttr(pack.title)}" placeholder="${tr('packFallback', { n: pi + 1 })}">
           ${packKindBadge}
+          ${isExample(pack) ? exampleBadgeHtml() : ''}
         </div>
         <button class="btn btn-small btn-danger" data-action="remove-pack" data-pi="${pi}">${tr('deleteBtn')}</button>
       </div>
@@ -214,16 +215,22 @@ function renderPacks() {
         f => { pack.pendingWatermark = f; hasUnsavedEdits = true; }, () => pack.watermarkOriginalName);
     }
     if (entrySel === 'distribution') {
+      // Pack d'exemple (4/11) : ni vente, ni catalogue, ni page publique (refusé aussi en base) ; « Prévisualiser » marche.
+      if (isExample(pack)) {
+        detailEl.querySelectorAll('[data-pack-field="buyable"], [data-pack-field="catalogListed"], [data-pack-field="priceEurCents"], [data-pack-field="subscriberCatalog"], [data-pack-field="subscriberCredits"], [data-action="copy-pack-url"], [data-action="share-pack-url"], [data-action="embed-pack"], [data-action="publish-pack-social"]')
+          .forEach(c => { c.disabled = true; c.title = tr('examplePackNoPage'); });
+        detailEl.insertAdjacentHTML('afterbegin', `<div class="hint-inline lp-example-notice" style="margin:0 0 10px">${escapeHtml(tr('examplePackNotice'))}</div>`);
+      }
       const packUrlBox = detailEl.querySelector(`#packUrlBox_${pack.id}`);
       const packUrl = computePackUrl(pack.id);
-      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText());
+      packUrlBox.innerHTML = packUrl ? `<a href="${escapeAttr(packUrl)}" target="_blank" rel="noopener">${escapeHtml(packUrl)}</a>` : escapeHtml(adReelUrlMissingText(pack));
     }
     if (entrySel === 'content') {
       const selectorHost = detailEl.querySelector('[data-role="trackSelector"]');
-      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const refresh = buildTrackSelectorWidget(selectorHost, pack.trackIds, () => { hasUnsavedEdits = true; renderPacks(); }, undefined, isExample(pack));
       packTracksRefreshers.push(refresh);
       const sfxSelectorHost = detailEl.querySelector('[data-role="packSfxSelector"]');
-      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); });
+      const sfxRefresh = buildSfxSelectorWidget(sfxSelectorHost, pack.sfxIds, () => { hasUnsavedEdits = true; renderPacks(); }, isExample(pack));
       packSfxRefreshers.push(sfxRefresh);
     }
     container.appendChild(el);
@@ -245,8 +252,46 @@ function packPriceOptions(current) {
   return `<option value=""${current == null ? ' selected' : ''}>${tr('packPriceNone')}</option>` +
     values.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c === 0 ? tr('packPriceFree') : fmt.format(c / 100)}</option>`).join('');
 }
+function newPackObject() {
+  return { id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' };
+}
+// « Créer un pack avec ce dossier » (04/11) : copie unique -- le pack reçoit une fois les morceaux du dossier (dans
+// l'ordre de la liste) et tous les Sfx attachés à ces morceaux, sans doublon ; ensuite pack et dossier vivent chacun
+// leur vie. Depuis un dossier de Sfx : les Sfx du dossier seulement. Feu vert 'pack_from_folder' (admin d'abord).
+function createPackFromFolder(kind, folderId) {
+  if (!flagOpen('pack_from_folder')) return;
+  const folders = kind === 'sfx' ? sfxFolders : libraryFolders;
+  const folder = folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const pack = newPackObject();
+  if (folder.label && folder.label.trim()) pack.title = folder.label.trim();
+  // Exemples préchargés (4/11) : jamais dans un pack ordinaire (page publique) -- ils sont laissés de côté.
+  const knownSfx = new Set(sfxLibrary.filter(s => !isExample(s)).map(s => s.id));
+  if (kind === 'sfx') {
+    pack.sfxIds = sfxLibrary.filter(s => s.folderId === folderId && !isExample(s)).map(s => s.id);
+  } else {
+    const tracks = library.filter(t => t.folderId === folderId && !isExample(t));
+    pack.trackIds = tracks.map(t => t.id);
+    const seen = new Set();
+    tracks.forEach(t => (t.sfxIds || []).forEach(id => { if (knownSfx.has(id) && !seen.has(id)) { seen.add(id); pack.sfxIds.push(id); } }));
+  }
+  if (!pack.trackIds.length && !pack.sfxIds.length) {
+    window.LayerPitchNotify.info(tr('packFromFolderEmpty'));
+    return;
+  }
+  packs.push(pack);
+  packSelectedEntry.set(pack.id, 'content');
+  hasUnsavedEdits = true;
+  trackBackstageEvent('pack_add', { fromFolder: kind, tracks: pack.trackIds.length, sfx: pack.sfxIds.length });
+  renderPacks();
+  openTab('packs');
+  const blocks = document.querySelectorAll('#packsContainer > .list-block');
+  const last = blocks[blocks.length - 1];
+  if (last) last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.LayerPitchNotify.info(tr('packFromFolderDone', { tracks: pack.trackIds.length, sfx: pack.sfxIds.length }));
+}
 document.getElementById('btnAddPack').addEventListener('click', () => {
-  packs.push({ id: genId(), title: tr('defaultPackTitle'), illustration: null, pendingIllustration: null, watermark: null, pendingWatermark: null, presentationFr: '', presentationEn: '', buyable: false, buyUrl: '', priceEurCents: 1000, subscriberCredits: can('subscriber_catalog') ? 1 : null, catalogListed: true, freeDownloadEnabled: false, videoTestModeEnabled: false, bgColor: '#f5f6f8', textColor: '#24262b', font: 'default', trackIds: [], sfxIds: [], linkedAdReelId: '' });
+  packs.push(newPackObject());
   hasUnsavedEdits = true;
   trackBackstageEvent('pack_add', {});
   renderPacks();
@@ -281,7 +326,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (copyBtn) {
     const pi = parseInt(copyBtn.dataset.pi, 10);
     const url = computePackUrl(packs[pi].id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => { window.LayerPitchNotify.error(tr('copyFailedAlert')); });
@@ -295,7 +340,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const pi = parseInt(embedBtn.dataset.pi, 10);
     // Mode tutoriel : le compte fictif n'a pas d'adresse publique, on montre le code avec une adresse d'exemple.
     const embedUrl = computePackUrl(packs[pi].id) || (isTutoMode() ? 'https://beta.layerpitch.com/pack.html?id=' + encodeURIComponent(packs[pi].id) : '');
-    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!embedUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     openEmbedModal(`${embedUrl}&embed=1`, packs[pi].title, 'embedModalHintPack');
     return;
   }
@@ -309,7 +354,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
   if (shareBtn) {
     const pi = parseInt(shareBtn.dataset.pi, 10);
     const shareUrl = computePackUrl(packs[pi].id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const result = await shareViaSocialsOrFallback(shareUrl, packs[pi].title || 'LayerPitch');
     if (result === 'copied') {
       const original = shareBtn.textContent;
@@ -326,7 +371,7 @@ document.getElementById('packsContainer').addEventListener('click', async e => {
     const social = socials.find(s => s.id === publishBtn.dataset.socialId);
     if (!social) return;
     const publicUrl = computePackUrl(packs[pi].id);
-    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!publicUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(packs[pi])); return; }
     const url = buildSocialShareUrl(social.platform, publicUrl, tr('publishPackText', { title: packs[pi].title || '' }));
     if (url) { openSharePopup(url); trackBackstageEvent('social_publish_click', {}); }
     return;

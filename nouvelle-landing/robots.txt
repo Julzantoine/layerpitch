@@ -1,7 +1,7 @@
 # TEST : tant que la bascule n'est pas faite, rien ne doit être indexé (les pages portent aussi la balise noindex).
-# Le jour J : remplacer par les deux lignes ci-dessous et retirer les balises noindex des pages.
-#   User-agent: *
-#   Allow: /
-#   Sitemap: https://www.layerpitch.com/sitemap.xml
+# Le jour J : remplacer tout le fichier par le contenu de ../robots.txt (racine de l'appli) en changeant seulement la
+# dernière ligne en « Sitemap: https://www.layerpitch.com/sitemap.xml », puis retirer les balises noindex des pages.
+# Règle décidée le 27/10 : IA qui CHERCHENT pour citer = bienvenues ; robots d'ENTRAÎNEMENT (GPTBot, ClaudeBot,
+# Google-Extended, CCBot…) = refusés.
 User-agent: *
 Disallow: /

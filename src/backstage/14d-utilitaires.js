@@ -105,6 +105,7 @@ function trackNormalizeHtml(track, ti) {
 // pack en vente). Bloc affiché dans l'onglet « Infos » de chaque morceau ; le déplacement est fait par l'Edge Function
 // set-track-protection (le morceau doit être publié).
 function trackProtectionHtml(track, ti) {
+  if (isExample(track)) return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label><div class="hint-inline">${tr('exampleNoProtect')}</div>`;
   const on = !!track.protected;
   return `<label style="margin-top:14px">${tr('trackProtectionLabel')}</label>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -117,6 +118,7 @@ function trackProtectionHtml(track, ti) {
 // Protection des fichiers d'un effet sonore (29/09) : même principe que les morceaux (voir trackProtectionHtml) ; les packs
 // restent consultables, ce qui est protégé c'est l'accès direct aux fichiers. Bloc de l'onglet « Identité » du Sfx.
 function sfxProtectionHtml(sfx, si) {
+  if (isExample(sfx)) return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label><div class="hint-inline">${tr('exampleNoProtect')}</div>`;
   const on = !!sfx.protected;
   return `<label style="margin-top:14px">${tr('sfxProtectionLabel')}</label>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">

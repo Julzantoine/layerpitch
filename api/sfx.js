@@ -14,7 +14,7 @@
   function reshapeSfx(row) {
     if (!row) return null;
     return {
-      id: row.id, folderId: row.folder_id, title: row.title, protected: !!row.protected,
+      id: row.id, folderId: row.folder_id, title: row.title, protected: !!row.protected, exampleSourceId: row.example_source_id || null,
       descriptionFr: row.description_fr, descriptionEn: row.description_en,
       tag: row.tag || '',
       rrMode: row.rr_mode, duckMainTrack: row.duck_main_track, base: row.base,
@@ -54,7 +54,7 @@
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { folders: null, error: error.message };
-    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label })), error: null };
+    return { folders: data.slice().sort((a, b) => (a.position || 0) - (b.position || 0)).map(f => ({ id: f.id, label: f.label, exampleSourceId: f.example_source_id || null })), error: null };
   }
 
   // payload : même forme qu'un Sfx de data.json (voir reshapeSfx ci-dessus pour le mapping inverse).

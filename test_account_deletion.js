@@ -29,7 +29,7 @@
     project_vitrines.created_by project_maps.created_by project_sections.created_by project_section_assets.added_by project_section_pins.pinned_by project_section_messages.author_id project_section_follows.profile_id project_appearance.updated_by projects.owner_profile_id projects.created_by studio_credit_ledger.actor_id studio_members.profile_id studio_profiles.profile_id
     profiles.id
     ad_reel_folders.owner_id ad_reels.owner_id admin_message_reads.composer_id analytics_events.owner_id collections.owner_id composer_handle_aliases.composer_id
-    composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id
+    assistant_tokens.composer_id pending_imports.composer_id composer_directory_tags.composer_id composer_videos.owner_id contact_messages.owner_id credit_payouts.composer_id invoices.composer_id packs.owner_id settings.owner_id sfx_folders.owner_id
     sfx_library.owner_id socials.owner_id track_folders.owner_id tracks.owner_id video_capture_versions.owner_id video_captures.owner_id video_export_history.owner_id
     composer_videos.owner_studio_id video_captures.owner_studio_id video_capture_versions.owner_studio_id video_export_history.owner_studio_id
     invoices.studio_id projects.owner_studio_id studio_credit_ledger.studio_id studio_custom_packs.studio_id studio_members.studio_id`.split(/\s+/).filter(Boolean));
@@ -118,11 +118,20 @@
   check('acheteur : peut encore lire l\'album vendu (droit d\'accès inchangé)', await (async () => { await as(2); return one(`select public.can_hear_track('tS')`); })());
 
   // ---- Blocages ----
+  // Les messages sont vérifiés en entier : « malformed array literal: "last_admin" » (bogue du 31/10) contient aussi le code.
+  const blockers = async () => { try { return (await one(`select public.account_deletion_status()->'blockers'`)).join(); } catch (e) { return 'ERREUR : ' + e.message; } };
   await as(5);
-  check('dernier administrateur : suppression bloquée', await fails(`select public.request_account_deletion('SUPPRIMER')`, [], /last_admin/));
+  check('dernier administrateur : l\'état se lit sans erreur et signale le blocage (seul admin, appel fait sur chaque page)', (await blockers()) === 'last_admin');
+  check('dernier administrateur : suppression bloquée', await fails(`select public.request_account_deletion('SUPPRIMER')`, [], /^Suppression impossible : last_admin$/));
+  await q(`insert into public.admins (profile_id) values ($1)`, [U(6)]);
+  check('deux administrateurs : plus de blocage', (await blockers()) === '');
+  await q(`delete from public.admins where profile_id = $1`, [U(6)]);
   await q(`insert into public.studio_members (studio_id, email, profile_id, status) values ($1, 'equipier@x.test', $2, 'active')`, [s4, U(6)]);
   await as(4);
-  check('studio avec un équipier actif : bloqué jusqu\'au transfert de propriété', await fails(`select public.request_account_deletion('SUPPRIMER')`, [], /studio_team/));
+  check('studio avec un équipier actif : l\'état se lit sans erreur et signale le blocage', (await blockers()) === 'studio_team');
+  check('studio avec un équipier actif : bloqué jusqu\'au transfert de propriété', await fails(`select public.request_account_deletion('SUPPRIMER')`, [], /^Suppression impossible : studio_team$/));
+  await as(1);
+  check('compte déjà supprimé : l\'état se lit sans erreur et signale le blocage', (await blockers()) === 'already_deleted');
   await as(2);
   check('acheteur simple (sans contenu) : peut demander', !!(await one(`select public.request_account_deletion('SUPPRIMER')`)));
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
