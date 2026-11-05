@@ -268,7 +268,8 @@ function openCapturePanel(file, opts) {
   let pendingBaseEvents = [];
   function refreshActionButtons() {
     setExportButtonsDisabled(lastEvents.length === 0);
-    if (montageListen) stopMontageListen(); // la frise a changé : l'écoute en cours n'est plus à jour
+    montageBuffer = null; montageGen++; // la frise a changé : la musique calculée n'est plus à jour
+    if (montageListen) stopMontageListen(); // ... ni l'écoute en cours
     else listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
     saveBtn.disabled = lastEvents.length === 0;
     // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
@@ -282,34 +283,64 @@ function openCapturePanel(file, opts) {
   // vidéo depuis la tête de lecture. Pause de la vidéo = fin de l'écoute. Une retouche de la frise demande une nouvelle écoute.
   const listenBtn = document.getElementById('videoCaptureListenBtn');
   let montageListen = null;
+  let montagePreparing = false;
+  // Musique du montage déjà calculée (05/11) : resservie tant que la frise ne change pas (vidée par refreshActionButtons), pour que
+  // la lecture de la vidéo et les sauts dans l'image relancent le son sans attendre un nouveau calcul.
+  let montageBuffer = null;
+  let montageGen = 0; // change à chaque retouche : un calcul lancé avant n'est pas gardé
   const stopMontageListen = () => {
     const l = montageListen; montageListen = null;
     if (l) l.stop();
     listenBtn.textContent = tr('captureListenBtn');
     listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
   };
-  listenBtn.addEventListener('click', async () => {
-    if (montageListen) { stopMontageListen(); return; }
-    if (videoCaptureState || !lastEvents.length) return;
+  async function startMontageListen() {
+    if (montageListen || montagePreparing || videoCaptureState || !lastEvents.length) return;
     if (versioning) versioning.stop(); // et l'inverse : une écoute de version en cours s'arrête
+    montagePreparing = true;
     listenBtn.disabled = true;
     listenBtn.textContent = tr('versioningPreparingListen');
     try {
-      const plan = window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan;
-      const buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+      let buffer = montageBuffer;
+      if (!buffer) {
+        const gen = montageGen;
+        const plan = window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan;
+        buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+        if (gen === montageGen) montageBuffer = buffer;
+      }
       const P = window.LayerPlayerCore;
       await P.resumeAudio();
       const ac = P.audioContext();
-      const src = ac.createBufferSource();
-      src.buffer = buffer;
-      src.connect(ac.destination);
-      const from = videoEl.currentTime || 0;
-      src.start(ac.currentTime + 0.05, Math.min(from, buffer.duration));
-      videoEl.play().catch(() => {});
+      let src = null;
+      // Source calée sur la position actuelle de l'image (au départ, puis à chaque saut dans la vidéo).
+      const playFromVideo = () => {
+        if (src) { src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ } }
+        const from = videoEl.currentTime || 0;
+        src = ac.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ac.destination);
+        src.start(ac.currentTime + 0.05, Math.min(from, buffer.duration));
+        src.onended = () => { if (montageListen) stopMontageListen(); };
+      };
+      playFromVideo();
+      // Attendre que l'image reparte AVANT d'écouter ses pauses : la pause posée par le bouton lecture de l'image (plus bas) arrive
+      // en retard et couperait aussitôt l'écoute (lecture → pause → lecture… en boucle).
+      await videoEl.play().catch(() => {});
+      if (videoEl.paused) { // lecture refusée par le navigateur, ou arrêtée entre-temps : pas de son sans image
+        src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ }
+        listenBtn.disabled = false; listenBtn.textContent = tr('captureListenBtn');
+        return;
+      }
       const onPause = () => stopMontageListen();
+      const onSeeked = () => { if (montageListen && !videoEl.paused) playFromVideo(); };
       videoEl.addEventListener('pause', onPause);
-      montageListen = { stop() { videoEl.removeEventListener('pause', onPause); try { src.stop(); } catch (e) { /* déjà arrêtée */ } if (!videoEl.paused) videoEl.pause(); } };
-      src.onended = () => { if (montageListen) stopMontageListen(); };
+      videoEl.addEventListener('seeked', onSeeked);
+      montageListen = { stop() {
+        videoEl.removeEventListener('pause', onPause);
+        videoEl.removeEventListener('seeked', onSeeked);
+        if (src) { src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ } }
+        if (!videoEl.paused) videoEl.pause();
+      } };
       listenBtn.disabled = false;
       listenBtn.textContent = tr('captureStopListenBtn');
     } catch (e) {
@@ -318,7 +349,24 @@ function openCapturePanel(file, opts) {
       listenBtn.textContent = tr('captureListenBtn');
       listenBtn.disabled = false;
       countEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
+    } finally {
+      montagePreparing = false;
     }
+  }
+  listenBtn.addEventListener('click', () => {
+    if (montageListen) { stopMontageListen(); return; }
+    startMontageListen();
+  });
+  // Bouton lecture de l'image (05/11, retour de Jules-Antoine : « je n'ai pas de son », la vidéo est muette et la musique ne partait
+  // qu'avec « Écouter le montage ») : lire la vidéo joue aussi le montage, depuis la tête de lecture. Rien ne change pendant une capture,
+  // une écoute de version (elles lancent l'image elles-mêmes) ou avec une frise vide. Réservé aux admins tant que le feu vert n'est pas donné.
+  videoEl.addEventListener('play', () => {
+    if (!window.__lpCaptureIsAdmin) return;
+    if (montageListen || montagePreparing || videoCaptureState || !lastEvents.length) return;
+    if (versioning && versioning.isListening && versioning.isListening()) return;
+    // L'image attend le son : startMontageListen la relance une fois la musique prête, au même endroit.
+    videoEl.pause();
+    startMontageListen();
   });
   // Fin de la vidéo pendant une prise (05/11, retour de Jules-Antoine) : la capture s'arrête toute seule, comme au clic sur « Arrêter
   // la capture » (la musique s'arrête aussi) -- sinon la musique continuait et la frise s'allongeait bien au-delà de l'image.
