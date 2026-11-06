@@ -137,10 +137,19 @@ function detachCapturePanel() {
   // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
   // passe déjà par closeCapturePanel() ci-dessus et vide capturePanelDetachedWindow avant d'appeler
   // .close() -- ce garde évite donc un double nettoyage dans ce cas).
+  // Depuis le 06/11 (demande de Jules-Antoine) : l'écran revient à sa place dans la page, attaché, au lieu de disparaître.
+  // Une prise en cours s'arrête proprement (comme au clic sur « Arrêter la capture ») pour garder ce qui a été joué.
   win.addEventListener('pagehide', () => {
     if (capturePanelDetachedWindow !== win) return;
     capturePanelDetachedWindow = null;
-    if (videoCaptureState) stopCapture();
+    if (videoCaptureState) {
+      const recordBtn = wrapper.querySelector('#videoCaptureRecordBtn');
+      if (recordBtn) recordBtn.click(); else stopCapture();
+    }
+    while (wrapper.firstChild) panel.appendChild(wrapper.firstChild); // les vrais nœuds reviennent, écouteurs compris
+    panel.classList.add('active');
+    document.body.classList.add('video-panel-active');
+    syncAtelierFullscreenButtons();
   });
 }
 
