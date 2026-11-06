@@ -633,9 +633,13 @@ document.getElementById('btnAddAdReel').addEventListener('click', () => openNewA
 document.getElementById('newAdReelCancel').addEventListener('click', () => {
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
 });
-document.getElementById('newAdReelOk').addEventListener('click', () => {
+document.getElementById('newAdReelOk').addEventListener('click', async () => {
   const label = document.getElementById('newAdReelLabel').value.trim();
   if (!label) { window.LayerPitchNotify.info(tr('giveNameAlert')); return; }
+  // Nom déjà pris (06/11, AdReel « Joris » créé deux fois à un jour d'écart sans le savoir) : on prévient
+  // avant de créer un second AdReel du même nom, au lieu de le créer en silence.
+  const sameName = adReels.find(a => (a.label || a.id).trim().toLowerCase() === label.toLowerCase());
+  if (sameName && !(await window.LayerPitchNotify.confirm(tr('adreelNameTakenConfirm', { label: sameName.label || sameName.id }), { okLabel: tr('adreelNameTakenCreateAnyway') }))) return;
   const sourceId = document.getElementById('newAdReelSource').value;
   const source = sourceId ? adReels.find(a => a.id === sourceId) : null;
   const imp = {
@@ -647,8 +651,11 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     extraBlocks: source && document.getElementById('importExtraBlocks').checked
   };
 
-  let id = slug(label);
-  if (!id || adReels.some(a => a.id === id)) id = genId();
+  // Identifiant lisible : « joris », puis « joris-2 », « joris-3 »… si déjà pris (avant : une suite de
+  // lettres au hasard comme « bmw410foj4ace8 », affichée telle quelle dans la liste des AdReels).
+  const baseId = slug(label);
+  let id = baseId;
+  for (let n = 2; adReels.some(a => a.id === id); n++) id = baseId + '-' + n;
 
   const profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
   if (imp.header && source) {
