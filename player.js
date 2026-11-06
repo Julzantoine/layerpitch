@@ -8466,9 +8466,19 @@ function buildSfxPlayer(sfxDef) {
     animateMainWaveProgress(buf.duration);
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    connectSfxSource(src, sfxDef);
-    src.start();
+    // Même départ précis que les Sfx de morceau (instant connu à l'avance), pour que l'atelier vidéo cale le son à l'échantillon près.
+    const startAt = ctx.currentTime + SFX_START_LEAD_SEC;
+    const spatialVoice = connectSfxSource(src, sfxDef, null, startAt);
+    src.start(startAt);
     activeSource = src;
+    // Capture vidéo (06/11, retour de Jules-Antoine : « tout ce sur quoi on clique est enregistré ») : un Sfx joué seul, sans
+    // morceau, laisse le même repère qu'un Sfx de morceau (stinger_play), sans trackId. Repère de capture seulement : rien
+    // n'est envoyé aux statistiques (pas de trackPublicEvent).
+    // variationIndex = rang parmi les variations qui ont un fichier (la liste que relit le calcul du rendu).
+    const withFile = alts.slice(0, i + 1).filter(a => a.file || a.localFile || a.localUrl).length - 1;
+    captureMark('stinger_play', Object.assign({ sfxId: sfxDef.id, variationIndex: Math.max(0, withFile), fileDuration: buf.duration, at: startAt },
+      spatialVoice && spatialVoice.stepIndex != null ? { spatialStep: spatialVoice.stepIndex } : {},
+      spatialVoice && spatialVoice.__spUsed ? { spatial: spatialVoice.__spUsed } : {}));
     src.onended = () => {
       if (activeSource === src) {
         activeSource = null;
