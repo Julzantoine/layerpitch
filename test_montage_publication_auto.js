@@ -1,6 +1,6 @@
 // Parcours « montage vidéo → AdReel » simplifié (06/11, décidé avec Jules-Antoine) : « Un de mes montages » dans le bloc vidéo, montage
 // enregistré tout seul dans l'atelier (plus de bouton « Sauvegarder »), publié par « Sauvegarder / publier » du Backstage (étape montage,
-// avant les AdReels), bouton « Publier le montage » seulement hors Backstage (studio), plus d'« Ajouter à la bibliothèque », textes FR + EN.
+// avant les AdReels), bouton « Publier le montage » seulement hors Backstage (studio), textes FR + EN.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 let failures = 0;
 const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
@@ -9,7 +9,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const atelier = read('atelier.html'), bs = read('layerpitch-backstage.html'), i18n = read('layerpitch-i18n.js'), lessons = read('atelier-lecons.js');
 
   // Atelier : enregistrement automatique
-  check('atelier : plus de bouton « Sauvegarder » ni « Ajouter à la bibliothèque »', !/id="videoCaptureSaveBtn"/.test(atelier) && !/videoCaptureAddToLibraryBtn/.test(atelier) && !/lastExportBlob/.test(atelier));
+  check('atelier : plus de bouton « Sauvegarder » (« Ajouter à la bibliothèque », avec son nom demandé, reste : demande du 06/11)', !/id="videoCaptureSaveBtn"/.test(atelier) && /id="videoCaptureAddToLibraryBtn"/.test(atelier) && /captureExportNamePrompt/.test(atelier));
   check('atelier : toute retouche planifie l\'enregistrement automatique (1,5 s), sans renvoyer ce qui n\'a pas changé',
     /scheduleAutosave\(\); \/\/ toute retouche/.test(atelier) && /setTimeout\(\(\) => \{ saveCaptureNow\(\)/.test(atelier, 1500) && /if \(key === lastSavedKey\) return;/.test(atelier) && /\}, 1500\);/.test(atelier));
   check('atelier : titre retouché = enregistrement automatique', /titleInput\.addEventListener\('input', scheduleAutosave\)/.test(atelier));

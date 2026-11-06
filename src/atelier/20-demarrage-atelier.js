@@ -144,6 +144,11 @@ async function init() {
         const t = (data.library || []).find(x => x.id === id);
         return (t && t.sfxIds) || [];
       })))],
+      // Autres packs du compositeur, proposés dans le Versioning (06/11) : pas côté studio, où le pack acheté n'ouvre pas le reste de son compte.
+      otherPacks: atelierAsStudio ? [] : (data.packs || []).filter(p => p.id !== packId).map(p => ({
+        id: p.id, title: p.title || p.id, trackIds: (p.trackIds || []).slice(),
+        sfxIds: [...new Set((p.sfxIds || []).concat(...(p.trackIds || []).map(id => { const t = (data.library || []).find(x => x.id === id); return (t && t.sfxIds) || []; })))],
+      })),
     };
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 

@@ -161,7 +161,7 @@
             <div class="hint-inline">${tr('silentAltHint')}</div>
             <div class="hint-inline">${tr('seqSlotBatchDropHint')}</div>
             <div class="eyebrow-block">
-              <div class="eyebrow-block-title">Variations de cet emplacement</div>
+              <div class="eyebrow-block-title">${tr('seqSlotVariationsTitle')}</div>
               ${altPoolToggleHtml(`slotpool:${ti}:${si}`, slot.alternatives.length)}
               <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`slotpool:${ti}:${si}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
                 <div data-role="slotAlternatives"></div>

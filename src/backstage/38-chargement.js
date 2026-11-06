@@ -206,6 +206,7 @@ async function loadData(silent) {
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack,
       spatial: s.spatial || null,
+      base: s.base || '', // dossier des fichiers (tutos : tuto/SFX/, exemples : celui de la source) -- lu par previewMediaBase()
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
       folderId: s.folderId || null
     }));
