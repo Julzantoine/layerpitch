@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793985523554">
-<link rel="stylesheet" href="player.css?v=1793985523554">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793987335236">
+<link rel="stylesheet" href="player.css?v=1793987335236">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -19,6 +19,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 24px 16px 60px; }
   .page { max-width: 1320px; margin: 0 auto; }
+  body.solo-map { padding: 10px 14px 0; } body.solo-map .page { max-width: none; } body.solo-map .page > .top { display: none; } /* carte détachée : toute la fenêtre */
   a { color: var(--accent); }
   .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .top-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
@@ -188,29 +189,29 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1793985523554"></script>
-<script src="layerpitch-notify.js?v=1793985523554"></script>
-<script src="player.js?v=1793985523554"></script>
-<script src="api/supabase-client.js?v=1793985523554"></script>
-<script src="api/auth.js?v=1793985523554"></script>
-<script src="layerpitch-appearance.js?v=1793985523554"></script>
-<script src="layerpitch-shell.js?v=1793985523554"></script>
-<script src="api/tracks.js?v=1793985523554"></script>
-<script src="api/packs.js?v=1793985523554"></script>
-<script src="api/albums.js?v=1793985523554"></script>
-<script src="api/studio.js?v=1793985523554"></script>
-<script src="api/adreels.js?v=1793985523554"></script>
-<script src="api/demo-client.js?v=1793985523554"></script>
-<script src="api/demo-projects.js?v=1793985523554"></script>
-<script src="layerpitch-tuto.js?v=1793985523554"></script>
-<script src="layerpitch-guide.js?v=1793985523554"></script>
-<script src="layerpitch-lesson-previews.js?v=1793985523554"></script>
-<script src="projet-lecons.js?v=1793985523554"></script>
-<script src="layerpitch-video-versions.js?v=1793985523554"></script>
-<script src="api/projects.js?v=1793985523554"></script>
-<script src="api/sfx.js?v=1793985523554"></script>
-<script src="projet-carte-audio.js?v=1793985523554"></script>
-<script src="projet-carte.js?v=1793985523554"></script>
+<script src="layerpitch-i18n.js?v=1793987335236"></script>
+<script src="layerpitch-notify.js?v=1793987335236"></script>
+<script src="player.js?v=1793987335236"></script>
+<script src="api/supabase-client.js?v=1793987335236"></script>
+<script src="api/auth.js?v=1793987335236"></script>
+<script src="layerpitch-appearance.js?v=1793987335236"></script>
+<script src="layerpitch-shell.js?v=1793987335236"></script>
+<script src="api/tracks.js?v=1793987335236"></script>
+<script src="api/packs.js?v=1793987335236"></script>
+<script src="api/albums.js?v=1793987335236"></script>
+<script src="api/studio.js?v=1793987335236"></script>
+<script src="api/adreels.js?v=1793987335236"></script>
+<script src="api/demo-client.js?v=1793987335236"></script>
+<script src="api/demo-projects.js?v=1793987335236"></script>
+<script src="layerpitch-tuto.js?v=1793987335236"></script>
+<script src="layerpitch-guide.js?v=1793987335236"></script>
+<script src="layerpitch-lesson-previews.js?v=1793987335236"></script>
+<script src="projet-lecons.js?v=1793987335236"></script>
+<script src="layerpitch-video-versions.js?v=1793987335236"></script>
+<script src="api/projects.js?v=1793987335236"></script>
+<script src="api/sfx.js?v=1793987335236"></script>
+<script src="projet-carte-audio.js?v=1793987335236"></script>
+<script src="projet-carte.js?v=1793987335236"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -265,6 +266,10 @@ const clock = s => { s = Math.max(0, Math.floor(Number(s) || 0)); return Math.fl
 const content = $('content');
 const S = { tab: 'board', project: null, content: null, messages: [], query: '', activity: [], snapshots: [], openNotes: {}, notes: {},
   video: null, videoNotes: [], fileUrls: {}, myComposerId: null, myPacks: [], myAlbums: [], channel: null, me: null };
+// Carte détachée (05/11) : projet.html?id=…&solo=map&map=<carte> n'affiche que la carte de niveau, sur toute la fenêtre (ouverte par
+// « Détacher » depuis l'onglet Carte ; pratique sur un deuxième écran). L'onglet d'origine attend qu'elle se ferme.
+const SOLO_MAP = params.get('solo') === 'map' && !DEMO && !TUTO;
+if (SOLO_MAP) { S.tab = 'map'; S.openMapId = params.get('map') || null; document.body.classList.add('solo-map'); }
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
 const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
@@ -494,7 +499,7 @@ function downloadPlan(secId) {
   }
   return out;
 }
-// Fichiers déposés sur une carte (fond d'ambiance, éléments, parcours, transitions) : un dossier par élément. Seuls les sons
+// Fichiers déposés sur une carte (fond d'ambiance, éléments, parcours, zones, déplacements, transitions, image de fond) : un dossier par élément. Seuls les sons
 // « fichier du Projet » sont inclus (les morceaux et effets du Backstage n'ont pas de fichier dans le Projet).
 function downloadMapFiles(m) {
   const data = m.data || {}, assets = S.content.assets || [], out = [];
@@ -503,6 +508,9 @@ function downloadMapFiles(m) {
   const sounds = (dir, o) => { ['main', 'combat', 'room'].forEach(k => add(dir, (o.sounds || {})[k])); if (o.transition && o.transition.stinger) add(dir, [o.transition.stinger]); };
   (data.nodes || []).forEach(n => sounds(n.label || tr('map_untitled'), n));
   (data.edges || []).forEach(e => sounds(e.label || tr('map_untitled'), e));
+  (data.zones || []).forEach(z => sounds(z.label || tr('map_zone'), z));
+  (data.modes || []).forEach(x => sounds(x.label || tr('map_modes'), x));
+  if (data.background) add(tr('map_bg'), [data.background]);
   const seen = new Set();
   const plan = out.filter(x => { const k = x.dir + x.asset.id; if (seen.has(k)) return false; seen.add(k); return true; });
   return zipPlan(uniquePaths(plan), m.title || tr('map_untitled'));
@@ -730,7 +738,7 @@ async function load() {
   if (p.error) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('errorPrefix', { message: p.error }))}</p></div>`; return; }
   S.project = p.data;
   if (window.LayerPitchShell) window.LayerPitchShell.update({ crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: p.data.title }] });
-  document.title = tr('pageTitleProject', { title: S.project.title });
+  document.title = SOLO_MAP ? tr('map_title') + ' · ' + S.project.title : tr('pageTitleProject', { title: S.project.title });
   const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
@@ -797,6 +805,7 @@ function renderPresence() {
 const TABS = ['board', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
 function render() {
   const p = S.project;
+  if (SOLO_MAP) { content.innerHTML = `<div id="panel" style="min-width:0"></div>`; renderPanel(); return; }
   content.innerHTML = `
     ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
     ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
@@ -1825,11 +1834,42 @@ function mapAudioEnv() {
   const pending = new Set();
   return {
     voiceFactory: async ref => { try { await P.resumeAudio(); return await factory(ref); } catch (e) { console.warn('carte : son indisponible', ref, e); return null; } },
+    // Préchargement (sons voisins, morceau tout juste déposé) : sans réveiller le son (Firefox attendrait un clic), le décodage marche quand même.
+    preload: async ref => { try { return await factory(ref); } catch (e) { return null; } },
     now: () => P.audioNow(),
     // Minuterie : à `at` (horloge audio, en secondes) ; rend la fonction qui l'annule.
     schedule: (fn, at) => { const id = setTimeout(() => { pending.delete(id); fn(); }, Math.max(0, (at - P.audioNow()) * 1000)); pending.add(id); return () => { clearTimeout(id); pending.delete(id); }; },
   };
 }
+// ---- Carte détachée dans une autre fenêtre
+const mapPopupOpen = () => !!(S.mapPopup && !S.mapPopup.closed);
+function detachMap(m) {
+  const url = `./projet.html?id=${encodeURIComponent(projectId)}&solo=map&lang=${pageLang}${m && m.id ? '&map=' + encodeURIComponent(m.id) : ''}`;
+  const w = window.open(url, 'lp-map-' + projectId, `popup,width=${Math.max(900, screen.availWidth || 1400)},height=${Math.max(600, screen.availHeight || 900)}`);
+  if (!w) { window.LayerPitchNotify.error(tr('map_popupBlocked')); return; }
+  S.mapPopup = w;
+  if (S.mapView && S.mapView.destroy) S.mapView.destroy();
+  S.mapView = null;
+  if (S.tab === 'map' && $('panel')) renderMapDetached($('panel'));
+  // Dès que la fenêtre détachée se ferme (« Rattacher » ou la croix), la carte revient ici, sur la carte qu'on y regardait.
+  clearInterval(S.mapPopupTimer);
+  S.mapPopupTimer = setInterval(() => {
+    if (mapPopupOpen()) return;
+    clearInterval(S.mapPopupTimer); S.mapPopup = null;
+    if (S.tab === 'map' && $('panel')) renderPanel();
+  }, 800);
+}
+function renderMapDetached(panel) {
+  panel.innerHTML = `<div class="card"><h2>🗺 ${esc(tr('map_detachedTitle'))}</h2><p class="hint">${esc(tr('map_detachedText'))}</p>
+    <div class="bar"><button class="btn primary" type="button" id="mapShowPopup">${esc(tr('map_detachedShow'))}</button><button class="btn" type="button" id="mapBringBack">↩ ${esc(tr('map_detachedBack'))}</button></div></div>`;
+  $('mapShowPopup').onclick = () => { if (mapPopupOpen()) S.mapPopup.focus(); };
+  $('mapBringBack').onclick = () => { if (mapPopupOpen()) S.mapPopup.close(); S.mapPopup = null; clearInterval(S.mapPopupTimer); renderPanel(); };
+}
+// Côté fenêtre détachée : la carte regardée en dernier est rouverte dans l'onglet d'origine.
+if (SOLO_MAP) window.addEventListener('pagehide', () => {
+  try { const m = S.mapView && S.mapView.state; if (window.opener && m && m.current) window.opener.postMessage({ lpMapClosed: m.current }, location.origin); } catch (e) { /* onglet d'origine fermé */ }
+});
+if (!SOLO_MAP) window.addEventListener('message', ev => { if (ev.origin === location.origin && ev.data && ev.data.lpMapClosed) S.openMapId = String(ev.data.lpMapClosed); });
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
@@ -1844,9 +1884,13 @@ async function renderMap(panel) {
     asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
   };
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
+  S.mapView = null;
+  if (mapPopupOpen()) return renderMapDetached(panel);
   const openId = S.openMapId; S.openMapId = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
     tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, downloadFiles: downloadMapFiles,
+    // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
+    detach: SOLO_MAP ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
     uploadSound: async file => {
@@ -1860,6 +1904,18 @@ async function renderMap(panel) {
       return { ref };
     },
     // Relier la carte à des sections (sections ouvertes seulement) : le lien est le même que le 🗺 d'une section.
+    // Image de fond (monde ouvert, 27/10) : une image du Projet, ou une image envoyée depuis l'ordinateur (rangée avec les autres images).
+    images: (S.content.assets || []).filter(a => a.kind === 'image').map(a => ({ id: a.id, title: assetTitle(a) })),
+    imageUrl: async id => { const a = assetById(id); return a ? fileUrl(a.fileId) : null; },
+    uploadImage: async file => {
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) return { error: tr('map_bgImageOnly') };
+      const up = await uploadOrReuse(file);
+      if (up.error) return { error: up.error };
+      const r = await addAsset(projectId, { kind: 'image', fileId: up.data.fileId, title: file.name, origin: 'own' }, false);
+      if (r.error || !r.data || !r.data.id) return { error: r.error || file.name };
+      await reloadContent(); broadcast('content');
+      return { ref: { kind: 'asset', id: r.data.id, title: file.name } };
+    },
     linkSections: S.sections ? openMapSectionsDialog : null, linkedNames: S.sections ? (m => m ? S.sections.sections.filter(x => x.mapId === m.id).map(x => x.title).join(', ') : '') : null,
     maps: r.data || [],
     save: async m => {
@@ -2176,7 +2232,7 @@ function renderMembers(panel) {
   });
 }
 
-if (!DEMO && !TUTO) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
+if (!DEMO && !TUTO && !SOLO_MAP) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
 // Démonstration : formulaires et boutons d'écriture grisés (la discussion et la barre latérale le sont par la feuille de style).
 const DEMO_WRITE = '[data-act], [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
 function lockDemo() {

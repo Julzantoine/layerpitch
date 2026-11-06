@@ -25,31 +25,30 @@ function closeCapturePanel() {
 // côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
-  const wrap = panel.querySelector('.video-test-panel-frame-wrap');
-  if (!wrap) return;
+  // Depuis le 06/11 (demande de Jules-Antoine) : ce qui s'accroche n'est plus la seule image mais le « dock » = image + barre de
+  // commandes (Enregistrer, Écouter...), et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  const dock = panel.querySelector('.video-capture-dock');
+  if (!dock) return;
   const mark = document.createElement('div');
   const spacer = document.createElement('div');
-  wrap.before(mark, spacer);
+  dock.before(mark, spacer);
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
-    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
-    wrap.classList.toggle('video-capture-pinned', pinned);
+    const pinned = dock.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
+    dock.classList.toggle('video-capture-pinned', pinned);
     if (pinned) {
-      const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
-      // Le panneau n'est plus forcément centré (05/11 : grande colonne à gauche, morceaux à droite) : l'image accrochée suit sa colonne.
+      // Le panneau n'est plus forcément centré (grande colonne à gauche, morceaux à droite) : le dock suit sa colonne.
       const r = panel.getBoundingClientRect();
-      wrap.style.width = w + 'px';
-      wrap.style.left = (r.left + (panel.clientWidth - w) / 2) + 'px';
-      wrap.style.transform = 'none';
-      spacer.style.height = wrap.dataset.restHeight || (panel.clientWidth * 9 / 16) + 'px';
-      root.style.scrollPaddingTop = (w * 9 / 16 + 12) + 'px';
+      dock.style.width = panel.clientWidth + 'px';
+      dock.style.left = r.left + 'px';
+      spacer.style.height = dock.dataset.restHeight || dock.offsetHeight + 'px';
+      root.style.scrollPaddingTop = (dock.offsetHeight + 12) + 'px';
     } else {
-      wrap.style.width = '';
-      wrap.style.left = '';
-      wrap.style.transform = '';
+      dock.style.width = '';
+      dock.style.left = '';
       spacer.style.height = '';
-      wrap.dataset.restHeight = wrap.offsetHeight + 'px'; // hauteur réelle au repos (plafonnée à 56vh dans l'atelier)
+      dock.dataset.restHeight = dock.offsetHeight + 'px'; // hauteur réelle au repos
       root.style.scrollPaddingTop = '';
     }
   };
@@ -167,6 +166,7 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    <div class="video-capture-dock">
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
     <div class="video-capture-bar">
@@ -180,6 +180,7 @@ function openCapturePanel(file, opts) {
       </label>
       <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
+    </div>
     </div>
     <div class="video-capture-bar">
       <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
@@ -703,7 +704,10 @@ function openCapturePanel(file, opts) {
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
       sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
-      library: capturePackLibrary(), findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      library: capturePackLibrary(), otherPacks: (window.__lpCaptureLibrary.otherPacks || []),
+      extraPackContent: (pid) => { const L = window.__lpCaptureLibrary, pk = (L.otherPacks || []).find(x => x.id === pid); if (!pk) return null;
+        const t = new Set(pk.trackIds), sx = new Set(pk.sfxIds); return { tracks: (L.library || []).filter(x => t.has(x.id)), sfx: (L.sfxLibrary || []).filter(x => sx.has(x.id)) }; },
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
