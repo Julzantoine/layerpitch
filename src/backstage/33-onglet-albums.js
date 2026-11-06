@@ -605,6 +605,8 @@ document.getElementById('btnSaveSlug').addEventListener('click', async () => {
   const input = document.getElementById('appSlug');
   const wanted = slugify(input.value);
   input.value = wanted;
+  // Champ vide alors qu'aucun nom n'est enregistré : rien à retirer -- on le dit au lieu de « réussir » en silence.
+  if (!wanted && !ar.slug) { msg.textContent = tr('adreelSlugEmpty'); return; }
   msg.textContent = '…';
   try {
     await loadPostgresReadScripts();
