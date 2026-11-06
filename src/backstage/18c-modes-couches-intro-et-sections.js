@@ -134,7 +134,7 @@
               <div style="margin-top:10px">${altPoolToggleHtml(`vrspool:${ti}:${sci}:${pi}`, pool.alternatives.length)}</div>
               <div class="list-block-body alt-pool-panel${expandedAltPoolKeys.has(`vrspool:${ti}:${sci}:${pi}`) ? '' : ' collapsed'}" data-role="altPoolBody" style="margin-top:8px">
                 <div data-role="poolAlternatives"></div>
-                <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button></div>
+                <div class="actions"><button class="btn btn-small" data-action="add-pool-alt" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('addAlternativeBtn')}</button>${trimCommonNamesBtnHtml(pool.alternatives, `data-ti="${ti}" data-si="${sci}" data-pi="${pi}"`, pool.label)}</div>
               </div>
               ${poolFxHtml(pool, ti, sci, pi)}
             `;

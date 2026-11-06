@@ -1,3 +1,36 @@
+// Retour de Peter K (06/11) : les variantes d'un pool portent souvent le même début de nom (« Jazz Lo BS Dirty South Blender »,
+// « Jazz Lo BS Fog Machine »…), affiché tel quel côté public. Un clic retire ce début commun des libellés (les fichiers ne changent pas).
+// Admin seulement jusqu'au feu vert 'trim_common_names'.
+function commonNamePrefix(labels, preferred) {
+  const list = labels.map(l => String(l || '')).filter(l => l.trim());
+  if (list.length < 2) return '';
+  let p = list.reduce((acc, l) => { let i = 0; while (i < acc.length && i < l.length && acc[i].toLowerCase() === l[i].toLowerCase()) i++; return acc.slice(0, i); });
+  const sep = c => /[\s_\-.·:]/.test(c);
+  // Coupe sur une frontière de mot : « Jazz Lo BS D » (Dirty / DirtRoad) redevient « Jazz Lo BS ».
+  if (!list.every(l => l.length > p.length && sep(l[p.length])) && !(p && sep(p[p.length - 1]))) {
+    let k = p.length - 1; while (k >= 0 && !sep(p[k])) k--; p = p.slice(0, k + 1);
+  }
+  // Le nom du pool d'abord, s'il ouvre ce début commun : « Jazz Lo DM » plutôt que « Jazz Lo DM DirtRoad » (variantes 1, 2, 3).
+  const pref = String(preferred || '').trim();
+  if (pref && p.toLowerCase().startsWith(pref.toLowerCase()) && (p.length === pref.length || sep(p[pref.length]))) p = p.slice(0, pref.length);
+  if (p.replace(/[\s_\-.·:]+$/, '').length < 2) return '';
+  if (!list.every(l => l.slice(p.length).replace(/^[\s_\-.·:]+/, '').trim())) return ''; // un nom deviendrait vide
+  return p;
+}
+function trimCommonNamesTargets(alts) { return (alts || []).filter(a => (a.pendingFile || a.remoteFile) && (a.label || '').trim()); }
+function trimCommonNamesBtnHtml(alts, dataAttrs, preferred) {
+  if (!flagOpen('trim_common_names')) return '';
+  const prefix = commonNamePrefix(trimCommonNamesTargets(alts).map(a => a.label), preferred);
+  if (!prefix) return '';
+  return ` <button class="btn btn-small" data-action="trim-common-names" ${dataAttrs} title="${escapeAttr(tr('trimCommonNamesTitle'))}">${escapeHtml(tr('trimCommonNamesBtn', { prefix: prefix.replace(/[\s_\-.·:]+$/, '') }))}</button>`;
+}
+function trimCommonNames(alts, preferred) {
+  const targets = trimCommonNamesTargets(alts);
+  const prefix = commonNamePrefix(targets.map(a => a.label), preferred);
+  if (!prefix) return false;
+  targets.forEach(a => { a.label = a.label.slice(prefix.length).replace(/^[\s_\-.·:]+/, ''); });
+  return true;
+}
 document.getElementById('btnAddLibraryTrack').addEventListener('click', () => {
   const newTrack = { id: genId(), title: tr('defaultTrackTitle'), description: '', mode: 'vertical', duration: 0, base: '', loopable: false, startTrackBeat: 0, maxLoops: null, maxChainLoops: null, normalizeVolume: false, layers: [{ id: genId(), label: tr('defaultLevelLabel'), remoteFile: null, pendingFile: null }], stingers: [], sfxIds: [], folderId: null };
   library.push(newTrack);
@@ -269,6 +302,7 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     library[ti].sections[si].pools.splice(pi, 1);
   }
   else if (btn.dataset.action === 'add-pool-alt') library[ti].sections[si].pools[pi].alternatives.push({ label: '', remoteFile: null, pendingFile: null });
+  else if (btn.dataset.action === 'trim-common-names') { const pool = library[ti].sections[si].pools[pi]; trimCommonNames(pool.alternatives, pool.label); }
   else if (btn.dataset.action === 'remove-pool-alt') {
     const removedAlt = library[ti].sections[si].pools[pi].alternatives[ai];
     if (removedAlt && removedAlt.remoteFile) queueR2Delete(`audio/${library[ti].id}/${removedAlt.remoteFile}`);
