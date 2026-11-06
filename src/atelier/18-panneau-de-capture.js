@@ -554,10 +554,14 @@ function openCapturePanel(file, opts) {
   // déjà présent pour Sauvegarder -- même prise, même nom.
   addToLibraryBtn.addEventListener('click', async () => {
     if (!lastExportBlob || !packId) return;
+    // Nom de la vidéo (6/11, demande de Jules-Antoine) : demandé à l'ajout, proposé d'après le nom de la prise ; renommable ensuite
+    // dans la bibliothèque. Annuler = on n'envoie rien.
+    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: titleInput.value || '' });
+    if (exportName === null) return;
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null);
       // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
       // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');

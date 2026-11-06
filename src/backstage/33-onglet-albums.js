@@ -587,7 +587,7 @@ function fillAdReelSlugField(ar) {
   const isMain = !ar || ar.id === 'main';
   document.getElementById('appSlugPrefix').textContent = `beta.layerpitch.com/${myComposerHandle || '…'}/`;
   input.value = (ar && ar.slug) || '';
-  input.placeholder = isMain ? '' : slugify((ar && ar.label) || '');
+  input.placeholder = isMain ? '' : (slugify((ar && ar.label) || '') ? tr('adreelSlugExample', { name: slugify((ar && ar.label) || '') }) : '');
   // 28/09 : droit lu dans la matrice (custom_address : Warrior et Boss, feu vert 'custom_address').
   input.disabled = btn.disabled = isMain || !can('custom_address');
   document.getElementById('appSlugHint').textContent = isMain ? tr('adreelSlugMainHint') : (can('custom_address') ? tr('adreelSlugHint') : (flagOpen('custom_address') ? tr('adreelSlugTierOnly') : tr('adreelSlugAdminOnly')));
@@ -605,6 +605,8 @@ document.getElementById('btnSaveSlug').addEventListener('click', async () => {
   const input = document.getElementById('appSlug');
   const wanted = slugify(input.value);
   input.value = wanted;
+  // Champ vide alors qu'aucun nom n'est enregistré : rien à retirer -- on le dit au lieu de « réussir » en silence.
+  if (!wanted && !ar.slug) { msg.textContent = tr('adreelSlugEmpty'); return; }
   msg.textContent = '…';
   try {
     await loadPostgresReadScripts();
