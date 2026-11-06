@@ -55,6 +55,10 @@
   body.video-panel-active .page { max-width: none; width: 100%; }
   body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
   body.video-panel-active .atelier-intro { display: none; }
+  /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
+  body.video-panel-active .atelier-fullscreen-btn { display: none; }
+  body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
   body.video-panel-active .atelier-pack-name { font-size: 15px; }
@@ -70,3 +74,17 @@
   .video-capture-image-hidden .video-capture-image-hidden-note { display: block; }
   .video-capture-image-hidden .video-test-panel-frame-wrap { aspect-ratio: auto; height: 0; overflow: hidden; }
   .video-capture-image-hidden #videoCaptureHideImageBtn { color: var(--accent); }
+
+  .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
+
+  /* Zoom de la frise (06/11) : barre de zoom + zone qui défile ; les noms de pistes restent collés à gauche, la tête de lecture suit la frise. */
+  .vct-zoombar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: -4px 0 6px; font-size: 10px; color: #888; }
+  .vct-zoom-slider { width: 120px; accent-color: #2f80c0; }
+  .vct-zoom-btn { font: inherit; font-size: 12px; line-height: 1; min-width: 24px; padding: 4px 7px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ddd; cursor: pointer; }
+  .vct-zoom-btn:hover { border-color: #2f80c0; color: #fff; }
+  .vct-zoom-fit { font-size: 10px; }
+  .vct-zoom-value { min-width: 34px; text-align: right; color: #aaa; }
+  .vct-scroll { overflow-x: auto; overflow-y: hidden; }
+  .vct-zoomable { position: relative; min-width: 100%; }
+  .vct-zoomable .vct-playhead { top: 10px; bottom: 0; }
+  .vct-zoomable .vct-lane-label { position: sticky; left: 0; z-index: 12; background: #1a1a1a; }

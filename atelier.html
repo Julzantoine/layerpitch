@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793995551268">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793995551268">
+<link rel="stylesheet" href="player.css?v=1794006039074">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794006039074">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -420,6 +420,10 @@
   body.video-panel-active .page { max-width: none; width: 100%; }
   body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
   body.video-panel-active .atelier-intro { display: none; }
+  /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
+  body.video-panel-active .atelier-fullscreen-btn { display: none; }
+  body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
   body.video-panel-active .atelier-pack-name { font-size: 15px; }
@@ -435,6 +439,20 @@
   .video-capture-image-hidden .video-capture-image-hidden-note { display: block; }
   .video-capture-image-hidden .video-test-panel-frame-wrap { aspect-ratio: auto; height: 0; overflow: hidden; }
   .video-capture-image-hidden #videoCaptureHideImageBtn { color: var(--accent); }
+
+  .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
+
+  /* Zoom de la frise (06/11) : barre de zoom + zone qui défile ; les noms de pistes restent collés à gauche, la tête de lecture suit la frise. */
+  .vct-zoombar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: -4px 0 6px; font-size: 10px; color: #888; }
+  .vct-zoom-slider { width: 120px; accent-color: #2f80c0; }
+  .vct-zoom-btn { font: inherit; font-size: 12px; line-height: 1; min-width: 24px; padding: 4px 7px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ddd; cursor: pointer; }
+  .vct-zoom-btn:hover { border-color: #2f80c0; color: #fff; }
+  .vct-zoom-fit { font-size: 10px; }
+  .vct-zoom-value { min-width: 34px; text-align: right; color: #aaa; }
+  .vct-scroll { overflow-x: auto; overflow-y: hidden; }
+  .vct-zoomable { position: relative; min-width: 100%; }
+  .vct-zoomable .vct-playhead { top: 10px; bottom: 0; }
+  .vct-zoomable .vct-lane-label { position: sticky; left: 0; z-index: 12; background: #1a1a1a; }
 </style>
 </head>
 <body>
@@ -482,16 +500,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793995551268"></script>
-<script src="layerpitch-notify.js?v=1793995551268"></script>
-<script src="public-page.js?v=1793995551268"></script>
-<script src="player.js?v=1793995551268"></script>
-<script src="capture-plan.js?v=1793995551268"></script>
-<script src="capture-render.js?v=1793995551268"></script>
-<script src="capture-retarget.js?v=1793995551268"></script>
-<script src="capture-versioning.js?v=1793995551268"></script>
-<script src="layerpitch-guide.js?v=1793995551268"></script>
-<script src="atelier-lecons.js?v=1793995551268"></script>
+<script src="layerpitch-i18n.js?v=1794006039074"></script>
+<script src="layerpitch-notify.js?v=1794006039074"></script>
+<script src="public-page.js?v=1794006039074"></script>
+<script src="player.js?v=1794006039074"></script>
+<script src="capture-plan.js?v=1794006039074"></script>
+<script src="capture-render.js?v=1794006039074"></script>
+<script src="capture-retarget.js?v=1794006039074"></script>
+<script src="capture-versioning.js?v=1794006039074"></script>
+<script src="layerpitch-guide.js?v=1794006039074"></script>
+<script src="atelier-lecons.js?v=1794006039074"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -946,7 +964,7 @@ function describeCaptureEvent(e, laneOverrides) {
 // mais sous forme de liste : [{ start, end, text, kind: 'state' | 'stinger' | 'fx', row, style }]. Rangées avec la vidéo exportée (migration
 // 20261021020000), elles s'affichent en direct dans le lecteur des pages publiques (étiquette sur la vidéo), sans réencoder l'image.
 // style : 'layer' (calque, une ligne par calque) ou 'window' (boucle, emplacement, section : une seule ligne) -- utilisé par l'export complet.
-function buildCaptureCues(events, laneOverrides) {
+function buildCaptureCues(events, laneOverrides, creditName) {
   laneOverrides = laneOverrides || {};
   const r3 = x => Math.round(x * 1000) / 1000;
   const cues = [];
@@ -980,6 +998,8 @@ function buildCaptureCues(events, laneOverrides) {
     const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
     cues.push({ start: fs.t, end: fs.t + fs.detail.duration, kind: 'fx', style: 'fx', row: ti, text: 'FX ' + ((list[ti] && list[ti].label) || 'FX') });
   });
+  // Crédit compositeur (case cochée) : étiquette permanente, affichée en haut à droite par le lecteur public.
+  if (creditName) cues.push({ start: 0, end: 86400, kind: 'credit', style: 'credit', row: 0, text: creditName });
   return cues.map(c => Object.assign(c, { start: r3(c.start), end: r3(c.end) })).sort((a, b) => a.start - b.start);
 }
 // Frise d'édition -- cible finale d'après le schéma papier de Jules-Antoine (2026-09-14) : une piste par
@@ -1004,12 +1024,18 @@ function positionCapturePlayhead(container, videoEl) {
   const ph = container.querySelector('#vctPlayhead');
   const ruler = container.querySelector('.vct-ruler');
   if (!ph || !ruler) return;
-  const containerRect = container.getBoundingClientRect();
+  const containerRect = ph.parentElement.getBoundingClientRect(); // la zone zoomable (la tête s'y déplace avec la frise)
   const rulerRect = ruler.getBoundingClientRect();
   const total = container.__vctTotal || videoEl.duration || 1;
   const t = videoEl.currentTime || 0;
   const leftPx = (rulerRect.left - containerRect.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
   ph.style.left = leftPx + 'px';
+  // Zoomée et en lecture : la frise défile pour garder la tête de lecture à l'écran (comme un DAW en mode « suivre »).
+  const scroller = container.querySelector('.vct-scroll');
+  if (scroller && (container.__vctZoom || 1) > 1 && !videoEl.paused && !container.__vctNoFollow) {
+    const x = leftPx - scroller.scrollLeft;
+    if (x > scroller.clientWidth - 40 || x < 96) scroller.scrollLeft = Math.max(0, leftPx - 140);
+  }
 }
 
 function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
@@ -1038,13 +1064,23 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
-  const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
-
-  let ticksHtml = '';
-  for (let t = 0; t <= total; t += tickStep) {
-    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
-  }
+  // Zoom (06/11, demande de Jules-Antoine, à la façon des DAW) : 1 = toute la frise à l'écran ; plus, la frise s'élargit et défile.
+  const ZOOM_MAX = 40;
+  const zoom = Math.min(ZOOM_MAX, Math.max(1, container.__vctZoom || 1));
+  container.__vctZoom = zoom;
+  // Graduations : le pas se resserre avec le zoom (au plus ~20 repères sur la largeur visible).
+  const buildTicks = (z) => {
+    const span = total / z;
+    const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(st => span / st <= 20) || 600;
+    let html = '';
+    for (let i = 0; i * step <= total + 1e-9; i++) {
+      const t = Math.round(i * step * 1000) / 1000;
+      html += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
+    }
+    return html;
+  };
+  const ticksHtml = buildTicks(zoom);
 
   // Tous les événements qui appartiennent à un groupe donné (même morceau ou même Sfx) -- utilisé à la
   // fois pour calculer l'étendue du bloc-résumé ci-dessous et pour savoir quoi déplacer ensemble au
@@ -1338,15 +1374,66 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   });
 
   container.__vctTotal = total;
+  const prevScroll = container.querySelector('.vct-scroll');
+  const keptScrollLeft = prevScroll ? prevScroll.scrollLeft : 0;
   container.innerHTML = `
+    <div class="vct-zoombar">
+      <span class="vct-zoom-label">${tr('captureZoomLabel')}</span>
+      <button type="button" class="vct-zoom-btn" data-zoom="out" title="${tr('captureZoomOut')}" aria-label="${tr('captureZoomOut')}">−</button>
+      <input type="range" class="vct-zoom-slider" min="0" max="100" step="1" value="0" title="${tr('captureZoomHint')}" aria-label="${tr('captureZoomLabel')}">
+      <button type="button" class="vct-zoom-btn" data-zoom="in" title="${tr('captureZoomIn')}" aria-label="${tr('captureZoomIn')}">+</button>
+      <button type="button" class="vct-zoom-btn vct-zoom-fit" data-zoom="fit" title="${tr('captureZoomFit')}">${tr('captureZoomFit')}</button>
+      <span class="vct-zoom-value"></span>
+    </div>
+    <div class="vct-scroll">
+    <div class="vct-zoomable" style="width:${zoom * 100}%">
     <div class="vct-body">
     <div class="vct-ruler">${ticksHtml}</div>
     <div class="vct-lanes">${lanesHtml}</div>
     <div class="vct-markers">${markersHtml}</div>
     </div>
     <div class="vct-playhead" id="vctPlayhead"></div>
+    </div>
+    </div>
     <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
   `;
+  const scrollerEl = container.querySelector('.vct-scroll');
+  const zoomableEl = container.querySelector('.vct-zoomable');
+  scrollerEl.scrollLeft = keptScrollLeft;
+  // Zoom sans tout redessiner (le curseur reste saisi) : largeur de la zone, graduations, tête de lecture, défilement ancré sur un instant.
+  // Le curseur est logarithmique : chaque cran multiplie le zoom par le même facteur, comme dans Logic.
+  const zoomSlider = container.querySelector('.vct-zoom-slider'), zoomValue = container.querySelector('.vct-zoom-value');
+  const zoomToSlider = z => Math.round(Math.log(z) / Math.log(ZOOM_MAX) * 100);
+  const sliderToZoom = v => Math.pow(ZOOM_MAX, v / 100);
+  const syncZoomUi = () => { zoomSlider.value = zoomToSlider(container.__vctZoom); zoomValue.textContent = '×' + (Math.round(container.__vctZoom * 10) / 10); };
+  syncZoomUi();
+  const applyZoom = (newZoom, anchorClientX) => {
+    newZoom = Math.min(ZOOM_MAX, Math.max(1, newZoom));
+    const ruler = container.querySelector('.vct-ruler');
+    const sr = scrollerEl.getBoundingClientRect();
+    if (anchorClientX == null) anchorClientX = sr.left + sr.width / 2;
+    const r0 = ruler.getBoundingClientRect();
+    const anchorFrac = r0.width ? (anchorClientX - r0.left) / r0.width : 0;
+    container.__vctZoom = newZoom;
+    zoomableEl.style.width = (newZoom * 100) + '%';
+    ruler.innerHTML = buildTicks(newZoom);
+    const r1 = ruler.getBoundingClientRect();
+    scrollerEl.scrollLeft += (r1.left + anchorFrac * r1.width) - anchorClientX;
+    syncZoomUi();
+    positionCapturePlayhead(container, videoEl);
+  };
+  zoomSlider.addEventListener('input', () => applyZoom(sliderToZoom(Number(zoomSlider.value))));
+  container.querySelectorAll('.vct-zoom-btn').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.zoom;
+    if (k === 'fit') { applyZoom(1); scrollerEl.scrollLeft = 0; }
+    else applyZoom(container.__vctZoom * (k === 'in' ? 1.6 : 1 / 1.6));
+  }));
+  // Pincer sur le pavé tactile (envoyé comme Ctrl + molette) ou Ctrl/⌘ + molette : zoom centré sur le pointeur. Molette seule : défilement.
+  scrollerEl.addEventListener('wheel', ev => {
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    applyZoom(container.__vctZoom * Math.exp(-ev.deltaY * 0.01), ev.clientX);
+  }, { passive: false });
   positionCapturePlayhead(container, videoEl);
   // Tête de lecture déplaçable (05/11, demande de Jules-Antoine) : cliquer ou glisser sur la règle des temps place la vidéo à cet
   // instant (la ligne rouge suit). Pas pendant une prise : l'horloge de la capture est calée sur la vidéo qui défile.
@@ -2105,11 +2192,25 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // libellés à la même hauteur les rendrait illisibles.
   // Incrustations : la même liste d'étiquettes que celle rangée avec la vidéo pour les pages publiques (buildCaptureCues, 21/10).
   const esc = t => String(t).replace(/['\\:]/g, '');
-  for (const c of buildCaptureCues(events, laneOverrides)) {
+  // Musique et Sfx au même endroit : bas à droite, chacun sous un petit libellé (les Sfx se placent au-dessus des lignes de musique actives).
+  const allCues = buildCaptureCues(events, laneOverrides);
+  const capDt = (txt, x, y, when) => `drawtext=fontfile=font.ttf:text='${txt}':x=${x}:y=${y}:fontsize=12:fontcolor=white@0.7:${when}`;
+  for (const c of allCues) {
+    if (c.kind === 'credit') continue;
     const when = `enable='between(t,${c.start},${c.end})'`;
-    if (c.style === 'layer') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56-${c.row * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
-    else if (c.style === 'window') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
-    else if (c.style === 'flash') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text.toUpperCase())} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    if (c.style === 'layer') {
+      const y = `h-56-${c.row * 44}`;
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=${y}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+      drawtexts.push(capDt('MUSIC', 'w-tw-24', `${y}-18`, when));
+    } else if (c.style === 'window') {
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+      drawtexts.push(capDt('MUSIC', 'w-tw-24', 'h-56-20', when));
+    } else if (c.style === 'flash') {
+      const below = allCues.filter(o => o.kind === 'state' && o.start < c.end && o.end > c.start).length;
+      const y = `h-56-${Math.max(1, below) * 44 + 8}`;
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=${y}:fontsize=22:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+      drawtexts.push(capDt('SFX', 'w-tw-24', `${y}-18`, when));
+    }
     else if (c.style === 'fx') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=${64 + c.row * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
   }
   // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,
@@ -2253,16 +2354,29 @@ function wireCaptureImageHiding(panel, videoEl) {
 
 // Plein écran de tout l'atelier (05/11, demande de Jules-Antoine : trop chargé dans le cadre du Backstage). Le cadre l'autorise
 // (allow="fullscreen" côté Backstage et studio). Tous les boutons .atelier-fullscreen-toggle suivent l'état, Échap compris.
-function atelierIsFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+// Dans le cadre du Backstage, le plein écran est celui de la page hôte (07/11 : sa barre « Sauvegarder / publier » reste visible) ; sans réponse de
+// l'hôte (espace studio, atelier seul), on retombe sur le plein écran du navigateur.
+let atelierHostFull = false;
+function atelierIsFullscreen() { return atelierHostFull || !!(document.fullscreenElement || document.webkitFullscreenElement); }
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'fullState') return;
+  atelierHostFull = !!e.data.on;
+  atelierHostAnswered = true;
+  syncAtelierFullscreenButtons();
+});
+let atelierHostAnswered = false;
 function toggleAtelierFullscreen() {
+  if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
   const root = document.documentElement;
-  if (atelierIsFullscreen()) {
-    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  } else {
-    const req = root.requestFullscreen || root.webkitRequestFullscreen;
-    if (req) { const r = req.call(root); if (r && r.catch) r.catch(e => console.warn('LayerPitch — plein écran refusé :', e)); }
-  }
+  if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  const realFullscreen = () => { const req = root.requestFullscreen || root.webkitRequestFullscreen; if (req) { const r = req.call(root); if (r && r.catch) r.catch(err => console.warn('LayerPitch — plein écran refusé :', err)); } };
+  if (window.parent === window) { realFullscreen(); return; }
+  atelierHostAnswered = false;
+  try { window.parent.postMessage({ source: 'lp-atelier', type: 'toggleFull' }, location.origin); } catch (err) { realFullscreen(); return; }
+  setTimeout(() => { if (!atelierHostAnswered) realFullscreen(); }, 400); // hôte qui ne répond pas
 }
+// Échap dans le cadre : quitte le plein écran de la page hôte (le clavier ne remonte pas jusqu'à elle).
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && atelierHostFull) window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); });
 function syncAtelierFullscreenButtons() {
   const on = atelierIsFullscreen();
   document.body.classList.toggle('atelier-fullscreen', on);
@@ -2336,8 +2450,10 @@ function openCapturePanel(file, opts) {
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
+      <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
       <div class="video-test-panel-actions">
         <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        <button type="button" class="video-test-panel-btn" id="videoCaptureInfoBtn" title="${tr('atelierInfoToggle')}" aria-label="${tr('atelierInfoToggle')}">ⓘ</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
@@ -2373,7 +2489,6 @@ function openCapturePanel(file, opts) {
     </div>
     <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
     <div class="video-capture-bar">
-      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}">
       <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
       <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
@@ -2440,6 +2555,8 @@ function openCapturePanel(file, opts) {
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
   const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
   const titleInput = document.getElementById('videoCaptureTitleInput');
+  const defaultMontageName = (file.name || '').replace(/\.[^.]+$/, ''); // sans nom choisi, le montage porte le nom de sa vidéo (plus de « Sans titre »)
+  titleInput.value = defaultMontageName;
   const loadSelect = document.getElementById('videoCaptureLoadSelect');
   const loadBtn = document.getElementById('videoCaptureLoadBtn');
   const saveStatus = document.getElementById('videoCaptureSaveStatus');
@@ -2788,7 +2905,8 @@ function openCapturePanel(file, opts) {
   // Publication : « tout enregistrer » du Backstage demande à l'atelier de terminer le montage (message finishMontage, voir
   // 20-demarrage-atelier.js) ; dans le studio (pas de bouton global), « Publier le montage » fait la même chose à la main.
   const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
-  const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides }); // ce qui change le son et les étiquettes publiés
+  const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
+  const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
   const montageNeedsPublish = () => captureCanSave && !!packId && lastEvents.length > 0 && soundKey() !== lastPublishedKey;
   const hostPublishes = typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio; // composeur dans le Backstage : son bouton global publie
   const setSaveState = (state, text) => { saveStatus.dataset.state = state; saveStatus.textContent = text; };
@@ -2822,6 +2940,19 @@ function openCapturePanel(file, opts) {
     try { await autosaveRunning; } finally { autosaveRunning = null; }
   }
   titleInput.addEventListener('input', scheduleAutosave);
+  // Un seul nom : renommer le montage renomme aussi sa vidéo muette dans la bibliothèque vidéo (« <nom> — montage »), à la sortie du champ.
+  titleInput.addEventListener('change', async () => {
+    try {
+      const name = titleInput.value.trim();
+      if (!name) { titleInput.value = defaultMontageName; scheduleAutosave(); return; }
+      await saveCaptureNow();
+      if (!savedCaptureId) return;
+      const client = window.LayerPitchSupabaseClient.getClient();
+      const cur = await client.rpc('video_capture_base', withStudio({ p_capture_id: savedCaptureId }));
+      if (cur.error || !cur.data) return;
+      await client.rpc('rename_video', withStudio({ p_id: cur.data, p_title: name + ' — ' + tr('captureSilentVideoSuffix') }));
+    } catch (e) { console.warn('LayerPitch — renommage de la vidéo muette :', e); }
+  });
   // Publie le montage : son (+ image muette la première fois) et étiquettes, reliés au montage ; les AdReels et les Projets qui l'affichent
   // le montrent aussitôt, sans rien republier. Renvoie 'none' (rien à publier) ou 'done'. force : republier même sans changement.
   async function publishMontageNow(opts) {
@@ -2835,7 +2966,7 @@ function openCapturePanel(file, opts) {
       const key = soundKey();
       if (!opts.force && key === lastPublishedKey) return 'none';
       const videoId = await publishMontageSound(lastEvents, titleInput.value);
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked }));
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides, creditNameForCues()), p_keep_old: keepOldCheckbox.checked }));
       if (error) throw error;
       await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
       lastPublishedKey = key;
@@ -2887,7 +3018,7 @@ function openCapturePanel(file, opts) {
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
     timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
-    titleInput.value = capture.title || '';
+    titleInput.value = capture.title || defaultMontageName;
     // Prise tout juste chargée : rien à enregistrer. Déjà publiée (elle a une image de montage) : rien à publier tant qu'on ne la retouche pas.
     lastSavedKey = captureStateKey();
     lastPublishedKey = null;
@@ -2962,7 +3093,7 @@ function openCapturePanel(file, opts) {
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
-      cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
+      cuesOf: (events) => buildCaptureCues(events, laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
       afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
@@ -2998,6 +3129,8 @@ function openCapturePanel(file, opts) {
     }).catch(e => { console.error(e); saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message); });
   }
   document.getElementById('videoCaptureCloseBtn').addEventListener('click', async () => {
+    // Panneau détaché (06/11) : la croix du panneau fait comme la croix de la fenêtre -- le lecteur se raccroche à la page, il ne se perd jamais.
+    if (capturePanelDetachedWindow && !capturePanelDetachedWindow.closed) { capturePanelDetachedWindow.close(); return; }
     // Montage retouché mais pas encore publié : une fois le panneau fermé, la vidéo d'origine n'est plus là pour fabriquer le son.
     if (montageNeedsPublish() && !(typeof atelierParams !== 'undefined' && atelierParams.has('tuto'))
         && await window.LayerPitchNotify.confirm(tr('captureCloseUnpublishedAsk'), { okLabel: tr('captureClosePublishBtn'), cancelLabel: tr('captureCloseWithoutBtn') })) {
@@ -3005,6 +3138,15 @@ function openCapturePanel(file, opts) {
     }
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
+  });
+  // Replier / déplier les infos (titre, pack, étapes) : toutes les commandes restent dans la partie lecteur (06/11). Retenu sur cet appareil.
+  const infoBtn = document.getElementById('videoCaptureInfoBtn');
+  const applyInfoFold = (fold) => { document.body.classList.toggle('atelier-info-collapsed', fold); infoBtn.classList.toggle('active', fold); infoBtn.setAttribute('aria-pressed', fold ? 'true' : 'false'); };
+  try { applyInfoFold(localStorage.getItem('lpAtelierInfoFolded') === '1'); } catch (e) { applyInfoFold(false); }
+  infoBtn.addEventListener('click', () => {
+    const fold = !document.body.classList.contains('atelier-info-collapsed');
+    applyInfoFold(fold);
+    try { localStorage.setItem('lpAtelierInfoFolded', fold ? '1' : '0'); } catch (e) {}
   });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   wireCaptureImageHiding(panel, videoEl);
@@ -3171,6 +3313,8 @@ let openVideoCaptureDialog = () => {};
     libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
     libPick.hidden = false;
     if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+    // Montage à rouvrir dont la vidéo d'origine est dans la bibliothèque : on la charge directement, sans redemander (06/11).
+    if (match && dialog.open) libBtn.click();
   };
   libBtn.addEventListener('click', async () => {
     const v = libraryVideos.find(x => x.id === libSelect.value);

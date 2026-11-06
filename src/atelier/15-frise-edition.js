@@ -20,12 +20,18 @@ function positionCapturePlayhead(container, videoEl) {
   const ph = container.querySelector('#vctPlayhead');
   const ruler = container.querySelector('.vct-ruler');
   if (!ph || !ruler) return;
-  const containerRect = container.getBoundingClientRect();
+  const containerRect = ph.parentElement.getBoundingClientRect(); // la zone zoomable (la tête s'y déplace avec la frise)
   const rulerRect = ruler.getBoundingClientRect();
   const total = container.__vctTotal || videoEl.duration || 1;
   const t = videoEl.currentTime || 0;
   const leftPx = (rulerRect.left - containerRect.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
   ph.style.left = leftPx + 'px';
+  // Zoomée et en lecture : la frise défile pour garder la tête de lecture à l'écran (comme un DAW en mode « suivre »).
+  const scroller = container.querySelector('.vct-scroll');
+  if (scroller && (container.__vctZoom || 1) > 1 && !videoEl.paused && !container.__vctNoFollow) {
+    const x = leftPx - scroller.scrollLeft;
+    if (x > scroller.clientWidth - 40 || x < 96) scroller.scrollLeft = Math.max(0, leftPx - 140);
+  }
 }
 
 function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
@@ -54,13 +60,23 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
-  const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
-
-  let ticksHtml = '';
-  for (let t = 0; t <= total; t += tickStep) {
-    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
-  }
+  // Zoom (06/11, demande de Jules-Antoine, à la façon des DAW) : 1 = toute la frise à l'écran ; plus, la frise s'élargit et défile.
+  const ZOOM_MAX = 40;
+  const zoom = Math.min(ZOOM_MAX, Math.max(1, container.__vctZoom || 1));
+  container.__vctZoom = zoom;
+  // Graduations : le pas se resserre avec le zoom (au plus ~20 repères sur la largeur visible).
+  const buildTicks = (z) => {
+    const span = total / z;
+    const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(st => span / st <= 20) || 600;
+    let html = '';
+    for (let i = 0; i * step <= total + 1e-9; i++) {
+      const t = Math.round(i * step * 1000) / 1000;
+      html += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
+    }
+    return html;
+  };
+  const ticksHtml = buildTicks(zoom);
 
   // Tous les événements qui appartiennent à un groupe donné (même morceau ou même Sfx) -- utilisé à la
   // fois pour calculer l'étendue du bloc-résumé ci-dessous et pour savoir quoi déplacer ensemble au
@@ -354,15 +370,66 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   });
 
   container.__vctTotal = total;
+  const prevScroll = container.querySelector('.vct-scroll');
+  const keptScrollLeft = prevScroll ? prevScroll.scrollLeft : 0;
   container.innerHTML = `
+    <div class="vct-zoombar">
+      <span class="vct-zoom-label">${tr('captureZoomLabel')}</span>
+      <button type="button" class="vct-zoom-btn" data-zoom="out" title="${tr('captureZoomOut')}" aria-label="${tr('captureZoomOut')}">−</button>
+      <input type="range" class="vct-zoom-slider" min="0" max="100" step="1" value="0" title="${tr('captureZoomHint')}" aria-label="${tr('captureZoomLabel')}">
+      <button type="button" class="vct-zoom-btn" data-zoom="in" title="${tr('captureZoomIn')}" aria-label="${tr('captureZoomIn')}">+</button>
+      <button type="button" class="vct-zoom-btn vct-zoom-fit" data-zoom="fit" title="${tr('captureZoomFit')}">${tr('captureZoomFit')}</button>
+      <span class="vct-zoom-value"></span>
+    </div>
+    <div class="vct-scroll">
+    <div class="vct-zoomable" style="width:${zoom * 100}%">
     <div class="vct-body">
     <div class="vct-ruler">${ticksHtml}</div>
     <div class="vct-lanes">${lanesHtml}</div>
     <div class="vct-markers">${markersHtml}</div>
     </div>
     <div class="vct-playhead" id="vctPlayhead"></div>
+    </div>
+    </div>
     <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
   `;
+  const scrollerEl = container.querySelector('.vct-scroll');
+  const zoomableEl = container.querySelector('.vct-zoomable');
+  scrollerEl.scrollLeft = keptScrollLeft;
+  // Zoom sans tout redessiner (le curseur reste saisi) : largeur de la zone, graduations, tête de lecture, défilement ancré sur un instant.
+  // Le curseur est logarithmique : chaque cran multiplie le zoom par le même facteur, comme dans Logic.
+  const zoomSlider = container.querySelector('.vct-zoom-slider'), zoomValue = container.querySelector('.vct-zoom-value');
+  const zoomToSlider = z => Math.round(Math.log(z) / Math.log(ZOOM_MAX) * 100);
+  const sliderToZoom = v => Math.pow(ZOOM_MAX, v / 100);
+  const syncZoomUi = () => { zoomSlider.value = zoomToSlider(container.__vctZoom); zoomValue.textContent = '×' + (Math.round(container.__vctZoom * 10) / 10); };
+  syncZoomUi();
+  const applyZoom = (newZoom, anchorClientX) => {
+    newZoom = Math.min(ZOOM_MAX, Math.max(1, newZoom));
+    const ruler = container.querySelector('.vct-ruler');
+    const sr = scrollerEl.getBoundingClientRect();
+    if (anchorClientX == null) anchorClientX = sr.left + sr.width / 2;
+    const r0 = ruler.getBoundingClientRect();
+    const anchorFrac = r0.width ? (anchorClientX - r0.left) / r0.width : 0;
+    container.__vctZoom = newZoom;
+    zoomableEl.style.width = (newZoom * 100) + '%';
+    ruler.innerHTML = buildTicks(newZoom);
+    const r1 = ruler.getBoundingClientRect();
+    scrollerEl.scrollLeft += (r1.left + anchorFrac * r1.width) - anchorClientX;
+    syncZoomUi();
+    positionCapturePlayhead(container, videoEl);
+  };
+  zoomSlider.addEventListener('input', () => applyZoom(sliderToZoom(Number(zoomSlider.value))));
+  container.querySelectorAll('.vct-zoom-btn').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.zoom;
+    if (k === 'fit') { applyZoom(1); scrollerEl.scrollLeft = 0; }
+    else applyZoom(container.__vctZoom * (k === 'in' ? 1.6 : 1 / 1.6));
+  }));
+  // Pincer sur le pavé tactile (envoyé comme Ctrl + molette) ou Ctrl/⌘ + molette : zoom centré sur le pointeur. Molette seule : défilement.
+  scrollerEl.addEventListener('wheel', ev => {
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    applyZoom(container.__vctZoom * Math.exp(-ev.deltaY * 0.01), ev.clientX);
+  }, { passive: false });
   positionCapturePlayhead(container, videoEl);
   // Tête de lecture déplaçable (05/11, demande de Jules-Antoine) : cliquer ou glisser sur la règle des temps place la vidéo à cet
   // instant (la ligne rouge suit). Pas pendant une prise : l'horloge de la capture est calée sur la vidéo qui défile.
