@@ -23,6 +23,22 @@
   .video-test-panel-frame-wrap.video-capture-pinned { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 40; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
   .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
+  /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
+     travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
+  .vct-body { position: relative; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: 96px; right: 0; pointer-events: none; z-index: 15; }
+  .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
+  .vct-marker-flag {
+    position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
+    background: #e0c341; color: #111; font-size: 9px; font-weight: 600; border-radius: 0 3px 3px 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: grab; touch-action: none; user-select: none;
+  }
+  .vct-marker-selected { border-left-style: solid; }
+  .vct-marker-selected .vct-marker-flag { background: #fff; }
+  .video-capture-marker-name {
+    width: 160px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
   /* Plein écran de l'atelier (05/11). */
   .atelier-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .atelier-fullscreen-btn { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; white-space: nowrap; }
