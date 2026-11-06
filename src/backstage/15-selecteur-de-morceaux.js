@@ -1,3 +1,78 @@
+/* ---------------- Menu « Ajouter… » avec recherche et dossiers (06/11) ----------------
+ * Remplace l'ancienne liste déroulante, devenue ingérable avec beaucoup de morceaux : un champ de recherche qui
+ * ouvre une liste rangée par dossier (dans l'ordre des dossiers de la bibliothèque, puis « Sans dossier »).
+ * On tape quelques lettres (accents et majuscules ignorés) : seuls les éléments dont le titre OU le nom du dossier
+ * correspond restent. Flèches pour choisir, Entrée pour ajouter, Échap pour fermer. Servi aux morceaux (AdReel, Pack)
+ * et aux Sfx. items : [{ id, title, folderId }] ; folders : [{ id, label }] ; onPick(id). */
+function addPickerNormalize(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+function buildAddPicker(hostEl, items, folders, placeholder, onPick) {
+  hostEl.classList.add('add-picker');
+  hostEl.innerHTML = `
+    <input type="search" class="add-picker-input" data-sel-action="add" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false">
+    <div class="add-picker-panel" hidden></div>
+  `;
+  const input = hostEl.querySelector('.add-picker-input');
+  const panel = hostEl.querySelector('.add-picker-panel');
+  let visible = []; // ids affichés, dans l'ordre, pour le clavier
+  let active = 0;
+
+  function groups(query) {
+    const q = addPickerNormalize(query);
+    const known = new Set(folders.map(f => f.id));
+    const out = [];
+    const push = (label, list) => {
+      const folderHit = q && addPickerNormalize(label).includes(q);
+      const kept = list.filter(it => !q || folderHit || addPickerNormalize(it.title).includes(q));
+      if (kept.length) out.push({ label, items: kept });
+    };
+    folders.forEach(f => push(f.label || tr('untitledFallback'), items.filter(it => it.folderId === f.id)));
+    push(folders.length ? tr('addPickerNoFolder') : '', items.filter(it => !it.folderId || !known.has(it.folderId)));
+    return out;
+  }
+  function draw() {
+    const gs = groups(input.value);
+    visible = [];
+    if (!gs.length) {
+      panel.innerHTML = `<div class="add-picker-empty">${tr('addPickerNoMatch')}</div>`;
+      return;
+    }
+    panel.innerHTML = gs.map(g => `
+      ${g.label ? `<div class="add-picker-folder">📁 ${escapeAttr(g.label)}</div>` : ''}
+      ${g.items.map(it => { visible.push(it.id); return `<div class="add-picker-item${g.label ? ' in-folder' : ''}" data-pick-id="${escapeAttr(it.id)}">${escapeAttr(it.title) || tr('untitledFallback')}</div>`; }).join('')}
+    `).join('');
+    if (active >= visible.length) active = visible.length - 1;
+    if (active < 0) active = 0;
+    highlight();
+  }
+  function highlight() {
+    panel.querySelectorAll('.add-picker-item').forEach((el, i) => el.classList.toggle('active', i === active));
+    const el = panel.querySelectorAll('.add-picker-item')[active];
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  function open() { if (panel.hidden) { panel.hidden = false; active = 0; draw(); } }
+  function close() { panel.hidden = true; }
+  function pick(id) { if (!id) return; close(); input.value = ''; onPick(id); }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('input', () => { panel.hidden = false; active = 0; draw(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); open(); active = Math.min(active + 1, visible.length - 1); highlight(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); highlight(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (!panel.hidden) pick(visible[active]); }
+    else if (e.key === 'Escape') { if (!panel.hidden) { e.preventDefault(); e.stopPropagation(); close(); } }
+  });
+  // mousedown (et non click) : sinon la perte de focus du champ ferme la liste avant que le clic n'arrive.
+  panel.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const row = e.target.closest('[data-pick-id]');
+    if (row) pick(row.dataset.pickId);
+  });
+  input.addEventListener('blur', close);
+}
+
 /* ---------------- Sélecteur de morceaux (bibliothèque -> AdReel ou Pack) ---------------- */
 // overridesObj : objet live { [trackId]: { title?, description?, layers?: {li: label}, stingers?: {si: label} } }.
 // Fourni uniquement pour l'usage AdReel (jamais pour les Packs) — active l'éditeur "Personnaliser pour cet AdReel".
@@ -89,23 +164,12 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj, a
     const unselected = exampleChoices(library.filter(t => !selectedIds.includes(t.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addTrackOption')}</option>
-          ${unselected.map(t2 => `<option value="${t2.id}">${escapeAttr(t2.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, libraryFolders, tr('addTrackOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allTracksIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
