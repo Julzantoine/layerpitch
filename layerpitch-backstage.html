@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793953699950">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793954656568">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1057,6 +1057,15 @@
 .profile-quiz-q { font-weight: 600; margin: 10px 0 6px; }
 .profile-essentials { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .profile-essentials .btn { text-align: left; justify-content: flex-start; }
+  /* Menu « Ajouter… » à recherche + dossiers (06/11) -- voir buildAddPicker (15-selecteur-de-morceaux.js). */
+  .add-picker { position: relative; }
+  .add-picker-input { width: 100%; }
+  .add-picker-panel { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; max-height: 320px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 4px 0; }
+  .add-picker-folder { font-size: 11px; font-weight: 600; color: var(--text-dim); padding: 8px 12px 3px; text-transform: none; }
+  .add-picker-item { padding: 6px 12px; cursor: pointer; color: var(--text); }
+  .add-picker-item.in-folder { padding-left: 26px; }
+  .add-picker-item.active { background: var(--accent-soft); color: var(--accent); }
+  .add-picker-empty { padding: 8px 12px; color: var(--text-dimmer); }
 </style>
 </head>
 <body>
@@ -2017,19 +2026,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793953699950"></script>
-<script src="layerpitch-i18n.js?v=1793953699950"></script>
-<script src="layerpitch-import-engine.js?v=1793953699950"></script>
-<script src="layerpitch-appearance.js?v=1793953699950"></script>
-<script src="layerpitch-album-shared.js?v=1793953699950"></script>
-<script src="layerpitch-album-editor.js?v=1793953699950"></script>
-<script src="layerpitch-shell.js?v=1793953699950"></script>
-<script src="layerpitch-social-icons.js?v=1793953699950"></script>
-<script src="layerpitch-notify.js?v=1793953699950"></script>
-<script src="layerpitch-guide.js?v=1793953699950"></script>
-<script src="layerpitch-lesson-previews.js?v=1793953699950"></script>
-<script src="layerpitch-help.js?v=1793953699950"></script>
-<script src="player.js?v=1793953699950"></script>
+<script src="layerpitch-tuto.js?v=1793954656568"></script>
+<script src="layerpitch-i18n.js?v=1793954656568"></script>
+<script src="layerpitch-import-engine.js?v=1793954656568"></script>
+<script src="layerpitch-appearance.js?v=1793954656568"></script>
+<script src="layerpitch-album-shared.js?v=1793954656568"></script>
+<script src="layerpitch-album-editor.js?v=1793954656568"></script>
+<script src="layerpitch-shell.js?v=1793954656568"></script>
+<script src="layerpitch-social-icons.js?v=1793954656568"></script>
+<script src="layerpitch-notify.js?v=1793954656568"></script>
+<script src="layerpitch-guide.js?v=1793954656568"></script>
+<script src="layerpitch-lesson-previews.js?v=1793954656568"></script>
+<script src="layerpitch-help.js?v=1793954656568"></script>
+<script src="player.js?v=1793954656568"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5051,6 +5060,81 @@ function freshBlocks() {
   ];
 }
 
+/* ---------------- Menu « Ajouter… » avec recherche et dossiers (06/11) ----------------
+ * Remplace l'ancienne liste déroulante, devenue ingérable avec beaucoup de morceaux : un champ de recherche qui
+ * ouvre une liste rangée par dossier (dans l'ordre des dossiers de la bibliothèque, puis « Sans dossier »).
+ * On tape quelques lettres (accents et majuscules ignorés) : seuls les éléments dont le titre OU le nom du dossier
+ * correspond restent. Flèches pour choisir, Entrée pour ajouter, Échap pour fermer. Servi aux morceaux (AdReel, Pack)
+ * et aux Sfx. items : [{ id, title, folderId }] ; folders : [{ id, label }] ; onPick(id). */
+function addPickerNormalize(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+function buildAddPicker(hostEl, items, folders, placeholder, onPick) {
+  hostEl.classList.add('add-picker');
+  hostEl.innerHTML = `
+    <input type="search" class="add-picker-input" data-sel-action="add" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false">
+    <div class="add-picker-panel" hidden></div>
+  `;
+  const input = hostEl.querySelector('.add-picker-input');
+  const panel = hostEl.querySelector('.add-picker-panel');
+  let visible = []; // ids affichés, dans l'ordre, pour le clavier
+  let active = 0;
+
+  function groups(query) {
+    const q = addPickerNormalize(query);
+    const known = new Set(folders.map(f => f.id));
+    const out = [];
+    const push = (label, list) => {
+      const folderHit = q && addPickerNormalize(label).includes(q);
+      const kept = list.filter(it => !q || folderHit || addPickerNormalize(it.title).includes(q));
+      if (kept.length) out.push({ label, items: kept });
+    };
+    folders.forEach(f => push(f.label || tr('untitledFallback'), items.filter(it => it.folderId === f.id)));
+    push(folders.length ? tr('addPickerNoFolder') : '', items.filter(it => !it.folderId || !known.has(it.folderId)));
+    return out;
+  }
+  function draw() {
+    const gs = groups(input.value);
+    visible = [];
+    if (!gs.length) {
+      panel.innerHTML = `<div class="add-picker-empty">${tr('addPickerNoMatch')}</div>`;
+      return;
+    }
+    panel.innerHTML = gs.map(g => `
+      ${g.label ? `<div class="add-picker-folder">📁 ${escapeAttr(g.label)}</div>` : ''}
+      ${g.items.map(it => { visible.push(it.id); return `<div class="add-picker-item${g.label ? ' in-folder' : ''}" data-pick-id="${escapeAttr(it.id)}">${escapeAttr(it.title) || tr('untitledFallback')}</div>`; }).join('')}
+    `).join('');
+    if (active >= visible.length) active = visible.length - 1;
+    if (active < 0) active = 0;
+    highlight();
+  }
+  function highlight() {
+    panel.querySelectorAll('.add-picker-item').forEach((el, i) => el.classList.toggle('active', i === active));
+    const el = panel.querySelectorAll('.add-picker-item')[active];
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  function open() { if (panel.hidden) { panel.hidden = false; active = 0; draw(); } }
+  function close() { panel.hidden = true; }
+  function pick(id) { if (!id) return; close(); input.value = ''; onPick(id); }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('input', () => { panel.hidden = false; active = 0; draw(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); open(); active = Math.min(active + 1, visible.length - 1); highlight(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); highlight(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (!panel.hidden) pick(visible[active]); }
+    else if (e.key === 'Escape') { if (!panel.hidden) { e.preventDefault(); e.stopPropagation(); close(); } }
+  });
+  // mousedown (et non click) : sinon la perte de focus du champ ferme la liste avant que le clic n'arrive.
+  panel.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const row = e.target.closest('[data-pick-id]');
+    if (row) pick(row.dataset.pickId);
+  });
+  input.addEventListener('blur', close);
+}
+
 /* ---------------- Sélecteur de morceaux (bibliothèque -> AdReel ou Pack) ---------------- */
 // overridesObj : objet live { [trackId]: { title?, description?, layers?: {li: label}, stingers?: {si: label} } }.
 // Fourni uniquement pour l'usage AdReel (jamais pour les Packs) — active l'éditeur "Personnaliser pour cet AdReel".
@@ -5142,23 +5226,12 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj, a
     const unselected = exampleChoices(library.filter(t => !selectedIds.includes(t.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addTrackOption')}</option>
-          ${unselected.map(t2 => `<option value="${t2.id}">${escapeAttr(t2.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, libraryFolders, tr('addTrackOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allTracksIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
@@ -11313,23 +11386,12 @@ function buildSfxSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
     const unselected = exampleChoices(sfxLibrary.filter(s => !selectedIds.includes(s.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addSfxOption')}</option>
-          ${unselected.map(s => `<option value="${s.id}">${escapeAttr(s.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, sfxFolders, tr('addSfxOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allSfxIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
@@ -16805,11 +16867,11 @@ const LESSONS = [
       done: () => !!lessonTrack() && !!document.querySelector('#libraryDetail .seq-master-item[data-seq-key="sfx"]') },
     { selector: '#libraryDetail .seq-master-item[data-seq-key="sfx"]', titleKey: 'lxExtraTitle', textKey: 'lxExtraText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'sfx'; } },
-    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd1Title', textKey: 'lxAdd1Text',
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] input[data-sel-action="add"]', titleKey: 'lxAdd1Title', textKey: 'lxAdd1Text',
       done: () => { const t = lessonTrack(); const a = lessonSfx(0); return !!t && !!a && (t.sfxIds || []).includes(a.id); } },
-    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd2Title', textKey: 'lxAdd2Text',
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] input[data-sel-action="add"]', titleKey: 'lxAdd2Title', textKey: 'lxAdd2Text',
       done: () => { const t = lessonTrack(); const b = lessonSfx(1); return !!t && !!b && (t.sfxIds || []).includes(b.id); } },
-    { selector: '#libraryDetail [data-role="trackSfxSelector"] select[data-sel-action="add"]', titleKey: 'lxAdd3Title', textKey: 'lxAdd3Text',
+    { selector: '#libraryDetail [data-role="trackSfxSelector"] input[data-sel-action="add"]', titleKey: 'lxAdd3Title', textKey: 'lxAdd3Text',
       done: () => { const t = lessonTrack(); const c = lessonSfx(2); return !!t && !!c && (t.sfxIds || []).includes(c.id); } },
     { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lxListenTitle', textKey: 'lxListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
     { titleKey: 'lxEndTitle', textKey: 'lxEndText', final: true },
@@ -17001,8 +17063,8 @@ const LESSONS = [
       drops: [{ kind: 'text', label: 'Direction sonore', value: 'Direction sonore' }] },
     { selector: '.block-editor-card[data-type="text"] [data-role="content"]', titleKey: 'laTextBodyTitle', textKey: 'laTextBodyText', done: () => blocks.some(b => b.type === 'text' && (b.content || '').trim().length > 5),
       drops: [{ kind: 'text', label: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.', value: 'Un fil rouge entre toutes les villes : le même tempo (110 BPM), et une ambiance différente à chaque ville.' }] },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
-    { selector: '.block-editor-card[data-type="tracks"] select[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
+    { selector: '.block-editor-card[data-type="tracks"] input[data-sel-action="add"]', titleKey: 'laTrack1Title', textKey: 'laTrack1Text', done: () => trackIds.length >= 1 },
+    { selector: '.block-editor-card[data-type="tracks"] input[data-sel-action="add"]', titleKey: 'laTrack2Title', textKey: 'laTrack2Text', done: () => trackIds.length >= 2 },
     // Mise en page : explication, sans geste obligatoire (le glisser-déposer des blocs marche à la souris, pas toujours au doigt).
     // Réordonner est plus simple blocs repliés ; l'étape attend que l'ordre ait vraiment changé avant d'afficher « Suivant ».
     { selector: '#btnToggleCollapseAllBlocks', titleKey: 'liCollapseTitle', textKey: 'liCollapseText', done: () => allBlocksCollapsed() },
@@ -17087,8 +17149,8 @@ const LESSONS = [
     { titleKey: 'lpWelcomeTitle', textKey: 'lpWelcomeText' },
     { selector: '.nav-item[data-tab="packs"]', titleKey: 'lpNavTitle', textKey: 'lpNavText', done: () => !!document.querySelector('.backstage-panel[data-panel="packs"].active') },
     { selector: '#btnAddPack', titleKey: 'lpAddTitle', textKey: 'lpAddText', clickDone: true, done: () => packs.length >= 1 },
-    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack1Title', textKey: 'lpTrack1Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 1 },
-    { selector: '#packsContainer [data-role="trackSelector"] select[data-sel-action="add"]', titleKey: 'lpTrack2Title', textKey: 'lpTrack2Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 2 },
+    { selector: '#packsContainer [data-role="trackSelector"] input[data-sel-action="add"]', titleKey: 'lpTrack1Title', textKey: 'lpTrack1Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 1 },
+    { selector: '#packsContainer [data-role="trackSelector"] input[data-sel-action="add"]', titleKey: 'lpTrack2Title', textKey: 'lpTrack2Text', done: () => packs.length > 0 && packs[0].trackIds.length >= 2 },
     { selector: '#packsContainer [data-action="select-pack-entry"][data-entry="presentation"]', titleKey: 'lpPresTitle', textKey: 'lpPresText', done: () => packs.length > 0 && packSelectedEntry.get(packs[0].id) === 'presentation' },
     { selector: '#packsContainer input[data-pack-field="title"][data-pi="0"]:not(.seq-header-title)', titleKey: 'lpNameTitle', textKey: 'lpNameText', done: () => packs.length > 0 && (packs[0].title || '').trim().length > 2 && packs[0].title !== tr('defaultPackTitle'),
       drops: [{ kind: 'text', label: '8 bits Comptines', value: '8 bits Comptines' }] },
