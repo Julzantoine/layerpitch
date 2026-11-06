@@ -71,7 +71,7 @@
       { selector: '#videoCaptureListenBtn', titleKey: 'pvHearTitle', textKey: 'pvHearText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
         drops: [{ kind: 'text', label: 'Music City : de la rue au club', value: 'Music City : de la rue au club' }] },
-      { selector: '#videoCaptureSaveBtn', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', clickDone: true },
+      { selector: '#videoCaptureSaveStatus', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', done: () => !!($('#videoCaptureSaveStatus') && $('#videoCaptureSaveStatus').dataset.state === 'saved') }, // enregistrement automatique (06/11)
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="new"]'), titleKey: 'pvNewTitle', textKey: 'pvNewText', clickDone: true },
       { selector: () => swapSel() || $('#videoCaptureVersioning'), titleKey: 'pvPickTitle', textKey: 'pvPickText', done: () => { const sel = swapSel(); return !!(sel && sel.value === HI); } },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="listenDraft"]'), titleKey: 'pvListenTitle', textKey: 'pvListenText', clickDone: true },

@@ -435,6 +435,30 @@ function openVideoAtelier(opts) {
   else ensureVideoAtelierLoaded();
   if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+// « Terminer le montage » (06/11) : étape de « Sauvegarder / publier » (voir publishAll), juste avant les AdReels qui affichent les montages.
+// Demande à l'atelier (s'il est ouvert dans son cadre) de publier le montage retouché : son + étiquettes. Réponses : 'none' (rien à publier,
+// pas d'atelier, ou atelier qui ne répond pas dans les 4 s : ancienne version en cache), 'done' ; un échec lève une erreur avec la raison.
+function finishAtelierMontage() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return Promise.resolve('none');
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2);
+  return new Promise((resolve, reject) => {
+    let ackTimer = 0, longTimer = 0;
+    const finish = fn => { clearTimeout(ackTimer); clearTimeout(longTimer); window.removeEventListener('message', onMsg); fn(); };
+    function onMsg(e) {
+      if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.id !== id) return;
+      if (e.data.type === 'finishMontageAck') { clearTimeout(ackTimer); return; }
+      if (e.data.type !== 'finishMontageResult') return;
+      if (e.data.status === 'error') finish(() => reject(new Error(e.data.message || 'erreur inconnue')));
+      else finish(() => resolve(e.data.status === 'done' ? 'done' : 'none'));
+    }
+    window.addEventListener('message', onMsg);
+    ackTimer = setTimeout(() => finish(() => resolve('none')), 4000);
+    longTimer = setTimeout(() => finish(() => reject(new Error(tr('montageFinishTimeout')))), 15 * 60 * 1000);
+    try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'finishMontage', id }, location.origin); }
+    catch (err) { finish(() => resolve('none')); }
+  });
+}
 // Messages de l'atelier (même origine seulement) : fin de sa partie de la leçon Versioning -> le Backstage reprend la main.
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier') return;
@@ -459,19 +483,20 @@ window.addEventListener('message', e => {
 let videoVersioningIndexPromise = null;
 function loadVideoVersioningIndex(force) {
   if (videoVersioningIndexPromise && !force) return videoVersioningIndexPromise;
-  const empty = { byVideoId: {}, available: false };
+  const empty = { byVideoId: {}, captures: [], available: false };
   videoVersioningIndexPromise = (async () => {
     if (entitlementLevel('versioning') !== 'saved') return empty;
     const client = window.LayerPitchSupabaseClient.getClient();
     const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
     if (res.error) return empty;
-    const out = { byVideoId: {}, available: true };
+    const out = { byVideoId: {}, captures: [], available: true };
     await Promise.all((res.data || []).map(async c => {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
       const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
+      out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
       if (c.baseVideoId) out.byVideoId[c.baseVideoId] = { capture: c, siblings }; // la vidéo muette du montage (migration 20261021040000) mène aussi au montage
     }));
