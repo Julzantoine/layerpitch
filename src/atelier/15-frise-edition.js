@@ -301,6 +301,18 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
       nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
     });
+    // Arrêts (05/11, fondu à l'arrêt) : chaque arrêt du morceau, avec son fondu dessiné en pente -- un clic ouvre le détail pour régler
+    // la durée du fondu. Ni déplaçable ni supprimable ici : la fin des blocs, elle, se règle sur les blocs eux-mêmes.
+    const trackStops = events.filter(e => e.name === 'voices_stop' && e.detail.trackId === trackId && !e.detail.scope);
+    if (trackStops.length) {
+      let blocksHtml = '';
+      trackStops.forEach(e => {
+        const fade = e.detail.fadeSec > 0 ? e.detail.fadeSec : 0;
+        const label = fade ? tr('captureStopFadeShort').replace('{s}', String(Math.round(fade * 10) / 10)) : '';
+        blocksHtml += `<div class="vct-block vct-stop${fade ? ' vct-stop-fade' : ''}" data-idx="${events.indexOf(e)}" style="left:${pct(e.t)}%;width:${pct(e.t + Math.max(fade, 0.3)) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(tr('captureStopBlockTitle'))}">${label ? `<span class="vct-block-label">${label}</span>` : ''}</div>`;
+      });
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureStopLane')}</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
+    }
     // Regroupe les pistes sous le nom du morceau qui les possède (2026-09-15) -- le titre lui-même n'est
     // pas éditable ici, c'est le vrai nom du morceau, pas un libellé de prise.
     lanesHtml += renderGroup('track:' + trackId, track.title || 'Morceau', 'vct-track-group-music', nestedLanesHtml);
@@ -377,6 +389,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.querySelectorAll('.vct-block').forEach(b => b.classList.remove('vct-selected'));
     el.classList.add('vct-selected');
     const e = events[idx];
+    const detailEl0 = container.querySelector('#vctDetail');
+    if (e.name === 'voices_stop') {
+      // Arrêt (05/11) : seule la durée du fondu se règle ici (0 = arrêt net).
+      detailEl0.innerHTML = `
+        <span class="vct-detail-label">${tr('captureStopDetail').replace('{t}', e.t.toFixed(2))}</span>
+        <label class="video-capture-export-opt" title="${tr('captureStopFadeHelp')}">${tr('captureStopFadeLabel')}
+          <input type="number" step="0.1" min="0" max="10" value="${e.detail.fadeSec > 0 ? e.detail.fadeSec : 0}" class="video-capture-event-stopfade"> s</label>`;
+      detailEl0.querySelector('.video-capture-event-stopfade').addEventListener('change', ev => {
+        const v = parseFloat(ev.target.value);
+        if (!(v > 0)) delete e.detail.fadeSec; else e.detail.fadeSec = Math.min(10, v);
+        rerender();
+        onChange && onChange();
+      });
+      return;
+    }
     const editableDuration = hasIndependentDuration(e);
     const isSfx = e.name === 'stinger_play';
     // Duck (2026-09-15) : baisse le volume de la musique pendant que le stinger joue, comme le fait déjà
@@ -533,6 +560,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
     const idx = parseInt(el.dataset.idx, 10);
     if (idx < 0) return; // fenêtre implicite de départ (avant le premier vrai clic) -- pas interactive
+    if (el.classList.contains('vct-stop')) { el.addEventListener('click', () => selectBlock(idx, el)); return; } // arrêt : réglage du fondu seulement
     el.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'move'));
     const handle = el.querySelector('.vct-resize-handle');
     if (handle) handle.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'resize'));

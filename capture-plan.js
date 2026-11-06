@@ -288,7 +288,8 @@
   function captureTotal(events) {
     const lastT = Math.max(0, ...events.map(e => e.t),
       ...events.filter(e => e.name === 'stinger_play').map(e => e.t + (e.detail.durationOverride || e.detail.fileDuration || 1)),
-      ...events.filter(e => e.name === 'layer_segment' || e.name === 'fx_segment').map(e => e.t + e.detail.duration));
+      ...events.filter(e => e.name === 'layer_segment' || e.name === 'fx_segment').map(e => e.t + e.detail.duration),
+      ...events.filter(e => e.name === 'voices_stop' && e.detail.fadeSec > 0).map(e => e.t + e.detail.fadeSec)); // fondu à l'arrêt
     return lastT + TAIL;
   }
 
@@ -315,6 +316,45 @@
     return { init: auto[0][2], auto };
   }
   const byT = (a, b) => a.t - b.t;
+
+  // ---- Fondu à l'arrêt (05/11, demande de Jules-Antoine) ----
+  // Un arrêt enregistré dans l'atelier peut porter une durée de fondu (voices_stop.detail.fadeSec, posée par le lecteur au début du
+  // fondu, retouchable sur la frise). Toute voix du morceau qui s'arrêtait à cet instant s'éteint alors en fondu : son volume descend
+  // jusqu'à 0 et elle sonne fadeSec de plus. Sans durée (arrêt de fin de prise, anciennes captures) : arrêt net, comme avant.
+  const STOP_MATCH_SEC = 0.06; // un bloc statique finit pile sur son arrêt ; certaines coupures ajoutent quelques centièmes
+  function autoValueAt(gain, t) {
+    let v = gain.init, pt = -Infinity, pv = gain.init;
+    for (const [tag, at, val] of gain.auto) {
+      if (at > t) { if (tag === 'lin' && isFinite(pt) && at > pt) return pv + (val - pv) * (t - pt) / (at - pt); break; }
+      v = val; pt = at; pv = val;
+    }
+    return v;
+  }
+  function fadeVoiceOut(v, t, sec) {
+    const gain = v.gain || { init: 1, auto: [['set', v.start, 1]] };
+    const val = autoValueAt(gain, t);
+    const kept = [];
+    for (const step of gain.auto) {
+      if (step[1] <= t) { kept.push(step); continue; }
+      if (step[0] === 'lin') kept.push(['lin', t, val]); // rampe en cours : même trajet jusqu'au début du fondu
+      break;
+    }
+    kept.push(['set', t, val], ['lin', t + sec, 0]);
+    v.gain = { init: gain.init, auto: kept };
+    v.stop = t + sec;
+  }
+  // Statique : un bloc = une écoute, que la frise permet d'allonger ou de raccourcir sans toucher à l'arrêt -- le fondu suit alors la
+  // fin du bloc (celui de l'arrêt qui fermait cette écoute).
+  function applyStopFades(voices, events) {
+    const stops = events.filter(e => e.name === 'voices_stop' && !e.detail.scope).sort(byT);
+    if (!stops.some(e => e.detail.fadeSec > 0)) return;
+    voices.forEach(v => {
+      if (v.stop == null || !v.track) return;
+      const own = stops.filter(e => e.detail.trackId === v.track.id && e.t > v.start + 1e-6);
+      const f = v.track.mode === 'static' ? own[0] : own.find(e => Math.abs(v.stop - e.t) <= STOP_MATCH_SEC);
+      if (f && f.detail.fadeSec > 0) fadeVoiceOut(v, v.track.mode === 'static' ? v.stop : f.t, f.detail.fadeSec);
+    });
+  }
 
   // Mix du visiteur (muet / solo / volume par voix 'layer-i' / 'pool-i') au fil de la capture.
   function mixTimeline(events, trackId) {
@@ -604,6 +644,7 @@
       if (duck) master.push({ t: s.t, fileDuration: s.detail.fileDuration || null, url: sfxUrl });
     });
 
+    applyStopFades(voices, events);
     const plan = {
       total, voices, sfxHits, duckHits: master,
       headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
