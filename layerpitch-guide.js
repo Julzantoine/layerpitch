@@ -355,7 +355,7 @@
         if (guide.adminTarget == null) guide.adminTarget = guide.steps.length - 1;
         const adminHtml = adminOn ? `<div class="tour-admin"><span class="tour-admin-tag">${esc(tr('tourAdminTag'))}</span>
         <button class="btn btn-small" type="button" data-tour="adm-skip">${esc(tr('tourAdminSkip'))}</button>
-        <select data-tour="adm-target" title="${esc(tr('tourAdminTargetTitle'))}">${guide.steps.map((st, k) => `<option value="${k}"${k === guide.adminTarget ? ' selected' : ''}>${k + 1} · ${esc(tr(st.titleKey || ''))}</option>`).join('')}</select>
+        <select data-tour="adm-target" title="${esc(tr('tourAdminTargetTitle'))}">${guide.steps.map((st, k) => `<option value="${k}"${k === guide.adminTarget ? ' selected' : ''}>${k + 1} · ${esc(tr(st.titleKey || '', host.textVars ? host.textVars(st, guide) : {}))}</option>`).join('')}</select>
         <button class="btn btn-small" type="button" data-tour="adm-jump" title="${esc(tr('tourAdminJumpTitle'))}">${esc(tr('tourAdminJump'))}</button>
         <button class="btn btn-small" type="button" data-tour="adm-auto" title="${esc(tr('tourAdminAutoTitle'))}">${esc(tr(guide.autoRunning ? 'tourAdminStop' : 'tourAdminAuto'))}</button>
         <span class="tour-admin-msg" data-tour="adm-msg">${esc(guide.adminMsg || '')}</span></div>` : '';

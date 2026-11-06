@@ -91,6 +91,12 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
+    // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
+    // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
+    if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>`);
+      return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
+    }
     const collapsed = !!collapsedGroups[key];
     const members = groupMembers(key);
     let blockHtml = '';
@@ -412,12 +418,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
       rerender();
     });
-    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
-      const i = markers.indexOf(m);
-      if (i !== -1) markers.splice(i, 1);
-      container.__vctSelectedMarker = null;
-      rerender();
-    });
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => removeMarker(m));
+  }
+  // Effacer un marqueur (06/11, demande de Jules-Antoine : « la même manip que pour le créer ») : double-clic ou clic droit sur son
+  // fanion, touche Suppr / Retour arrière quand il est sélectionné, ou ✕ dans son détail.
+  function removeMarker(m) {
+    const i = markers.indexOf(m);
+    if (i !== -1) markers.splice(i, 1);
+    container.__vctSelectedMarker = null;
+    rerender();
   }
   function addMarker(t) {
     if (t == null) return;
@@ -461,11 +470,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     });
+    if (editable) flagEl.addEventListener('dblclick', ev => { ev.preventDefault(); ev.stopPropagation(); if (!videoCaptureState) removeMarker(m); });
   });
+  // Touche Suppr : un seul écouteur par frise (posé au premier affichage), qui appelle l'effaceur du DERNIER affichage -- le tableau
+  // des marqueurs change à chaque montage chargé. Jamais pendant qu'on tape dans un champ (nom du marqueur, nom de la prise…).
+  container.__vctDeleteSelectedMarker = editable ? () => {
+    const m = markers.find(o => o.id === container.__vctSelectedMarker);
+    if (!m || videoCaptureState || !container.isConnected) return false;
+    removeMarker(m);
+    return true;
+  } : null;
+  if (!container.__vctMarkerKeys) {
+    container.__vctMarkerKeys = true;
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
+    });
+  }
   if (editable) {
     // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
     // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
-    // (règle ou pistes), à l'endroit cliqué. Clic droit sur un fanion = son détail.
+    // (règle ou pistes), à l'endroit cliqué. Double-clic ou clic droit sur un fanion = l'effacer (voir removeMarker).
     const bodyEl = container.querySelector('.vct-body');
     bodyEl.addEventListener('dblclick', ev => {
       if (videoCaptureState || !ev.target.closest) return;
@@ -475,7 +502,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     bodyEl.addEventListener('contextmenu', ev => {
       if (videoCaptureState) return;
       const flag = ev.target.closest && ev.target.closest('.vct-marker-flag');
-      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) selectMarker(m); return; }
+      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) removeMarker(m); return; }
       const t = timeAtX(ev.clientX);
       if (t == null) return; // clic droit sur un nom de piste : menu habituel du navigateur
       ev.preventDefault();

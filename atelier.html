@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793955824541">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793955824541">
+<link rel="stylesheet" href="player.css?v=1793991665665">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793991665665">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -385,7 +385,8 @@
   .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }
   /* Vidéo accrochée en haut quand on fait défiler (05/11, voir pinCaptureVideo dans 18-panneau-de-capture.js). */
-  .video-test-panel-frame-wrap.video-capture-pinned { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 40; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  .video-capture-dock.video-capture-pinned { position: fixed; top: 0; z-index: 40; background: #111; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  .vct-lane-nested .vct-lane-label.vct-lane-label-solo { padding-left: 6px; font-weight: 600; color: #7fb0e8; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
   .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
   /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
@@ -417,7 +418,7 @@
   body.video-panel-active { max-width: none; padding: 16px 20px 40px; align-items: stretch; }
   body.video-panel-active .video-test-panel { width: 100%; max-width: none; }
   body.video-panel-active .page { max-width: none; width: 100%; }
-  body.video-panel-active .video-test-panel-frame-wrap { max-height: 56vh; }
+  body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
   body.video-panel-active .atelier-intro { display: none; }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
@@ -481,16 +482,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793955824541"></script>
-<script src="layerpitch-notify.js?v=1793955824541"></script>
-<script src="public-page.js?v=1793955824541"></script>
-<script src="player.js?v=1793955824541"></script>
-<script src="capture-plan.js?v=1793955824541"></script>
-<script src="capture-render.js?v=1793955824541"></script>
-<script src="capture-retarget.js?v=1793955824541"></script>
-<script src="capture-versioning.js?v=1793955824541"></script>
-<script src="layerpitch-guide.js?v=1793955824541"></script>
-<script src="atelier-lecons.js?v=1793955824541"></script>
+<script src="layerpitch-i18n.js?v=1793991665665"></script>
+<script src="layerpitch-notify.js?v=1793991665665"></script>
+<script src="public-page.js?v=1793991665665"></script>
+<script src="player.js?v=1793991665665"></script>
+<script src="capture-plan.js?v=1793991665665"></script>
+<script src="capture-render.js?v=1793991665665"></script>
+<script src="capture-retarget.js?v=1793991665665"></script>
+<script src="capture-versioning.js?v=1793991665665"></script>
+<script src="layerpitch-guide.js?v=1793991665665"></script>
+<script src="atelier-lecons.js?v=1793991665665"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1074,6 +1075,12 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
+    // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
+    // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
+    if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>`);
+      return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
+    }
     const collapsed = !!collapsedGroups[key];
     const members = groupMembers(key);
     let blockHtml = '';
@@ -1395,12 +1402,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
       rerender();
     });
-    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
-      const i = markers.indexOf(m);
-      if (i !== -1) markers.splice(i, 1);
-      container.__vctSelectedMarker = null;
-      rerender();
-    });
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => removeMarker(m));
+  }
+  // Effacer un marqueur (06/11, demande de Jules-Antoine : « la même manip que pour le créer ») : double-clic ou clic droit sur son
+  // fanion, touche Suppr / Retour arrière quand il est sélectionné, ou ✕ dans son détail.
+  function removeMarker(m) {
+    const i = markers.indexOf(m);
+    if (i !== -1) markers.splice(i, 1);
+    container.__vctSelectedMarker = null;
+    rerender();
   }
   function addMarker(t) {
     if (t == null) return;
@@ -1444,11 +1454,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     });
+    if (editable) flagEl.addEventListener('dblclick', ev => { ev.preventDefault(); ev.stopPropagation(); if (!videoCaptureState) removeMarker(m); });
   });
+  // Touche Suppr : un seul écouteur par frise (posé au premier affichage), qui appelle l'effaceur du DERNIER affichage -- le tableau
+  // des marqueurs change à chaque montage chargé. Jamais pendant qu'on tape dans un champ (nom du marqueur, nom de la prise…).
+  container.__vctDeleteSelectedMarker = editable ? () => {
+    const m = markers.find(o => o.id === container.__vctSelectedMarker);
+    if (!m || videoCaptureState || !container.isConnected) return false;
+    removeMarker(m);
+    return true;
+  } : null;
+  if (!container.__vctMarkerKeys) {
+    container.__vctMarkerKeys = true;
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
+    });
+  }
   if (editable) {
     // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
     // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
-    // (règle ou pistes), à l'endroit cliqué. Clic droit sur un fanion = son détail.
+    // (règle ou pistes), à l'endroit cliqué. Double-clic ou clic droit sur un fanion = l'effacer (voir removeMarker).
     const bodyEl = container.querySelector('.vct-body');
     bodyEl.addEventListener('dblclick', ev => {
       if (videoCaptureState || !ev.target.closest) return;
@@ -1458,7 +1486,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     bodyEl.addEventListener('contextmenu', ev => {
       if (videoCaptureState) return;
       const flag = ev.target.closest && ev.target.closest('.vct-marker-flag');
-      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) selectMarker(m); return; }
+      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) removeMarker(m); return; }
       const t = timeAtX(ev.clientX);
       if (t == null) return; // clic droit sur un nom de piste : menu habituel du navigateur
       ev.preventDefault();
@@ -2172,31 +2200,30 @@ function closeCapturePanel() {
 // côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
-  const wrap = panel.querySelector('.video-test-panel-frame-wrap');
-  if (!wrap) return;
+  // Depuis le 06/11 (demande de Jules-Antoine) : ce qui s'accroche n'est plus la seule image mais le « dock » = image + barre de
+  // commandes (Enregistrer, Écouter...), et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  const dock = panel.querySelector('.video-capture-dock');
+  if (!dock) return;
   const mark = document.createElement('div');
   const spacer = document.createElement('div');
-  wrap.before(mark, spacer);
+  dock.before(mark, spacer);
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
-    const pinned = wrap.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
-    wrap.classList.toggle('video-capture-pinned', pinned);
+    const pinned = dock.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
+    dock.classList.toggle('video-capture-pinned', pinned);
     if (pinned) {
-      const w = Math.min(panel.clientWidth, window.innerHeight * 0.4 * 16 / 9);
-      // Le panneau n'est plus forcément centré (05/11 : grande colonne à gauche, morceaux à droite) : l'image accrochée suit sa colonne.
+      // Le panneau n'est plus forcément centré (grande colonne à gauche, morceaux à droite) : le dock suit sa colonne.
       const r = panel.getBoundingClientRect();
-      wrap.style.width = w + 'px';
-      wrap.style.left = (r.left + (panel.clientWidth - w) / 2) + 'px';
-      wrap.style.transform = 'none';
-      spacer.style.height = wrap.dataset.restHeight || (panel.clientWidth * 9 / 16) + 'px';
-      root.style.scrollPaddingTop = (w * 9 / 16 + 12) + 'px';
+      dock.style.width = panel.clientWidth + 'px';
+      dock.style.left = r.left + 'px';
+      spacer.style.height = dock.dataset.restHeight || dock.offsetHeight + 'px';
+      root.style.scrollPaddingTop = (dock.offsetHeight + 12) + 'px';
     } else {
-      wrap.style.width = '';
-      wrap.style.left = '';
-      wrap.style.transform = '';
+      dock.style.width = '';
+      dock.style.left = '';
       spacer.style.height = '';
-      wrap.dataset.restHeight = wrap.offsetHeight + 'px'; // hauteur réelle au repos (plafonnée à 56vh dans l'atelier)
+      dock.dataset.restHeight = dock.offsetHeight + 'px'; // hauteur réelle au repos
       root.style.scrollPaddingTop = '';
     }
   };
@@ -2314,6 +2341,7 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    <div class="video-capture-dock">
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
     <div class="video-capture-bar">
@@ -2327,6 +2355,7 @@ function openCapturePanel(file, opts) {
       </label>
       <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
+    </div>
     </div>
     <div class="video-capture-bar">
       <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
@@ -2700,10 +2729,14 @@ function openCapturePanel(file, opts) {
   // déjà présent pour Sauvegarder -- même prise, même nom.
   addToLibraryBtn.addEventListener('click', async () => {
     if (!lastExportBlob || !packId) return;
+    // Nom de la vidéo (6/11, demande de Jules-Antoine) : demandé à l'ajout, proposé d'après le nom de la prise ; renommable ensuite
+    // dans la bibliothèque. Annuler = on n'envoie rien.
+    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: titleInput.value || '' });
+    if (exportName === null) return;
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, titleInput.value, videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null);
       // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
       // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');
@@ -2850,7 +2883,10 @@ function openCapturePanel(file, opts) {
     versioning = window.LayerCaptureVersioning.mount(versioningHost, {
       sessionOnly: versioningLevel !== 'saved',
       tr, videoEl, fetchBytes: fetchAsUint8Array, fullExportLocked,
-      library: capturePackLibrary(), findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      library: capturePackLibrary(), otherPacks: (window.__lpCaptureLibrary.otherPacks || []),
+      extraPackContent: (pid) => { const L = window.__lpCaptureLibrary, pk = (L.otherPacks || []).find(x => x.id === pid); if (!pk) return null;
+        const t = new Set(pk.trackIds), sx = new Set(pk.sfxIds); return { tracks: (L.library || []).filter(x => t.has(x.id)), sfx: (L.sfxLibrary || []).filter(x => sx.has(x.id)) }; },
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
@@ -3222,6 +3258,11 @@ async function init() {
         const t = (data.library || []).find(x => x.id === id);
         return (t && t.sfxIds) || [];
       })))],
+      // Autres packs du compositeur, proposés dans le Versioning (06/11) : pas côté studio, où le pack acheté n'ouvre pas le reste de son compte.
+      otherPacks: atelierAsStudio ? [] : (data.packs || []).filter(p => p.id !== packId).map(p => ({
+        id: p.id, title: p.title || p.id, trackIds: (p.trackIds || []).slice(),
+        sfxIds: [...new Set((p.sfxIds || []).concat(...(p.trackIds || []).map(id => { const t = (data.library || []).find(x => x.id === id); return (t && t.sfxIds) || []; })))],
+      })),
     };
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 

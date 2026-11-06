@@ -420,6 +420,12 @@ function offerTrackTempoFromFilenames(track, files, withLoopBars) {
   });
 }
 
+// Dossier des fichiers pour un aperçu : celui enregistré avec le morceau ou le Sfx quand il est chez nous (morceaux préchargés des
+// tutos dans tuto/, exemples préchargés qui lisent les fichiers de leur source), sinon audio/<id>/. Retour de Peter K (06/11) : l'aperçu
+// des leçons Sfx et événements cherchait « Jazz Lo Static » dans audio/t-jazz-lo/ (404, message « fichiers en cours de propagation »).
+function previewMediaBase(o, fallback) {
+  return (o && typeof o.base === 'string' && o.base.indexOf(MEDIA_BASE) === 0) ? o.base : fallback;
+}
 function buildPreviewTrack(track) {
   if (track.mode === 'hybrid-sequential') {
     return {
@@ -501,7 +507,7 @@ function buildPreviewTrack(track) {
     maxChainLoops: (track.maxChainLoops !== undefined && track.maxChainLoops !== null) ? track.maxChainLoops : null,
     noAiOverride: (track.noAiOverride === true || track.noAiOverride === false) ? track.noAiOverride : null,
     duration: track.duration || 0,
-    base: `${MEDIA_BASE}audio/${track.id}/`,
+    base: previewMediaBase(track, `${MEDIA_BASE}audio/${track.id}/`),
     publishedAt: Date.now(), // aperçu local : toujours frais à chaque clic sur "Écouter", pas besoin d'attendre une publication pour retrouver la bonne version
     // Carte globale des chemins (02/09, mode séquentiel à embranchement uniquement -- sans effet sur les
     // autres modes) : le compositeur n'a évidemment "déjà joué" aucun emplacement en train de construire sa
@@ -626,7 +632,7 @@ function togglePreview(ti, cardEl) {
   sfxLibrary.forEach(sfx => {
     previewSfxById[sfx.id] = {
       id: sfx.id, title: sfx.title, rrMode: sfx.rrMode, spatial: sfx.spatial || null,
-      base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`,
+      base: previewMediaBase(sfx, `${MEDIA_BASE}audio/sfx-${sfx.id}/`),
       publishedAt: Date.now(),
       alternatives: (sfx.alternatives || []).map(a => a.pendingFile ? { label: a.label, localFile: a.pendingFile }
         : a.remoteFile ? { label: a.label, file: a.remoteFile } : null).filter(Boolean)

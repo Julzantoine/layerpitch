@@ -73,7 +73,21 @@
       const sfxIds = [...new Set(events.filter(e => e.name === 'stinger_play').map(e => e.detail.sfxId))].filter(id => ctx.findSfx(id));
       return { trackIds, sfxIds };
     };
-    const folderName = id => { const f = (ctx.library.sfxFolders || []).find(x => x.id === id); return f ? (f.name || f.title || '') : ''; };
+    // Autres packs du compositeur ajoutés au choix du Versioning (06/11, demande de Jules-Antoine) : leurs morceaux et Sfx s'ajoutent à ceux
+    // du pack ouvert. Choix de séance seulement (pas enregistré) : une version enregistrée cite déjà les morceaux par identifiant.
+    const extraPackIds = [];
+    const extraOf = pid => (ctx.extraPackContent ? ctx.extraPackContent(pid) : null) || { tracks: [], sfx: [] };
+    const lib = () => {
+      const base = ctx.library;
+      if (!extraPackIds.length) return base;
+      const seenT = new Set((base.library || []).map(t => t.id)), seenS = new Set((base.sfxLibrary || []).map(x => x.id));
+      const tracks = (base.library || []).slice(), sfx = (base.sfxLibrary || []).slice();
+      extraPackIds.forEach(pid => { const c = extraOf(pid); c.tracks.forEach(t => { if (!seenT.has(t.id)) { seenT.add(t.id); tracks.push(t); } }); c.sfx.forEach(x => { if (!seenS.has(x.id)) { seenS.add(x.id); sfx.push(x); } }); });
+      return Object.assign({}, base, { library: tracks, sfxLibrary: sfx });
+    };
+    // Les dossiers Sfx portent leur nom dans `label` (06/11 : on lisait name/title et l'on affichait l'identifiant brut) ; sans nom, « Dossier n ».
+    const folderLabel = (f, i) => f.label || f.name || f.title || tr('defaultOrgFolderLabel').replace('{n}', String(i + 1));
+    const folderName = id => { const all = ctx.library.sfxFolders || []; const i = all.findIndex(x => x.id === id); return i < 0 ? '' : folderLabel(all[i], i); };
 
     // ---- Durées de fichiers dont la traduction a besoin (transition d'embranchement sans durée réglée, Sfx remplacés) ----
     const fileUrl = (owner, file) => owner.base + encodeURIComponent(file) + (owner.publishedAt ? '?v=' + encodeURIComponent(owner.publishedAt) : '');
@@ -274,20 +288,36 @@
       let h = `<div class="vcv-editor">
         <div class="vcv-row"><span class="vcv-label">${esc(tr('versioningNameLabel'))}</span>
           <input type="text" class="video-capture-title-input vcv-name-input" data-role="title" value="${esc(editing.title)}" placeholder="${esc(autoTitle(subs))}"></div>`;
+      const addable = (ctx.otherPacks || []).filter(x => extraPackIds.indexOf(x.id) < 0);
+      if ((ctx.otherPacks || []).length) {
+        h += `<div class="vcv-section">${esc(tr('versioningExtraPacksLabel'))}
+          ${extraPackIds.map(pid => { const pk = (ctx.otherPacks || []).find(x => x.id === pid); return `<button type="button" class="video-capture-download-btn" data-role="removePack" data-pack="${esc(pid)}" title="${esc(tr('versioningRemovePack'))}">${esc(pk ? pk.title : pid)} ✕</button>`; }).join(' ')}
+          ${addable.length ? `<select class="video-capture-load-select" data-role="addPack"><option value="">${esc(tr('versioningAddPack'))}</option>${addable.map(x => `<option value="${esc(x.id)}">${esc(x.title || x.id)}</option>`).join('')}</select>` : ''}
+        </div>`;
+      }
       if (trackIds.length) {
         h += `<div class="vcv-section">${esc(tr('versioningTracksLabel'))}</div>`;
         trackIds.forEach(id => {
           const src = ctx.findTrack(id);
           const cur = (subs.tracks || {})[id] || {};
-          const others = (ctx.library.library || []).filter(t => t.id !== id);
-          const ok = others.filter(t => RT().compareTracks(src, t).compatible);
+          const baseIds = new Set((ctx.library.library || []).map(t => t.id));
+          const others = (lib().library || []).filter(t => t.id !== id);
+          const okAll = others.filter(t => RT().compareTracks(src, t).compatible);
+          const ok = okAll.filter(t => baseIds.has(t.id));
+          const optOf = t => `<option value="${esc(t.id)}" ${cur.to === t.id ? 'selected' : ''}>${esc(t.title || t.id)}</option>`;
+          const extraGroups = extraPackIds.map(pid => {
+            const pk = (ctx.otherPacks || []).find(x => x.id === pid);
+            const ids = new Set(extraOf(pid).tracks.map(t => t.id));
+            const list = okAll.filter(t => !baseIds.has(t.id) && ids.has(t.id));
+            return list.length ? `<optgroup label="${esc(pk ? pk.title : pid)}">${list.map(optOf).join('')}</optgroup>` : '';
+          }).join('');
           const sameModeBlocked = others.filter(t => t.mode === src.mode && !RT().compareTracks(src, t).compatible).length;
           h += `<div class="vcv-row">
             <span class="vcv-src">${esc(src.title || id)} <em>${esc(tr('versioningMode_' + src.mode))}</em></span><span class="vcv-arrow">→</span>
             <select class="video-capture-load-select" data-track="${esc(id)}">
               <option value="">${esc(tr('versioningKeepTrack'))}</option>
-              ${ok.map(t => `<option value="${esc(t.id)}" ${cur.to === t.id ? 'selected' : ''}>${esc(t.title || t.id)}</option>`).join('')}
-              ${!ok.length ? `<option disabled>${esc(tr('versioningNoCompatible'))}</option>` : ''}
+              ${ok.map(optOf).join('')}${extraGroups}
+              ${!okAll.length ? `<option disabled>${esc(tr('versioningNoCompatible'))}</option>` : ''}
               ${sameModeBlocked ? `<option disabled>${esc(tr('versioningOthersBlocked').replace('{n}', sameModeBlocked))}</option>` : ''}
             </select>
             <label class="video-capture-export-opt" title="${esc(tr('versioningSnapHelp'))}"><input type="checkbox" data-snap="${esc(id)}" ${cur.snapToImage ? 'checked' : ''} ${cur.to ? '' : 'disabled'}> ${esc(tr('versioningSnapLabel'))}</label>
@@ -295,18 +325,18 @@
         });
       }
       if (sfxIds.length) {
-        const folders = (ctx.library.sfxFolders || []).filter(f => (ctx.library.sfxLibrary || []).some(s => s.folderId === f.id));
+        const folders = (ctx.library.sfxFolders || []).filter(f => (lib().sfxLibrary || []).some(s => s.folderId === f.id)).map(f => ({ id: f.id, label: folderName(f.id) }));
         h += `<div class="vcv-section">${esc(tr('versioningSfxLabel'))}
-          ${folders.length ? `<select class="video-capture-load-select" data-role="folder"><option value="">${esc(tr('versioningFolderPick'))}</option>${folders.map(f => `<option value="${esc(f.id)}">${esc(f.name || f.title || f.id)}</option>`).join('')}</select>` : ''}
+          ${folders.length ? `<select class="video-capture-load-select" data-role="folder"><option value="">${esc(tr('versioningFolderPick'))}</option>${folders.map(f => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join('')}</select>` : ''}
         </div>`;
         const byFolder = {};
-        (ctx.library.sfxLibrary || []).forEach(s => (byFolder[s.folderId || ''] = byFolder[s.folderId || ''] || []).push(s));
+        (lib().sfxLibrary || []).forEach(s => (byFolder[s.folderId || ''] = byFolder[s.folderId || ''] || []).push(s));
         sfxIds.forEach(id => {
           const src = ctx.findSfx(id);
           const has = subs.sfx && (id in subs.sfx);
           const cur = has ? subs.sfx[id] : undefined;
-          const sugg = RT().suggestSfx(src, (ctx.library.sfxLibrary || []));
-          const groups = Object.keys(byFolder).map(fid => `<optgroup label="${esc(fid ? folderName(fid) : tr('versioningNoFolder'))}">${byFolder[fid].filter(s => s.id !== id).map(s =>
+          const sugg = RT().suggestSfx(src, (lib().sfxLibrary || []));
+          const groups = Object.keys(byFolder).filter(fid => byFolder[fid].some(s => s.id !== id)).map(fid => `<optgroup label="${esc(fid ? folderName(fid) : tr('versioningNoFolder'))}">${byFolder[fid].filter(s => s.id !== id).map(s =>
             `<option value="${esc(s.id)}" ${cur === s.id ? 'selected' : ''}>${esc(s.title || s.id)}${s.tag ? ' — ' + esc(s.tag) : ''}</option>`).join('')}</optgroup>`).join('');
           h += `<div class="vcv-row ${cur === null ? 'vcv-orange' : ''}">
             <span class="vcv-src">${esc(src.title || id)}${src.tag ? ' <em>' + esc(src.tag) + '</em>' : ''}</span><span class="vcv-arrow">→</span>
@@ -375,10 +405,13 @@
       }));
       // Tout un dossier Sfx d'un coup : chaque Sfx du montage prend son équivalent le plus proche dans ce dossier, ou
       // passe « à choisir » (l'original joue) s'il n'y en a pas.
+      const addPackSel = q('[data-role="addPack"]');
+      if (addPackSel) addPackSel.addEventListener('change', () => { if (addPackSel.value) { extraPackIds.push(addPackSel.value); render(); } });
+      host.querySelectorAll('[data-role="removePack"]').forEach(b => b.addEventListener('click', () => { const i = extraPackIds.indexOf(b.dataset.pack); if (i >= 0) { extraPackIds.splice(i, 1); render(); } }));
       const folderSel = q('[data-role="folder"]');
       if (folderSel) folderSel.addEventListener('change', () => {
         if (!folderSel.value) return;
-        const pool = (ctx.library.sfxLibrary || []).filter(s => s.folderId === folderSel.value);
+        const pool = (lib().sfxLibrary || []).filter(s => s.folderId === folderSel.value);
         sfxIds.forEach(id => {
           const m = RT().suggestSfx(ctx.findSfx(id), pool);
           const value = m ? m.sfx.id : '__choose';
