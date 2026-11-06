@@ -245,7 +245,7 @@ function buildSfxPlayer(sfxDef) {
   rrBlocks.forEach((block, i) => { block.addEventListener('click', () => playIndex(i)); });
   playBtn.addEventListener('click', () => {
     if (activeTrackId && activeTrackId !== sfxDef.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
     Object.keys(trackCollapsers).forEach(id => { if (id !== sfxDef.id) trackCollapsers[id](); });
