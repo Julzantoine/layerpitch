@@ -23,23 +23,12 @@ function buildSfxSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
     const unselected = exampleChoices(sfxLibrary.filter(s => !selectedIds.includes(s.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addSfxOption')}</option>
-          ${unselected.map(s => `<option value="${s.id}">${escapeAttr(s.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, sfxFolders, tr('addSfxOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allSfxIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
