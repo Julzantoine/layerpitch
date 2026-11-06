@@ -8,6 +8,7 @@
 //   LayerPitchNotify.error(msg)              bandeau rouge, reste affiché jusqu'à la croix (le texte peut contenir
 //                                            un lien de secours à copier : il reste sélectionnable)
 //   await LayerPitchNotify.confirm(msg, { okLabel, cancelLabel, extraLabel, danger, checkboxLabel, onFinish })  -> true / false
+//   await LayerPitchNotify.prompt(msg, { inputValue, okLabel, cancelLabel })  -> texte saisi, ou null si annulé (6/11)
 //   extraLabel : ajoute un 3e bouton, entre « Annuler » et le bouton principal ; la réponse est alors 'extra' (6/10, « continuer sans protéger »).
 //   checkboxLabel : ajoute une case à cocher (« Ne plus m'avertir… ») ; onFinish(réponse, cochée) est appelée à la fermeture.
 //
@@ -158,6 +159,17 @@
         row.append(checkEl, txt);
         box.append(msg, row, actions);
       } else box.append(msg, actions);
+      // opts.input (6/11) : un champ de texte sous le message ; la réponse est alors le texte saisi (ou false si annulé).
+      let inputEl = null;
+      if (opts.input) {
+        inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.value = opts.inputValue || '';
+        inputEl.maxLength = opts.inputMaxLength || 200;
+        inputEl.setAttribute('aria-labelledby', msg.id);
+        inputEl.style.cssText = 'width:100%;box-sizing:border-box;margin:-6px 0 16px;padding:8px 10px;font:inherit;font-size:13.5px;border:1px solid var(--border,#e2e2e6);border-radius:6px;background:transparent;color:inherit;';
+        box.insertBefore(inputEl, actions);
+      }
       overlay.appendChild(box);
 
       function finish(answer) {
@@ -166,7 +178,8 @@
         if (previousFocus && typeof previousFocus.focus === 'function' && previousFocus.isConnected) previousFocus.focus();
         resolve(answer);
       }
-      okBtn.addEventListener('click', () => finish(true));
+      okBtn.addEventListener('click', () => finish(inputEl ? inputEl.value : true));
+      if (inputEl) inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(inputEl.value); } });
       cancelBtn.addEventListener('click', () => finish(false));
       if (extraBtn) extraBtn.addEventListener('click', () => finish('extra'));
       overlay.addEventListener('mousedown', e => { if (e.target === overlay) finish(false); });
@@ -174,14 +187,14 @@
         if (e.key === 'Escape') { e.preventDefault(); finish(false); }
         else if (e.key === 'Tab') { // focus gardé dans la fenêtre : case (si présente), puis les deux boutons
           e.preventDefault();
-          const order = (checkEl ? [checkEl] : []).concat(extraBtn ? [cancelBtn, extraBtn, okBtn] : [cancelBtn, okBtn]);
+          const order = (inputEl ? [inputEl] : []).concat(checkEl ? [checkEl] : []).concat(extraBtn ? [cancelBtn, extraBtn, okBtn] : [cancelBtn, okBtn]);
           const i = order.indexOf(document.activeElement);
           order[(i + (e.shiftKey ? order.length - 1 : 1)) % order.length].focus();
         } else return;
         e.stopPropagation();
       });
       document.body.appendChild(overlay);
-      okBtn.focus(); // comme le confirm() natif : Entrée confirme, Échap annule
+      if (inputEl) { inputEl.focus(); inputEl.select(); } else okBtn.focus(); // comme le confirm() natif : Entrée confirme, Échap annule
     });
     const result = pending.then(run);
     pending = result.catch(() => {});
@@ -226,8 +239,15 @@
     return el;
   }
 
+  // prompt (6/11) : demande un texte ; rend le texte saisi, ou null si annulé.
+  async function promptDialog(message, opts) {
+    const r = await confirmDialog(message, Object.assign({}, opts, { input: true }));
+    return typeof r === 'string' ? r : null;
+  }
+
   window.LayerPitchNotify = {
     toast,
+    prompt: promptDialog,
     inbox: inboxNotice,
     success: (m, o) => toast(m, Object.assign({}, o, { type: 'success' })),
     info: (m, o) => toast(m, Object.assign({}, o, { type: 'info' })),
