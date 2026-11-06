@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793910248914">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793953187723">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2017,19 +2017,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793910248914"></script>
-<script src="layerpitch-i18n.js?v=1793910248914"></script>
-<script src="layerpitch-import-engine.js?v=1793910248914"></script>
-<script src="layerpitch-appearance.js?v=1793910248914"></script>
-<script src="layerpitch-album-shared.js?v=1793910248914"></script>
-<script src="layerpitch-album-editor.js?v=1793910248914"></script>
-<script src="layerpitch-shell.js?v=1793910248914"></script>
-<script src="layerpitch-social-icons.js?v=1793910248914"></script>
-<script src="layerpitch-notify.js?v=1793910248914"></script>
-<script src="layerpitch-guide.js?v=1793910248914"></script>
-<script src="layerpitch-lesson-previews.js?v=1793910248914"></script>
-<script src="layerpitch-help.js?v=1793910248914"></script>
-<script src="player.js?v=1793910248914"></script>
+<script src="layerpitch-tuto.js?v=1793953187723"></script>
+<script src="layerpitch-i18n.js?v=1793953187723"></script>
+<script src="layerpitch-import-engine.js?v=1793953187723"></script>
+<script src="layerpitch-appearance.js?v=1793953187723"></script>
+<script src="layerpitch-album-shared.js?v=1793953187723"></script>
+<script src="layerpitch-album-editor.js?v=1793953187723"></script>
+<script src="layerpitch-shell.js?v=1793953187723"></script>
+<script src="layerpitch-social-icons.js?v=1793953187723"></script>
+<script src="layerpitch-notify.js?v=1793953187723"></script>
+<script src="layerpitch-guide.js?v=1793953187723"></script>
+<script src="layerpitch-lesson-previews.js?v=1793953187723"></script>
+<script src="layerpitch-help.js?v=1793953187723"></script>
+<script src="player.js?v=1793953187723"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -5622,9 +5622,13 @@ document.getElementById('btnAddAdReel').addEventListener('click', () => openNewA
 document.getElementById('newAdReelCancel').addEventListener('click', () => {
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
 });
-document.getElementById('newAdReelOk').addEventListener('click', () => {
+document.getElementById('newAdReelOk').addEventListener('click', async () => {
   const label = document.getElementById('newAdReelLabel').value.trim();
   if (!label) { window.LayerPitchNotify.info(tr('giveNameAlert')); return; }
+  // Nom déjà pris (06/11, AdReel « Joris » créé deux fois à un jour d'écart sans le savoir) : on prévient
+  // avant de créer un second AdReel du même nom, au lieu de le créer en silence.
+  const sameName = adReels.find(a => (a.label || a.id).trim().toLowerCase() === label.toLowerCase());
+  if (sameName && !(await window.LayerPitchNotify.confirm(tr('adreelNameTakenConfirm', { label: sameName.label || sameName.id }), { okLabel: tr('adreelNameTakenCreateAnyway') }))) return;
   const sourceId = document.getElementById('newAdReelSource').value;
   const source = sourceId ? adReels.find(a => a.id === sourceId) : null;
   const imp = {
@@ -5636,8 +5640,11 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     extraBlocks: source && document.getElementById('importExtraBlocks').checked
   };
 
-  let id = slug(label);
-  if (!id || adReels.some(a => a.id === id)) id = genId();
+  // Identifiant lisible : « joris », puis « joris-2 », « joris-3 »… si déjà pris (avant : une suite de
+  // lettres au hasard comme « bmw410foj4ace8 », affichée telle quelle dans la liste des AdReels).
+  const baseId = slug(label);
+  let id = baseId;
+  for (let n = 2; adReels.some(a => a.id === id); n++) id = baseId + '-' + n;
 
   const profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
   if (imp.header && source) {
