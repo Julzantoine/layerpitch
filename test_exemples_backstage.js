@@ -82,7 +82,8 @@ const fs = require('fs');
   check('copie (bouton ou Alt + glisser) d\'un exemple : refusée', (await ev('duplicateLibraryTrack(library[0])')) === null && ev('library.length') === nb && /copié/.test(w.__err));
 
   // ---- Sélecteurs : un exemple ne va que dans le pack / l'AdReel d'exemple
-  const opts = host => [...host.querySelectorAll('[data-sel-action="add"] option')].map(o => o.value).filter(Boolean);
+  // Menu « Ajouter… » à recherche (06/11) : la liste se remplit à l'ouverture du champ.
+  const opts = host => { const inp = host.querySelector('input[data-sel-action="add"]'); if (!inp) return []; inp.dispatchEvent(new w.Event('focus')); return [...host.querySelectorAll('[data-pick-id]')].map(o => o.dataset.pickId); };
   const h1 = doc.createElement('div'); ev('buildTrackSelectorWidget')(h1, [], () => {}, undefined, false);
   const h2 = doc.createElement('div'); ev('buildTrackSelectorWidget')(h2, [], () => {}, undefined, true);
   check('sélecteur de morceaux d\'un pack/AdReel ordinaire : sans les exemples', opts(h1).join() === 'tMine');
