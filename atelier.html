@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793910248914">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793910248914">
+<link rel="stylesheet" href="player.css?v=1793952638446">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793952638446">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -462,16 +462,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793910248914"></script>
-<script src="layerpitch-notify.js?v=1793910248914"></script>
-<script src="public-page.js?v=1793910248914"></script>
-<script src="player.js?v=1793910248914"></script>
-<script src="capture-plan.js?v=1793910248914"></script>
-<script src="capture-render.js?v=1793910248914"></script>
-<script src="capture-retarget.js?v=1793910248914"></script>
-<script src="capture-versioning.js?v=1793910248914"></script>
-<script src="layerpitch-guide.js?v=1793910248914"></script>
-<script src="atelier-lecons.js?v=1793910248914"></script>
+<script src="layerpitch-i18n.js?v=1793952638446"></script>
+<script src="layerpitch-notify.js?v=1793952638446"></script>
+<script src="public-page.js?v=1793952638446"></script>
+<script src="player.js?v=1793952638446"></script>
+<script src="capture-plan.js?v=1793952638446"></script>
+<script src="capture-render.js?v=1793952638446"></script>
+<script src="capture-retarget.js?v=1793952638446"></script>
+<script src="capture-versioning.js?v=1793952638446"></script>
+<script src="layerpitch-guide.js?v=1793952638446"></script>
+<script src="atelier-lecons.js?v=1793952638446"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2105,10 +2105,19 @@ function detachCapturePanel() {
   // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
   // passe déjà par closeCapturePanel() ci-dessus et vide capturePanelDetachedWindow avant d'appeler
   // .close() -- ce garde évite donc un double nettoyage dans ce cas).
+  // Depuis le 06/11 (demande de Jules-Antoine) : l'écran revient à sa place dans la page, attaché, au lieu de disparaître.
+  // Une prise en cours s'arrête proprement (comme au clic sur « Arrêter la capture ») pour garder ce qui a été joué.
   win.addEventListener('pagehide', () => {
     if (capturePanelDetachedWindow !== win) return;
     capturePanelDetachedWindow = null;
-    if (videoCaptureState) stopCapture();
+    if (videoCaptureState) {
+      const recordBtn = wrapper.querySelector('#videoCaptureRecordBtn');
+      if (recordBtn) recordBtn.click(); else stopCapture();
+    }
+    while (wrapper.firstChild) panel.appendChild(wrapper.firstChild); // les vrais nœuds reviennent, écouteurs compris
+    panel.classList.add('active');
+    document.body.classList.add('video-panel-active');
+    syncAtelierFullscreenButtons();
   });
 }
 
