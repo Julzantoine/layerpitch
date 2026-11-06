@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793988511445">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793988511445">
+<link rel="stylesheet" href="player.css?v=1793991665665">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793991665665">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -482,16 +482,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793988511445"></script>
-<script src="layerpitch-notify.js?v=1793988511445"></script>
-<script src="public-page.js?v=1793988511445"></script>
-<script src="player.js?v=1793988511445"></script>
-<script src="capture-plan.js?v=1793988511445"></script>
-<script src="capture-render.js?v=1793988511445"></script>
-<script src="capture-retarget.js?v=1793988511445"></script>
-<script src="capture-versioning.js?v=1793988511445"></script>
-<script src="layerpitch-guide.js?v=1793988511445"></script>
-<script src="atelier-lecons.js?v=1793988511445"></script>
+<script src="layerpitch-i18n.js?v=1793991665665"></script>
+<script src="layerpitch-notify.js?v=1793991665665"></script>
+<script src="public-page.js?v=1793991665665"></script>
+<script src="player.js?v=1793991665665"></script>
+<script src="capture-plan.js?v=1793991665665"></script>
+<script src="capture-render.js?v=1793991665665"></script>
+<script src="capture-retarget.js?v=1793991665665"></script>
+<script src="capture-versioning.js?v=1793991665665"></script>
+<script src="layerpitch-guide.js?v=1793991665665"></script>
+<script src="atelier-lecons.js?v=1793991665665"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1402,12 +1402,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
       rerender();
     });
-    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
-      const i = markers.indexOf(m);
-      if (i !== -1) markers.splice(i, 1);
-      container.__vctSelectedMarker = null;
-      rerender();
-    });
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => removeMarker(m));
+  }
+  // Effacer un marqueur (06/11, demande de Jules-Antoine : « la même manip que pour le créer ») : double-clic ou clic droit sur son
+  // fanion, touche Suppr / Retour arrière quand il est sélectionné, ou ✕ dans son détail.
+  function removeMarker(m) {
+    const i = markers.indexOf(m);
+    if (i !== -1) markers.splice(i, 1);
+    container.__vctSelectedMarker = null;
+    rerender();
   }
   function addMarker(t) {
     if (t == null) return;
@@ -1451,11 +1454,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     });
+    if (editable) flagEl.addEventListener('dblclick', ev => { ev.preventDefault(); ev.stopPropagation(); if (!videoCaptureState) removeMarker(m); });
   });
+  // Touche Suppr : un seul écouteur par frise (posé au premier affichage), qui appelle l'effaceur du DERNIER affichage -- le tableau
+  // des marqueurs change à chaque montage chargé. Jamais pendant qu'on tape dans un champ (nom du marqueur, nom de la prise…).
+  container.__vctDeleteSelectedMarker = editable ? () => {
+    const m = markers.find(o => o.id === container.__vctSelectedMarker);
+    if (!m || videoCaptureState || !container.isConnected) return false;
+    removeMarker(m);
+    return true;
+  } : null;
+  if (!container.__vctMarkerKeys) {
+    container.__vctMarkerKeys = true;
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
+    });
+  }
   if (editable) {
     // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
     // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
-    // (règle ou pistes), à l'endroit cliqué. Clic droit sur un fanion = son détail.
+    // (règle ou pistes), à l'endroit cliqué. Double-clic ou clic droit sur un fanion = l'effacer (voir removeMarker).
     const bodyEl = container.querySelector('.vct-body');
     bodyEl.addEventListener('dblclick', ev => {
       if (videoCaptureState || !ev.target.closest) return;
@@ -1465,7 +1486,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     bodyEl.addEventListener('contextmenu', ev => {
       if (videoCaptureState) return;
       const flag = ev.target.closest && ev.target.closest('.vct-marker-flag');
-      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) selectMarker(m); return; }
+      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) removeMarker(m); return; }
       const t = timeAtX(ev.clientX);
       if (t == null) return; // clic droit sur un nom de piste : menu habituel du navigateur
       ev.preventDefault();

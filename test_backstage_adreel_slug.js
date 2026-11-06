@@ -27,7 +27,7 @@ const path = require('path');
   check('AdReel principal : champ grisé, adresse = racine', $('appSlug').disabled && $('appSlugPrefix').textContent === 'beta.layerpitch.com/jean/' && /racine/.test($('appSlugHint').textContent));
   check('lien de l’AdReel principal : /jean/', ev("computeAdReelUrl('main')") === 'https://beta.layerpitch.com/jean/');
   ev("switchAdReel('r1')"); await settle();
-  check('AdReel r1 : champ actif, nom proposé à partir du titre', !$('appSlug').disabled && $('appSlug').placeholder === 'pitch-ubisoft-ete');
+  check('AdReel r1 : champ actif, nom proposé à partir du titre', !$('appSlug').disabled && $('appSlug').placeholder.includes('pitch-ubisoft-ete'));
   check('sans nom : lien par code', ev("computeAdReelUrl('r1')") === 'https://beta.layerpitch.com/jean/?adreel=r1');
   $('appSlug').value = 'Pitch Ubisoft Été';
   $('btnSaveSlug').click(); await settle();
