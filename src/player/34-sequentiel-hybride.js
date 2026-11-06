@@ -267,7 +267,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   }
   function startChain() {
     if (activeTrackId && activeTrackId !== track.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
     Object.keys(trackCollapsers).forEach(id => { if (id !== track.id) trackCollapsers[id](); });
@@ -300,6 +300,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (transitionSrc) { try { transitionSrc.stop(); } catch (e) {} transitionSrc = null; }
   }
   function pause() {
+    if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     // Une section programmée mais pas encore entendue est annulée : le passage sera recalculé à la reprise.
     if (pending && pending.given) players[pending.to].control.reset();
     stopTransition();
@@ -315,7 +316,17 @@ function initHybridPlayer(track, wrapper, elementColors) {
     clearInterval(timer); timer = null;
     setPlayUI();
   }
+  // Fondu à l'arrêt (05/11, atelier vidéo) : les sections qui sonnent s'éteignent, puis tout s'arrête.
+  let fadeTimer = null;
+  function fadeThenStopAll() {
+    if (fadeTimer) return;
+    const sec = lpStopFadeSec();
+    if (!sec || !playing) { stopAll(); return; }
+    players.forEach(p => p.control.beginFadeOut(sec));
+    fadeTimer = setTimeout(() => { fadeTimer = null; stopAll(); }, sec * 1000 + 30);
+  }
   function stopAll() {
+    if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     if (timer) { clearInterval(timer); timer = null; }
     players.forEach(p => p.control.reset());
     stopTransition();
@@ -328,7 +339,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   }
 
   playBtn.addEventListener('click', () => { playing ? pause() : play(); });
-  stopBtn.addEventListener('click', () => { stopAll(); });
+  stopBtn.addEventListener('click', () => { fadeThenStopAll(); });
   nextBtn.addEventListener('click', () => {
     if (!playing || cur < 0) return;
     trackPublicEvent('hybrid_next', { trackId: track.id, sectionIndex: cur });
@@ -357,6 +368,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     refreshNext();
   });
   document.addEventListener('stop-track', e => { if (e.detail === track.id) { stopAll(); } });
+  document.addEventListener('fade-stop-track', e => { if (e.detail === track.id) fadeThenStopAll(); });
 
   // Le bouton Lecture s'active quand TOUTES les sections sont chargées : un passage ne peut pas attendre un téléchargement.
   const isReady = () => transitionsLoaded && players.every(p => p.control.isReady());

@@ -1,4 +1,13 @@
+// Fondu à l'arrêt (05/11, demande de Jules-Antoine) : durée par défaut, retenue sur cet appareil. Le lecteur la lit dans
+// window.__lpStopFadeSec tant que l'atelier est ouvert (fondu en direct, posé sur chaque arrêt enregistré, retouchable sur la frise).
+const CAPTURE_STOP_FADE_KEY = 'lpAtelierStopFadeSec';
+const CAPTURE_STOP_FADE_DEFAULT = 2;
+function captureStopFadePref() {
+  try { const v = localStorage.getItem(CAPTURE_STOP_FADE_KEY); if (v != null && v !== '' && isFinite(Number(v))) return Math.max(0, Math.min(10, Number(v))); } catch (e) {}
+  return CAPTURE_STOP_FADE_DEFAULT;
+}
 function closeCapturePanel() {
+  window.__lpStopFadeSec = 0; // hors de l'atelier, les lecteurs s'arrêtent net
   if (videoCaptureState) stopCapture();
   if (capturePanelVersioning) { capturePanelVersioning.stop(); capturePanelVersioning = null; }
   const panel = document.getElementById('videoTestPanel');
@@ -166,6 +175,9 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
+      <label class="video-capture-export-opt" title="${tr('captureStopFadeHelp')}">
+        ${tr('captureStopFadeLabel')} <input type="number" id="videoCaptureStopFade" min="0" max="10" step="0.5"> s
+      </label>
       <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
     </div>
@@ -256,6 +268,15 @@ function openCapturePanel(file, opts) {
   const loadBtn = document.getElementById('videoCaptureLoadBtn');
   const saveStatus = document.getElementById('videoCaptureSaveStatus');
   const timelineEl = document.getElementById('videoCaptureTimeline');
+  const stopFadeInput = document.getElementById('videoCaptureStopFade');
+  stopFadeInput.value = captureStopFadePref();
+  window.__lpStopFadeSec = Number(stopFadeInput.value) || 0;
+  stopFadeInput.addEventListener('change', () => {
+    const v = Math.max(0, Math.min(10, parseFloat(stopFadeInput.value) || 0));
+    stopFadeInput.value = v;
+    window.__lpStopFadeSec = v;
+    try { localStorage.setItem(CAPTURE_STOP_FADE_KEY, String(v)); } catch (e) {}
+  });
   let lastEvents = [];
   let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
   // Identifiant de la prise sauvegardée en cours (null tant qu'aucune sauvegarde n'a encore été faite
