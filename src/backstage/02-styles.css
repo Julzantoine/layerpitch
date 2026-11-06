@@ -496,6 +496,12 @@
   .org-folder-empty-hint { padding: 6px 8px; font-size: 11px; }
   .org-row { display: flex; align-items: center; gap: 6px; }
   .org-row .seq-master-item-label { flex: 1; }
+  /* Sélection multiple (05/11) : Cmd/Maj + clic. Pas de sélection de texte au Maj + clic. */
+  .org-row { user-select: none; -webkit-user-select: none; }
+  .org-row.multi-selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .org-ctx-menu { position: fixed; z-index: 10000; min-width: 220px; padding: 4px; background: var(--bg, #fff); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.16); display: flex; flex-direction: column; }
+  .org-ctx-item { text-align: left; background: transparent; border: 0; border-radius: 5px; padding: 7px 10px; font: inherit; font-size: 13px; color: inherit; cursor: pointer; }
+  .org-ctx-item:hover, .org-ctx-item:focus { background: var(--accent); color: #fff; outline: none; }
   .org-folder-group { position: relative; }
   .org-folder-group.dragging { opacity: 0.4; }
   /* Ligne ENTRE deux éléments (pas de overflow:hidden ici, contrairement à .block-editor-card). Même
