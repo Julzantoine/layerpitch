@@ -5746,7 +5746,9 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
     return;
   }
 });
-document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
+// Choisir un AdReel dans la liste, c'est presque toujours pour l'éditer (06/11) : on bascule sur l'onglet Contenu,
+// comme le font déjà la liste « Gérer les AdReels » et la recherche rapide.
+document.getElementById('adReelSelect').addEventListener('change', e => { switchAdReel(e.target.value); openTab('content'); });
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
   if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
@@ -5927,6 +5929,7 @@ document.getElementById('newAdReelOk').addEventListener('click', async () => {
   trackBackstageEvent('adreel_add', { imported: !!source });
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
   switchAdReel(id);
+  openTab('content'); // un AdReel tout neuf, on va le remplir (06/11)
 });
 async function deleteAdReel(id) {
   if (id === 'main' || adReels.length <= 1) return;
