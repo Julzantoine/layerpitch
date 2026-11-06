@@ -45,7 +45,7 @@
   <div class="msg" data-i18n="errorMsg">Impossible de charger cette vidéo ici.</div>
   <div class="hint" data-i18n="errorHint">Vérifie qu'elle est publique et intégrable (pas restreinte "propriétaire uniquement" côté YouTube, ou "à mots de passe" côté Vimeo).</div>
 </div>
-<script src="layerpitch-i18n.js?v=1793910463767"></script>
+<script src="layerpitch-i18n.js?v=1793955376790"></script>
 <script>
 // Fenêtre transitoire (ouverte par pack.html) : pas d'interrupteur de langue ici, on hérite simplement
 // de la langue transmise par pack.html via l'URL. Dictionnaire dans layerpitch-i18n.js (zone "videoTest").
@@ -140,14 +140,26 @@ function openerAlive() {
 if (window.top === window && openerAlive()) {
   redockBtn.title = tv('redockBtn');
   redockBtn.classList.add('visible');
+  let redocked = false;
+  // Dernier état connu, relevé régulièrement : à la fermeture de la fenêtre, on n'a plus le temps d'attendre une réponse de Vimeo.
+  let lastState = { t: startAt, muted: !startUnmuted };
+  setInterval(function () { window.lpGetVideoState().then(function (st) { if (activePlayerKind) lastState = st; }); }, 500);
+  function redock(st) {
+    if (redocked || !openerAlive()) return false;
+    redocked = true;
+    window.opener.postMessage({ type: 'layerpitch-video-redock', service: service, id: id, t: st.t, muted: st.muted }, location.origin);
+    return true;
+  }
   redockBtn.addEventListener('click', function () {
     window.lpGetVideoState().then(function (st) {
-      if (!openerAlive()) { redockBtn.classList.remove('visible'); return; }
-      window.opener.postMessage({ type: 'layerpitch-video-redock', service: service, id: id, t: st.t, muted: st.muted }, location.origin);
+      if (!redock(st)) { redockBtn.classList.remove('visible'); return; }
       try { window.opener.focus(); } catch (e) {}
       window.close();
     });
   });
+  // Fenêtre refermée par la croix du navigateur (06/11, demande de Jules-Antoine) : l'écran vidéo revient tout seul à sa place
+  // dans la page, comme avec « Raccrocher à la page ».
+  window.addEventListener('pagehide', function () { if (service && id) redock(lastState); });
 }
 
 if (!service || !id) {

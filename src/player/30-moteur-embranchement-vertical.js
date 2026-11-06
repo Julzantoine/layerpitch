@@ -448,7 +448,7 @@
     }
   }
   function stopEmbrVertical() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
     if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }

@@ -87,7 +87,7 @@
     // au rechargement), le compte fictif est le compositeur du pack d'exemple.
     resolve_composer_handle: () => DEMO_COMPOSER_ID,
     team_owns_pack: () => false,
-    save_video_capture: a => { CAPTURES.set(a.p_id, { id: a.p_id, packId: a.p_pack_id, title: a.p_title || '', videoFilename: a.p_video_filename || null, events: a.p_events || [], laneOverrides: a.p_lane_overrides || {}, collapsedGroups: a.p_collapsed_groups || {}, lastExportVideoId: null, baseVideoId: null, createdAt: (CAPTURES.get(a.p_id) || {}).createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }); return { ok: true, id: a.p_id, updatedAt: new Date().toISOString() }; },
+    save_video_capture: a => { CAPTURES.set(a.p_id, { id: a.p_id, packId: a.p_pack_id, title: a.p_title || '', videoFilename: a.p_video_filename || null, events: a.p_events || [], laneOverrides: a.p_lane_overrides || {}, collapsedGroups: a.p_collapsed_groups || {}, markers: (a.p_markers || []).map(m => Object.assign({}, m)), lastExportVideoId: null, baseVideoId: null, createdAt: (CAPTURES.get(a.p_id) || {}).createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }); return { ok: true, id: a.p_id, updatedAt: new Date().toISOString() }; },
     get_video_capture: a => CAPTURES.get(a.p_id) || null,
     delete_video_capture: a => { CAPTURES.delete(a.p_id); return null; },
     save_video_capture_version: a => { VERSIONS.set(a.p_id, { id: a.p_id, captureId: a.p_capture_id, title: a.p_title || '', substitutions: a.p_substitutions || {}, lastExportVideoId: null, createdAt: (VERSIONS.get(a.p_id) || {}).createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() }); return { ok: true, id: a.p_id }; },

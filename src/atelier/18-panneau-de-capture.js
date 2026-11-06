@@ -1,4 +1,13 @@
+// Fondu à l'arrêt (05/11, demande de Jules-Antoine) : durée par défaut, retenue sur cet appareil. Le lecteur la lit dans
+// window.__lpStopFadeSec tant que l'atelier est ouvert (fondu en direct, posé sur chaque arrêt enregistré, retouchable sur la frise).
+const CAPTURE_STOP_FADE_KEY = 'lpAtelierStopFadeSec';
+const CAPTURE_STOP_FADE_DEFAULT = 2;
+function captureStopFadePref() {
+  try { const v = localStorage.getItem(CAPTURE_STOP_FADE_KEY); if (v != null && v !== '' && isFinite(Number(v))) return Math.max(0, Math.min(10, Number(v))); } catch (e) {}
+  return CAPTURE_STOP_FADE_DEFAULT;
+}
 function closeCapturePanel() {
+  window.__lpStopFadeSec = 0; // hors de l'atelier, les lecteurs s'arrêtent net
   if (videoCaptureState) stopCapture();
   if (capturePanelVersioning) { capturePanelVersioning.stop(); capturePanelVersioning = null; }
   const panel = document.getElementById('videoTestPanel');
@@ -128,10 +137,19 @@ function detachCapturePanel() {
   // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
   // passe déjà par closeCapturePanel() ci-dessus et vide capturePanelDetachedWindow avant d'appeler
   // .close() -- ce garde évite donc un double nettoyage dans ce cas).
+  // Depuis le 06/11 (demande de Jules-Antoine) : l'écran revient à sa place dans la page, attaché, au lieu de disparaître.
+  // Une prise en cours s'arrête proprement (comme au clic sur « Arrêter la capture ») pour garder ce qui a été joué.
   win.addEventListener('pagehide', () => {
     if (capturePanelDetachedWindow !== win) return;
     capturePanelDetachedWindow = null;
-    if (videoCaptureState) stopCapture();
+    if (videoCaptureState) {
+      const recordBtn = wrapper.querySelector('#videoCaptureRecordBtn');
+      if (recordBtn) recordBtn.click(); else stopCapture();
+    }
+    while (wrapper.firstChild) panel.appendChild(wrapper.firstChild); // les vrais nœuds reviennent, écouteurs compris
+    panel.classList.add('active');
+    document.body.classList.add('video-panel-active');
+    syncAtelierFullscreenButtons();
   });
 }
 
@@ -156,6 +174,9 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
+      </label>
+      <label class="video-capture-export-opt" title="${tr('captureStopFadeHelp')}">
+        ${tr('captureStopFadeLabel')} <input type="number" id="videoCaptureStopFade" min="0" max="10" step="0.5"> s
       </label>
       <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
@@ -247,6 +268,15 @@ function openCapturePanel(file, opts) {
   const loadBtn = document.getElementById('videoCaptureLoadBtn');
   const saveStatus = document.getElementById('videoCaptureSaveStatus');
   const timelineEl = document.getElementById('videoCaptureTimeline');
+  const stopFadeInput = document.getElementById('videoCaptureStopFade');
+  stopFadeInput.value = captureStopFadePref();
+  window.__lpStopFadeSec = Number(stopFadeInput.value) || 0;
+  stopFadeInput.addEventListener('change', () => {
+    const v = Math.max(0, Math.min(10, parseFloat(stopFadeInput.value) || 0));
+    stopFadeInput.value = v;
+    window.__lpStopFadeSec = v;
+    try { localStorage.setItem(CAPTURE_STOP_FADE_KEY, String(v)); } catch (e) {}
+  });
   let lastEvents = [];
   let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
   // Identifiant de la prise sauvegardée en cours (null tant qu'aucune sauvegarde n'a encore été faite
@@ -266,6 +296,9 @@ function openCapturePanel(file, opts) {
   // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
   // même logique que laneOverrides ci-dessus.
   let collapsedGroups = {};
+  // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
+  // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
+  let timelineMarkers = [];
   // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
   // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
   // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
@@ -274,7 +307,8 @@ function openCapturePanel(file, opts) {
   let pendingBaseEvents = [];
   function refreshActionButtons() {
     setExportButtonsDisabled(lastEvents.length === 0);
-    if (montageListen) stopMontageListen(); // la frise a changé : l'écoute en cours n'est plus à jour
+    montageBuffer = null; montageGen++; // la frise a changé : la musique calculée n'est plus à jour
+    if (montageListen) stopMontageListen(); // ... ni l'écoute en cours
     else listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
     saveBtn.disabled = lastEvents.length === 0;
     // La case "Passe additive" n'a de sens que s'il existe déjà quelque chose à préserver.
@@ -288,34 +322,64 @@ function openCapturePanel(file, opts) {
   // vidéo depuis la tête de lecture. Pause de la vidéo = fin de l'écoute. Une retouche de la frise demande une nouvelle écoute.
   const listenBtn = document.getElementById('videoCaptureListenBtn');
   let montageListen = null;
+  let montagePreparing = false;
+  // Musique du montage déjà calculée (05/11) : resservie tant que la frise ne change pas (vidée par refreshActionButtons), pour que
+  // la lecture de la vidéo et les sauts dans l'image relancent le son sans attendre un nouveau calcul.
+  let montageBuffer = null;
+  let montageGen = 0; // change à chaque retouche : un calcul lancé avant n'est pas gardé
   const stopMontageListen = () => {
     const l = montageListen; montageListen = null;
     if (l) l.stop();
     listenBtn.textContent = tr('captureListenBtn');
     listenBtn.disabled = lastEvents.length === 0 || !!videoCaptureState;
   };
-  listenBtn.addEventListener('click', async () => {
-    if (montageListen) { stopMontageListen(); return; }
-    if (videoCaptureState || !lastEvents.length) return;
+  async function startMontageListen() {
+    if (montageListen || montagePreparing || videoCaptureState || !lastEvents.length) return;
     if (versioning) versioning.stop(); // et l'inverse : une écoute de version en cours s'arrête
+    montagePreparing = true;
     listenBtn.disabled = true;
     listenBtn.textContent = tr('versioningPreparingListen');
     try {
-      const plan = window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan;
-      const buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+      let buffer = montageBuffer;
+      if (!buffer) {
+        const gen = montageGen;
+        const plan = window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan;
+        buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+        if (gen === montageGen) montageBuffer = buffer;
+      }
       const P = window.LayerPlayerCore;
       await P.resumeAudio();
       const ac = P.audioContext();
-      const src = ac.createBufferSource();
-      src.buffer = buffer;
-      src.connect(ac.destination);
-      const from = videoEl.currentTime || 0;
-      src.start(ac.currentTime + 0.05, Math.min(from, buffer.duration));
-      videoEl.play().catch(() => {});
+      let src = null;
+      // Source calée sur la position actuelle de l'image (au départ, puis à chaque saut dans la vidéo).
+      const playFromVideo = () => {
+        if (src) { src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ } }
+        const from = videoEl.currentTime || 0;
+        src = ac.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ac.destination);
+        src.start(ac.currentTime + 0.05, Math.min(from, buffer.duration));
+        src.onended = () => { if (montageListen) stopMontageListen(); };
+      };
+      playFromVideo();
+      // Attendre que l'image reparte AVANT d'écouter ses pauses : la pause posée par le bouton lecture de l'image (plus bas) arrive
+      // en retard et couperait aussitôt l'écoute (lecture → pause → lecture… en boucle).
+      await videoEl.play().catch(() => {});
+      if (videoEl.paused) { // lecture refusée par le navigateur, ou arrêtée entre-temps : pas de son sans image
+        src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ }
+        listenBtn.disabled = false; listenBtn.textContent = tr('captureListenBtn');
+        return;
+      }
       const onPause = () => stopMontageListen();
+      const onSeeked = () => { if (montageListen && !videoEl.paused) playFromVideo(); };
       videoEl.addEventListener('pause', onPause);
-      montageListen = { stop() { videoEl.removeEventListener('pause', onPause); try { src.stop(); } catch (e) { /* déjà arrêtée */ } if (!videoEl.paused) videoEl.pause(); } };
-      src.onended = () => { if (montageListen) stopMontageListen(); };
+      videoEl.addEventListener('seeked', onSeeked);
+      montageListen = { stop() {
+        videoEl.removeEventListener('pause', onPause);
+        videoEl.removeEventListener('seeked', onSeeked);
+        if (src) { src.onended = null; try { src.stop(); } catch (e) { /* déjà arrêtée */ } }
+        if (!videoEl.paused) videoEl.pause();
+      } };
       listenBtn.disabled = false;
       listenBtn.textContent = tr('captureStopListenBtn');
     } catch (e) {
@@ -324,7 +388,24 @@ function openCapturePanel(file, opts) {
       listenBtn.textContent = tr('captureListenBtn');
       listenBtn.disabled = false;
       countEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
+    } finally {
+      montagePreparing = false;
     }
+  }
+  listenBtn.addEventListener('click', () => {
+    if (montageListen) { stopMontageListen(); return; }
+    startMontageListen();
+  });
+  // Bouton lecture de l'image (05/11, retour de Jules-Antoine : « je n'ai pas de son », la vidéo est muette et la musique ne partait
+  // qu'avec « Écouter le montage ») : lire la vidéo joue aussi le montage, depuis la tête de lecture. Rien ne change pendant une capture,
+  // une écoute de version (elles lancent l'image elles-mêmes) ou avec une frise vide. Réservé aux admins tant que le feu vert n'est pas donné.
+  videoEl.addEventListener('play', () => {
+    if (!window.__lpCaptureIsAdmin) return;
+    if (montageListen || montagePreparing || videoCaptureState || !lastEvents.length) return;
+    if (versioning && versioning.isListening && versioning.isListening()) return;
+    // L'image attend le son : startMontageListen la relance une fois la musique prête, au même endroit.
+    videoEl.pause();
+    startMontageListen();
   });
   // Fin de la vidéo pendant une prise (05/11, retour de Jules-Antoine) : la capture s'arrête toute seule, comme au clic sur « Arrêter
   // la capture » (la musique s'arrête aussi) -- sinon la musique continuait et la frise s'allongeait bien au-delà de l'image.
@@ -357,7 +438,7 @@ function openCapturePanel(file, opts) {
       renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl);
+      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     } else {
       // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
@@ -424,7 +505,7 @@ function openCapturePanel(file, opts) {
         // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
         const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
         countEl.textContent = captureCountText(liveEvents);
-        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
       }, 500);
     }
   });
@@ -541,7 +622,7 @@ function openCapturePanel(file, opts) {
       if (!currentCaptureId) {
         currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
       }
-      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
+      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers);
       saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
       if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
@@ -560,13 +641,14 @@ function openCapturePanel(file, opts) {
     lastEvents = capture.events || [];
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
+    timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
     titleInput.value = capture.title || '';
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
-    }, laneOverrides, collapsedGroups, videoEl);
+    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
     // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
     saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
@@ -632,8 +714,8 @@ function openCapturePanel(file, opts) {
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups);
-        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups });
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)) });
         saveStatus.textContent = tr('versioningDetachedLoaded');
         refreshLoadOptions();
       },
@@ -649,7 +731,7 @@ function openCapturePanel(file, opts) {
   const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-  }, laneOverrides, collapsedGroups, videoEl);
+  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
   renderEditableTimeline();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });
   if (opts.montageId) {

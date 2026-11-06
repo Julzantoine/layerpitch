@@ -267,7 +267,7 @@
     }
   }
   function stopSequential() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     seqFinalMarkerSrc = null;
     if (seqSchedulerTimer) { clearInterval(seqSchedulerTimer); seqSchedulerTimer = null; }
     seqActiveSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });

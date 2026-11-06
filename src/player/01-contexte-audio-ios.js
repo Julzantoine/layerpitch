@@ -54,6 +54,11 @@ function lpDeviceType() {
 // par le moteur quand il programme le son (futur) ou l'annonce après coup (passé), sinon l'heure courante.
 // `at` : heure EXACTE du contexte audio où le son a lieu (horloge du son, pas celle de la page ni de la vidéo) -- l'outil
 // vidéo s'en sert pour caler tous les sons entre eux à l'échantillon près, puis les replace d'un bloc sur la vidéo.
+// Fondu à l'arrêt (05/11, demande de Jules-Antoine) : durée réglée dans l'atelier vidéo (window.__lpStopFadeSec), 0 partout
+// ailleurs -- les lecteurs des pages publiques s'arrêtent net, comme avant. Plafonnée à 10 s.
+function lpStopFadeSec() { const v = Number(window.__lpStopFadeSec); return v > 0 ? Math.min(v, 10) : 0; }
+// Arrêter le morceau qui joue parce qu'un autre démarre : en fondu si l'atelier en a réglé un ('fade-stop-track'), sinon net.
+function lpStopOtherTrack(id) { document.dispatchEvent(new CustomEvent(lpStopFadeSec() > 0 ? 'fade-stop-track' : 'stop-track', { detail: id })); }
 function captureMark(name, detail) {
   try {
     const d = Object.assign({}, detail || {});
