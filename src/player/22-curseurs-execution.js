@@ -185,4 +185,13 @@
   // qui doit baisser TOUT le morceau en cours d'un coup, peu importe son mode de lecture.
   const trackMasterGain = ctx.createGain();
   trackMasterGain.connect(ctx.destination);
+  // Fondu à l'arrêt (05/11) : pendant que le morceau s'éteint, le gain maître descend jusqu'à 0 (voir fadeThenStop) et rien d'autre
+  // n'y touche (duck). Le repère de capture « arrêt » est posé au début du fondu, avec sa durée : celui que le moteur pose ensuite, au
+  // vrai arrêt, est alors sauté (markVoicesStop).
+  let lpFadeOutTimer = null;
+  let lpSkipNextStopMark = false;
+  function markVoicesStop() {
+    if (lpSkipNextStopMark) { lpSkipNextStopMark = false; return; }
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+  }
 

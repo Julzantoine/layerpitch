@@ -450,7 +450,7 @@
     }
 
     refresh();
-    return { refresh, stop: stopListening };
+    return { refresh, stop: stopListening, isListening: () => !!listening };
   }
 
   window.LayerCaptureVersioning = { mount };
