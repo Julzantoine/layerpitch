@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793908865972">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793908865972">
+<link rel="stylesheet" href="player.css?v=1793910585586">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793910585586">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -385,6 +385,22 @@
   .video-test-panel-frame-wrap.video-capture-pinned { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 40; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
   .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
+  /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
+     travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
+  .vct-body { position: relative; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: 96px; right: 0; pointer-events: none; z-index: 15; }
+  .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
+  .vct-marker-flag {
+    position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
+    background: #e0c341; color: #111; font-size: 9px; font-weight: 600; border-radius: 0 3px 3px 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: grab; touch-action: none; user-select: none;
+  }
+  .vct-marker-selected { border-left-style: solid; }
+  .vct-marker-selected .vct-marker-flag { background: #fff; }
+  .video-capture-marker-name {
+    width: 160px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
   /* Plein écran de l'atelier (05/11). */
   .atelier-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .atelier-fullscreen-btn { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; white-space: nowrap; }
@@ -462,16 +478,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793908865972"></script>
-<script src="layerpitch-notify.js?v=1793908865972"></script>
-<script src="public-page.js?v=1793908865972"></script>
-<script src="player.js?v=1793908865972"></script>
-<script src="capture-plan.js?v=1793908865972"></script>
-<script src="capture-render.js?v=1793908865972"></script>
-<script src="capture-retarget.js?v=1793908865972"></script>
-<script src="capture-versioning.js?v=1793908865972"></script>
-<script src="layerpitch-guide.js?v=1793908865972"></script>
-<script src="atelier-lecons.js?v=1793908865972"></script>
+<script src="layerpitch-i18n.js?v=1793910585586"></script>
+<script src="layerpitch-notify.js?v=1793910585586"></script>
+<script src="public-page.js?v=1793910585586"></script>
+<script src="player.js?v=1793910585586"></script>
+<script src="capture-plan.js?v=1793910585586"></script>
+<script src="capture-render.js?v=1793910585586"></script>
+<script src="capture-retarget.js?v=1793910585586"></script>
+<script src="capture-versioning.js?v=1793910585586"></script>
+<script src="layerpitch-guide.js?v=1793910585586"></script>
+<script src="atelier-lecons.js?v=1793910585586"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -992,8 +1008,9 @@ function positionCapturePlayhead(container, videoEl) {
   ph.style.left = leftPx + 'px';
 }
 
-function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl) {
+function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
   laneOverrides = laneOverrides || {};
+  markers = markers || [];
   collapsedGroups = collapsedGroups || {};
   // Montage à la souris (05/11, demande de Jules-Antoine) : sans prise, la frise propose déjà chaque morceau en couches ou statique
   // du pack, ses couches en pistes vides : un double-clic sur une couche la fait démarrer là (jusqu'à la fin de la vidéo), on n'est plus
@@ -1003,7 +1020,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
-  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl);
+  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers);
   // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
   // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
   if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
@@ -1016,7 +1033,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
-  const total = Math.max(lastT + 1, 5, (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
+  const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
 
@@ -1284,10 +1301,25 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     lanesHtml += renderGroup('head:', tr('captureHeadGroup'), 'vct-track-group-head', headLane);
   }
 
+  // Marqueurs (05/11, demande de Jules-Antoine) : repères nommés posés sur la frise -- double-clic sur la règle des temps ou clic droit
+  // n'importe où dans la frise. Une ligne verticale à travers toutes les pistes + un fanion avec le nom sur la règle. Ils ne jouent
+  // rien et ne sortent pas dans la vidéo : `markers` est un tableau à part ({ id, t, label }, muté en place comme `events`),
+  // enregistré avec le montage dans sa propre colonne (migration 20261105010000). Calque aligné sur la règle (.vct-markers, même
+  // marge de 96px que .vct-ruler, dans le même .vct-body), donc positions en % comme les blocs.
+  let markersHtml = '';
+  markers.forEach((m, i) => {
+    const label = window.LayerPlayerCore.escapeHtml(m.label || '');
+    markersHtml += `<div class="vct-marker${container.__vctSelectedMarker === m.id ? ' vct-marker-selected' : ''}" style="left:${pct(m.t)}%">` +
+      `<span class="vct-marker-flag" data-marker-idx="${i}" title="${label} — ${m.t.toFixed(2)} s${editable ? ' · ' + tr('captureMarkerFlagHint') : ''}">${label}</span></div>`;
+  });
+
   container.__vctTotal = total;
   container.innerHTML = `
+    <div class="vct-body">
     <div class="vct-ruler">${ticksHtml}</div>
     <div class="vct-lanes">${lanesHtml}</div>
+    <div class="vct-markers">${markersHtml}</div>
+    </div>
     <div class="vct-playhead" id="vctPlayhead"></div>
     <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
   `;
@@ -1315,6 +1347,110 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       scrubRuler.addEventListener('pointercancel', up);
     });
   }
+  // Clic sur un fanion : la vidéo va à ce marqueur (pas pendant une prise) ; en édition, le glisser le déplace et le clic ouvre son
+  // détail (nom, instant, suppression).
+  const seekTo = t => {
+    if (!videoEl || videoCaptureState) return;
+    videoEl.currentTime = Math.min(t, Number.isFinite(videoEl.duration) ? videoEl.duration : t);
+    positionCapturePlayhead(container, videoEl);
+  };
+  const timeAtX = clientX => {
+    const r = container.querySelector('.vct-ruler').getBoundingClientRect();
+    const f = (clientX - r.left) / r.width;
+    return f < 0 || f > 1 ? null : f * total;
+  };
+  function selectMarker(m) {
+    container.__vctSelectedMarker = m.id;
+    container.querySelectorAll('.vct-block').forEach(b => b.classList.remove('vct-selected'));
+    container.querySelectorAll('.vct-marker').forEach((el, i) => el.classList.toggle('vct-marker-selected', markers[i] === m));
+    const detailEl = container.querySelector('#vctDetail');
+    detailEl.innerHTML = `
+      <span class="vct-detail-label">${tr('captureMarkerLabel')}</span>
+      <input type="text" class="video-capture-marker-name" maxlength="60" value="${window.LayerPlayerCore.escapeHtml(m.label || '')}" title="${tr('captureMarkerNameTitle')}">
+      <input type="number" step="0.1" min="0" value="${m.t.toFixed(2)}" class="video-capture-event-time" title="${tr('captureTimeInputTitle')}">
+      <button type="button" class="video-capture-event-del" title="${tr('captureMarkerDelete')}" aria-label="${tr('captureMarkerDelete')}">✕</button>
+    `;
+    const nameInput = detailEl.querySelector('.video-capture-marker-name');
+    nameInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); nameInput.blur(); } });
+    nameInput.addEventListener('change', () => { m.label = nameInput.value.trim() || m.label; rerender(); });
+    detailEl.querySelector('.video-capture-event-time').addEventListener('change', ev => {
+      const v = parseFloat(ev.target.value);
+      if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
+      rerender();
+    });
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
+      const i = markers.indexOf(m);
+      if (i !== -1) markers.splice(i, 1);
+      container.__vctSelectedMarker = null;
+      rerender();
+    });
+  }
+  function addMarker(t) {
+    if (t == null) return;
+    // Premier « Marqueur N » libre, pour ne pas en avoir deux du même nom après une suppression.
+    let n = 1;
+    while (markers.some(o => o.label === tr('captureMarkerDefault').replace('{n}', n))) n++;
+    const m = { id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)), t: Math.max(0, t), label: tr('captureMarkerDefault').replace('{n}', n) };
+    markers.push(m);
+    markers.sort((a, b) => a.t - b.t);
+    container.__vctSelectedMarker = m.id;
+    rerender(); // rouvre le détail du marqueur sélectionné (voir plus bas) : on peut taper son nom tout de suite
+    const nameInput = container.querySelector('.video-capture-marker-name');
+    if (nameInput) { nameInput.focus(); nameInput.select(); }
+  }
+  container.querySelectorAll('.vct-marker-flag').forEach(flagEl => {
+    const m = markers[parseInt(flagEl.dataset.markerIdx, 10)];
+    if (!m) return;
+    flagEl.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!editable) { seekTo(m.t); return; }
+      const startX = ev.clientX, startT = m.t;
+      const markerEl = flagEl.parentElement;
+      let moved = false;
+      const onMove = e => {
+        const r = container.querySelector('.vct-ruler').getBoundingClientRect();
+        const dt = (e.clientX - startX) / r.width * total;
+        if (!moved && Math.abs(e.clientX - startX) < 3) return;
+        moved = true;
+        m.t = Math.min(total, Math.max(0, startT + dt));
+        markerEl.style.left = pct(m.t) + '%';
+      };
+      const onUp = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        container.__vctSelectedMarker = m.id;
+        if (moved) { markers.sort((a, b) => a.t - b.t); rerender(); }
+        else { seekTo(m.t); selectMarker(m); }
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  });
+  if (editable) {
+    // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
+    // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
+    // (règle ou pistes), à l'endroit cliqué. Clic droit sur un fanion = son détail.
+    const bodyEl = container.querySelector('.vct-body');
+    bodyEl.addEventListener('dblclick', ev => {
+      if (videoCaptureState || !ev.target.closest) return;
+      if (ev.target.closest('.vct-lane-track[data-addable], .vct-block, .vct-lane-label, .vct-marker-flag, input')) return;
+      addMarker(timeAtX(ev.clientX));
+    });
+    bodyEl.addEventListener('contextmenu', ev => {
+      if (videoCaptureState) return;
+      const flag = ev.target.closest && ev.target.closest('.vct-marker-flag');
+      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) selectMarker(m); return; }
+      const t = timeAtX(ev.clientX);
+      if (t == null) return; // clic droit sur un nom de piste : menu habituel du navigateur
+      ev.preventDefault();
+      addMarker(t);
+    });
+    // Marqueur sélectionné : son détail reste ouvert d'un affichage à l'autre (renommage, déplacement…).
+    const selectedMarker = markers.find(m => m.id === container.__vctSelectedMarker);
+    if (selectedMarker) selectMarker(selectedMarker);
+  }
   container.querySelectorAll('.vct-track-group-header').forEach(headerEl => {
     headerEl.addEventListener('click', () => {
       const key = headerEl.dataset.groupKey;
@@ -1338,6 +1474,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   function selectBlock(idx, el) {
     container.querySelectorAll('.vct-block').forEach(b => b.classList.remove('vct-selected'));
     el.classList.add('vct-selected');
+    container.__vctSelectedMarker = null;
+    container.querySelectorAll('.vct-marker').forEach(m => m.classList.remove('vct-marker-selected'));
     const e = events[idx];
     const editableDuration = hasIndependentDuration(e);
     const isSfx = e.name === 'stinger_play';
@@ -1656,11 +1794,12 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
 // aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
 const videoAsStudio = () => !!window.__lpStudioBuyer;
 const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
-async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const { data, error } = await client.rpc('save_video_capture', withStudio({
     p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
     p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
+    p_markers: markers || [], // marqueurs de la frise (05/11, migration 20261105010000)
   }));
   if (error) throw error;
   return data;
@@ -2241,6 +2380,9 @@ function openCapturePanel(file, opts) {
   // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
   // même logique que laneOverrides ci-dessus.
   let collapsedGroups = {};
+  // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
+  // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
+  let timelineMarkers = [];
   // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
   // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
   // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
@@ -2332,7 +2474,7 @@ function openCapturePanel(file, opts) {
       renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl);
+      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     } else {
       // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
@@ -2399,7 +2541,7 @@ function openCapturePanel(file, opts) {
         // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
         const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
         countEl.textContent = captureCountText(liveEvents);
-        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
       }, 500);
     }
   });
@@ -2516,7 +2658,7 @@ function openCapturePanel(file, opts) {
       if (!currentCaptureId) {
         currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
       }
-      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
+      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers);
       saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
       if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
@@ -2535,13 +2677,14 @@ function openCapturePanel(file, opts) {
     lastEvents = capture.events || [];
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
+    timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
     titleInput.value = capture.title || '';
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
-    }, laneOverrides, collapsedGroups, videoEl);
+    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
     // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
     saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
@@ -2607,8 +2750,8 @@ function openCapturePanel(file, opts) {
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups);
-        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups });
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)) });
         saveStatus.textContent = tr('versioningDetachedLoaded');
         refreshLoadOptions();
       },
@@ -2624,7 +2767,7 @@ function openCapturePanel(file, opts) {
   const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-  }, laneOverrides, collapsedGroups, videoEl);
+  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
   renderEditableTimeline();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });
   if (opts.montageId) {

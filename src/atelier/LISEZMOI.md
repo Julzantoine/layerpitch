@@ -15,7 +15,7 @@ Les morceaux des deux dossiers sont triés ENSEMBLE par leur nom (une seule port
 | (src/pack) 10-donnees-et-achat.js, 11-langue-et-theme.js | chargement des scripts du compte, langue, traductions |
 | 13-capture-enregistrement.js | capture : armer un morceau, démarrer, arrêter l'enregistrement |
 | 14-frise-libelles.js | libellés des pistes et des évènements de la frise, étiquettes des versions |
-| 15-frise-edition.js | frise de la capture : affichage et édition |
+| 15-frise-edition.js | frise de la capture : affichage et édition, marqueurs (double-clic sur la règle / clic droit, colonne `markers` du montage) |
 | 16-sauvegarde-et-envois.js | sauvegarde des montages, ffmpeg, envoi vers le stockage et la bibliothèque vidéo |
 | 17-export-video.js | export vidéo (rendu audio exact, incrustations, encodage) |
 | 18-panneau-de-capture.js | panneau de capture (ouverture, fermeture, réglages, Versioning) |
