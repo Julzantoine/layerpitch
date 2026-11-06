@@ -223,9 +223,13 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
         </div>
         <span class="video-library-kind-badge">${v.kind === 'capture_export' ? tr('videoLibraryKindExport') : tr('videoLibraryKindUpload')}</span>
+        <button type="button" class="btn btn-small video-library-rename-btn" data-id="${v.id}">${tr('videoLibraryRenameBtn')}</button>
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
+      btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
+    });
     listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, interrupted.concat(videos)));
     });
@@ -265,6 +269,21 @@ async function renderVideoHistoryCleanup(nearQuota) {
     window.LayerPitchNotify.info(tr('videoHistoryCleared', { n: ((res.data && res.data.removed) || []).length }));
     renderVideoLibrary();
   };
+}
+
+// Renomme une vidéo de la bibliothèque (6/11) : le nom affiché partout où la vidéo est choisie (liste du Backstage, menu de l'Atelier).
+async function renameLibraryVideo(id, knownVideos) {
+  const v = (knownVideos || []).find(x => x.id === id);
+  const current = v ? (v.title || v.originalName || v.file || '') : '';
+  const name = await window.LayerPitchNotify.prompt(tr('videoLibraryRenamePrompt'), { inputValue: current });
+  if (name === null || !name.trim() || name.trim() === current) return;
+  try {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('rename_video', { p_id: id, p_title: name.trim() });
+    if (error) throw error;
+    renderVideoLibrary();
+  } catch (e) {
+    window.LayerPitchNotify.error(tr('videoLibraryRenameFailed', { error: e.message }));
+  }
 }
 
 async function deleteLibraryVideo(id, knownVideos) {

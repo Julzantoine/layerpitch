@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793955824541">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793985226923">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2032,19 +2032,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1793955824541"></script>
-<script src="layerpitch-i18n.js?v=1793955824541"></script>
-<script src="layerpitch-import-engine.js?v=1793955824541"></script>
-<script src="layerpitch-appearance.js?v=1793955824541"></script>
-<script src="layerpitch-album-shared.js?v=1793955824541"></script>
-<script src="layerpitch-album-editor.js?v=1793955824541"></script>
-<script src="layerpitch-shell.js?v=1793955824541"></script>
-<script src="layerpitch-social-icons.js?v=1793955824541"></script>
-<script src="layerpitch-notify.js?v=1793955824541"></script>
-<script src="layerpitch-guide.js?v=1793955824541"></script>
-<script src="layerpitch-lesson-previews.js?v=1793955824541"></script>
-<script src="layerpitch-help.js?v=1793955824541"></script>
-<script src="player.js?v=1793955824541"></script>
+<script src="layerpitch-tuto.js?v=1793985226923"></script>
+<script src="layerpitch-i18n.js?v=1793985226923"></script>
+<script src="layerpitch-import-engine.js?v=1793985226923"></script>
+<script src="layerpitch-appearance.js?v=1793985226923"></script>
+<script src="layerpitch-album-shared.js?v=1793985226923"></script>
+<script src="layerpitch-album-editor.js?v=1793985226923"></script>
+<script src="layerpitch-shell.js?v=1793985226923"></script>
+<script src="layerpitch-social-icons.js?v=1793985226923"></script>
+<script src="layerpitch-notify.js?v=1793985226923"></script>
+<script src="layerpitch-guide.js?v=1793985226923"></script>
+<script src="layerpitch-lesson-previews.js?v=1793985226923"></script>
+<script src="layerpitch-help.js?v=1793985226923"></script>
+<script src="player.js?v=1793985226923"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15256,9 +15256,13 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
         </div>
         <span class="video-library-kind-badge">${v.kind === 'capture_export' ? tr('videoLibraryKindExport') : tr('videoLibraryKindUpload')}</span>
+        <button type="button" class="btn btn-small video-library-rename-btn" data-id="${v.id}">${tr('videoLibraryRenameBtn')}</button>
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
+      btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
+    });
     listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, interrupted.concat(videos)));
     });
@@ -15298,6 +15302,21 @@ async function renderVideoHistoryCleanup(nearQuota) {
     window.LayerPitchNotify.info(tr('videoHistoryCleared', { n: ((res.data && res.data.removed) || []).length }));
     renderVideoLibrary();
   };
+}
+
+// Renomme une vidéo de la bibliothèque (6/11) : le nom affiché partout où la vidéo est choisie (liste du Backstage, menu de l'Atelier).
+async function renameLibraryVideo(id, knownVideos) {
+  const v = (knownVideos || []).find(x => x.id === id);
+  const current = v ? (v.title || v.originalName || v.file || '') : '';
+  const name = await window.LayerPitchNotify.prompt(tr('videoLibraryRenamePrompt'), { inputValue: current });
+  if (name === null || !name.trim() || name.trim() === current) return;
+  try {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('rename_video', { p_id: id, p_title: name.trim() });
+    if (error) throw error;
+    renderVideoLibrary();
+  } catch (e) {
+    window.LayerPitchNotify.error(tr('videoLibraryRenameFailed', { error: e.message }));
+  }
 }
 
 async function deleteLibraryVideo(id, knownVideos) {
