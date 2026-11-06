@@ -296,6 +296,9 @@ function openCapturePanel(file, opts) {
   // Groupes repliés (par clé "track:<id>" ou "sfx:<id>") -- persistent tant que ce panneau reste ouvert,
   // même logique que laneOverrides ci-dessus.
   let collapsedGroups = {};
+  // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
+  // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
+  let timelineMarkers = [];
   // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
   // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
   // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
@@ -435,7 +438,7 @@ function openCapturePanel(file, opts) {
       renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl);
+      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     } else {
       // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
@@ -502,7 +505,7 @@ function openCapturePanel(file, opts) {
         // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
         const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
         countEl.textContent = captureCountText(liveEvents);
-        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
       }, 500);
     }
   });
@@ -619,7 +622,7 @@ function openCapturePanel(file, opts) {
       if (!currentCaptureId) {
         currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
       }
-      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups);
+      await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers);
       saveStatus.textContent = tr('captureSaved');
       refreshLoadOptions();
       if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
@@ -638,13 +641,14 @@ function openCapturePanel(file, opts) {
     lastEvents = capture.events || [];
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
+    timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
     titleInput.value = capture.title || '';
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
-    }, laneOverrides, collapsedGroups, videoEl);
+    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
     // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
     // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
     saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
@@ -710,8 +714,8 @@ function openCapturePanel(file, opts) {
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups);
-        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups });
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)) });
         saveStatus.textContent = tr('versioningDetachedLoaded');
         refreshLoadOptions();
       },
@@ -727,7 +731,7 @@ function openCapturePanel(file, opts) {
   const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-  }, laneOverrides, collapsedGroups, videoEl);
+  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
   renderEditableTimeline();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });
   if (opts.montageId) {
