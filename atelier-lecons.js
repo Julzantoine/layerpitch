@@ -72,7 +72,7 @@
       { selector: '#videoCaptureListenBtn', titleKey: 'pvHearTitle', textKey: 'pvHearText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
         drops: [{ kind: 'text', label: 'Joris : de 18h30 à l’ascenseur', value: 'Joris : de 18h30 à l’ascenseur' }] },
-      { selector: '#videoCaptureSaveBtn', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', clickDone: true },
+      { selector: '#videoCaptureSaveStatus', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', done: () => !!($('#videoCaptureSaveStatus') && $('#videoCaptureSaveStatus').dataset.state === 'saved') }, // enregistrement automatique (06/11)
       // La version : les deux drones, puis les pas « stone » (dans un autre pack, à ajouter).
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="new"]'), titleKey: 'pvNewTitle', textKey: 'pvNewText', clickDone: true },
       { selector: () => trackSel(RENC) || $('#videoCaptureVersioning'), titleKey: 'pvPickTitle', textKey: 'pvPickText', done: () => { const sel = trackSel(RENC); return !!(sel && sel.value === URBEX); } },
