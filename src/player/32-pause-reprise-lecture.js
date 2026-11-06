@@ -105,6 +105,22 @@
   // lecture est un vrai démarrage (intro, premier emplacement/section, boucle de référence, offset 0) et
   // ouvre une nouvelle prise. Le bouton n'est visible que lorsqu'il y a quelque chose à arrêter (lecture
   // en cours ou pause en milieu de morceau).
+  // Fondu à l'arrêt (05/11, atelier vidéo) : Stop, ou un autre morceau lancé, font descendre le gain maître jusqu'à 0 en
+  // lpStopFadeSec() secondes, puis arrêtent vraiment (finish). Sans durée réglée (pages publiques) ou à l'arrêt : tout de suite.
+  function beginFadeOut(sec) {
+    const now = ctx.currentTime, g = trackMasterGain.gain;
+    g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(0, now + sec);
+    captureMark('voices_stop', { trackId: track.id, fadeSec: sec, at: now }); // le rendu de l'atelier refait le même fondu
+    lpSkipNextStopMark = true;
+  }
+  function cancelFadeOut() { if (lpFadeOutTimer) { clearTimeout(lpFadeOutTimer); lpFadeOutTimer = null; } }
+  function fadeThenStop(finish) {
+    if (lpFadeOutTimer) return; // déjà en train de s'éteindre
+    const sec = lpStopFadeSec();
+    if (!sec || !playing) { finish(); return; }
+    beginFadeOut(sec);
+    lpFadeOutTimer = setTimeout(() => { lpFadeOutTimer = null; finish(); }, sec * 1000 + 30);
+  }
   function stopThisTrack() {
     pausedResume = null;
     stopAllSources(false);
@@ -130,6 +146,7 @@
     if (take) take.resumable = true;
   }
   function stopAllSources(keepPosition) {
+    cancelFadeOut(); // pause ou arrêt pendant un fondu : coupe ce qui reste
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
     if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
     chainGens = []; chainEmbrMarker = null;
@@ -176,7 +193,7 @@
   function playThisTrack(reroll, isContinuation) {
     if (!concurrent) {
       if (activeTrackId && activeTrackId !== track.id) {
-        document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+        lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
         if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
       }
       Object.keys(trackCollapsers).forEach(id => {
@@ -343,6 +360,7 @@
   });
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
+  document.addEventListener('fade-stop-track', (e) => { if (e.detail === track.id) fadeThenStop(() => stopAllSources()); });
   // Reprise après mise en veille de l'écran ou passage en arrière-plan : les minuteurs de programmation
   // et l'horloge audio peuvent avoir été suspendus pendant ce temps, laissant une programmation obsolète
   // qui resterait silencieuse indéfiniment sans ça. On relance proprement depuis la position actuelle
@@ -399,7 +417,7 @@
     playThisTrack(false, true);
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
-  if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
+  if (stopBtn) stopBtn.addEventListener('click', () => fadeThenStop(stopThisTrack));
   // Pilotage par programme (Carte de niveau, écoute aléatoire des albums) : démarrer à un niveau donné, régler le niveau avec une rampe,
   // arrêter, être prévenu de la fin naturelle, et savoir quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée
   // depuis son départ). Disponible sur tout lecteur ; seul `concurrent` joue en même temps que les autres.
@@ -455,6 +473,8 @@
         else chainRequestEnd();
       },
       pause: () => pauseThisTrack(),
+      // Séquentiel hybride : la section qui sonne s'éteint en fondu (le parent l'arrête ensuite, voir fadeThenStopAll).
+      beginFadeOut(sec) { if (playing && !lpFadeOutTimer) beginFadeOut(sec); },
       resume: () => playThisTrack(true),
       reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.

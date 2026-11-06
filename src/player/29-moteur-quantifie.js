@@ -151,7 +151,7 @@
     chainHooks.onFinalBoundary(at);
   }
   function stopQuantized() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     finalGenerationMarkerSrc = null;
     if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
