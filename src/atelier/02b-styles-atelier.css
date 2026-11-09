@@ -101,3 +101,12 @@
 
   .atelier-export-opt { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
   .atelier-export-opt input { width: auto; margin: 0; }
+
+  /* Sections du projet (09/11, voir setAtelierView) : le Backstage montre l'atelier, le Versioning ou la relecture client, un seul à la fois. */
+  body.atelier-view-atelier #videoCaptureVersioning { display: none; }
+  body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
+  body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
+  body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
+  body.atelier-view-versioning .vcv-review-fold { display: none; }
+  body.atelier-view-review .vcv-version, body.atelier-view-review .vcv-picked-bar, body.atelier-view-review .vcv-diff,
+  body.atelier-view-review #videoCaptureVersioning > .vcv-head, body.atelier-view-review .vcv-review-fold > summary { display: none; }

@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794260532766">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794260532766">
+<link rel="stylesheet" href="player.css?v=1794260723651">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794260723651">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -516,6 +516,15 @@
 
   .atelier-export-opt { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
   .atelier-export-opt input { width: auto; margin: 0; }
+
+  /* Sections du projet (09/11, voir setAtelierView) : le Backstage montre l'atelier, le Versioning ou la relecture client, un seul à la fois. */
+  body.atelier-view-atelier #videoCaptureVersioning { display: none; }
+  body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
+  body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
+  body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
+  body.atelier-view-versioning .vcv-review-fold { display: none; }
+  body.atelier-view-review .vcv-version, body.atelier-view-review .vcv-picked-bar, body.atelier-view-review .vcv-diff,
+  body.atelier-view-review #videoCaptureVersioning > .vcv-head, body.atelier-view-review .vcv-review-fold > summary { display: none; }
 </style>
 </head>
 <body>
@@ -563,16 +572,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794260532766"></script>
-<script src="layerpitch-notify.js?v=1794260532766"></script>
-<script src="public-page.js?v=1794260532766"></script>
-<script src="player.js?v=1794260532766"></script>
-<script src="capture-plan.js?v=1794260532766"></script>
-<script src="capture-render.js?v=1794260532766"></script>
-<script src="capture-retarget.js?v=1794260532766"></script>
-<script src="capture-versioning.js?v=1794260532766"></script>
-<script src="layerpitch-guide.js?v=1794260532766"></script>
-<script src="atelier-lecons.js?v=1794260532766"></script>
+<script src="layerpitch-i18n.js?v=1794260723651"></script>
+<script src="layerpitch-notify.js?v=1794260723651"></script>
+<script src="public-page.js?v=1794260723651"></script>
+<script src="player.js?v=1794260723651"></script>
+<script src="capture-plan.js?v=1794260723651"></script>
+<script src="capture-render.js?v=1794260723651"></script>
+<script src="capture-retarget.js?v=1794260723651"></script>
+<script src="capture-versioning.js?v=1794260723651"></script>
+<script src="layerpitch-guide.js?v=1794260723651"></script>
+<script src="atelier-lecons.js?v=1794260723651"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2528,6 +2537,17 @@ window.addEventListener('message', e => {
   syncAtelierFullscreenButtons();
 });
 let atelierHostAnswered = false;
+// Sections du projet (09/11) : dans le Backstage, la colonne du milieu (Atelier / Versioning / Relecture client) dit quelle partie de l'atelier montrer.
+// Sans message (atelier seul, tutoriel, studio) : tout est affiché, comme avant. Classes sur <body> : atelier-view-atelier / -versioning / -review.
+function setAtelierView(view) {
+  ['atelier', 'versioning', 'review'].forEach(n => document.body.classList.toggle('atelier-view-' + n, n === view));
+  if (typeof window.__lpRerenderVersioning === 'function') window.__lpRerenderVersioning(); // la relecture s'ouvre d'elle-même dans sa section
+}
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierView') return;
+  setAtelierView(e.data.view);
+});
+try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
   const root = document.documentElement;
@@ -3281,6 +3301,7 @@ function openCapturePanel(file, opts) {
         refreshLoadOptions();
       },
     });
+    window.__lpRerenderVersioning = () => { if (versioning && versioning.render) versioning.render(); };
     capturePanelVersioning = versioning;
     // Une seule musique à la fois (05/11, retour de Jules-Antoine : les deux se superposaient) : tout bouton du Versioning (créer une
     // version, l'écouter…) arrête d'abord l'écoute du montage.

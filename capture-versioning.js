@@ -644,7 +644,7 @@
         </div>`;
       });
       const rvHtml = reviewHtml();
-      if (rvHtml) html += `<details class="vcv-review-fold" data-role="rvFold" ${review.open ? 'open' : ''}><summary>${esc(tr('versioningReviewTitle'))}${review.link ? ` <span class="vcv-rv-state">${esc(tr(review.link.enabled ? 'versioningReviewStateOn' : 'versioningReviewStateOff'))}</span>` : ''}</summary>${rvHtml}</details>`;
+      if (rvHtml) html += `<details class="vcv-review-fold" data-role="rvFold" ${review.open || (host.ownerDocument.body && host.ownerDocument.body.classList.contains('atelier-view-review')) ? 'open' : ''}><summary>${esc(tr('versioningReviewTitle'))}${review.link ? ` <span class="vcv-rv-state">${esc(tr(review.link.enabled ? 'versioningReviewStateOn' : 'versioningReviewStateOff'))}</span>` : ''}</summary>${rvHtml}</details>`;
       if (diffView) html += diffHtml();
       if (versions.length) {
         html += `<div class="vcv-picked-bar" data-role="pickedBar" ${pickedIds.size ? '' : 'hidden'}>
@@ -911,7 +911,7 @@
 
     host.ownerDocument.addEventListener('click', e => host.querySelectorAll('.vcv-more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
     refresh();
-    return { refresh, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
+    return { refresh, render, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
   }
 
   window.LayerCaptureVersioning = { mount };

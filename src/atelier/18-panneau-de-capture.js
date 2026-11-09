@@ -78,6 +78,17 @@ window.addEventListener('message', e => {
   syncAtelierFullscreenButtons();
 });
 let atelierHostAnswered = false;
+// Sections du projet (09/11) : dans le Backstage, la colonne du milieu (Atelier / Versioning / Relecture client) dit quelle partie de l'atelier montrer.
+// Sans message (atelier seul, tutoriel, studio) : tout est affiché, comme avant. Classes sur <body> : atelier-view-atelier / -versioning / -review.
+function setAtelierView(view) {
+  ['atelier', 'versioning', 'review'].forEach(n => document.body.classList.toggle('atelier-view-' + n, n === view));
+  if (typeof window.__lpRerenderVersioning === 'function') window.__lpRerenderVersioning(); // la relecture s'ouvre d'elle-même dans sa section
+}
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierView') return;
+  setAtelierView(e.data.view);
+});
+try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
   const root = document.documentElement;
@@ -831,6 +842,7 @@ function openCapturePanel(file, opts) {
         refreshLoadOptions();
       },
     });
+    window.__lpRerenderVersioning = () => { if (versioning && versioning.render) versioning.render(); };
     capturePanelVersioning = versioning;
     // Une seule musique à la fois (05/11, retour de Jules-Antoine : les deux se superposaient) : tout bouton du Versioning (créer une
     // version, l'écouter…) arrête d'abord l'écoute du montage.

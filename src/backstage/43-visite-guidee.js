@@ -1234,7 +1234,7 @@ const LESSONS = [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
     { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
       done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
-    { selector: '#panelVideoLibrary [data-video-subtab="capture"]', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]:not([hidden])', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
       done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
     // La suite se passe DANS l'atelier (ses propres bulles) ; cette étape avance seule quand l'atelier a fini sa partie.
     // 05/11 : l'atelier en plein écran avant de commencer (dans le cadre, il était trop petit et les cibles sortaient de l'écran).

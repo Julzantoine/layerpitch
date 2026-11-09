@@ -277,6 +277,34 @@
   body.video-atelier-full .video-atelier-bar { display: none; }
   body.video-atelier-full { overflow: hidden; }
   /* Projets vidéo (09/11) : sélecteur « comme un AdReel » au-dessus de l'atelier. */
+  /* Section Vidéo en trois colonnes (09/11) : projets | sections du projet | contenu. */
+  .video-cols { display: flex; align-items: flex-start; gap: 12px; margin-top: 10px; }
+  .video-col { flex: 0 0 200px; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card, transparent); }
+  .video-col-nav { flex-basis: 170px; }
+  .video-col[hidden], .video-cols.video-fold-list .video-col-list, .video-cols.video-fold-nav .video-col-nav { display: none; }
+  .video-col-main { flex: 1 1 0; min-width: 0; }
+  .video-col-head { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; overflow-wrap: anywhere; }
+  .video-col-section + .video-col-section { margin-top: 12px; }
+  .video-col-sechead { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 8px; padding: 0; background: none; border: 0; font: inherit; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim); cursor: pointer; text-align: left; }
+  .video-col-sechead:hover { color: var(--text); }
+  .video-col-chev::before { content: '\25BE'; display: inline-block; font-size: 12px; }
+  .video-col-section.folded .video-col-chev::before { content: '\25B8'; }
+  .video-col-section.folded .video-col-secbody { display: none; }
+  .video-col-item { display: block; width: 100%; margin: 0 0 6px; padding: 7px 9px; text-align: left; font: inherit; font-size: 13px; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+  .video-col-item[hidden] { display: none; }
+  .video-col-item:hover { border-color: var(--border-strong, #bbb); }
+  .video-col-item.active { border-color: #2f80c0; background: rgba(47,128,192,0.08); }
+  .video-col-item small { display: block; font-size: 11px; color: var(--text-dim); overflow-wrap: anywhere; }
+  .video-col-new[hidden] { display: none; }
+  .video-col-new { width: 100%; margin-top: 4px; }
+  .video-col-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+  .video-fold-btn[aria-pressed="true"] { border-color: #2f80c0; color: #2f80c0; }
+  .video-project-bar { display: none !important; }
+  .video-project-settings[hidden] { display: none; }
+  .video-project-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .video-subpanel.view-settings .video-atelier-frame { height: 0; min-height: 0; margin: 0; border: 0; visibility: hidden; }
+  .video-subpanel.view-settings .video-atelier-bar, .video-subpanel.view-settings .video-atelier-unsaved-note { display: none; }
+  @media (max-width: 720px) { .video-cols { flex-direction: column; } .video-col { flex-basis: auto; width: 100%; } }
   .video-project-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .video-project-bar[hidden], .video-project-meta[hidden], .video-atelier-frame[hidden], .video-atelier-bar[hidden] { display: none; }
   .video-project-bar label { font-size: 12px; color: var(--text-dim); }
@@ -339,7 +367,6 @@
   .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 2px; font-size: 12px; border: 1px solid #e2e2e6; border-radius: 6px; }
   .content-appearance-toggle .nav-item.active { border-color: #262521; }
   /* Onglets de la page Vidéo : toujours visibles sous la barre du haut (09/11) -- sinon leur bas dépasse, coupé, quand on défile. */
-  #panelVideoLibrary > .content-appearance-toggle { position: sticky; top: var(--lp-topbar-bottom, 60px); z-index: 300; background: var(--backstage-bg); padding: 6px 0 8px; margin-top: 4px; }
   .backstage-content { flex: 1; min-width: 0; }
   /* Barre repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js, classe posée sur
      <html>). Repliée = icônes seules, libellés en infobulle ; le bloc « AdReel en édition » ne garde que Contenu /

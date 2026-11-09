@@ -471,6 +471,7 @@ function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
   if (name === 'capture') { initVideoProjects(); refreshAtelierUnsavedNote(); }
+  syncVideoCols();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
@@ -635,6 +636,42 @@ function videoMontageFields(v) {
 // Un projet vidéo EST un montage sauvegardé (video_captures : nom, pack, vidéo d'origine, frise) ; ses versions vidéo sont celles de
 // video_capture_versions. Rien de neuf en base : « + Nouveau » crée un montage vide (nom + pack), l'atelier s'ouvre dessus, la vidéo s'y choisit.
 // Palier qui enregistre les montages (versioning 'saved') ; sans lui, l'atelier s'ouvre comme avant (choix du pack dans l'atelier), sans projet.
+// Colonnes de la section Vidéo (09/11) : 1 = projets, 2 = sections du projet choisi, 3 = contenu (voir 03-ecran-et-scripts.html).
+let videoView = 'atelier'; // 'atelier' | 'versioning' | 'review' | 'settings'
+function videoColsEls() {
+  const g = id => document.getElementById(id);
+  return { cols: g('videoCols'), nav: g('videoColNav'), navTitle: g('videoColNavTitle'), list: g('videoProjectList'), solo: g('videoAtelierSoloItem'), newBtn: g('videoProjectNewBtn'), settings: g('videoProjectSettings') };
+}
+// Remet les colonnes d'accord avec l'état : sous-onglet ouvert, projet choisi, section choisie.
+function syncVideoCols() {
+  const el = videoColsEls();
+  if (!el.cols) return;
+  const capture = !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active');
+  const projMode = videoProjectsMode();
+  const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  el.nav.hidden = !(capture && projMode && cur);
+  el.solo.hidden = projMode && videoProjects.length > 0;
+  el.newBtn.hidden = !projMode;
+  el.solo.classList.toggle('active', capture && !el.solo.hidden);
+  if (el.navTitle) el.navTitle.textContent = cur ? videoProjectTitle(cur) : '';
+  el.list.querySelectorAll('[data-project-id]').forEach(b => b.classList.toggle('active', capture && b.dataset.projectId === videoProjectSelectedId));
+  const showView = !el.nav.hidden ? videoView : 'atelier';
+  el.nav.querySelectorAll('[data-video-view]').forEach(b => b.classList.toggle('active', b.dataset.videoView === showView));
+  const capPanel = document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"]');
+  if (capPanel) capPanel.classList.toggle('view-settings', showView === 'settings');
+  if (el.settings) el.settings.hidden = showView !== 'settings';
+}
+// Dit à l'atelier (dans le cadre) quelle section montrer ; « Réglages » est la partie du Backstage : l'atelier garde alors sa dernière section.
+function pushVideoView() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.contentWindow || !frame.getAttribute('src')) return;
+  try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'atelierView', view: videoView === 'settings' ? 'atelier' : videoView }, location.origin); } catch (e) { /* cadre pas prêt : il redemandera au chargement */ }
+}
+function setVideoView(view) {
+  videoView = view;
+  syncVideoCols();
+  pushVideoView();
+}
 let videoProjects = [];
 let videoProjectSelectedId = null;
 let videoProjectsLoadedFor = null; // montage affiché dans le cadre (évite de le recharger quand on réaffiche l'onglet)
@@ -657,11 +694,19 @@ async function renderVideoProjectBar() {
   if (!videoProjects.some(p => p.id === videoProjectSelectedId)) videoProjectSelectedId = videoProjects.length ? videoProjects[0].id : null;
   el.select.innerHTML = videoProjects.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === videoProjectSelectedId ? 'selected' : ''}>${escapeHtml(videoProjectTitle(p))}</option>`).join('');
   el.empty.hidden = videoProjects.length > 0;
+  const colEl = videoColsEls();
+  if (colEl.list) {
+    colEl.list.innerHTML = videoProjects.map(p => {
+      const pk = packs.find(x => x.id === p.packId);
+      return `<button type="button" class="video-col-item" data-project-id="${escapeHtml(p.id)}"><span>${escapeHtml(videoProjectTitle(p))}</span><small>${escapeHtml(pk ? (pk.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'))}</small></button>`;
+    }).join('');
+  }
   const deleteBtn = document.getElementById('videoProjectDeleteBtn');
   if (deleteBtn) deleteBtn.disabled = !videoProjectSelectedId;
   const packBtn = document.getElementById('videoProjectPackBtn');
   if (packBtn) packBtn.disabled = !videoProjectSelectedId;
   const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  syncVideoCols();
   if (!cur) { el.meta.hidden = true; el.meta.innerHTML = ''; return; }
   const pack = packs.find(p => p.id === cur.packId);
   const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), cur.videoFilename ? tr('videoVersioningVideo').replace('{video}', cur.videoFilename) : '', new Date(cur.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
@@ -701,6 +746,7 @@ async function initVideoProjects() {
   if (!videoProjectsMode()) {
     el.bar.hidden = true; el.meta.hidden = true; el.empty.hidden = true; if (el.frame) el.frame.hidden = false;
     ensureVideoAtelierLoaded();
+    syncVideoCols();
     return;
   }
   el.bar.hidden = false;
@@ -726,6 +772,46 @@ async function refreshVideoProjects() {
     await renderVideoProjectBar();
     showSelectedVideoProject(false);
   });
+  // Colonne 1 : un clic sur un projet l'ouvre (le sélecteur caché reste la source de vérité, ses autres usages ne changent pas).
+  const listEl = document.getElementById('videoProjectList');
+  if (listEl) listEl.addEventListener('click', e => {
+    const b = e.target.closest('[data-project-id]');
+    if (!b) return;
+    sel.value = b.dataset.projectId;
+    sel.dispatchEvent(new Event('change'));
+    switchVideoSubtab('capture');
+  });
+  // Colonne 2 : la section du projet.
+  document.querySelectorAll('#videoColNav [data-video-view]').forEach(b => b.addEventListener('click', () => setVideoView(b.dataset.videoView)));
+  const frameEl = document.getElementById('videoAtelierFrame');
+  if (frameEl) frameEl.addEventListener('load', pushVideoView);
+  // Replier la liste des projets / les sections (comme les zones de l'atelier) ; retenu sur cet appareil.
+  // Sections de la colonne 1 (Bibliothèque / Projets) : chacune se plie et se déplie.
+  document.querySelectorAll('#videoColList .video-col-sechead').forEach(h => h.addEventListener('click', () => {
+    const sec = h.closest('.video-col-section');
+    const folded = sec.classList.toggle('folded');
+    h.setAttribute('aria-expanded', folded ? 'false' : 'true');
+    secFold[sec.dataset.foldKey] = folded;
+    try { localStorage.setItem('lpVideoSecFolded', JSON.stringify(secFold)); } catch (e) {}
+  }));
+  const secFold = (() => { try { return JSON.parse(localStorage.getItem('lpVideoSecFolded') || '{}') || {}; } catch (e) { return {}; } })();
+  document.querySelectorAll('#videoColList .video-col-section').forEach(sec => {
+    if (secFold[sec.dataset.foldKey]) { sec.classList.add('folded'); sec.querySelector('.video-col-sechead').setAttribute('aria-expanded', 'false'); }
+  });
+  const colsEl = document.getElementById('videoCols');
+  const foldState = (() => { try { return JSON.parse(localStorage.getItem('lpVideoColsFolded') || '{}') || {}; } catch (e) { return {}; } })();
+  const applyFolds = () => {
+    colsEl.classList.toggle('video-fold-list', !!foldState.list);
+    colsEl.classList.toggle('video-fold-nav', !!foldState.nav);
+    document.getElementById('videoFoldList').setAttribute('aria-pressed', foldState.list ? 'false' : 'true');
+    document.getElementById('videoFoldNav').setAttribute('aria-pressed', foldState.nav ? 'false' : 'true');
+    try { localStorage.setItem('lpVideoColsFolded', JSON.stringify(foldState)); } catch (e) {}
+  };
+  if (colsEl) {
+    document.getElementById('videoFoldList').addEventListener('click', () => { foldState.list = !foldState.list; applyFolds(); });
+    document.getElementById('videoFoldNav').addEventListener('click', () => { foldState.nav = !foldState.nav; applyFolds(); });
+    applyFolds();
+  }
   const nameEl = document.getElementById('videoProjectName');
   const packEl = document.getElementById('videoProjectPack');
   const errEl = document.getElementById('videoProjectError');
