@@ -109,7 +109,12 @@ async function init() {
       return;
     }
     atelierFillPackSelect(select, choices, packId);
-    row.hidden = false;
+    // Ouvert sur un projet vidéo (09/11, &montage=<id> depuis le Backstage) : le pack est celui du projet, choisi dans le Backstage -- ni liste de packs
+    // ni phrase « choisis le pack » ici. Tutoriel : parcours guidé inchangé.
+    const inProject = atelierParams.has('montage') && !atelierParams.has('tuto');
+    row.hidden = inProject;
+    const introEl = document.querySelector('.atelier-intro');
+    if (introEl) introEl.hidden = inProject;
     if (!select.dataset.bound) {
       select.dataset.bound = '1';
       select.addEventListener('change', () => {
