@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794261398599">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794261398599">
+<link rel="stylesheet" href="player.css?v=1794262222024">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794262222024">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -492,6 +492,7 @@
   .atelier-zones .atelier-zone-btn { border-radius: 0; margin: 0; border-right-width: 0; color: #888; }
   .atelier-zones .atelier-zone-btn:last-child { border-right-width: 1px; }
   .atelier-zones .atelier-zone-btn.active { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .atelier-zones[hidden] { display: none; }
   .atelier-zones .atelier-zone-btn[hidden] { display: none; }
   .atelier-zones .atelier-zone-btn svg { display: block; margin: 0 auto; }
   .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
@@ -572,16 +573,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794261398599"></script>
-<script src="layerpitch-notify.js?v=1794261398599"></script>
-<script src="public-page.js?v=1794261398599"></script>
-<script src="player.js?v=1794261398599"></script>
-<script src="capture-plan.js?v=1794261398599"></script>
-<script src="capture-render.js?v=1794261398599"></script>
-<script src="capture-retarget.js?v=1794261398599"></script>
-<script src="capture-versioning.js?v=1794261398599"></script>
-<script src="layerpitch-guide.js?v=1794261398599"></script>
-<script src="atelier-lecons.js?v=1794261398599"></script>
+<script src="layerpitch-i18n.js?v=1794262222024"></script>
+<script src="layerpitch-notify.js?v=1794262222024"></script>
+<script src="public-page.js?v=1794262222024"></script>
+<script src="player.js?v=1794262222024"></script>
+<script src="capture-plan.js?v=1794262222024"></script>
+<script src="capture-render.js?v=1794262222024"></script>
+<script src="capture-retarget.js?v=1794262222024"></script>
+<script src="capture-versioning.js?v=1794262222024"></script>
+<script src="layerpitch-guide.js?v=1794262222024"></script>
+<script src="atelier-lecons.js?v=1794262222024"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2547,6 +2548,12 @@ window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierView') return;
   setAtelierView(e.data.view);
 });
+// Les zones bas / droite se commandent depuis le Backstage (groupe d'icônes unique au-dessus du contenu) : il écrit le choix dans le
+// stockage du navigateur (même site) puis nous prévient.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierZones') return;
+  if (typeof window.__lpReloadZones === 'function') window.__lpReloadZones();
+});
 try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
@@ -3347,12 +3354,15 @@ function openCapturePanel(file, opts) {
   };
   ['bottom', 'right'].forEach(k => zoneBtn[k].addEventListener('click', () => { zonesHidden[k] = !zonesHidden[k]; applyZones(); }));
   applyZones();
+  window.__lpReloadZones = () => { try { zonesHidden = JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) {} applyZones(); };
   // Gauche : le menu du Backstage est dans la page qui contient ce cadre (même site) ; seul dans son onglet, l'atelier n'en a pas.
   let hostRoot = null;
   try { if (window.parent && window.parent !== window) hostRoot = window.parent.document.documentElement; } catch (e) {}
   const hostToggle = hostRoot && hostRoot.ownerDocument.querySelector('.lp-collapse-btn-own');
   if (!hostToggle) zoneBtn.left.hidden = true;
   else {
+    // Dans le Backstage, les icônes de zones sont celles de la barre au-dessus du contenu : on retire ce groupe-ci.
+    const zonesGroup = panel.querySelector('.atelier-zones'); if (zonesGroup) zonesGroup.hidden = true;
     const syncLeft = () => setZoneBtn('left', !hostRoot.classList.contains('lp-sidebar-collapsed'));
     zoneBtn.left.addEventListener('click', () => { hostToggle.click(); syncLeft(); });
     new MutationObserver(syncLeft).observe(hostRoot, { attributes: true, attributeFilter: ['class'] });

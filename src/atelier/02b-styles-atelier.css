@@ -77,6 +77,7 @@
   .atelier-zones .atelier-zone-btn { border-radius: 0; margin: 0; border-right-width: 0; color: #888; }
   .atelier-zones .atelier-zone-btn:last-child { border-right-width: 1px; }
   .atelier-zones .atelier-zone-btn.active { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .atelier-zones[hidden] { display: none; }
   .atelier-zones .atelier-zone-btn[hidden] { display: none; }
   .atelier-zones .atelier-zone-btn svg { display: block; margin: 0 auto; }
   .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }

@@ -88,6 +88,12 @@ window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierView') return;
   setAtelierView(e.data.view);
 });
+// Les zones bas / droite se commandent depuis le Backstage (groupe d'icônes unique au-dessus du contenu) : il écrit le choix dans le
+// stockage du navigateur (même site) puis nous prévient.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierZones') return;
+  if (typeof window.__lpReloadZones === 'function') window.__lpReloadZones();
+});
 try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
@@ -888,12 +894,15 @@ function openCapturePanel(file, opts) {
   };
   ['bottom', 'right'].forEach(k => zoneBtn[k].addEventListener('click', () => { zonesHidden[k] = !zonesHidden[k]; applyZones(); }));
   applyZones();
+  window.__lpReloadZones = () => { try { zonesHidden = JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) {} applyZones(); };
   // Gauche : le menu du Backstage est dans la page qui contient ce cadre (même site) ; seul dans son onglet, l'atelier n'en a pas.
   let hostRoot = null;
   try { if (window.parent && window.parent !== window) hostRoot = window.parent.document.documentElement; } catch (e) {}
   const hostToggle = hostRoot && hostRoot.ownerDocument.querySelector('.lp-collapse-btn-own');
   if (!hostToggle) zoneBtn.left.hidden = true;
   else {
+    // Dans le Backstage, les icônes de zones sont celles de la barre au-dessus du contenu : on retire ce groupe-ci.
+    const zonesGroup = panel.querySelector('.atelier-zones'); if (zonesGroup) zonesGroup.hidden = true;
     const syncLeft = () => setZoneBtn('left', !hostRoot.classList.contains('lp-sidebar-collapsed'));
     zoneBtn.left.addEventListener('click', () => { hostToggle.click(); syncLeft(); });
     new MutationObserver(syncLeft).observe(hostRoot, { attributes: true, attributeFilter: ['class'] });

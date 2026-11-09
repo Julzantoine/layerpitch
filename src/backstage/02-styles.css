@@ -305,6 +305,11 @@
   .video-col-new[hidden] { display: none; }
   .video-col-new { width: 100%; margin-top: 4px; }
   .video-col-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+  .video-zones { display: inline-flex; border-radius: 6px; overflow: hidden; }
+  .video-zones .video-fold-btn { border-radius: 0; margin: 0; border-right-width: 0; padding: 4px 9px; color: #888; }
+  .video-zones .video-fold-btn:last-of-type { border-right-width: 1px; }
+  .video-zones .video-fold-btn[hidden] { display: none; }
+  .video-zones .video-fold-btn svg { display: block; }
   .video-fold-btn[aria-pressed="true"] { border-color: #2f80c0; color: #2f80c0; }
   .video-project-bar { display: none !important; }
   .video-project-settings[hidden] { display: none; }

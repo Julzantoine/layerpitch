@@ -674,6 +674,7 @@ function syncVideoCols() {
   const capPanel = document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"]');
   if (capPanel) capPanel.classList.toggle('view-settings', showView === 'settings');
   if (el.settings) el.settings.hidden = showView !== 'settings';
+  if (window.syncVideoZoneBtns) window.syncVideoZoneBtns();
 }
 // Dit à l'atelier (dans le cadre) quelle section montrer ; « Réglages » est la partie du Backstage : l'atelier garde alors sa dernière section.
 function pushVideoView() {
@@ -814,16 +815,44 @@ async function refreshVideoProjects() {
   });
   const colsEl = document.getElementById('videoCols');
   const foldState = (() => { try { return JSON.parse(localStorage.getItem('lpVideoColsFolded') || '{}') || {}; } catch (e) { return {}; } })();
+  // Groupe d'icônes unique au-dessus du contenu (09/11, demande de Jules-Antoine) : 1 = menu du Backstage, 2 = liste (colonne 1), 3 = sections (colonne 2),
+  // puis 4 = frise + Versioning et 5 = panneau de droite de l'atelier (ces deux-là seulement quand l'atelier est affiché). Bleu = zone affichée.
+  // Un clic sur 1, 2 ou 3 masque cette zone et celles à sa gauche ; sur une zone masquée, il la réaffiche.
+  const zoneBtns = [1, 2, 3, 4, 5].map(n => document.getElementById('videoZone' + n));
+  const hostToggle = () => document.querySelector('.lp-collapse-btn-own');
+  const menuShown = () => !document.documentElement.classList.contains('lp-sidebar-collapsed');
+  const shown = [null, menuShown, () => !foldState.list, () => !foldState.nav];
+  const setShown = (n, on) => { if (n === 1) { if (menuShown() !== on && hostToggle()) hostToggle().click(); } else if (n === 2) foldState.list = !on; else foldState.nav = !on; };
+  const atelierZones = () => { try { return JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) { return {}; } };
+  const syncZoneBtns = () => {
+    const set = (btn, on) => { if (btn) btn.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+    [1, 2, 3].forEach(n => set(zoneBtns[n - 1], shown[n]()));
+    const z = atelierZones();
+    set(zoneBtns[3], !z.bottom); set(zoneBtns[4], !z.right);
+    // 4 et 5 : seulement quand l'atelier est ouvert et visible (pas en Bibliothèque ni en Réglages).
+    const atelierOn = !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') && videoView !== 'settings';
+    zoneBtns[3].hidden = zoneBtns[4].hidden = !atelierOn;
+  };
   const applyFolds = () => {
     colsEl.classList.toggle('video-fold-list', !!foldState.list);
     colsEl.classList.toggle('video-fold-nav', !!foldState.nav);
-    document.getElementById('videoFoldList').setAttribute('aria-pressed', foldState.list ? 'false' : 'true');
-    document.getElementById('videoFoldNav').setAttribute('aria-pressed', foldState.nav ? 'false' : 'true');
     try { localStorage.setItem('lpVideoColsFolded', JSON.stringify(foldState)); } catch (e) {}
+    syncZoneBtns();
   };
+  window.syncVideoZoneBtns = syncZoneBtns;
   if (colsEl) {
-    document.getElementById('videoFoldList').addEventListener('click', () => { foldState.list = !foldState.list; applyFolds(); });
-    document.getElementById('videoFoldNav').addEventListener('click', () => { foldState.nav = !foldState.nav; applyFolds(); });
+    [1, 2, 3].forEach(n => zoneBtns[n - 1].addEventListener('click', () => {
+      if (shown[n]()) { for (let k = 1; k <= n; k++) setShown(k, false); } else setShown(n, true);
+      applyFolds();
+    }));
+    ['bottom', 'right'].forEach((k, i) => zoneBtns[3 + i].addEventListener('click', () => {
+      const z = atelierZones(); z[k] = !z[k];
+      try { localStorage.setItem('lpAtelierZonesHidden', JSON.stringify(z)); } catch (e) {}
+      const fr = document.getElementById('videoAtelierFrame');
+      try { fr.contentWindow.postMessage({ source: 'lp-backstage', type: 'atelierZones' }, location.origin); } catch (e) {}
+      syncZoneBtns();
+    }));
+    new MutationObserver(syncZoneBtns).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     applyFolds();
   }
   const nameEl = document.getElementById('videoProjectName');
