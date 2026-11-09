@@ -15,7 +15,7 @@
 //
 // mount(host, ctx) -> { refresh() }. ctx, fourni par openCapturePanel :
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
-//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
+//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked (hérité : l'export MP4 complet a été retiré le 09/11),
 //   exportEvents(events, mode, onProgress) -> Blob, saveToLibrary(blob, title) -> id de vidéo, detach(events, title).
 //   Publication automatique (09/11) : publishVersion(events, title) -> id du son, getSoundKey() (état du montage), cuesOf(events), keepOld(), afterExport(res), onProgress(msg).
 (function () {
@@ -38,6 +38,14 @@
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
     setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
+    // Lien de relecture client et remarques (9/11, migrations 20261109020000 puis 20261109030000 : adresse lisible + clé magique ou mot de passe).
+    getLink: captureId => rpc('get_video_review_link', { p_capture_id: captureId }),
+    // o : { enabled, slug, mode: 'magic'|'password', password, rotate } — tout est facultatif sauf à la création (adresse).
+    setLink: (captureId, o) => rpc('set_video_review_link', { p_capture_id: captureId, p_enabled: o.enabled == null ? null : o.enabled, p_slug: o.slug || null, p_mode: o.mode || null, p_password: o.password || null, p_rotate: !!o.rotate }),
+    listComments: captureId => rpc('list_video_review_comments', { p_capture_id: captureId }),
+    reply: (parentId, body, author) => rpc('reply_video_review_comment', { p_parent_id: parentId, p_body: body, p_author: author }),
+    resolve: (id, resolved) => rpc('resolve_video_review_comment', { p_id: id, p_resolved: resolved }),
+    removeComment: id => rpc('delete_video_review_comment', { p_id: id }),
   };
   // Statuts de relecture d'une version vidéo (9/11, idée Pibox) : même liste que la contrainte de la migration 20261109010000.
   const STATUSES = ['draft', 'sent', 'changes_requested', 'approved'];
@@ -68,6 +76,8 @@
     let editing = null; // { id, title, subs, isNew, titleTouched }
     let listening = null; // { key, stop() }
     let busy = false;
+    // Relecture client : le lien secret du montage et les remarques reçues (rien en versions de séance : il faut un montage enregistré).
+    const review = { link: null, comments: [], available: true, replying: null, drafts: {}, reveal: null, editing: null, form: { slug: '', mode: 'magic', password: '' } };
     let diffView = null; // { ids: [id] } -> tableau de différences sous la liste (1 version contre l'original, ou 2 versions entre elles)
     const pickedIds = new Set(); // versions cochées, gardées d'un affichage à l'autre
     let batchStatus = ''; // avancement du rendu en série (survit aux ré-affichages de la section)
@@ -255,6 +265,55 @@
       }
     }
 
+    // ---- Écoute A/B (9/11, idée Pibox « bascule A/B ») : deux versions rendues, jouées ensemble sur la vidéo, une seule audible à la fois ----
+    // Les deux sons démarrent au même instant et restent calés ; basculer ne fait que changer le volume (immédiat, sans couper la vidéo).
+    async function listenAB(pair, statusEl) {
+      if (listening && listening.key === 'ab') { stopListening(); return; }
+      stopListening();
+      statusEl.textContent = tr('versioningPreparingListen');
+      try {
+        const buffers = [];
+        for (let i = 0; i < pair.length; i++) {
+          const { events } = await versionResult(pair[i].subs);
+          const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
+          buffers.push(await window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => { statusEl.textContent = pair[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot); } }));
+        }
+        await C().resumeAudio();
+        const ac = C().audioContext();
+        const video = ctx.videoEl;
+        const from = video.currentTime || 0;
+        const startAt = ac.currentTime + 0.05;
+        const nodes = buffers.map((buffer, i) => {
+          const src = ac.createBufferSource(); src.buffer = buffer;
+          const g = ac.createGain(); g.gain.value = i === 0 ? 1 : 0;
+          src.connect(g); g.connect(ac.destination);
+          src.start(startAt, Math.min(from, buffer.duration));
+          return { src, g };
+        });
+        video.muted = true;
+        video.play().catch(() => {});
+        const onPause = () => stopListening();
+        video.addEventListener('pause', onPause);
+        const state = { key: 'ab', ab: { labels: pair.map(x => x.label), active: 0 } };
+        state.setActive = i => { if (!nodes[i]) return; state.ab.active = i; nodes.forEach((n, j) => { n.g.gain.value = j === i ? 1 : 0; }); render(); };
+        state.stop = () => { video.removeEventListener('pause', onPause); nodes.forEach(n => { try { n.src.stop(); } catch (e) {} }); if (!video.paused) video.pause(); };
+        nodes[0].src.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
+        listening = state;
+        statusEl.textContent = '';
+        render();
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
+      }
+    }
+    function abBarHtml() {
+      if (!listening || !listening.ab) return '';
+      const ab = listening.ab;
+      const btn = i => `<button type="button" class="video-capture-download-btn vcv-ab-btn${ab.active === i ? ' vcv-ab-on' : ''}" data-act="abSet" data-i="${i}" aria-pressed="${ab.active === i}">${i === 0 ? 'A' : 'B'} — ${esc(ab.labels[i])}</button>`;
+      return `<div class="vcv-ab-bar">${btn(0)}<button type="button" class="video-capture-download-btn" data-act="abSwitch">\u21C4 ${esc(tr('versioningABSwitch'))}</button>${btn(1)}`
+        + `<button type="button" class="video-capture-download-btn" data-act="abStop">${esc(tr('versioningStopListenBtn'))}</button></div>`;
+    }
+
     // ---- Rendu d'une ou plusieurs versions (l'une après l'autre) ----
     const slug = s => String(s || 'version').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'version';
     async function renderVersions(list, mode, toLibrary) {
@@ -302,8 +361,163 @@
         catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
         versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
       }
+      await refreshReview();
       render();
     }
+    // Lien et remarques : lus avec les versions ; la migration absente masque simplement ce panneau.
+    async function refreshReview() {
+      review.link = null; review.comments = []; review.available = !ctx.sessionOnly;
+      const revealFor = review.reveal && review.reveal.captureId === ctx.getCaptureId() ? review.reveal : null; review.reveal = revealFor; // la clé neuve reste affichée tant qu'on est sur ce montage
+      // Tutoriel (faux serveur local) : pas de vrai lien à donner à un client, le panneau n'est pas proposé.
+      try { if (window.LayerPitchDemoClient && window.LayerPitchSupabaseClient.getClient() === window.LayerPitchDemoClient) review.available = false; } catch (e) { /* client absent */ }
+      const captureId = ctx.getCaptureId();
+      if (!review.available || !captureId || loadError) { publishReviewMarks(); return; }
+      try {
+        review.link = await api.getLink(captureId);
+        review.comments = review.link ? (await api.listComments(captureId)) || [] : [];
+      } catch (e) { if (isMissingBackend(e)) review.available = false; else console.error(e); }
+      publishReviewMarks();
+    }
+    const reviewVersionTitle = key => {
+      if (key === 'original') return tr('versioningReviewOriginal');
+      const v = versions.find(x => x.id === key);
+      return v ? (v.title || tr('captureUntitled')) : tr('captureUntitled');
+    };
+    // Les remarques du client deviennent des drapeaux sur la frise de l'atelier (ctx.onReviewComments, s'il est fourni).
+    function publishReviewMarks() {
+      if (!ctx.onReviewComments) return;
+      const marks = review.comments.filter(c => !c.parentId).map(c => ({ id: c.id, t: Number(c.t), author: c.author, body: c.body, versionTitle: reviewVersionTitle(c.versionKey), resolved: !!c.resolved }));
+      try { ctx.onReviewComments(marks); } catch (e) { /* la frise n'est pas prête : prochaine mise à jour */ }
+    }
+    const fmtT = t => { t = Math.max(0, Number(t) || 0); return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
+    // Adresse lisible, sans la clé : /relecture/<nom>. La clé (lien magique) n'est montrée qu'une fois, à la création : voir review.reveal.
+    const reviewAddress = slug => new URL('/relecture/' + slug, document.baseURI).href;
+    const slugify = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    const reviewErr = e => {
+      const m = String((e && (e.hint || '')) + ' ' + (e && e.message || ''));
+      if (/taken|déjà prise/i.test(m)) return tr('versioningReviewSlugTaken');
+      if (/slug|adresse/i.test(m)) return tr('versioningReviewSlugInvalid');
+      if (/short|trop court/i.test(m)) return tr('versioningReviewPasswordShort');
+      return tr('versioningReviewFailed').replace('{error}', (e && e.message) || '');
+    };
+    function reviewFormHtml(withSlug, withMode, withPassword) {
+      const f = review.form;
+      return `${withSlug ? `<div class="vcv-row"><label>${esc(tr('versioningReviewSlugLabel'))}</label><input type="text" class="vcv-link-input" data-role="rvSlug" maxlength="60" value="${esc(f.slug)}"></div><div class="vcv-hint">${esc(tr('versioningReviewSlugHint'))}</div>` : ''}
+        ${withMode ? `<div class="vcv-row"><label><input type="radio" name="rvMode" data-role="rvMode" value="magic" ${f.mode === 'magic' ? 'checked' : ''}> ${esc(tr('versioningReviewModeMagic'))}</label>
+          <label><input type="radio" name="rvMode" data-role="rvMode" value="password" ${f.mode === 'password' ? 'checked' : ''}> ${esc(tr('versioningReviewModePassword'))}</label></div>` : ''}
+        ${withPassword && f.mode === 'password' ? `<div class="vcv-row"><label>${esc(tr('versioningReviewPasswordLabel'))}</label><input type="text" class="vcv-link-input" data-role="rvPassword" autocomplete="off" value="${esc(f.password)}"></div>` : ''}`;
+    }
+    function reviewHtml() {
+      if (!review.available) return '';
+      let html = `<div class="vcv-review-box"><div class="vcv-head"><span class="vcv-title">${esc(tr('versioningReviewTitle'))}</span><span class="vcv-hint">${esc(tr('versioningReviewIntro'))}</span></div>`;
+      if (!review.link) {
+        if (!review.form.slug) review.form.slug = slugify(ctx.getCaptureTitle ? ctx.getCaptureTitle() : '');
+        return html + reviewFormHtml(true, true, true) + `<div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvCreate" ${busy ? 'disabled' : ''}>${esc(tr('versioningReviewCreate'))}</button><span class="vcv-status" data-role="rvStatus"></span></div></div>`;
+      }
+      const L = review.link, on = L.enabled;
+      const revealUrl = review.reveal && review.reveal.url ? review.reveal.url : '';
+      if (revealUrl) html += `<div class="vcv-note-warn">${esc(tr('versioningReviewShowOnce'))}</div>
+        <div class="vcv-row"><input type="text" readonly class="vcv-link-input" data-role="rvUrl" value="${esc(revealUrl)}" ${on ? '' : 'disabled'}>
+        <button type="button" class="video-capture-download-btn" data-act="rvCopy" ${on ? '' : 'disabled'}>${esc(tr('versioningReviewCopy'))}</button></div>`;
+      else html += `<div class="vcv-row"><input type="text" readonly class="vcv-link-input" data-role="rvUrl" value="${esc(reviewAddress(L.slug))}" ${on ? '' : 'disabled'}>
+        <button type="button" class="video-capture-download-btn" data-act="rvCopy" ${on ? '' : 'disabled'}>${esc(tr('versioningReviewCopy'))}</button></div>`;
+      html += `<div class="vcv-hint">${esc(tr(L.mode === 'password' ? 'versioningReviewPasswordMode' : 'versioningReviewMagicMode'))}</div>
+        <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvToggle">${esc(tr(on ? 'versioningReviewDisable' : 'versioningReviewEnable'))}</button>
+        <button type="button" class="video-capture-download-btn" data-act="rvRename">${esc(tr('versioningReviewRename'))}</button>
+        ${L.mode === 'password'
+          ? `<button type="button" class="video-capture-download-btn" data-act="rvPassword">${esc(tr('versioningReviewChangePassword'))}</button>`
+          : `<button type="button" class="video-capture-download-btn" data-act="rvRotate" title="${esc(tr('versioningReviewRotateHelp'))}">${esc(tr('versioningReviewNewKey'))}</button>`}
+        <button type="button" class="video-capture-download-btn" data-act="rvMode">${esc(tr('versioningReviewChangeMode'))}</button>
+        <span class="vcv-status" data-role="rvStatus"></span></div>`;
+      if (review.editing) {
+        html += `<div class="vcv-review-edit">${review.editing === 'rename' ? reviewFormHtml(true, false, false) : review.editing === 'password' ? reviewFormHtml(false, false, true) : reviewFormHtml(false, true, true)}
+          <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvSave">${esc(tr('versioningReviewSave'))}</button></div></div>`;
+      }
+      if (!review.link.enabled) html += `<div class="vcv-note-warn">${esc(tr('versioningReviewOff'))}</div>`;
+      const top = review.comments.filter(c => !c.parentId).sort((a, b) => (a.versionKey === b.versionKey ? Number(a.t) - Number(b.t) : String(a.versionKey).localeCompare(String(b.versionKey))));
+      const open = top.filter(c => !c.resolved).length;
+      html += `<div class="vcv-section"><span>${esc(tr('versioningReviewComments'))} ${top.length ? '(' + esc(tr('versioningReviewOpen').replace('{n}', open)) + ')' : ''}</span>
+        <button type="button" class="video-capture-download-btn" data-act="rvRefresh">${esc(tr('versioningReviewRefresh'))}</button></div>`;
+      if (!top.length) html += `<div class="vcv-empty">${esc(tr('versioningReviewNone'))}</div>`;
+      top.forEach(c => {
+        const replies = review.comments.filter(r => r.parentId === c.id);
+        html += `<div class="vcv-rcm${c.resolved ? ' vcv-rcm-done' : ''}" data-cid="${esc(c.id)}">
+          <div class="vcv-rcm-meta"><button type="button" class="vcv-rcm-t" data-act="rvSeek" title="${esc(tr('versioningReviewSeek'))}">${esc(fmtT(c.t))}</button>
+            <span class="vcv-rcm-who">${esc(c.author)}</span><span class="vcv-rcm-ver">${esc(reviewVersionTitle(c.versionKey))}</span>${c.resolved ? `<span>✓ ${esc(tr('versioningReviewDone'))}</span>` : ''}</div>
+          <div class="vcv-rcm-body">${esc(c.body)}</div>
+          ${replies.map(r => `<div class="vcv-rcm-reply"><span class="vcv-rcm-who">${esc(r.author)}${r.fromOwner ? ' ✎' : ''}</span> ${esc(r.body)}</div>`).join('')}
+          <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvReply">${esc(tr('versioningReviewReply'))}</button>
+            <button type="button" class="video-capture-download-btn" data-act="rvResolve">${esc(tr(c.resolved ? 'versioningReviewReopen' : 'versioningReviewResolve'))}</button>
+            <button type="button" class="video-capture-download-btn" data-act="rvDelete">${esc(tr('versioningDeleteBtn'))}</button></div>
+          ${review.replying === c.id ? `<div class="vcv-row"><textarea class="vcv-rcm-input" data-role="rvReplyText" rows="2" maxlength="2000" placeholder="${esc(tr('versioningReviewReplyPlaceholder'))}">${esc(review.drafts[c.id] || '')}</textarea>
+            <button type="button" class="video-capture-download-btn" data-act="rvSend">${esc(tr('versioningReviewSend'))}</button></div>` : ''}
+        </div>`;
+      });
+      return html + `</div>`;
+    }
+    async function reviewAction(fn, statusEl) {
+      try { await fn(); await refreshReview(); render(); }
+      catch (e) { if (e && e.handled) return; console.error(e); const el = statusEl || host.querySelector('[data-role="rvStatus"]'); if (el) el.textContent = tr('versioningReviewFailed').replace('{error}', e.message); }
+    }
+    function bindReview() {
+      const captureId = ctx.getCaptureId();
+      const on = (sel, fn) => host.querySelectorAll(sel).forEach(b => b.addEventListener('click', e => fn(e, b)));
+      const readForm = () => {
+        const g = r => host.querySelector('[data-role="' + r + '"]');
+        if (g('rvSlug')) review.form.slug = g('rvSlug').value;
+        host.querySelectorAll('[data-role="rvMode"]').forEach(r => { if (r.checked) review.form.mode = r.value; });
+        if (g('rvPassword')) review.form.password = g('rvPassword').value;
+      };
+      host.querySelectorAll('[data-role="rvSlug"],[data-role="rvPassword"]').forEach(i => i.addEventListener('input', readForm));
+      host.querySelectorAll('[data-role="rvMode"]').forEach(r => r.addEventListener('change', () => { readForm(); render(); })); // le champ mot de passe apparaît ou disparaît
+      // Montre la clé neuve une fois : l'adresse + #k=<clé> (la clé reste après le #, elle ne part jamais vers un serveur).
+      const revealIfKey = res => { review.reveal = res && res.secret ? { captureId, url: reviewAddress(res.slug) + '#k=' + encodeURIComponent(res.secret) } : null; };
+      const send = (fn, after) => reviewAction(async () => {
+        readForm();
+        let res;
+        try { res = await fn(); } catch (e) { const st = host.querySelector('[data-role="rvStatus"]'); if (st) st.textContent = reviewErr(e); throw Object.assign(new Error(reviewErr(e)), { handled: true }); }
+        revealIfKey(res); review.editing = null; review.form.password = '';
+        if (after) after();
+      });
+      on('[data-act="rvCreate"]', () => send(() => api.setLink(captureId, { enabled: true, slug: review.form.slug, mode: review.form.mode, password: review.form.password })));
+      on('[data-act="rvToggle"]', () => reviewAction(() => api.setLink(captureId, { enabled: !review.link.enabled })));
+      on('[data-act="rvRename"]', () => { review.form.slug = review.link.slug; review.editing = review.editing === 'rename' ? null : 'rename'; render(); });
+      on('[data-act="rvPassword"]', () => { review.form.mode = 'password'; review.form.password = ''; review.editing = review.editing === 'password' ? null : 'password'; render(); });
+      on('[data-act="rvMode"]', () => { review.form.mode = review.link.mode === 'password' ? 'magic' : 'password'; review.form.password = ''; review.editing = review.editing === 'mode' ? null : 'mode'; render(); });
+      on('[data-act="rvSave"]', () => {
+        const ed = review.editing, f = review.form;
+        if (ed === 'rename') send(() => api.setLink(captureId, { slug: f.slug }));
+        else if (ed === 'password') send(() => api.setLink(captureId, { mode: 'password', password: f.password }));
+        else send(() => api.setLink(captureId, { mode: f.mode, password: f.password }));
+      });
+      on('[data-act="rvRotate"]', async () => {
+        const ok = await window.LayerPitchNotify.confirm(tr('versioningReviewNewKeyConfirm'), { okLabel: tr('versioningReviewNewKey'), danger: true });
+        if (ok) send(() => api.setLink(captureId, { rotate: true }));
+      });
+      on('[data-act="rvCopy"]', async () => {
+        const st = host.querySelector('[data-role="rvStatus"]'), input = host.querySelector('[data-role="rvUrl"]');
+        try { await navigator.clipboard.writeText(input.value); st.textContent = tr('versioningReviewCopied'); }
+        catch (e) { input.select(); st.textContent = tr('versioningReviewCopyManual'); }
+      });
+      on('[data-act="rvRefresh"]', () => reviewAction(async () => {}));
+      host.querySelectorAll('[data-role="rvUrl"]').forEach(i => i.addEventListener('focus', () => i.select()));
+      const cidOf = b => b.closest('.vcv-rcm').dataset.cid;
+      on('[data-act="rvSeek"]', (e, b) => { const c = review.comments.find(x => x.id === cidOf(b)); if (c && ctx.videoEl) { try { ctx.videoEl.currentTime = Number(c.t); } catch (err) { /* vidéo pas prête */ } } });
+      on('[data-act="rvResolve"]', (e, b) => { const c = review.comments.find(x => x.id === cidOf(b)); reviewAction(() => api.resolve(c.id, !c.resolved)); });
+      on('[data-act="rvDelete"]', async (e, b) => {
+        const id = cidOf(b);
+        const ok = await window.LayerPitchNotify.confirm(tr('versioningReviewDeleteConfirm'), { okLabel: tr('versioningDeleteBtn'), danger: true });
+        if (ok) reviewAction(() => api.removeComment(id));
+      });
+      on('[data-act="rvReply"]', (e, b) => { review.replying = review.replying === cidOf(b) ? null : cidOf(b); render(); const t = host.querySelector('[data-role="rvReplyText"]'); if (t) t.focus(); });
+      host.querySelectorAll('[data-role="rvReplyText"]').forEach(t => t.addEventListener('input', () => { review.drafts[review.replying] = t.value; }));
+      on('[data-act="rvSend"]', (e, b) => {
+        const id = cidOf(b), text = (review.drafts[id] || '').trim();
+        if (!text) return;
+        reviewAction(async () => { await api.reply(id, text, ctx.authorName ? ctx.authorName() : tr('versioningReviewOwnerName')); review.drafts[id] = ''; review.replying = null; });
+      });
+    }
+
     // Publie les versions enregistrées qui n'ont jamais été publiées ou ont changé (force : toutes). Renvoie le nombre publié.
     async function publishPending(opts) {
       if (!canPublish()) return 0;
@@ -346,6 +560,7 @@
           <input type="checkbox" data-role="pick" ${busy ? 'disabled' : ''} title="${esc(tr('versioningPickHelp'))}">
           <span class="vcv-name">${esc(v.title || tr('captureUntitled'))}</span>
           <select data-role="reviewStatus" class="vcv-review vcv-review-${statusOf(v)}" ${busy ? 'disabled' : ''} title="${esc(v.statusAt ? tr('versioningStatusSince').replace('{date}', new Date(v.statusAt).toLocaleDateString()) : tr('versioningStatusHelp'))}">${STATUSES.map(st => `<option value="${st}" ${statusOf(v) === st ? 'selected' : ''}>${esc(tr('versioningStatus_' + st))}</option>`).join('')}</select>
+          ${v.statusBy ? `<span class="vcv-by">${esc(tr('versioningStatusBy').replace('{name}', v.statusBy))}</span>` : ''}
           <span class="vcv-summary">${esc(summaryOf(v.substitutions))}${v.lastExportVideoId ? ' · ' + esc(tr('versioningInLibrary')) : ''}</span>
           <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(listening && listening.key === key ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="diff" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDiffHelp'))}">${esc(tr('versioningDiffBtn'))}</button>
@@ -356,19 +571,21 @@
           <span class="vcv-status" data-role="status"></span>
         </div>`;
       });
+      html += reviewHtml();
       if (diffView) html += diffHtml();
       if (versions.length) {
-        html += `<div class="vcv-batch">
+        html += abBarHtml() + `<div class="vcv-batch">
+          <button type="button" class="video-capture-download-btn" data-act="abListen" ${busy ? 'disabled' : ''} title="${esc(tr('versioningABHint'))}">${esc(listening && listening.key === 'ab' ? tr('versioningStopListenBtn') : '\u21C4 ' + tr('versioningABTitle'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="compare" ${busy ? 'disabled' : ''} title="${esc(tr('versioningCompareHelp'))}">${esc(tr('versioningCompareBtn'))}</button>
           <span>${esc(tr('versioningRenderPicked'))}</span>
           <button type="button" class="video-capture-download-btn" data-render="audio" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportAudioHelp'))}">${esc(tr('captureExportAudioBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-render="copy" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportCopyHelp'))}">${esc(tr('captureExportCopyBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-render="video" ${busy || ctx.fullExportLocked ? 'disabled' : ''}>${esc(tr('captureExportBtn'))}</button>
           <label class="video-capture-export-opt"><input type="checkbox" data-role="toLibrary"> ${esc(tr('versioningToLibrary'))}</label>
           <span class="vcv-status" data-role="batchStatus">${esc(batchStatus)}</span>
         </div>`;
       }
       host.innerHTML = html;
+      bindReview();
       host.querySelectorAll('.vcv-version').forEach(row => { if (pickedIds.has(row.dataset.id)) row.querySelector('[data-role="pick"]').checked = true; });
       bindList();
     }
@@ -570,6 +787,20 @@
       });
       const closeDiff = host.querySelector('[data-act="closeDiff"]');
       if (closeDiff) closeDiff.addEventListener('click', () => { diffView = null; render(); });
+      const abListen = host.querySelector('[data-act="abListen"]');
+      if (abListen) abListen.addEventListener('click', () => {
+        const picked = versions.filter(x => pickedIds.has(x.id));
+        if (picked.length < 1 || picked.length > 2) { setBatchStatus(tr('versioningABPick')); return; }
+        const nm = v => v.title || tr('captureUntitled');
+        const pair = picked.length === 1 ? [{ label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }, { label: nm(picked[0]), subs: picked[0].substitutions }]
+          : [{ label: nm(picked[0]), subs: picked[0].substitutions }, { label: nm(picked[1]), subs: picked[1].substitutions }];
+        listenAB(pair, host.querySelector('[data-role="batchStatus"]'));
+      });
+      host.querySelectorAll('[data-act="abSet"]').forEach(b => b.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(Number(b.dataset.i)); }));
+      const abSw = host.querySelector('[data-act="abSwitch"]');
+      if (abSw) abSw.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(listening.ab.active === 0 ? 1 : 0); });
+      const abStop = host.querySelector('[data-act="abStop"]');
+      if (abStop) abStop.addEventListener('click', () => stopListening());
       const compareBtn = host.querySelector('[data-act="compare"]');
       if (compareBtn) compareBtn.addEventListener('click', () => {
         const ids = versions.filter(x => pickedIds.has(x.id)).map(x => x.id);
@@ -580,7 +811,6 @@
         const picked = [...host.querySelectorAll('.vcv-version')].filter(r => r.querySelector('[data-role="pick"]').checked).map(r => versions.find(x => x.id === r.dataset.id));
         if (!picked.length) { setBatchStatus(tr('versioningPickNone')); return; }
         const mode = btn.dataset.render;
-        if (mode === 'video' && ctx.fullExportLocked) return;
         const toLibrary = host.querySelector('[data-role="toLibrary"]').checked;
         stopListening();
         renderVersions(picked, mode, toLibrary);

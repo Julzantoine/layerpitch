@@ -181,15 +181,6 @@
   .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
   @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   .video-capture-count { flex: 1; }
-  .video-capture-armed-status { color: #e74c3c; }
-  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
-     discret par défaut, coloré quand la piste est armée. */
-  .video-capture-arm-track-btn {
-    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
-    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
-  }
-  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
-  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
   .video-capture-download-btn {
     padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
     cursor: pointer; font-size: 11px;
@@ -244,6 +235,21 @@
   .vcv-diff-same { color: #777 !important; }
   .vcv-diff-choose { color: #f0a050 !important; }
   .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
+  .vcv-by { color: #888; font-size: 11px; }
+  .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-review-edit { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 6px; background: #181818; border: 1px dashed #3a3a3a; }
+  .vcv-ab-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; margin: 6px 0; border: 1px solid #2f80c0; border-radius: 6px; background: #17222c; }
+  .vcv-ab-on { background: #2f80c0 !important; border-color: #2f80c0 !important; color: #fff !important; }
+  .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
+  .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
+  .vcv-rcm-done { opacity: .55; }
+  .vcv-rcm-meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; color: #999; font-size: 11px; }
+  .vcv-rcm-t { background: none; border: 0; color: #7db8e8; font-weight: 600; cursor: pointer; padding: 0; }
+  .vcv-rcm-who { color: #ddd; font-weight: 600; }
+  .vcv-rcm-ver { color: #888; }
+  .vcv-rcm-body { color: #ddd; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vcv-rcm-reply { margin-left: 12px; padding-left: 8px; border-left: 2px solid #333; color: #bbb; }
+  .vcv-rcm-input { flex: 1; min-width: 200px; background: #151515; border: 1px solid #333; border-radius: 4px; color: #ddd; padding: 4px 6px; font: inherit; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
