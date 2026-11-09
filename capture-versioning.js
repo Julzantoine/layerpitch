@@ -267,7 +267,8 @@
 
     // ---- Écoute A/B (9/11, idée Pibox « bascule A/B ») : deux versions rendues, jouées ensemble sur la vidéo, une seule audible à la fois ----
     // Les deux sons démarrent au même instant et restent calés ; basculer ne fait que changer le volume (immédiat, sans couper la vidéo).
-    async function listenAB(pair, statusEl) {
+    async function listenAB(pair, statusEl, startIdx) {
+      startIdx = Math.min(Math.max(startIdx || 0, 0), pair.length - 1);
       if (listening && listening.key === 'ab') { stopListening(); return; }
       stopListening();
       statusEl.textContent = tr('versioningPreparingListen');
@@ -285,7 +286,7 @@
         const startAt = ac.currentTime + 0.05;
         const nodes = buffers.map((buffer, i) => {
           const src = ac.createBufferSource(); src.buffer = buffer;
-          const g = ac.createGain(); g.gain.value = i === 0 ? 1 : 0;
+          const g = ac.createGain(); g.gain.value = i === startIdx ? 1 : 0;
           src.connect(g); g.connect(ac.destination);
           src.start(startAt, Math.min(from, buffer.duration));
           return { src, g };
@@ -294,9 +295,17 @@
         video.play().catch(() => {});
         const onPause = () => stopListening();
         video.addEventListener('pause', onPause);
-        const state = { key: 'ab', ab: { labels: pair.map(x => x.label), active: 0 } };
+        const state = { key: 'ab', ab: { labels: pair.map(x => x.label), ids: pair.map(x => x.id || ''), active: startIdx } };
+        // Touches 1, 2, 3… : bascule au clavier, sans quitter la vidéo (pas dans un champ de saisie).
+        const onKey = ev => {
+          if (ev.metaKey || ev.ctrlKey || ev.altKey || !/^[1-9]$/.test(ev.key)) return;
+          if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+          const i = Number(ev.key) - 1;
+          if (nodes[i]) { ev.preventDefault(); state.setActive(i); }
+        };
+        document.addEventListener('keydown', onKey);
         state.setActive = i => { if (!nodes[i]) return; state.ab.active = i; nodes.forEach((n, j) => { n.g.gain.value = j === i ? 1 : 0; }); render(); };
-        state.stop = () => { video.removeEventListener('pause', onPause); nodes.forEach(n => { try { n.src.stop(); } catch (e) {} }); if (!video.paused) video.pause(); };
+        state.stop = () => { video.removeEventListener('pause', onPause); document.removeEventListener('keydown', onKey); nodes.forEach(n => { try { n.src.stop(); } catch (e) {} }); if (!video.paused) video.pause(); };
         nodes[0].src.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
         listening = state;
         statusEl.textContent = '';
@@ -306,13 +315,28 @@
         statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
       }
     }
-    function abBarHtml() {
-      if (!listening || !listening.ab) return '';
-      const ab = listening.ab;
-      const btn = i => `<button type="button" class="video-capture-download-btn vcv-ab-btn${ab.active === i ? ' vcv-ab-on' : ''}" data-act="abSet" data-i="${i}" aria-pressed="${ab.active === i}">${i === 0 ? 'A' : 'B'} — ${esc(ab.labels[i])}</button>`;
-      return `<div class="vcv-ab-bar">${btn(0)}<button type="button" class="video-capture-download-btn" data-act="abSwitch">\u21C4 ${esc(tr('versioningABSwitch'))}</button>${btn(1)}`
-        + `<button type="button" class="video-capture-download-btn" data-act="abStop">${esc(tr('versioningStopListenBtn'))}</button></div>`;
+    // Sélecteur d'écoute (09/11) : rangé sous la vidéo, dans le « dock » qui reste en haut quand on défile -- on peut donc toujours passer
+    // d'une version à l'autre pendant l'écoute, où qu'on soit dans la page.
+    function abDock() {
+      const dock = ctx.videoEl && ctx.videoEl.closest && ctx.videoEl.closest('.video-capture-dock');
+      if (!dock) return null;
+      let el = dock.querySelector('.vcv-ab-dock');
+      if (!el) { el = dock.ownerDocument.createElement('div'); el.className = 'vcv-ab-dock'; el.hidden = true; dock.appendChild(el); }
+      return el;
     }
+    function renderAbDock() {
+      const el = abDock();
+      if (!el) return;
+      if (!listening || !listening.ab) { el.innerHTML = ''; el.hidden = true; return; }
+      const ab = listening.ab;
+      el.hidden = false;
+      el.innerHTML = `<span class="vcv-ab-lbl">${esc(tr('versioningABListening'))}</span>`
+        + ab.labels.map((l, i) => `<button type="button" class="video-capture-download-btn vcv-ab-btn${ab.active === i ? ' vcv-ab-on' : ''}" data-i="${i}" aria-pressed="${ab.active === i}"><kbd>${i + 1}</kbd> ${esc(l)}</button>`).join('')
+        + `<button type="button" class="video-capture-download-btn" data-stop="1">${esc(tr('versioningStopListenBtn'))}</button>`;
+      el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(Number(b.dataset.i)); }));
+      el.querySelector('[data-stop]').addEventListener('click', () => stopListening());
+    }
+    function render() { renderList(); renderAbDock(); }
 
     // ---- Rendu d'une ou plusieurs versions (l'une après l'autre) ----
     const slug = s => String(s || 'version').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'version';
@@ -409,7 +433,7 @@
     }
     function reviewHtml() {
       if (!review.available) return '';
-      let html = `<div class="vcv-review-box"><div class="vcv-head"><span class="vcv-title">${esc(tr('versioningReviewTitle'))}</span><span class="vcv-hint">${esc(tr('versioningReviewIntro'))}</span></div>`;
+      let html = `<div class="vcv-review-box"><div class="vcv-head"><span class="vcv-hint">${esc(tr('versioningReviewIntro'))}</span></div>`;
       if (!review.link) {
         if (!review.form.slug) review.form.slug = slugify(ctx.getCaptureTitle ? ctx.getCaptureTitle() : '');
         return html + reviewFormHtml(true, true, true) + `<div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvCreate" ${busy ? 'disabled' : ''}>${esc(tr('versioningReviewCreate'))}</button><span class="vcv-status" data-role="rvStatus"></span></div></div>`;
@@ -543,7 +567,13 @@
     }
 
     // ---- Affichage ----
-    function render() {
+    // Une ligne « écoute » si c'est sa version qui sonne, seule ou dans le sélecteur multi-versions.
+    function rowListening(v) {
+      if (!listening) return false;
+      if (listening.key === 'v:' + v.id) return true;
+      return !!(listening.ab && listening.ab.ids[listening.ab.active] === v.id);
+    }
+    function renderList() {
       const captureId = ctx.getCaptureId();
       const { trackIds, sfxIds } = ingredients();
       let html = `<div class="vcv-head"><span class="vcv-title">${esc(tr('versioningTitle'))}</span><span class="vcv-hint">${esc(tr('versioningIntro'))}${ctx.sessionOnly ? ' ' + esc(tr('versioningSessionNote')) : ''}</span>`;
@@ -562,30 +592,43 @@
           <select data-role="reviewStatus" class="vcv-review vcv-review-${statusOf(v)}" ${busy ? 'disabled' : ''} title="${esc(v.statusAt ? tr('versioningStatusSince').replace('{date}', new Date(v.statusAt).toLocaleDateString()) : tr('versioningStatusHelp'))}">${STATUSES.map(st => `<option value="${st}" ${statusOf(v) === st ? 'selected' : ''}>${esc(tr('versioningStatus_' + st))}</option>`).join('')}</select>
           ${v.statusBy ? `<span class="vcv-by">${esc(tr('versioningStatusBy').replace('{name}', v.statusBy))}</span>` : ''}
           <span class="vcv-summary">${esc(summaryOf(v.substitutions))}${v.lastExportVideoId ? ' · ' + esc(tr('versioningInLibrary')) : ''}</span>
-          <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(listening && listening.key === key ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-act="diff" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDiffHelp'))}">${esc(tr('versioningDiffBtn'))}</button>
+          <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(rowListening(v) ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="edit" ${busy ? 'disabled' : ''}>${esc(tr('versioningEditBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-act="duplicate" ${busy ? 'disabled' : ''}>${esc(tr('versioningDuplicateBtn'))}</button>
-          ${ctx.sessionOnly ? '' : `<button type="button" class="video-capture-download-btn" data-act="detach" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDetachHelp'))}">${esc(tr('versioningDetachBtn'))}</button>`}
-          <button type="button" class="video-capture-download-btn" data-act="delete" ${busy ? 'disabled' : ''}>${esc(tr('versioningDeleteBtn'))}</button>
+          <details class="vcv-more"><summary class="video-capture-download-btn" title="${esc(tr('versioningMoreBtn'))}" aria-label="${esc(tr('versioningMoreBtn'))}">\u22EF</summary><div class="vcv-more-menu">
+            <button type="button" class="video-capture-download-btn" data-act="diff" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDiffHelp'))}">${esc(tr('versioningDiffBtn'))}</button>
+            <button type="button" class="video-capture-download-btn" data-act="duplicate" ${busy ? 'disabled' : ''}>${esc(tr('versioningDuplicateBtn'))}</button>
+            ${ctx.sessionOnly ? '' : `<button type="button" class="video-capture-download-btn" data-act="detach" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDetachHelp'))}">${esc(tr('versioningDetachBtn'))}</button>`}
+            <button type="button" class="video-capture-download-btn" data-act="delete" ${busy ? 'disabled' : ''}>${esc(tr('versioningDeleteBtn'))}</button>
+          </div></details>
           <span class="vcv-status" data-role="status"></span>
         </div>`;
       });
-      html += reviewHtml();
+      const rvHtml = reviewHtml();
+      if (rvHtml) html += `<details class="vcv-review-fold" data-role="rvFold" ${review.open ? 'open' : ''}><summary>${esc(tr('versioningReviewTitle'))}${review.link ? ` <span class="vcv-rv-state">${esc(tr(review.link.enabled ? 'versioningReviewStateOn' : 'versioningReviewStateOff'))}</span>` : ''}</summary>${rvHtml}</details>`;
       if (diffView) html += diffHtml();
       if (versions.length) {
-        html += abBarHtml() + `<div class="vcv-batch">
-          <button type="button" class="video-capture-download-btn" data-act="abListen" ${busy ? 'disabled' : ''} title="${esc(tr('versioningABHint'))}">${esc(listening && listening.key === 'ab' ? tr('versioningStopListenBtn') : '\u21C4 ' + tr('versioningABTitle'))}</button>
+        html += `<div class="vcv-picked-bar" data-role="pickedBar" ${pickedIds.size ? '' : 'hidden'}>
+          <span class="vcv-picked-count" data-role="pickedCount">${esc(tr('versioningPickedCount').replace('{n}', pickedIds.size))}</span>
+          <button type="button" class="video-capture-download-btn" data-act="abListen" ${busy ? 'disabled' : ''} title="${esc(tr('versioningABHint'))}">${esc(listening && listening.key === 'ab' ? tr('versioningStopListenBtn') : '\u21C4 ' + tr('versioningListenCompareBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="compare" ${busy ? 'disabled' : ''} title="${esc(tr('versioningCompareHelp'))}">${esc(tr('versioningCompareBtn'))}</button>
-          <span>${esc(tr('versioningRenderPicked'))}</span>
-          <button type="button" class="video-capture-download-btn" data-render="audio" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportAudioHelp'))}">${esc(tr('captureExportAudioBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-render="copy" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportCopyHelp'))}">${esc(tr('captureExportCopyBtn'))}</button>
-          <label class="video-capture-export-opt"><input type="checkbox" data-role="toLibrary"> ${esc(tr('versioningToLibrary'))}</label>
+          <button type="button" class="video-capture-download-btn" data-act="exportOpen" ${busy ? 'disabled' : ''}>${esc(tr('versioningExportBtn'))}</button>
           <span class="vcv-status" data-role="batchStatus">${esc(batchStatus)}</span>
-        </div>`;
+        </div>
+        <dialog class="video-test-dialog" data-role="exportDlg"><form method="dialog" class="video-test-form">
+          <div class="video-test-dialog-title">${esc(tr('versioningExportDlgTitle'))}</div>
+          <label class="atelier-export-opt"><input type="radio" name="vcvExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
+          <label class="atelier-export-opt"><input type="radio" name="vcvExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
+          <label class="atelier-export-opt"><input type="checkbox" data-role="toLibrary"> ${esc(tr('versioningToLibrary'))}</label>
+          <div class="video-test-dialog-actions">
+            <button type="button" class="video-test-btn-secondary" data-role="exportCancel">${esc(tr('cancel'))}</button>
+            <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('versioningExportGo'))}</button>
+          </div>
+        </form></dialog>`;
       }
       host.innerHTML = html;
       bindReview();
+      const rvFold = host.querySelector('[data-role="rvFold"]');
+      if (rvFold) rvFold.addEventListener('toggle', () => { review.open = rvFold.open; });
       host.querySelectorAll('.vcv-version').forEach(row => { if (pickedIds.has(row.dataset.id)) row.querySelector('[data-role="pick"]').checked = true; });
       bindList();
     }
@@ -758,10 +801,19 @@
       host.querySelectorAll('.vcv-version').forEach(row => {
         const v = versions.find(x => x.id === row.dataset.id);
         const status = row.querySelector('[data-role="status"]');
-        row.querySelector('[data-act="listen"]').addEventListener('click', () => listen('v:' + v.id, v.substitutions, status));
+        row.querySelector('[data-act="listen"]').addEventListener('click', () => {
+          // Pendant une écoute multi-versions, « Écouter » sur une ligne sert d'interrupteur : bascule sur cette version si elle y figure.
+          const i = listening && listening.ab ? listening.ab.ids.indexOf(v.id) : -1;
+          if (i >= 0) { if (listening.ab.active === i) stopListening(); else listening.setActive(i); return; }
+          listen('v:' + v.id, v.substitutions, status);
+        });
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), isNew: false, titleTouched: true }; render(); });
         row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), isNew: true, titleTouched: true }; render(); });
-        row.querySelector('[data-role="pick"]').addEventListener('change', e => { if (e.target.checked) pickedIds.add(v.id); else pickedIds.delete(v.id); });
+        row.querySelector('[data-role="pick"]').addEventListener('change', e => {
+          if (e.target.checked) pickedIds.add(v.id); else pickedIds.delete(v.id);
+          const bar = host.querySelector('[data-role="pickedBar"]');
+          if (bar) { bar.hidden = pickedIds.size === 0; bar.querySelector('[data-role="pickedCount"]').textContent = tr('versioningPickedCount').replace('{n}', pickedIds.size); }
+        });
         row.querySelector('[data-role="reviewStatus"]').addEventListener('change', async e => {
           const next = e.target.value;
           try { await store.setStatus(v.id, next); v.status = next; v.statusAt = new Date().toISOString(); render(); }
@@ -789,34 +841,39 @@
       if (closeDiff) closeDiff.addEventListener('click', () => { diffView = null; render(); });
       const abListen = host.querySelector('[data-act="abListen"]');
       if (abListen) abListen.addEventListener('click', () => {
+        if (listening && listening.key === 'ab') { stopListening(); return; }
         const picked = versions.filter(x => pickedIds.has(x.id));
-        if (picked.length < 1 || picked.length > 2) { setBatchStatus(tr('versioningABPick')); return; }
-        const nm = v => v.title || tr('captureUntitled');
-        const pair = picked.length === 1 ? [{ label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }, { label: nm(picked[0]), subs: picked[0].substitutions }]
-          : [{ label: nm(picked[0]), subs: picked[0].substitutions }, { label: nm(picked[1]), subs: picked[1].substitutions }];
-        listenAB(pair, host.querySelector('[data-role="batchStatus"]'));
+        if (!picked.length || picked.length > 8) { setBatchStatus(tr('versioningABPick')); return; }
+        // La musique d'origine est toujours la première touche (1) ; la première version cochée sonne d'abord.
+        const list = [{ id: '', label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }]
+          .concat(picked.map(v => ({ id: v.id, label: v.title || tr('captureUntitled'), subs: v.substitutions })));
+        listenAB(list, host.querySelector('[data-role="batchStatus"]'), 1);
       });
-      host.querySelectorAll('[data-act="abSet"]').forEach(b => b.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(Number(b.dataset.i)); }));
-      const abSw = host.querySelector('[data-act="abSwitch"]');
-      if (abSw) abSw.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(listening.ab.active === 0 ? 1 : 0); });
-      const abStop = host.querySelector('[data-act="abStop"]');
-      if (abStop) abStop.addEventListener('click', () => stopListening());
       const compareBtn = host.querySelector('[data-act="compare"]');
       if (compareBtn) compareBtn.addEventListener('click', () => {
         const ids = versions.filter(x => pickedIds.has(x.id)).map(x => x.id);
         if (ids.length !== 2) { setBatchStatus(tr('versioningComparePickTwo')); return; }
         diffView = { ids }; render();
       });
-      host.querySelectorAll('[data-render]').forEach(btn => btn.addEventListener('click', () => {
-        const picked = [...host.querySelectorAll('.vcv-version')].filter(r => r.querySelector('[data-role="pick"]').checked).map(r => versions.find(x => x.id === r.dataset.id));
-        if (!picked.length) { setBatchStatus(tr('versioningPickNone')); return; }
-        const mode = btn.dataset.render;
-        const toLibrary = host.querySelector('[data-role="toLibrary"]').checked;
-        stopListening();
-        renderVersions(picked, mode, toLibrary);
-      }));
+      // Exporter… (09/11) : un seul bouton ; format et publication se choisissent dans ce dialogue, au moment de l'export.
+      const exportOpen = host.querySelector('[data-act="exportOpen"]');
+      const dlg = host.querySelector('[data-role="exportDlg"]');
+      if (exportOpen && dlg) {
+        exportOpen.addEventListener('click', () => { if (!pickedIds.size) { setBatchStatus(tr('versioningPickNone')); return; } dlg.showModal(); });
+        dlg.querySelector('[data-role="exportCancel"]').addEventListener('click', () => dlg.close('cancel'));
+        dlg.addEventListener('close', () => {
+          if (dlg.returnValue !== 'go') return;
+          const picked = versions.filter(x => pickedIds.has(x.id));
+          if (!picked.length) { setBatchStatus(tr('versioningPickNone')); return; }
+          const mode = dlg.querySelector('input[name="vcvExportMode"]:checked').value;
+          const toLibrary = dlg.querySelector('[data-role="toLibrary"]').checked;
+          stopListening();
+          renderVersions(picked, mode, toLibrary);
+        });
+      }
     }
 
+    host.ownerDocument.addEventListener('click', e => host.querySelectorAll('.vcv-more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
     refresh();
     return { refresh, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
   }

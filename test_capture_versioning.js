@@ -220,9 +220,15 @@ const path = require('path');
   check('relecture : en mode mot de passe, « Changer le mot de passe » remplace « Nouvelle clé »', !!host.querySelector('[data-act="rvPassword"]') && !host.querySelector('[data-act="rvRotate"]'));
 
   // Rendu en série des deux versions, rangées en bibliothèque.
-  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; });
-  host.querySelector('[data-role="toLibrary"]').checked = true;
-  host.querySelector('[data-render="copy"]').click();
+  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
+  check('barre des versions cochées : cachée sans coche, visible et comptée avec', !host.querySelector('[data-role="pickedBar"]').hidden && host.querySelector('[data-role="pickedCount"]').textContent.includes('2'));
+  // Exporter… : un seul bouton, le format et la publication se choisissent dans le dialogue (jsdom n'ouvre pas <dialog> : on simule sa fermeture « go »).
+  const exDlg = host.querySelector('[data-role="exportDlg"]');
+  exDlg.querySelector('input[value="copy"]').checked = true;
+  exDlg.querySelector('[data-role="toLibrary"]').checked = true;
+  if (!W.HTMLDialogElement.prototype.showModal) W.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  host.querySelector('[data-act="exportOpen"]').click();
+  exDlg.returnValue = 'go'; exDlg.dispatchEvent(new W.Event('close'));
   for (let i = 0; i < 20 && exports.length < 2; i++) await tick();
   await tick(); await tick();
   check('rendu en série : les deux versions exportées, l\'une après l\'autre, en vidéo rapide', exports.length === 2 && exports.every(x => x.mode === 'copy'));
@@ -231,7 +237,9 @@ const path = require('path');
   check('rendu : rangé dans la bibliothèque sous le nom du montage + de la version, rattaché à la version', saved.length === 2 && saved[0].startsWith('Trailer — ') && store.rows.every(r => r.lastExportVideoId));
   check('rendu : avancement affiché puis bilan', host.querySelector('[data-role="batchStatus"]').textContent.includes('2'));
 
-  // Bascule A/B (9/11) : deux versions rendues, jouées ensemble sur la vidéo, une seule audible, bascule instantanée.
+  // Écoute multi-versions (9/11) : la musique d'origine + les versions cochées, rendues et jouées ensemble sur la vidéo, une seule audible à la fois,
+  // bascule instantanée -- boutons rangés dans le dock sous la vidéo (toujours visible), touches 1, 2, 3…, interrupteur sur chaque ligne.
+  const dockEl = doc.createElement('div'); dockEl.className = 'video-capture-dock'; doc.body.appendChild(dockEl); dockEl.appendChild(ctx.videoEl);
   const sources = [], gainsMade = [];
   const AC = W.AudioContext.prototype;
   AC.createBufferSource = function () { const n = { buffer: null, started: null, stopped: false, connect(g) { n.to = g; }, start(at, off) { n.started = [at, off]; }, stop() { n.stopped = true; } }; sources.push(n); return n; };
@@ -240,31 +248,35 @@ const path = require('path');
   W.LayerCaptureRender.render = async () => ({ duration: 30 });
   ctx.videoEl.play = () => Promise.resolve(); ctx.videoEl.currentTime = 7;
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
+  check('barre des versions cochées : cachée quand plus rien n\'est coché', host.querySelector('[data-role="pickedBar"]').hidden);
   host.querySelector('[data-act="abListen"]').click(); await tick();
-  check('A/B sans rien de coché : message pour cocher une version', host.querySelector('[data-role="batchStatus"]').textContent === tr('versioningABPick') && sources.length === 0);
+  check('écoute sans rien de coché : message pour cocher une version', host.querySelector('[data-role="batchStatus"]').textContent === tr('versioningABPick') && sources.length === 0);
   const picks = host.querySelectorAll('[data-role="pick"]');
   picks[0].checked = true; picks[0].dispatchEvent(new W.Event('change'));
   host.querySelector('[data-act="abListen"]').click();
   for (let i = 0; i < 20 && sources.length < 2; i++) await tick();
   await tick();
-  check('A/B avec une version cochée : l\'original (A) contre elle (B), deux sons rendus', sources.length === 2 && !!host.querySelector('.vcv-ab-bar') && host.querySelectorAll('.vcv-ab-btn')[0].textContent.includes(tr('versioningABOriginal')));
-  check('A/B : les deux sons démarrent au même instant et au même endroit (calés sur la vidéo)', sources[0].started[0] === sources[1].started[0] && sources[0].started[1] === 7 && sources[1].started[1] === 7);
-  const gA = () => gainsMade.slice(-2).map(g => g.gain.value);
-  check('A/B : au départ A est audible, B muet', JSON.stringify(gA()) === '[1,0]' && host.querySelectorAll('.vcv-ab-btn')[0].classList.contains('vcv-ab-on'));
-  host.querySelector('[data-act="abSwitch"]').click(); await tick();
-  check('A/B : « Basculer » -> B audible, A muet, sans arrêter les sources', JSON.stringify(gA()) === '[0,1]' && sources.every(x => !x.stopped) && host.querySelectorAll('.vcv-ab-btn')[1].classList.contains('vcv-ab-on'));
-  host.querySelectorAll('[data-act="abSet"]')[0].click(); await tick();
-  check('A/B : clic direct sur A -> A audible', JSON.stringify(gA()) === '[1,0]');
-  host.querySelector('[data-act="abStop"]').click(); await tick();
-  check('A/B : arrêt -> sources coupées, barre retirée', sources.every(x => x.stopped) && !host.querySelector('.vcv-ab-bar') && !V.isListening());
-  // Deux versions cochées : A et B sont ces deux versions
+  const dockBtns = () => [...dockEl.querySelectorAll('.vcv-ab-btn')];
+  check('écoute avec une version cochée : l\'original (touche 1) et elle, deux sons rendus, sélecteur visible dans le dock', sources.length === 2 && !!dockEl.querySelector('.vcv-ab-dock:not([hidden])') && dockBtns()[0].textContent.includes(tr('versioningABOriginal')) && dockBtns().length === 2);
+  check('écoute : les sons démarrent au même instant et au même endroit (calés sur la vidéo)', sources[0].started[0] === sources[1].started[0] && sources[0].started[1] === 7 && sources[1].started[1] === 7);
+  const gA = () => gainsMade.slice(-sources.length).map(g => g.gain.value);
+  check('écoute : la version cochée sonne d\'abord, l\'original est muet', JSON.stringify(gA()) === '[0,1]' && dockBtns()[1].classList.contains('vcv-ab-on'));
+  dockBtns()[0].click(); await tick();
+  check('écoute : clic sur l\'original -> il sonne, sans arrêter les sources', JSON.stringify(gA()) === '[1,0]' && sources.every(x => !x.stopped) && dockBtns()[0].classList.contains('vcv-ab-on'));
+  doc.dispatchEvent(new W.KeyboardEvent('keydown', { key: '2', bubbles: true })); await tick();
+  check('écoute : touche 2 -> bascule sur la version', JSON.stringify(gA()) === '[0,1]');
+  host.querySelector('.vcv-version [data-act="listen"]').click(); await tick();
+  check('écoute : « Arrêter » sur la ligne de la version qui sonne arrête tout', sources.every(x => x.stopped) && !V.isListening() && dockEl.querySelector('.vcv-ab-dock').hidden);
+  // Plusieurs versions cochées : l'original puis chacune ; la ligne d'une autre version sert d'interrupteur.
   sources.length = 0; host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
   host.querySelector('[data-act="abListen"]').click();
-  for (let i = 0; i < 20 && sources.length < 2; i++) await tick();
+  for (let i = 0; i < 20 && sources.length < 3; i++) await tick();
   await tick();
-  const labs = [...host.querySelectorAll('.vcv-ab-btn')].map(b => b.textContent);
-  check('A/B avec deux versions cochées : A et B portent leur nom (pas l\'original)', sources.length === 2 && labs.length === 2 && !labs.some(t => t.includes(tr('versioningABOriginal'))));
-  host.querySelector('[data-act="abStop"]').click(); await tick();
+  check('écoute de deux versions cochées : original + les deux versions, trois sons rendus', sources.length === 3 && dockBtns().length === 3 && dockBtns()[0].textContent.includes(tr('versioningABOriginal')));
+  host.querySelectorAll('.vcv-version [data-act="listen"]')[1].click(); await tick();
+  check('écoute : « Écouter » sur la ligne de l\'autre version bascule dessus, sans rien relancer', JSON.stringify(gA()) === '[0,0,1]' && sources.length === 3 && sources.every(x => !x.stopped));
+  dockEl.querySelector('[data-stop]').click(); await tick();
+  check('écoute : arrêt -> sources coupées, sélecteur retiré', sources.every(x => x.stopped) && dockEl.querySelector('.vcv-ab-dock').hidden);
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
 
   // Détacher.
