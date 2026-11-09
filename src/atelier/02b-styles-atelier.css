@@ -60,6 +60,12 @@
   body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
   body.video-panel-active.atelier-hide-trigger #content .video-capture-trigger-btn, body.video-panel-active.atelier-hide-music #content .pub-section { display: none; }
   body.video-panel-active.atelier-right-hidden .page { display: none; }
+  #atelierPaneEdge { display: none; }
+  @media (min-width: 960px) {
+    body.video-panel-active #atelierPaneEdge { display: block; position: fixed; top: 90px; right: 322px; z-index: 50; width: 22px; height: 44px; padding: 0; border: 1px solid var(--border); border-right: 0; border-radius: 6px 0 0 6px; background: var(--bg-card, #fff); color: var(--text-dim); font-size: 14px; cursor: pointer; }
+    body.video-panel-active.atelier-right-hidden #atelierPaneEdge { right: 0; }
+    #atelierPaneEdge:hover { color: var(--accent); border-color: var(--accent); }
+  }
   .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
   .atelier-pane-menu[hidden] { display: none; }
   .atelier-pane-menu label { display: flex; gap: 8px; align-items: center; padding: 5px 2px; font-size: 12px; color: #ddd; cursor: pointer; white-space: nowrap; }

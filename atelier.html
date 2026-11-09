@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794233349534">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794233349534">
+<link rel="stylesheet" href="player.css?v=1794256510019">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794256510019">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -450,6 +450,12 @@
   body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
   body.video-panel-active.atelier-hide-trigger #content .video-capture-trigger-btn, body.video-panel-active.atelier-hide-music #content .pub-section { display: none; }
   body.video-panel-active.atelier-right-hidden .page { display: none; }
+  #atelierPaneEdge { display: none; }
+  @media (min-width: 960px) {
+    body.video-panel-active #atelierPaneEdge { display: block; position: fixed; top: 90px; right: 322px; z-index: 50; width: 22px; height: 44px; padding: 0; border: 1px solid var(--border); border-right: 0; border-radius: 6px 0 0 6px; background: var(--bg-card, #fff); color: var(--text-dim); font-size: 14px; cursor: pointer; }
+    body.video-panel-active.atelier-right-hidden #atelierPaneEdge { right: 0; }
+    #atelierPaneEdge:hover { color: var(--accent); border-color: var(--accent); }
+  }
   .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
   .atelier-pane-menu[hidden] { display: none; }
   .atelier-pane-menu label { display: flex; gap: 8px; align-items: center; padding: 5px 2px; font-size: 12px; color: #ddd; cursor: pointer; white-space: nowrap; }
@@ -519,16 +525,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794233349534"></script>
-<script src="layerpitch-notify.js?v=1794233349534"></script>
-<script src="public-page.js?v=1794233349534"></script>
-<script src="player.js?v=1794233349534"></script>
-<script src="capture-plan.js?v=1794233349534"></script>
-<script src="capture-render.js?v=1794233349534"></script>
-<script src="capture-retarget.js?v=1794233349534"></script>
-<script src="capture-versioning.js?v=1794233349534"></script>
-<script src="layerpitch-guide.js?v=1794233349534"></script>
-<script src="atelier-lecons.js?v=1794233349534"></script>
+<script src="layerpitch-i18n.js?v=1794256510019"></script>
+<script src="layerpitch-notify.js?v=1794256510019"></script>
+<script src="public-page.js?v=1794256510019"></script>
+<script src="player.js?v=1794256510019"></script>
+<script src="capture-plan.js?v=1794256510019"></script>
+<script src="capture-render.js?v=1794256510019"></script>
+<script src="capture-retarget.js?v=1794256510019"></script>
+<script src="capture-versioning.js?v=1794256510019"></script>
+<script src="layerpitch-guide.js?v=1794256510019"></script>
+<script src="atelier-lecons.js?v=1794256510019"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -3227,12 +3233,23 @@ function openCapturePanel(file, opts) {
   const infoBtn = document.getElementById('videoCaptureInfoBtn');
   const paneParts = [['info', 'atelierPaneInfo'], ['trigger', 'atelierPaneTrigger'], ['music', 'atelierPaneMusic']];
   let paneHidden = {};
+  // Languette au bord de la colonne : un clic la replie entièrement, un clic la rouvre (09/11). Le menu ⓘ affine ce qui reste.
+  let paneEdge = document.getElementById('atelierPaneEdge');
+  if (!paneEdge) { paneEdge = document.createElement('button'); paneEdge.type = 'button'; paneEdge.id = 'atelierPaneEdge'; document.body.appendChild(paneEdge); }
+  paneEdge.setAttribute('aria-label', tr('atelierPaneEdge'));
+  paneEdge.title = tr('atelierPaneEdge');
+  paneEdge.onclick = () => {
+    const allHidden = paneParts.every(([k]) => paneHidden[k]);
+    paneParts.forEach(([k]) => { paneHidden[k] = !allHidden; });
+    applyPane();
+  };
   try { paneHidden = JSON.parse(localStorage.getItem('lpAtelierPaneHidden') || '{}') || {}; } catch (e) {}
   const applyPane = () => {
     paneParts.forEach(([k]) => document.body.classList.toggle('atelier-hide-' + k, !!paneHidden[k]));
     document.body.classList.toggle('atelier-info-collapsed', !!paneHidden.info);
     document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
     infoBtn.classList.toggle('active', paneParts.some(([k]) => paneHidden[k]));
+    paneEdge.textContent = document.body.classList.contains('atelier-right-hidden') ? '«' : '»';
     try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
   };
   applyPane();

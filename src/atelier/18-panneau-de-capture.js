@@ -874,12 +874,23 @@ function openCapturePanel(file, opts) {
   const infoBtn = document.getElementById('videoCaptureInfoBtn');
   const paneParts = [['info', 'atelierPaneInfo'], ['trigger', 'atelierPaneTrigger'], ['music', 'atelierPaneMusic']];
   let paneHidden = {};
+  // Languette au bord de la colonne : un clic la replie entièrement, un clic la rouvre (09/11). Le menu ⓘ affine ce qui reste.
+  let paneEdge = document.getElementById('atelierPaneEdge');
+  if (!paneEdge) { paneEdge = document.createElement('button'); paneEdge.type = 'button'; paneEdge.id = 'atelierPaneEdge'; document.body.appendChild(paneEdge); }
+  paneEdge.setAttribute('aria-label', tr('atelierPaneEdge'));
+  paneEdge.title = tr('atelierPaneEdge');
+  paneEdge.onclick = () => {
+    const allHidden = paneParts.every(([k]) => paneHidden[k]);
+    paneParts.forEach(([k]) => { paneHidden[k] = !allHidden; });
+    applyPane();
+  };
   try { paneHidden = JSON.parse(localStorage.getItem('lpAtelierPaneHidden') || '{}') || {}; } catch (e) {}
   const applyPane = () => {
     paneParts.forEach(([k]) => document.body.classList.toggle('atelier-hide-' + k, !!paneHidden[k]));
     document.body.classList.toggle('atelier-info-collapsed', !!paneHidden.info);
     document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
     infoBtn.classList.toggle('active', paneParts.some(([k]) => paneHidden[k]));
+    paneEdge.textContent = document.body.classList.contains('atelier-right-hidden') ? '«' : '»';
     try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
   };
   applyPane();
