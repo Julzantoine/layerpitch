@@ -15246,7 +15246,92 @@ function readVideoLibraryDuration(file) {
     v.src = url;
   });
 }
+// ---- Compression par WebCodecs + Mediabunny (09/11) -----------------------------------------------------------------
+// Remplace ffmpeg.wasm comme premier choix : l'encodeur H.264 du navigateur (souvent matériel) tourne ~6x plus vite que le
+// temps réel, contre ~8x LA DURÉE de la vidéo en 1080p avec ffmpeg.wasm mono-thread (essais 09/11 dans Firefox 159 : 150 s de
+// vidéo en ~22 s). Et ffmpeg-core est compilé avec --enable-gpl (x264) : le sortir du chemin principal réduit l'exposition GPL.
+// Règles :
+//  - IMAGE : recopiée telle quelle (aucun ré-encodage, donc aucune perte de plus) si elle est déjà en H.264, tient dans
+//    1280x720 et pèse <= VIDEO_LIBRARY_COPY_MAX_BPS ; sinon réencodée en H.264 ~1,2 Mbps, plafonnée à 720p, jamais agrandie.
+//  - SON : copié s'il est déjà en AAC (cas courant : iPhone, exports) ; sinon AAC natif du navigateur s'il sait encoder ;
+//    sinon Opus (Firefox n'encode pas l'AAC). Pas d'encodeur AAC en WASM livré par nous : question de brevets AAC en attente
+//    de la réponse de Via LA (mail envoyé 09/11). Lecture de l'Opus dans un MP4 vérifiée : Firefox, Aperçu (macOS) ; iPhone PAS testé.
+//  - Toute erreur ici (navigateur sans WebCodecs, codec non encodable, source illisible) retombe sur ffmpeg.wasm : on ne
+//    transforme jamais un défaut de vitesse en échec complet.
+const VIDEO_LIBRARY_COPY_MAX_BPS = 2000000;
+const VIDEO_LIBRARY_TARGET_BPS = 1200000;
+let mediabunnySingleton = null;
+async function loadMediabunny() {
+  if (!mediabunnySingleton) mediabunnySingleton = await import('./vendor/mediabunny/mediabunny.min.mjs');
+  return mediabunnySingleton;
+}
+async function compressVideoWithWebCodecs(file, onProgress) {
+  if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined' || !window.isSecureContext) {
+    throw new Error('WebCodecs indisponible dans ce navigateur');
+  }
+  const MB = await loadMediabunny();
+  const input = new MB.Input({ source: new MB.BlobSource(file), formats: MB.ALL_FORMATS });
+  const videoTrack = await input.getPrimaryVideoTrack();
+  if (!videoTrack) throw new Error('aucune piste vidéo lisible');
+  const audioTrack = await input.getPrimaryAudioTrack();
+
+  // IMAGE : copier ou réencoder ?
+  const w = videoTrack.displayWidth, h = videoTrack.displayHeight;
+  const fits = w <= 1280 && h <= 720;
+  const stats = await videoTrack.computePacketStats(200);
+  const videoOpts = { codec: 'avc' };
+  if (videoTrack.codec === 'avc' && fits && stats.averageBitrate <= VIDEO_LIBRARY_COPY_MAX_BPS) {
+    // Rien à toucher : copie des paquets.
+    log(`Vidéo : déjà assez légère (${Math.round(stats.averageBitrate / 1000)} kbps, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
+  } else {
+    const scale = Math.min(1, 1280 / w, 720 / h);
+    if (scale < 1) {
+      // Dimensions paires (exigence de l'H.264). Jamais agrandie : le plafond ne s'applique qu'aux vidéos plus grandes.
+      videoOpts.width = Math.max(2, 2 * Math.round(w * scale / 2));
+      videoOpts.height = Math.max(2, 2 * Math.round(h * scale / 2));
+      videoOpts.fit = 'fill';
+    }
+    videoOpts.bitrate = VIDEO_LIBRARY_TARGET_BPS;
+    videoOpts.forceTranscode = true;
+  }
+
+  // SON : copier, AAC natif ou Opus.
+  const audioOpts = {};
+  let audioPlan = 'aucun';
+  if (audioTrack) {
+    if (audioTrack.codec === 'aac') audioPlan = 'copie AAC';
+    else if (await MB.canEncodeAudio('aac')) { audioOpts.codec = 'aac'; audioOpts.bitrate = 128000; audioPlan = 'AAC natif'; }
+    else if (await MB.canEncodeAudio('opus')) { audioOpts.codec = 'opus'; audioOpts.bitrate = 128000; audioPlan = 'Opus'; }
+    else throw new Error('aucun encodeur audio (AAC/Opus) disponible');
+  }
+  log(`Compression WebCodecs : son ${audioPlan} (source ${audioTrack ? audioTrack.codec : 'aucun'}).`, 'info');
+
+  const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
+  const conversion = await MB.Conversion.init({ input, output, video: videoOpts, audio: audioOpts });
+  if (!conversion.isValid) {
+    throw new Error('conversion impossible : ' + conversion.discardedTracks.map(t => t.reason).join(', '));
+  }
+  // Une piste écartée (hors son/image principaux) n'est pas grave ; mais perdre l'image ou le son d'origine, si.
+  const lostVideo = !conversion.utilizedTracks.some(t => t.isVideoTrack());
+  const lostAudio = !!audioTrack && !conversion.utilizedTracks.some(t => t.isAudioTrack());
+  if (lostVideo || lostAudio) throw new Error('une piste a été écartée (' + conversion.discardedTracks.map(t => t.reason).join(', ') + ')');
+  conversion.onProgress = (p) => {
+    onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct: Math.max(0, Math.min(100, Math.round(p * 100))) }));
+  };
+  await conversion.execute();
+  return new Blob([output.target.buffer], { type: 'video/mp4' });
+}
 async function compressVideoForLibrary(file, onProgress) {
+  onProgress && onProgress(tr('videoLibraryCompressing'));
+  try {
+    return await compressVideoWithWebCodecs(file, onProgress);
+  } catch (e) {
+    console.warn('LayerPitch — compression WebCodecs impossible, repli sur ffmpeg.wasm :', e);
+    log(`Compression rapide indisponible (${e.message}) : repli sur ffmpeg.wasm, plus lent.`, 'warn');
+    return compressVideoWithFfmpeg(file, onProgress);
+  }
+}
+async function compressVideoWithFfmpeg(file, onProgress) {
   onProgress && onProgress(tr('videoLibraryCompressing'));
   const ffmpeg = await loadVideoLibraryFfmpeg();
   const inName = 'in' + (file.name.slice(file.name.lastIndexOf('.')) || '.mp4');
