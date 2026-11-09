@@ -274,6 +274,9 @@
   .video-versioning-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .video-versioning-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
   .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
+  .video-versioning-chip.st-sent { border-color: var(--accent); }
+  .video-versioning-chip.st-changes_requested { border-color: #d9822b; color: #d9822b; }
+  .video-versioning-chip.st-approved { border-color: #3a9d6a; color: #3a9d6a; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   /* Barre de gauche : fixe sous la barre d'actions, et elle défile TOUTE SEULE quand elle est plus haute que l'écran (7/10) -- sinon
@@ -463,6 +466,15 @@
   #quickSearchOverlay .qs-kind { flex-shrink: 0; font-size: 11px; color: var(--text-dimmer); }
   #quickSearchOverlay .qs-empty { padding: 14px 10px; font-size: 13px; color: var(--text-dim); }
   #quickSearchOverlay .qs-hint { border-top: 1px solid var(--border); padding: 8px 16px; font-size: 11px; color: var(--text-dimmer); }
+  #creditsModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #creditsModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #creditsModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  #creditsModal .sub { margin-bottom: 12px; }
+  #creditsModal .credits-list { list-style: none; padding: 0; margin: 0 0 14px; font-size: 12px; color: var(--text); }
+  #creditsModal .credits-list li { padding: 7px 0; border-top: 1px solid #ececf0; line-height: 1.45; }
+  #creditsModal .credits-list li:first-child { border-top: none; }
+  #creditsModal .credits-lic { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: #eef1f6; color: var(--text-dimmer); font-size: 10.5px; white-space: nowrap; }
+  #creditsModal .actions { justify-content: flex-end; }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
   #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
