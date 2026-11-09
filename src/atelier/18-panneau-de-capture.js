@@ -820,6 +820,8 @@ function openCapturePanel(file, opts) {
       library: capturePackLibrary(), otherPacks: (window.__lpCaptureLibrary.otherPacks || []),
       extraPackContent: (pid) => { const L = window.__lpCaptureLibrary, pk = (L.otherPacks || []).find(x => x.id === pid); if (!pk) return null;
         const t = new Set(pk.trackIds), sx = new Set(pk.sfxIds); return { tracks: (L.library || []).filter(x => t.has(x.id)), sfx: (L.sfxLibrary || []).filter(x => sx.has(x.id)) }; },
+      // Remarques du client (9/11) : drapeaux bleus sur la frise de l'atelier, mis à jour avec le panneau Versioning.
+      onReviewComments: marks => { timelineEl.__vctReviewMarks = marks; try { renderEditableTimeline(); } catch (e) { /* frise pas encore prête */ } },
       findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
