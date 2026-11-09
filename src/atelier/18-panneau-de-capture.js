@@ -280,6 +280,7 @@ function openCapturePanel(file, opts) {
   });
   let lastEvents = [];
   let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
+  let lastExportName = ''; // dernier nom donné à un export (proposé à nouveau, et pour la bibliothèque)
   // Enregistrement automatique et publication du montage (06/11) : voir « Enregistrement automatique » plus bas.
   let autosaveTimer = 0;
   let autosaveRunning = null;
@@ -522,6 +523,12 @@ function openCapturePanel(file, opts) {
   videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
   async function runExport(mode) {
     if (mode === 'video' && fullExportLocked) return; // garde-fou : même si le bouton était réactivé à la main
+    // Nom du fichier (09/11, demande de Jules-Antoine : « export-nombre » à chaque fois) : demandé AVANT l'export (il peut durer longtemps),
+    // proposé d'après le nom du montage. Annuler = pas d'export. Le même nom sert de proposition si on ajoute ensuite l'export à la bibliothèque.
+    const askedName = await window.LayerPitchNotify.prompt(tr('captureDownloadNamePrompt'), { inputValue: lastExportName || titleInput.value || '' });
+    if (askedName === null) return;
+    const fileBase = askedName.replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-').replace(/\.(mp4|wav)$/i, '').trim().replace(/^\.+/, '') || ('export-' + Date.now());
+    lastExportName = askedName.trim();
     setExportButtonsDisabled(true);
     try {
       // Sélecteur de palier retiré du panneau le 16 septembre (retour direct de Jules-Antoine : "ça ne
@@ -534,7 +541,7 @@ function openCapturePanel(file, opts) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export-${Date.now()}.${mode === 'audio' ? 'wav' : 'mp4'}`;
+      a.download = `${fileBase}.${mode === 'audio' ? 'wav' : 'mp4'}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -563,7 +570,7 @@ function openCapturePanel(file, opts) {
     if (!lastExportBlob || !packId) return;
     // Nom de la vidéo (6/11, demande de Jules-Antoine) : demandé à l'ajout, proposé d'après le nom de la prise ; renommable ensuite
     // dans la bibliothèque. Annuler = on n'envoie rien.
-    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: titleInput.value || '' });
+    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: lastExportName || titleInput.value || '' });
     if (exportName === null) return;
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
