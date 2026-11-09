@@ -51,12 +51,14 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const noFrame = (() => { const ctx = { window: { addEventListener() {}, removeEventListener() {} }, location: { origin: 'http://x' }, document: { getElementById: () => null }, tr: k => k, setTimeout, clearTimeout, Promise, Date, Math, Error }; vm.createContext(ctx); vm.runInContext(body, ctx); return ctx.finishAtelierMontage; })();
   check('protocole : atelier jamais ouvert -> none, sans attendre', (await noFrame()) === 'none');
 
+  check('atelier : le bouton global publie le montage PUIS ses versions modifiées (publishEverythingNow), et fermer propose aussi de les publier',
+    /async function publishEverythingNow\(opts\)/.test(atelier) && /versioning\.publishPending\(opts\)/.test(atelier) && /const r = await publishEverythingNow\(\);/.test(atelier) && /versioning\.hasPending\(\)/.test(atelier) && /getSoundKey: soundKey/.test(atelier));
   // Export téléchargé : le nom se choisit (09/11), plus de « export-<nombre> » imposé
   check('export : le nom du fichier est demandé avant l\'export, annuler = pas d\'export, extension ajoutée', /LayerPitchNotify\.prompt\(tr\('captureDownloadNamePrompt'\)/.test(atelier) && /if \(askedName === null\) return;/.test(atelier) && /a\.download = `\$\{fileBase\}\.\$\{mode === 'audio' \? 'wav' : 'mp4'\}`/.test(atelier));
   check('export : caractères interdits d\'un nom de fichier remplacés', /replace\(\/\[\\\\\/:\*\?"<>\|/.test(atelier));
   // Textes
-  const keys = ['captureSavedAutoHost', 'captureSavedAutoStudio', 'captureCloseUnpublishedAsk', 'captureClosePublishBtn', 'captureCloseWithoutBtn', 'montageFinishing', 'montagePublished', 'montageNothingToPublish', 'montageFinishFailed', 'montageFinishTimeout', 'videoSourceMontage', 'videoMontageSelectLabel', 'videoMontageSelectPlaceholder', 'videoMontageSelectEmpty', 'videoMontageNoVideo', 'captureDownloadNamePrompt'];
-  check('textes FR + EN : 16 clés présentes deux fois', keys.every(k => (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 2));
+  const keys = ['captureSavedAutoHost', 'captureSavedAutoStudio', 'captureCloseUnpublishedAsk', 'captureClosePublishBtn', 'captureCloseWithoutBtn', 'montageFinishing', 'montagePublished', 'montageNothingToPublish', 'montageFinishFailed', 'montageFinishTimeout', 'videoSourceMontage', 'videoMontageSelectLabel', 'videoMontageSelectPlaceholder', 'videoMontageSelectEmpty', 'videoMontageNoVideo', 'captureDownloadNamePrompt', 'versioningPublishing'];
+  check('textes FR + EN : 17 clés présentes deux fois', keys.every(k => (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 2));
   check('textes : le bouton de l\'atelier s\'appelle « Publier le montage » / « Publish the montage »', /captureUpdateEverywhereBtn: "Publier le montage"/.test(i18n) && /captureUpdateEverywhereBtn: "Publish the montage"/.test(i18n));
   check('textes : plus de « vidéo muette » dans les libellés d\'un montage', !/captureSilentVideoSuffix: "vidéo muette"/.test(i18n) && /captureSilentVideoSuffix: "montage"/.test(i18n));
 

@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1794233596294">
+<link rel="stylesheet" href="player.css?v=1794236653292">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -265,6 +265,8 @@
   }
   .vct-empty { padding: 10px; color: #777; }
   .vct-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4444; pointer-events: none; z-index: 14; }
+  /* Trait d'aimantation (09/11) : montre le repère auquel le point glissé vient de s'accrocher. */
+  .vct-snap-guide { display: none; position: absolute; top: 0; bottom: 0; width: 1px; background: #2f80c0; box-shadow: 0 0 4px #2f80c0; pointer-events: none; z-index: 13; }
   /* Zoom de la frise (06/11) : la frise défile à l'horizontale, les noms de pistes restent collés à gauche. */
   .vct-zoombar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   .vct-zoom-btn { font: inherit; font-size: 11px; min-width: 24px; padding: 2px 7px; border-radius: 4px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; }
@@ -487,11 +489,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794233596294"></script>
-<script src="layerpitch-notify.js?v=1794233596294"></script>
-<script src="public-page.js?v=1794233596294"></script>
-<script src="layerpitch-seller-contact.js?v=1794233596294"></script>
-<script src="player.js?v=1794233596294"></script>
+<script src="layerpitch-i18n.js?v=1794236653292"></script>
+<script src="layerpitch-notify.js?v=1794236653292"></script>
+<script src="public-page.js?v=1794236653292"></script>
+<script src="layerpitch-seller-contact.js?v=1794236653292"></script>
+<script src="player.js?v=1794236653292"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1244,6 +1246,6 @@ window.addEventListener('load', init);
   }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
 })();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794233596294"></script>
+<script src="layerpitch-preview-tuto.js?v=1794236653292"></script>
 </body>
 </html>
