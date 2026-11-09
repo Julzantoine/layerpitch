@@ -157,6 +157,8 @@ let openVideoCaptureDialog = () => {};
     libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
     libPick.hidden = false;
     if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+    // Montage à rouvrir dont la vidéo d'origine est dans la bibliothèque : on la charge directement, sans redemander (06/11).
+    if (match && dialog.open) libBtn.click();
   };
   libBtn.addEventListener('click', async () => {
     const v = libraryVideos.find(x => x.id === libSelect.value);

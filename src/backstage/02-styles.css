@@ -261,8 +261,11 @@
   .video-atelier-unsaved-note { margin-top: 10px; padding: 8px 12px; border: 1px solid #2f80c0; border-radius: 8px; background: rgba(47,128,192,0.08); color: var(--text, inherit); font-size: 13px; }
   .video-atelier-bar { display: flex; justify-content: flex-end; margin-top: 10px; }
   /* Plein écran (05/11) : le cadre couvre la fenêtre, le bouton de sortie flotte en haut à droite. */
-  body.video-atelier-full .video-atelier-frame { position: fixed; inset: 0; width: 100vw; height: 100vh; min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
-  body.video-atelier-full .video-atelier-bar { position: fixed; top: 10px; right: 16px; z-index: 901; margin: 0; }
+  /* Plein écran de l'atelier (07/11) : la barre du haut (Prévisualiser, Sauvegarder / publier, Tutoriel…) reste visible, le cadre prend le reste ; le bouton
+     « Quitter » est celui de l'atelier (dans le cadre), Échap marche aussi. */
+  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; }
+  body.video-atelier-full .video-atelier-frame { position: fixed; inset: 58px 0 0 0; width: 100vw; height: calc(100vh - 58px); min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
+  body.video-atelier-full .video-atelier-bar { display: none; }
   body.video-atelier-full { overflow: hidden; }
   .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
@@ -630,6 +633,7 @@
   .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 16px; }
   .seq-map-roomy .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 26px; }
   .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
+  .seq-map-node-repeat { display: inline-block; margin-left: 4px; padding: 1px 4px; border-radius: 7px; background: var(--seq-map-node-accent, var(--accent)); color: #fff; font-size: 0.85em; line-height: 1.2; font-weight: 700; vertical-align: 1px; font-variant-numeric: tabular-nums; } /* « ×N » des répétitions (06/11) */
   .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   /* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
      liseré bleu") -- l'indicateur de transition est désormais uniquement le disque .seq-map-transition-dot

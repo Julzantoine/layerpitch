@@ -78,16 +78,29 @@ function wireCaptureImageHiding(panel, videoEl) {
 
 // Plein écran de tout l'atelier (05/11, demande de Jules-Antoine : trop chargé dans le cadre du Backstage). Le cadre l'autorise
 // (allow="fullscreen" côté Backstage et studio). Tous les boutons .atelier-fullscreen-toggle suivent l'état, Échap compris.
-function atelierIsFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+// Dans le cadre du Backstage, le plein écran est celui de la page hôte (07/11 : sa barre « Sauvegarder / publier » reste visible) ; sans réponse de
+// l'hôte (espace studio, atelier seul), on retombe sur le plein écran du navigateur.
+let atelierHostFull = false;
+function atelierIsFullscreen() { return atelierHostFull || !!(document.fullscreenElement || document.webkitFullscreenElement); }
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'fullState') return;
+  atelierHostFull = !!e.data.on;
+  atelierHostAnswered = true;
+  syncAtelierFullscreenButtons();
+});
+let atelierHostAnswered = false;
 function toggleAtelierFullscreen() {
+  if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
   const root = document.documentElement;
-  if (atelierIsFullscreen()) {
-    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  } else {
-    const req = root.requestFullscreen || root.webkitRequestFullscreen;
-    if (req) { const r = req.call(root); if (r && r.catch) r.catch(e => console.warn('LayerPitch — plein écran refusé :', e)); }
-  }
+  if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  const realFullscreen = () => { const req = root.requestFullscreen || root.webkitRequestFullscreen; if (req) { const r = req.call(root); if (r && r.catch) r.catch(err => console.warn('LayerPitch — plein écran refusé :', err)); } };
+  if (window.parent === window) { realFullscreen(); return; }
+  atelierHostAnswered = false;
+  try { window.parent.postMessage({ source: 'lp-atelier', type: 'toggleFull' }, location.origin); } catch (err) { realFullscreen(); return; }
+  setTimeout(() => { if (!atelierHostAnswered) realFullscreen(); }, 400); // hôte qui ne répond pas
 }
+// Échap dans le cadre : quitte le plein écran de la page hôte (le clavier ne remonte pas jusqu'à elle).
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && atelierHostFull) window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); });
 function syncAtelierFullscreenButtons() {
   const on = atelierIsFullscreen();
   document.body.classList.toggle('atelier-fullscreen', on);
@@ -161,8 +174,10 @@ function openCapturePanel(file, opts) {
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
+      <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
       <div class="video-test-panel-actions">
         <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        <button type="button" class="video-test-panel-btn" id="videoCaptureInfoBtn" title="${tr('atelierInfoToggle')}" aria-label="${tr('atelierInfoToggle')}">ⓘ</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
@@ -198,7 +213,6 @@ function openCapturePanel(file, opts) {
     </div>
     <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
     <div class="video-capture-bar">
-      <input type="text" class="video-capture-title-input" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}">
       <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
       <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
@@ -265,6 +279,8 @@ function openCapturePanel(file, opts) {
   const additiveCheckbox = document.getElementById('videoCaptureAdditiveCheckbox');
   const creditCheckbox = document.getElementById('videoCaptureCreditCheckbox');
   const titleInput = document.getElementById('videoCaptureTitleInput');
+  const defaultMontageName = (file.name || '').replace(/\.[^.]+$/, ''); // sans nom choisi, le montage porte le nom de sa vidéo (plus de « Sans titre »)
+  titleInput.value = defaultMontageName;
   const loadSelect = document.getElementById('videoCaptureLoadSelect');
   const loadBtn = document.getElementById('videoCaptureLoadBtn');
   const saveStatus = document.getElementById('videoCaptureSaveStatus');
@@ -620,7 +636,8 @@ function openCapturePanel(file, opts) {
   // Publication : « tout enregistrer » du Backstage demande à l'atelier de terminer le montage (message finishMontage, voir
   // 20-demarrage-atelier.js) ; dans le studio (pas de bouton global), « Publier le montage » fait la même chose à la main.
   const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
-  const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides }); // ce qui change le son et les étiquettes publiés
+  const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
+  const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
   const montageNeedsPublish = () => captureCanSave && !!packId && lastEvents.length > 0 && soundKey() !== lastPublishedKey;
   const hostPublishes = typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio; // composeur dans le Backstage : son bouton global publie
   const setSaveState = (state, text) => { saveStatus.dataset.state = state; saveStatus.textContent = text; };
@@ -654,6 +671,19 @@ function openCapturePanel(file, opts) {
     try { await autosaveRunning; } finally { autosaveRunning = null; }
   }
   titleInput.addEventListener('input', scheduleAutosave);
+  // Un seul nom : renommer le montage renomme aussi sa vidéo muette dans la bibliothèque vidéo (« <nom> — montage »), à la sortie du champ.
+  titleInput.addEventListener('change', async () => {
+    try {
+      const name = titleInput.value.trim();
+      if (!name) { titleInput.value = defaultMontageName; scheduleAutosave(); return; }
+      await saveCaptureNow();
+      if (!savedCaptureId) return;
+      const client = window.LayerPitchSupabaseClient.getClient();
+      const cur = await client.rpc('video_capture_base', withStudio({ p_capture_id: savedCaptureId }));
+      if (cur.error || !cur.data) return;
+      await client.rpc('rename_video', withStudio({ p_id: cur.data, p_title: name + ' — ' + tr('captureSilentVideoSuffix') }));
+    } catch (e) { console.warn('LayerPitch — renommage de la vidéo muette :', e); }
+  });
   // Publie le montage : son (+ image muette la première fois) et étiquettes, reliés au montage ; les AdReels et les Projets qui l'affichent
   // le montrent aussitôt, sans rien republier. Renvoie 'none' (rien à publier) ou 'done'. force : republier même sans changement.
   async function publishMontageNow(opts) {
@@ -667,7 +697,7 @@ function openCapturePanel(file, opts) {
       const key = soundKey();
       if (!opts.force && key === lastPublishedKey) return 'none';
       const videoId = await publishMontageSound(lastEvents, titleInput.value);
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides), p_keep_old: keepOldCheckbox.checked }));
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides, creditNameForCues()), p_keep_old: keepOldCheckbox.checked }));
       if (error) throw error;
       await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
       lastPublishedKey = key;
@@ -719,7 +749,7 @@ function openCapturePanel(file, opts) {
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
     timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
-    titleInput.value = capture.title || '';
+    titleInput.value = capture.title || defaultMontageName;
     // Prise tout juste chargée : rien à enregistrer. Déjà publiée (elle a une image de montage) : rien à publier tant qu'on ne la retouche pas.
     lastSavedKey = captureStateKey();
     lastPublishedKey = null;
@@ -794,7 +824,7 @@ function openCapturePanel(file, opts) {
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
-      cuesOf: (events) => buildCaptureCues(events, laneOverrides), // étiquettes rangées avec la vidéo d'une version (21/10)
+      cuesOf: (events) => buildCaptureCues(events, laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
       afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
@@ -830,6 +860,8 @@ function openCapturePanel(file, opts) {
     }).catch(e => { console.error(e); saveStatus.textContent = tr('captureLoadFailed').replace('{error}', e.message); });
   }
   document.getElementById('videoCaptureCloseBtn').addEventListener('click', async () => {
+    // Panneau détaché (06/11) : la croix du panneau fait comme la croix de la fenêtre -- le lecteur se raccroche à la page, il ne se perd jamais.
+    if (capturePanelDetachedWindow && !capturePanelDetachedWindow.closed) { capturePanelDetachedWindow.close(); return; }
     // Montage retouché mais pas encore publié : une fois le panneau fermé, la vidéo d'origine n'est plus là pour fabriquer le son.
     if (montageNeedsPublish() && !(typeof atelierParams !== 'undefined' && atelierParams.has('tuto'))
         && await window.LayerPitchNotify.confirm(tr('captureCloseUnpublishedAsk'), { okLabel: tr('captureClosePublishBtn'), cancelLabel: tr('captureCloseWithoutBtn') })) {
@@ -837,6 +869,15 @@ function openCapturePanel(file, opts) {
     }
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
+  });
+  // Replier / déplier les infos (titre, pack, étapes) : toutes les commandes restent dans la partie lecteur (06/11). Retenu sur cet appareil.
+  const infoBtn = document.getElementById('videoCaptureInfoBtn');
+  const applyInfoFold = (fold) => { document.body.classList.toggle('atelier-info-collapsed', fold); infoBtn.classList.toggle('active', fold); infoBtn.setAttribute('aria-pressed', fold ? 'true' : 'false'); };
+  try { applyInfoFold(localStorage.getItem('lpAtelierInfoFolded') === '1'); } catch (e) { applyInfoFold(false); }
+  infoBtn.addEventListener('click', () => {
+    const fold = !document.body.classList.contains('atelier-info-collapsed');
+    applyInfoFold(fold);
+    try { localStorage.setItem('lpAtelierInfoFolded', fold ? '1' : '0'); } catch (e) {}
   });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   wireCaptureImageHiding(panel, videoEl);

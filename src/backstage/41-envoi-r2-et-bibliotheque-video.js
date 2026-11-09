@@ -420,7 +420,18 @@ function setVideoAtelierFull(on) {
   document.body.classList.toggle('video-atelier-full', on);
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.textContent = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull');
+  const frame = document.getElementById('videoAtelierFrame');
+  try { if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'fullState', on: !!on }, location.origin); } catch (e) { /* cadre pas prêt */ }
 }
+// Le bouton « Plein écran » de l'atelier (dans le cadre) passe par ici : ainsi la barre du Backstage reste visible (07/11).
+window.addEventListener('message', e => {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (e.origin !== location.origin || !frame || e.source !== frame.contentWindow || !e.data || e.data.source !== 'lp-atelier') return;
+  if (e.data.type === 'toggleFull' || e.data.type === 'setFull') {
+    const on = e.data.type === 'toggleFull' ? !document.body.classList.contains('video-atelier-full') : !!e.data.on;
+    setVideoAtelierFull(on);
+  }
+});
 (function wireVideoAtelierFull() {
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.addEventListener('click', () => setVideoAtelierFull(!document.body.classList.contains('video-atelier-full')));
@@ -547,7 +558,7 @@ async function renderVideoVersioningList() {
     return `
       <div class="video-library-item">
         <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
+          <div class="video-capture-pack-row-title">${escapeHtml(c.title || (c.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'))}</div>
           <div class="video-library-item-meta">${escapeHtml(meta)}</div>
           <div class="video-versioning-versions">${chips}</div>
         </div>

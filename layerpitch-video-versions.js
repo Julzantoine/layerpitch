@@ -13,7 +13,8 @@
     const state = on.filter(c => c.kind === 'state').sort((a, b) => (a.row || 0) - (b.row || 0)).map(c => c.text);
     const flash = on.filter(c => c.kind === 'stinger').map(c => c.text);
     const fx = on.filter(c => c.kind === 'fx').map(c => c.text);
-    return { state: [...new Set(state)].join(' · '), flash: flash.join(' · '), fx: fx.join(' · ') };
+    const credit = on.filter(c => c.kind === 'credit').map(c => c.text);
+    return { state: [...new Set(state)].join(' · '), flash: flash.join(' · '), fx: fx.join(' · '), credit: credit.join(' · ') };
   }
 
   // Mise en forme : injectée une fois, pour que toutes les pages (AdReels, vitrines, espace Projet) aient la même sans dupliquer le CSS.
@@ -21,8 +22,10 @@
     if (document.getElementById('lp-video-versions-style')) return;
     const st = document.createElement('style');
     st.id = 'lp-video-versions-style';
-    st.textContent = '.lp-video-cue{position:absolute;left:12px;bottom:48px;max-width:calc(100% - 24px);padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.62);color:#fff;font-size:13px;line-height:1.35;pointer-events:none}'
-      + '.lp-video-cue-flash{bottom:auto;top:12px;color:#ffbd7a;font-weight:600}.lp-video-cue[hidden]{display:none}'
+    st.textContent = '.lp-video-cues{position:absolute;right:12px;bottom:48px;max-width:calc(100% - 24px);display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}'
+      + '.lp-video-cue{padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.62);color:#fff;font-size:13px;line-height:1.35;text-align:right}'
+      + '.lp-video-cue small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;line-height:1.2}'
+      + '.lp-video-cue-flash{color:#ffbd7a;font-weight:600}.lp-video-cue-credit{position:absolute;right:12px;top:12px;font-size:12px}.lp-video-cue[hidden]{display:none}'
       + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}';
     document.head.appendChild(st);
   }
@@ -68,16 +71,28 @@
     video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; });
     const resync = () => { if (follow() && !video.paused && Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime; };
 
-    const label = document.createElement('div');
-    label.className = 'lp-video-cue';
-    label.setAttribute('aria-live', 'off');
-    const flash = document.createElement('div');
-    flash.className = 'lp-video-cue lp-video-cue-flash';
-    wrap.appendChild(label); wrap.appendChild(flash);
+    // Musique et Sfx au même endroit (bas à droite), chacun sous un petit libellé.
+    const stack = document.createElement('div');
+    stack.className = 'lp-video-cues';
+    const mkCue = (cls, caption) => {
+      const box = document.createElement('div');
+      box.className = 'lp-video-cue ' + cls;
+      const cap = document.createElement('small'); cap.textContent = caption;
+      const txt = document.createElement('span');
+      box.appendChild(cap); box.appendChild(txt);
+      stack.appendChild(box);
+      return { box, txt };
+    };
+    const label = mkCue('lp-video-cue-music', tr('videoCueMusic') === 'videoCueMusic' ? 'Music' : tr('videoCueMusic'));
+    const flash = mkCue('lp-video-cue-flash', 'SFX');
+    const credit = document.createElement('div');
+    credit.className = 'lp-video-cue lp-video-cue-credit';
+    wrap.appendChild(stack); wrap.appendChild(credit);
     const refresh = () => {
       const txt = cueTextAt(current.cues, video.currentTime || 0);
-      label.textContent = txt.state; label.hidden = !txt.state;
-      flash.textContent = txt.flash ? txt.flash.toUpperCase() + ' !' : ''; flash.hidden = !txt.flash;
+      label.txt.textContent = txt.state; label.box.hidden = !txt.state;
+      flash.txt.textContent = txt.flash; flash.box.hidden = !txt.flash;
+      credit.textContent = txt.credit ? '\u266A ' + txt.credit : ''; credit.hidden = !txt.credit;
     };
     let raf = 0;
     const loop = () => { refresh(); resync(); raf = video.paused ? 0 : requestAnimationFrame(loop); };

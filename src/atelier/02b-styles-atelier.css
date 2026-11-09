@@ -55,6 +55,10 @@
   body.video-panel-active .page { max-width: none; width: 100%; }
   body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
   body.video-panel-active .atelier-intro { display: none; }
+  /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
+  body.video-panel-active .atelier-fullscreen-btn { display: none; }
+  body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
   body.video-panel-active .atelier-pack-name { font-size: 15px; }
@@ -70,3 +74,6 @@
   .video-capture-image-hidden .video-capture-image-hidden-note { display: block; }
   .video-capture-image-hidden .video-test-panel-frame-wrap { aspect-ratio: auto; height: 0; overflow: hidden; }
   .video-capture-image-hidden #videoCaptureHideImageBtn { color: var(--accent); }
+
+  .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
+  .vct-zoom-slider { width: 130px; accent-color: #2f80c0; }
