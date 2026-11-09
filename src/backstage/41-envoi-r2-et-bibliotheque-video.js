@@ -228,7 +228,17 @@ function formatVideoDuration(sec) {
   return m + ':' + String(s).padStart(2, '0');
 }
 
+// Liste des projets de la colonne 1 chargée dès l'ouverture de l'onglet Vidéo (sans ouvrir l'atelier) : sinon elle restait vide
+// tant qu'on n'avait pas cliqué sur l'atelier (bug signalé le 09/11).
+async function preloadVideoProjectList() {
+  try {
+    if (!videoProjectsMode()) { syncVideoCols(); return; }
+    await fetchVideoProjects();
+    await renderVideoProjectBar();
+  } catch (e) { console.error('LayerPitch — liste des projets vidéo :', e); }
+}
 async function renderVideoLibrary() {
+  preloadVideoProjectList();
   const listEl = document.getElementById('videoLibraryList');
   const quotaEl = document.getElementById('videoLibraryQuota');
   if (!listEl) return;
@@ -474,7 +484,11 @@ function switchVideoSubtab(name) {
   syncVideoCols();
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
-  btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
+  btn.addEventListener('click', () => {
+    switchVideoSubtab(btn.dataset.videoSubtab);
+    // « + Importer une vidéo » ouvre aussitôt le choix de fichier (même geste que la zone de dépôt).
+    if (btn.dataset.videoSubtab === 'library') { const dz = document.getElementById('videoLibraryDropzone'); if (dz) dz.click(); }
+  });
 });
 
 // Atelier vidéo (21/10, décidé par Jules-Antoine) : l'outil de capture et de Versioning vit ici, dans un cadre (atelier.html : son code
@@ -817,6 +831,8 @@ async function refreshVideoProjects() {
   const errEl = document.getElementById('videoProjectError');
   const createBtn = document.getElementById('videoProjectCreateBtn');
   newBtn.addEventListener('click', () => {
+    // Le dialogue vit dans le sous-onglet Atelier : caché tant qu'on est sur la Bibliothèque, il ne s'ouvrirait pas.
+    if (!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active')) switchVideoSubtab('capture');
     errEl.textContent = '';
     nameEl.value = '';
     const own = packs || [];
