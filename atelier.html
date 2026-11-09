@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794231122063">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794231122063">
+<link rel="stylesheet" href="player.css?v=1794233596294">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794233596294">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -512,16 +512,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794231122063"></script>
-<script src="layerpitch-notify.js?v=1794231122063"></script>
-<script src="public-page.js?v=1794231122063"></script>
-<script src="player.js?v=1794231122063"></script>
-<script src="capture-plan.js?v=1794231122063"></script>
-<script src="capture-render.js?v=1794231122063"></script>
-<script src="capture-retarget.js?v=1794231122063"></script>
-<script src="capture-versioning.js?v=1794231122063"></script>
-<script src="layerpitch-guide.js?v=1794231122063"></script>
-<script src="atelier-lecons.js?v=1794231122063"></script>
+<script src="layerpitch-i18n.js?v=1794233596294"></script>
+<script src="layerpitch-notify.js?v=1794233596294"></script>
+<script src="public-page.js?v=1794233596294"></script>
+<script src="player.js?v=1794233596294"></script>
+<script src="capture-plan.js?v=1794233596294"></script>
+<script src="capture-render.js?v=1794233596294"></script>
+<script src="capture-retarget.js?v=1794233596294"></script>
+<script src="capture-versioning.js?v=1794233596294"></script>
+<script src="layerpitch-guide.js?v=1794233596294"></script>
+<script src="atelier-lecons.js?v=1794233596294"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2042,11 +2042,39 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// Progression d'envoi (09/11) : même principe que dans le Backstage (src/backstage/41-envoi-r2-et-bibliotheque-video.js) -- fetch() ne donne
+// pas l'avancement d'un envoi, donc XMLHttpRequest quand un onProgress(envoyé, total) est fourni.
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+// Texte d'avancement affiché pendant un envoi, au plus 4 fois par seconde.
+function uploadProgressReporter(onStatus) {
+  if (!onStatus) return undefined;
+  let last = 0;
+  return (done, total) => {
+    const now = Date.now();
+    if (done < total && now - last < 250) return;
+    last = now;
+    onStatus(tr('captureUploadingProgress').replace('{pct}', Math.round(done / total * 100)).replace('{done}', (done / 1048576).toFixed(1)).replace('{total}', (total / 1048576).toFixed(1)));
+  };
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -2088,13 +2116,13 @@ async function r2DeleteRemovedVideos(removed) {
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
 // kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
 // d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind, onStatus) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
     const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
-    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    await r2PutFile(`video/${id}/${fileName}`, blob, 'video/mp4', uploadProgressReporter(onStatus));
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
@@ -2878,7 +2906,7 @@ function openCapturePanel(file, opts) {
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null, undefined, (msg) => { exportStatus.textContent = msg; });
       // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
       // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');
@@ -2901,7 +2929,7 @@ function openCapturePanel(file, opts) {
     if (!cur.error && cur.data) return cur.data;
     onStatus(tr('captureMakingSilentVideo'));
     const blob = await makeSilentVideo(file, onStatus);
-    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
+    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base', onStatus);
     const { error } = await client.rpc('set_video_capture_base', withStudio({ p_capture_id: savedCaptureId, p_video_id: id }));
     if (error) throw error;
     return id;
@@ -2914,7 +2942,7 @@ function openCapturePanel(file, opts) {
     onStatus(tr('captureEncodingSound'));
     const sound = await encodeSoundForLibrary(wav, onStatus);
     onStatus(tr('captureAddingToLibrary'));
-    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio');
+    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio', onStatus);
   }
   // --- Enregistrement automatique et publication du montage (06/11, décidé avec Jules-Antoine) -------------------------------------
   // Plus de bouton « Sauvegarder » : toute retouche (prise, frise, noms, repères, titre) est enregistrée toute seule, sans geste, une
