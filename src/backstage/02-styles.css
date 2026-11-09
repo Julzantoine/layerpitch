@@ -294,6 +294,13 @@
   .video-col-item[hidden] { display: none; }
   .video-col-item:hover { border-color: var(--border-strong, #bbb); }
   .video-col-item.active { border-color: #2f80c0; background: rgba(47,128,192,0.08); }
+  /* Vidéos importées dans la colonne 1 : une carte par vidéo, vignette en haut, boutons dessous. */
+  .video-col-section .video-library-list { background: transparent; border: 0; gap: 8px; border-radius: 0; overflow: visible; }
+  .video-col-section .video-library-item { flex-wrap: wrap; padding: 8px; border: 1px solid var(--border); border-radius: 6px; gap: 6px 8px; }
+  .video-col-section .video-library-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .video-col-section .video-library-item-main { flex: 1 1 100%; }
+  .video-col-section .video-library-item-title { font-size: 12.5px; overflow-wrap: anywhere; }
+  .video-col-section .video-library-empty { padding: 4px 2px; font-size: 12px; }
   .video-col-item small { display: block; font-size: 11px; color: var(--text-dim); overflow-wrap: anywhere; }
   .video-col-new[hidden] { display: none; }
   .video-col-new { width: 100%; margin-top: 4px; }

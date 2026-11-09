@@ -380,7 +380,9 @@
             <div class="video-col-section" data-fold-key="library">
               <button type="button" class="video-col-sechead" aria-expanded="true"><span class="video-col-chev" aria-hidden="true"></span><span data-i18n="videoSecLibrary">1 · Bibliothèque</span></button>
               <div class="video-col-secbody">
-                <button class="video-col-item active" data-video-subtab="library" type="button"><span data-i18n="videoLibraryItem">Vidéos importées</span></button>
+                <button class="video-col-item active" data-video-subtab="library" type="button"><span data-i18n="videoLibraryItem">+ Importer une vidéo</span></button>
+                <!-- Les vidéos importées elles-mêmes, avec leur vignette (09/11, demande de Jules-Antoine : déplier le 1 montre les vidéos, pas un libellé). -->
+                <div id="videoLibraryList" class="video-library-list"></div>
               </div>
             </div>
             <div class="video-col-section" data-fold-key="projects">
@@ -413,7 +415,6 @@
           <div class="video-library-quota" id="videoLibraryQuota"></div>
           <!-- Historique des exports de montages (21/10) : place prise et bouton de nettoyage, surtout utile quand le quota est atteint. -->
           <div class="video-library-quota" id="videoLibraryHistory" hidden></div>
-          <div id="videoLibraryList" class="video-library-list"></div>
         </div>
 
         <!-- Sous-onglet « Projets vidéo » (09/11, demande de Jules-Antoine : « même logique qu'un AdReel »). Un projet vidéo = un montage
@@ -1046,17 +1047,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794260723651"></script>
-<script src="layerpitch-i18n.js?v=1794260723651"></script>
-<script src="layerpitch-import-engine.js?v=1794260723651"></script>
-<script src="layerpitch-appearance.js?v=1794260723651"></script>
-<script src="layerpitch-album-shared.js?v=1794260723651"></script>
-<script src="layerpitch-album-editor.js?v=1794260723651"></script>
-<script src="layerpitch-shell.js?v=1794260723651"></script>
-<script src="layerpitch-social-icons.js?v=1794260723651"></script>
-<script src="layerpitch-notify.js?v=1794260723651"></script>
-<script src="layerpitch-guide.js?v=1794260723651"></script>
-<script src="layerpitch-lesson-previews.js?v=1794260723651"></script>
-<script src="layerpitch-help.js?v=1794260723651"></script>
-<script src="player.js?v=1794260723651"></script>
+<script src="layerpitch-tuto.js?v=1794260943423"></script>
+<script src="layerpitch-i18n.js?v=1794260943423"></script>
+<script src="layerpitch-import-engine.js?v=1794260943423"></script>
+<script src="layerpitch-appearance.js?v=1794260943423"></script>
+<script src="layerpitch-album-shared.js?v=1794260943423"></script>
+<script src="layerpitch-album-editor.js?v=1794260943423"></script>
+<script src="layerpitch-shell.js?v=1794260943423"></script>
+<script src="layerpitch-social-icons.js?v=1794260943423"></script>
+<script src="layerpitch-notify.js?v=1794260943423"></script>
+<script src="layerpitch-guide.js?v=1794260943423"></script>
+<script src="layerpitch-lesson-previews.js?v=1794260943423"></script>
+<script src="layerpitch-help.js?v=1794260943423"></script>
+<script src="player.js?v=1794260943423"></script>
 <script>
