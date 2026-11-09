@@ -36,6 +36,7 @@ const path = require('path');
           return { data: { ok: true }, error: null };
         }
         if (name === 'delete_video_capture_version') { store.rows = store.rows.filter(r => r.id !== args.p_id); return { data: null, error: null }; }
+        if (name === 'set_video_capture_version_status') { const r = store.rows.find(x => x.id === args.p_id); if (r) { r.status = args.p_status; r.statusAt = '2026-11-09T10:00:00Z'; } return { data: { ok: true }, error: null }; }
         if (name === 'set_video_capture_version_export') { const r = store.rows.find(x => x.id === args.p_id); if (r) r.lastExportVideoId = args.p_video_id; return { data: null, error: null }; }
         return { data: null, error: { message: 'inconnu' } };
       } }) };
@@ -122,6 +123,28 @@ const path = require('path');
   check('dupliquer : éditeur pré-rempli, nom « (copie) »', host.querySelector('[data-role="title"]').value.includes('(copie)') && host.querySelector('[data-track="st1"]').value === 'st2');
   host.querySelector('[data-act="saveDraft"]').click(); await tick(); await tick();
   check('dupliquer : deuxième version distincte', store.rows.length === 2 && store.rows[0].id !== store.rows[1].id);
+
+  // Statuts de relecture et différences (9/11, idée Pibox).
+  check('statut : chaque version démarre en « Brouillon »', [...host.querySelectorAll('[data-role="reviewStatus"]')].every(sel => sel.value === 'draft'));
+  const stSel = host.querySelector('[data-role="reviewStatus"]');
+  stSel.value = 'sent'; stSel.dispatchEvent(new W.Event('change')); await tick(); await tick();
+  const stCall = store.calls.find(c => c[0] === 'set_video_capture_version_status');
+  check('statut : changement envoyé au serveur (« Envoyée au client »)', stCall && stCall[1].p_status === 'sent' && stCall[1].p_id === store.rows[0].id);
+  check('statut : la liste affiche le nouveau statut sur la bonne version', host.querySelector('[data-role="reviewStatus"]').value === 'sent' && host.querySelectorAll('[data-role="reviewStatus"]')[1].value === 'draft');
+  await V.refresh(); await tick();
+  check('statut : relu depuis le serveur après rechargement', host.querySelector('[data-role="reviewStatus"]').value === 'sent');
+  host.querySelector('[data-act="diff"]').click(); await tick();
+  const dtxt = host.querySelector('.vcv-diff').textContent;
+  check('différences (1 version) : morceau et Sfx changés par rapport à l\'original', dtxt.includes('Galactic Baston') && dtxt.includes('Les Petits Poissons') && dtxt.includes('Pas ville') && dtxt.includes(tr('versioningDiffToChoose')));
+  host.querySelector('[data-act="closeDiff"]').click(); await tick();
+  check('différences : fermeture', !host.querySelector('.vcv-diff'));
+  host.querySelector('[data-act="compare"]').click(); await tick();
+  check('comparer sans cocher deux versions : message, pas de tableau', !host.querySelector('.vcv-diff') && host.textContent.includes(tr('versioningComparePickTwo')));
+  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
+  host.querySelector('[data-act="compare"]').click(); await tick();
+  check('comparer deux versions : tableau Original + 2 colonnes', host.querySelectorAll('.vcv-diff-table thead th').length === 4);
+  host.querySelector('[data-act="closeDiff"]').click(); await tick();
+  check('cases cochées conservées après réaffichage', [...host.querySelectorAll('[data-role="pick"]')].every(cb => cb.checked));
 
   // Rendu en série des deux versions, rangées en bibliothèque.
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; });
