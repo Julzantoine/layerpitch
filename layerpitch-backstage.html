@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794234324133">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794237959512">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -263,6 +263,15 @@
   .video-library-quota { font-size: 11px; color: var(--text-dimmer); margin-bottom: 18px; }
   .video-library-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .video-library-item { background: var(--bg); padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .video-library-thumb { position: relative; flex: none; width: 96px; height: 54px; padding: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #111; cursor: pointer; }
+  .video-library-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .video-library-thumb-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); background: rgba(0,0,0,0.12); }
+  .video-library-thumb:hover .video-library-thumb-play { background: rgba(0,0,0,0.32); }
+  #videoPlayerOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); align-items: center; justify-content: center; z-index: 1000; }
+  #videoPlayerModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 16px; width: min(900px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  #videoPlayerModal h3 { font-size: 13px; margin-bottom: 10px; color: var(--text); }
+  #videoPlayerModal video { width: 100%; max-height: calc(100vh - 160px); background: #000; border-radius: 6px; display: block; }
+  #videoPlayerModal .actions { justify-content: flex-end; margin-top: 10px; }
   .video-library-item-main { flex: 1; min-width: 0; }
   .video-library-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-library-item-meta { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -2014,6 +2023,16 @@
   </div>
 </div>
 
+<div id="videoPlayerOverlay">
+  <div id="videoPlayerModal" role="dialog" aria-modal="true" aria-labelledby="videoPlayerTitle">
+    <h3 id="videoPlayerTitle"></h3>
+    <video id="videoPlayerEl" controls playsinline></video>
+    <div class="actions">
+      <button class="btn btn-small btn-primary" id="videoPlayerClose" type="button" data-i18n="videoLibraryPlayerClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div id="creditsModalOverlay">
   <div id="creditsModal" role="dialog" aria-modal="true" aria-labelledby="creditsModalTitle">
     <h3 id="creditsModalTitle" data-i18n="creditsModalTitle">Crédits et licences</h3>
@@ -2072,19 +2091,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794234324133"></script>
-<script src="layerpitch-i18n.js?v=1794234324133"></script>
-<script src="layerpitch-import-engine.js?v=1794234324133"></script>
-<script src="layerpitch-appearance.js?v=1794234324133"></script>
-<script src="layerpitch-album-shared.js?v=1794234324133"></script>
-<script src="layerpitch-album-editor.js?v=1794234324133"></script>
-<script src="layerpitch-shell.js?v=1794234324133"></script>
-<script src="layerpitch-social-icons.js?v=1794234324133"></script>
-<script src="layerpitch-notify.js?v=1794234324133"></script>
-<script src="layerpitch-guide.js?v=1794234324133"></script>
-<script src="layerpitch-lesson-previews.js?v=1794234324133"></script>
-<script src="layerpitch-help.js?v=1794234324133"></script>
-<script src="player.js?v=1794234324133"></script>
+<script src="layerpitch-tuto.js?v=1794237959512"></script>
+<script src="layerpitch-i18n.js?v=1794237959512"></script>
+<script src="layerpitch-import-engine.js?v=1794237959512"></script>
+<script src="layerpitch-appearance.js?v=1794237959512"></script>
+<script src="layerpitch-album-shared.js?v=1794237959512"></script>
+<script src="layerpitch-album-editor.js?v=1794237959512"></script>
+<script src="layerpitch-shell.js?v=1794237959512"></script>
+<script src="layerpitch-social-icons.js?v=1794237959512"></script>
+<script src="layerpitch-notify.js?v=1794237959512"></script>
+<script src="layerpitch-guide.js?v=1794237959512"></script>
+<script src="layerpitch-lesson-previews.js?v=1794237959512"></script>
+<script src="layerpitch-help.js?v=1794237959512"></script>
+<script src="player.js?v=1794237959512"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15474,6 +15493,27 @@ async function renderVideoLibrary() {
     listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
   }
 }
+// Lecture d'une vidéo de la bibliothèque (09/11, demande de Jules-Antoine : « on ne peut pas visionner la vidéo ici ») : la vignette de chaque ligne est
+// la première image de la vidéo elle-même (<video preload="metadata">, le navigateur ne charge que le début), un clic ouvre un lecteur dans une fenêtre.
+function openLibraryVideoPlayer(v) {
+  if (!v) return;
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  document.getElementById('videoPlayerTitle').textContent = v.title || v.originalName || v.file;
+  player.src = v.base + encodeURIComponent(v.file);
+  overlay.style.display = 'flex';
+  player.play().catch(() => { /* lecture automatique refusée : les contrôles restent là */ });
+}
+(function setupLibraryVideoPlayer() {
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  const close = () => { player.pause(); player.removeAttribute('src'); player.load(); overlay.style.display = 'none'; };
+  document.getElementById('videoPlayerClose').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.style.display === 'flex') close(); });
+})();
 async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
@@ -15491,6 +15531,10 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
       </div>
     `).join('') + videos.map(v => `
       <div class="video-library-item">
+        <button type="button" class="video-library-thumb" data-id="${v.id}" title="${escapeHtml(tr('videoLibraryPlayTitle'))}" aria-label="${escapeHtml(tr('videoLibraryPlayTitle'))}">
+          <video muted playsinline preload="metadata" src="${escapeHtml(v.base + encodeURIComponent(v.file))}#t=0.5"></video>
+          <span class="video-library-thumb-play" aria-hidden="true">&#9654;</span>
+        </button>
         <div class="video-library-item-main">
           <div class="video-library-item-title">${escapeHtml(v.title || v.originalName || v.file)}</div>
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
@@ -15500,6 +15544,9 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-thumb').forEach(btn => {
+      btn.addEventListener('click', () => openLibraryVideoPlayer(videos.find(x => x.id === btn.dataset.id)));
+    });
     listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
       btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
     });
@@ -15559,9 +15606,24 @@ async function renameLibraryVideo(id, knownVideos) {
   }
 }
 
+// Prises de l'Atelier liées à cette vidéo (09/11, demande de Jules-Antoine : « supprimé de la bibliothèque, pourtant encore dans l'atelier »).
+// Une prise (video_captures) se souvient de sa vidéo par le NOM du fichier d'origine (video_filename), et par base_video_id / last_export_video_id
+// quand elles viennent d'une version ou d'un export. Supprimer la vidéo ne supprime PAS ces prises : on prévient seulement, jamais d'effacement surprise.
+// Toute erreur de lecture -> 0 (on retombe sur la confirmation habituelle, sans bloquer la suppression).
+async function countCapturesLinkedToVideo(v) {
+  if (!v) return 0;
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', {});
+    if (error) return 0;
+    const names = [v.originalName, v.title, v.file].filter(Boolean);
+    return (data || []).filter(c => c.baseVideoId === v.id || c.lastExportVideoId === v.id || (c.videoFilename && names.includes(c.videoFilename))).length;
+  } catch (e) { return 0; }
+}
 async function deleteLibraryVideo(id, knownVideos) {
-  if (!(await window.LayerPitchNotify.confirm(tr('videoLibraryDeleteConfirm'), { danger: true }))) return;
   const v = (knownVideos || []).find(x => x.id === id);
+  const linked = await countCapturesLinkedToVideo(v);
+  const confirmText = linked > 0 ? tr('videoLibraryDeleteConfirmLinked', { n: linked }) : tr('videoLibraryDeleteConfirm');
+  if (!(await window.LayerPitchNotify.confirm(confirmText, { danger: true }))) return;
   try {
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id });
     if (error) throw error;

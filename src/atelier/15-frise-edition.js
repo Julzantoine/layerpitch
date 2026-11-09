@@ -60,7 +60,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
-  const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
+  const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), ...(container.__vctReviewMarks || []).map(r => Number(r.t) + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
   const fullW = Math.max(300, (container.clientWidth || 800) - 20);
   const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
@@ -369,6 +369,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       `<span class="vct-marker-flag" data-marker-idx="${i}" title="${label} — ${m.t.toFixed(2)} s${editable ? ' · ' + tr('captureMarkerFlagHint') : ''}">${label}</span></div>`;
   });
 
+  // Remarques du client (9/11, lien de relecture) : un petit drapeau bleu en bas de la frise par commentaire, à son instant. Posés par
+  // le panneau Versioning (container.__vctReviewMarks = [{ id, t, author, body, versionTitle, resolved }]), jamais enregistrés avec le
+  // montage ni mêlés à `markers` ; cliquer saute la vidéo à l'instant et affiche la remarque dans la zone de détail.
+  (container.__vctReviewMarks || []).forEach((r, i) => {
+    const who = window.LayerPlayerCore.escapeHtml(r.author || '');
+    markersHtml += `<div class="vct-review-marker${r.resolved ? ' vct-review-resolved' : ''}" style="left:${pct(Number(r.t))}%">` +
+      `<span class="vct-review-flag" data-review-idx="${i}" title="${who} — ${Number(r.t).toFixed(2)} s">💬 ${who}</span></div>`;
+  });
+
   container.__vctTotal = total;
   const prevScroller = container.querySelector('.vct-scroll');
   const keepScroll = prevScroller ? prevScroller.scrollLeft : 0;
@@ -512,6 +521,19 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const nameInput = container.querySelector('.video-capture-marker-name');
     if (nameInput) { nameInput.focus(); nameInput.select(); }
   }
+  container.querySelectorAll('.vct-review-flag').forEach(flagEl => {
+    const r = (container.__vctReviewMarks || [])[parseInt(flagEl.dataset.reviewIdx, 10)];
+    if (!r) return;
+    flagEl.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      seekTo(Number(r.t));
+      const esc = window.LayerPlayerCore.escapeHtml;
+      const d = container.querySelector('#vctDetail');
+      if (d) d.innerHTML = `<span class="vct-detail-label">💬 ${esc(r.author || '')}${r.versionTitle ? ' · ' + esc(r.versionTitle) : ''} · ${Number(r.t).toFixed(2)} s — ${esc(r.body || '')}</span>`;
+      if (container.__vctOnReviewMark) container.__vctOnReviewMark(r);
+    });
+  });
   container.querySelectorAll('.vct-marker-flag').forEach(flagEl => {
     const m = markers[parseInt(flagEl.dataset.markerIdx, 10)];
     if (!m) return;

@@ -307,6 +307,27 @@ async function renderVideoLibrary() {
     listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
   }
 }
+// Lecture d'une vidéo de la bibliothèque (09/11, demande de Jules-Antoine : « on ne peut pas visionner la vidéo ici ») : la vignette de chaque ligne est
+// la première image de la vidéo elle-même (<video preload="metadata">, le navigateur ne charge que le début), un clic ouvre un lecteur dans une fenêtre.
+function openLibraryVideoPlayer(v) {
+  if (!v) return;
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  document.getElementById('videoPlayerTitle').textContent = v.title || v.originalName || v.file;
+  player.src = v.base + encodeURIComponent(v.file);
+  overlay.style.display = 'flex';
+  player.play().catch(() => { /* lecture automatique refusée : les contrôles restent là */ });
+}
+(function setupLibraryVideoPlayer() {
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  const close = () => { player.pause(); player.removeAttribute('src'); player.load(); overlay.style.display = 'none'; };
+  document.getElementById('videoPlayerClose').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.style.display === 'flex') close(); });
+})();
 async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
@@ -324,6 +345,10 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
       </div>
     `).join('') + videos.map(v => `
       <div class="video-library-item">
+        <button type="button" class="video-library-thumb" data-id="${v.id}" title="${escapeHtml(tr('videoLibraryPlayTitle'))}" aria-label="${escapeHtml(tr('videoLibraryPlayTitle'))}">
+          <video muted playsinline preload="metadata" src="${escapeHtml(v.base + encodeURIComponent(v.file))}#t=0.5"></video>
+          <span class="video-library-thumb-play" aria-hidden="true">&#9654;</span>
+        </button>
         <div class="video-library-item-main">
           <div class="video-library-item-title">${escapeHtml(v.title || v.originalName || v.file)}</div>
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
@@ -333,6 +358,9 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-thumb').forEach(btn => {
+      btn.addEventListener('click', () => openLibraryVideoPlayer(videos.find(x => x.id === btn.dataset.id)));
+    });
     listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
       btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
     });
@@ -392,9 +420,24 @@ async function renameLibraryVideo(id, knownVideos) {
   }
 }
 
+// Prises de l'Atelier liées à cette vidéo (09/11, demande de Jules-Antoine : « supprimé de la bibliothèque, pourtant encore dans l'atelier »).
+// Une prise (video_captures) se souvient de sa vidéo par le NOM du fichier d'origine (video_filename), et par base_video_id / last_export_video_id
+// quand elles viennent d'une version ou d'un export. Supprimer la vidéo ne supprime PAS ces prises : on prévient seulement, jamais d'effacement surprise.
+// Toute erreur de lecture -> 0 (on retombe sur la confirmation habituelle, sans bloquer la suppression).
+async function countCapturesLinkedToVideo(v) {
+  if (!v) return 0;
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', {});
+    if (error) return 0;
+    const names = [v.originalName, v.title, v.file].filter(Boolean);
+    return (data || []).filter(c => c.baseVideoId === v.id || c.lastExportVideoId === v.id || (c.videoFilename && names.includes(c.videoFilename))).length;
+  } catch (e) { return 0; }
+}
 async function deleteLibraryVideo(id, knownVideos) {
-  if (!(await window.LayerPitchNotify.confirm(tr('videoLibraryDeleteConfirm'), { danger: true }))) return;
   const v = (knownVideos || []).find(x => x.id === id);
+  const linked = await countCapturesLinkedToVideo(v);
+  const confirmText = linked > 0 ? tr('videoLibraryDeleteConfirmLinked', { n: linked }) : tr('videoLibraryDeleteConfirm');
+  if (!(await window.LayerPitchNotify.confirm(confirmText, { danger: true }))) return;
   try {
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id });
     if (error) throw error;

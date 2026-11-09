@@ -105,11 +105,39 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// Progression d'envoi (09/11) : même principe que dans le Backstage (src/backstage/41-envoi-r2-et-bibliotheque-video.js) -- fetch() ne donne
+// pas l'avancement d'un envoi, donc XMLHttpRequest quand un onProgress(envoyé, total) est fourni.
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+// Texte d'avancement affiché pendant un envoi, au plus 4 fois par seconde.
+function uploadProgressReporter(onStatus) {
+  if (!onStatus) return undefined;
+  let last = 0;
+  return (done, total) => {
+    const now = Date.now();
+    if (done < total && now - last < 250) return;
+    last = now;
+    onStatus(tr('captureUploadingProgress').replace('{pct}', Math.round(done / total * 100)).replace('{done}', (done / 1048576).toFixed(1)).replace('{total}', (total / 1048576).toFixed(1)));
+  };
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -151,13 +179,13 @@ async function r2DeleteRemovedVideos(removed) {
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
 // kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
 // d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind, onStatus) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
     const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
-    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    await r2PutFile(`video/${id}/${fileName}`, blob, 'video/mp4', uploadProgressReporter(onStatus));
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
