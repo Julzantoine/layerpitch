@@ -2,15 +2,16 @@ const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
 
-// Page de relecture client (9/11, relecture.html) avec un serveur simulé (mêmes fonctions que la migration 20261109020000) :
-// lien invalide, parcours du client sans compte (prénom, commentaire à l'instant, réponse, décision), versions et statuts affichés,
+// Page de relecture client (9/11, relecture.html) avec un serveur simulé (mêmes fonctions que la migration 20261109030000) :
+// adresse lisible + clé après le #, mot de passe, lien invalide, bascule A/B, parcours du client sans compte (prénom, commentaire à l'instant, réponse, décision), versions et statuts affichés,
 // marqueurs sous la vidéo, texte des autres relecteurs conservé, page jamais indexée.
 (async () => {
   const read = f => fs.readFileSync(path.join(__dirname, f), 'utf-8').replace(/<\/script/gi, '<\\/script');
   let html = fs.readFileSync(path.join(__dirname, 'relecture.html'), 'utf-8');
   html = html.replace(/<script src="https:[^>]*><\/script>/g, '').replace(/<script src="api\/supabase-client\.js[^>]*><\/script>/, '') // client Supabase simulé plus bas
     .replace(/<script src="([^"?]+)(\?v=[^"]*)?"><\/script>/g, (m, f) => `<script>${read(f)}</script>`);
-  const state = { token: 'T'.repeat(64), calls: [], data: null };
+  const state = { slug: 'traversee-v2', secret: 'K'.repeat(64), mode: 'magic', password: 'sesame1', calls: [], data: null };
+  const secretOk = args => args.p_slug === state.slug && args.p_secret === (state.mode === 'password' ? state.password : state.secret);
   const mk = () => ({
     title: 'Traversée', baseUrl: 'https://m/base.mp4',
     versions: [
@@ -21,13 +22,14 @@ const path = require('path');
   });
   state.data = mk();
   const dom = new JSDOM(html, {
-    url: 'http://localhost/relecture.html?k=' + state.token + '&lang=fr', runScripts: 'dangerously', pretendToBeVisual: true,
+    url: 'http://localhost/relecture.html?s=' + state.slug + '&lang=fr#k=' + state.secret, runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) {
       win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async (name, args) => {
         state.calls.push([name, JSON.parse(JSON.stringify(args))]);
-        if (name === 'get_video_review') return { data: args.p_token === state.token ? JSON.parse(JSON.stringify(state.data)) : null, error: null };
+        if (name === 'get_video_review_access') return { data: args.p_slug === state.slug ? { mode: state.mode } : null, error: null };
+        if (name === 'get_video_review') return { data: secretOk(args) ? JSON.parse(JSON.stringify(state.data)) : null, error: null };
         if (name === 'add_video_review_comment') {
-          if (args.p_token !== state.token) return { data: null, error: { message: 'Lien invalide' } };
+          if (!secretOk(args)) return { data: { ok: false, error: 'invalid' }, error: null };
           state.data.comments.push({ id: 'n' + state.data.comments.length, versionKey: args.p_version_key, parentId: args.p_parent_id, t: args.p_t, author: args.p_author, fromOwner: false, body: args.p_body, resolved: false, createdAt: new Date().toISOString() });
           return { data: { ok: true }, error: null };
         }
@@ -72,7 +74,7 @@ const path = require('path');
   doc.getElementById('vid').currentTime = 20;
   doc.getElementById('atBtn').click(); await tick(3);
   const add = state.calls.find(c => c[0] === 'add_video_review_comment');
-  check('commentaire envoyé : jeton, version, instant, prénom, texte', add && add[1].p_token === state.token && add[1].p_version_key === 'verA' && add[1].p_t === 20 && add[1].p_author === 'Léa' && add[1].p_body === 'Plus de basses ici' && add[1].p_parent_id === null);
+  check('commentaire envoyé : nom + clé, version, instant, prénom, texte', add && add[1].p_slug === state.slug && add[1].p_secret === state.secret && add[1].p_version_key === 'verA' && add[1].p_t === 20 && add[1].p_author === 'Léa' && add[1].p_body === 'Plus de basses ici' && add[1].p_parent_id === null);
   check('le nouveau commentaire apparaît dans la liste et sur la bande', doc.querySelectorAll('.cm').length === 2 && doc.querySelectorAll('#strip .dot').length === 2);
   check('le champ de texte est vidé', doc.getElementById('cmText').value === '');
 
@@ -94,15 +96,53 @@ const path = require('path');
   await W.eval('(async()=>{ data = await load(); renderAll(); })()'); await tick(2);
   check('texte du client affiché tel quel, sans balises actives', !doc.querySelector('#list img') && doc.getElementById('list').textContent.includes('<img src=x'));
 
-  // Lien invalide
-  const dom2 = new JSDOM(html, { url: 'http://localhost/relecture.html?k=mauvais&lang=fr', runScripts: 'dangerously', beforeParse(win) {
-    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async () => ({ data: null, error: null }) }) }; } });
+  // Bascule A/B : le menu est sur la version A (jouée en dernier) ; on revient à l'original puis on bascule
+  const ab = doc.querySelector('.lp-video-ab');
+  check('bouton A/B présent', !!ab);
+  sel.value = 'original'; sel.dispatchEvent(new W.Event('change')); await tick(2);
+  check('après un changement de version, A/B est actif', ab && !ab.disabled);
+  ab.click(); await tick(2);
+  check('A/B ramène à la version précédente (A) et met la page à jour', sel.value === 'verA' && doc.getElementById('status').textContent.includes('Modifs demandées'));
+  ab.click(); await tick(2);
+  check('A/B de nouveau : retour à l\'original', sel.value === 'original' && doc.getElementById('decision').hidden === true);
+  doc.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'b', bubbles: true })); await tick(2);
+  check('touche B : bascule aussi', sel.value === 'verA');
+  doc.getElementById('nameInput').focus();
+  doc.getElementById('nameInput').dispatchEvent(new W.KeyboardEvent('keydown', { key: 'b', bubbles: true })); await tick(2);
+  check('touche B ignorée pendant qu\'on écrit dans un champ', sel.value === 'verA');
+  check('la clé du lien n\'est pas envoyée comme jeton d\'adresse (pas de p_token)', !state.calls.some(c => 'p_token' in c[1]));
+
+  // Pages sans accès
+  const noRpc = (url, access) => new JSDOM(html, { url, runScripts: 'dangerously', beforeParse(win) {
+    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async name => ({ data: name === 'get_video_review_access' ? access : null, error: null }) }) }; } });
+  let d2 = noRpc('http://localhost/relecture.html?s=inconnu&lang=fr#k=zzz', null); await tick(3);
+  check('nom inconnu ou lien désactivé : message clair, aucun lecteur', d2.window.document.getElementById('page').textContent.includes('plus actif') && !d2.window.document.getElementById('vid'));
+  d2 = noRpc('http://localhost/relecture.html?lang=fr', null); await tick(3);
+  check('sans nom : même message', d2.window.document.getElementById('page').textContent.includes('plus actif'));
+  d2 = noRpc('http://localhost/relecture.html?s=traversee-v2&lang=fr', { mode: 'magic' }); await tick(3);
+  check('lien magique sans clé (# manquant) : message sur la clé manquante', d2.window.document.getElementById('page').textContent.includes('clé'));
+  d2 = noRpc('http://localhost/relecture.html?s=traversee-v2&lang=fr#k=mauvaise', { mode: 'magic' }); await tick(3);
+  check('mauvaise clé : message clair, aucun lecteur', d2.window.document.getElementById('page').textContent.includes('plus actif') && !d2.window.document.getElementById('vid'));
+
+  // Mot de passe
+  state.mode = 'password'; state.calls.length = 0;
+  const dp = new JSDOM(html, { url: 'http://localhost/relecture.html?s=' + state.slug + '&lang=fr', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse(win) {
+    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async (name, args) => {
+      state.calls.push([name, JSON.parse(JSON.stringify(args))]);
+      if (name === 'get_video_review_access') return { data: { mode: state.mode }, error: null };
+      if (name === 'get_video_review') return { data: secretOk(args) ? JSON.parse(JSON.stringify(state.data)) : null, error: null };
+      return { data: null, error: null };
+    } }) };
+    win.HTMLMediaElement.prototype.play = () => Promise.resolve(); win.HTMLMediaElement.prototype.pause = () => {}; win.HTMLMediaElement.prototype.load = () => {};
+  } });
   await tick(3);
-  check('lien inactif ou faux : message clair, aucun lecteur', dom2.window.document.getElementById('page').textContent.includes('plus actif') && !dom2.window.document.getElementById('vid'));
-  const dom3 = new JSDOM(html, { url: 'http://localhost/relecture.html?lang=fr', runScripts: 'dangerously', beforeParse(win) {
-    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async () => ({ data: null, error: null }) }) }; } });
-  await tick(3);
-  check('sans jeton : même message', dom3.window.document.getElementById('page').textContent.includes('plus actif'));
+  const pd = dp.window.document;
+  check('lien à mot de passe : un formulaire, pas de lecteur, aucune lecture avant la saisie', !!pd.getElementById('pwInput') && !pd.getElementById('vid') && !state.calls.some(c => c[0] === 'get_video_review'));
+  pd.getElementById('pwInput').value = 'faux'; pd.getElementById('pwForm').dispatchEvent(new dp.window.Event('submit', { cancelable: true })); await tick(3);
+  check('mauvais mot de passe : message, formulaire conservé', pd.getElementById('pwErr').textContent.includes('incorrect') && !pd.getElementById('vid'));
+  pd.getElementById('pwInput').value = state.password; pd.getElementById('pwForm').dispatchEvent(new dp.window.Event('submit', { cancelable: true })); await tick(4);
+  check('bon mot de passe : la relecture s\'ouvre', !!pd.getElementById('vid') && pd.querySelector('h1').textContent === 'Traversée');
+  check('le mot de passe n\'apparaît pas dans l\'adresse', !dp.window.location.href.includes(state.password));
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTous les tests passent.');
   process.exit(failures ? 1 : 0);

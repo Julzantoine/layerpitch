@@ -55,18 +55,24 @@
 <body>
 <div class="page" id="page"><div class="empty">…</div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794236650602"></script>
-<script src="api/supabase-client.js?v=1794236650602"></script>
-<script src="layerpitch-video-versions.js?v=1794236650602"></script>
+<script src="layerpitch-i18n.js?v=1794255065639"></script>
+<script src="api/supabase-client.js?v=1794255065639"></script>
+<script src="layerpitch-video-versions.js?v=1794255065639"></script>
 <script>
 // relecture.html — page de relecture d'un montage vidéo pour un CLIENT, sans compte (9/11/2026, idée Pibox ; décisions de Jules-Antoine :
-// un lien secret par montage, tout porteur du lien peut commenter en donnant un prénom, le client peut valider ou demander des modifs).
-//   relecture.html?k=<jeton>   le jeton est celui du lien créé par le compositeur (Versioning → Lien de relecture) ; désactivé ou renouvelé,
-//                              l'ancien lien affiche simplement « plus actif ».
+// un lien par montage, tout porteur du lien peut commenter en donnant un prénom, le client peut valider ou demander des modifs).
+//   /relecture/<nom>#k=<clé>   adresse lisible (404.html → relecture.html?s=<nom>) ; la clé « magique » est après le # : elle ne part
+//                              jamais vers un serveur. Pour un lien protégé par mot de passe, pas de clé : la page le demande.
+// Même principe que les AdReels privés (migration 20261006010000) : seule l'empreinte du secret est gardée côté serveur, frein à
+// 10 essais ratés par 10 minutes. Désactivé ou renouvelé, l'ancien lien affiche simplement « plus actif ».
 // Page PUBLIQUE : jamais de compte demandé, jamais derrière un accès protégé (règle du 06/09). Tout passe par les fonctions serveur
-// get_video_review / add_video_review_comment / set_video_review_decision (migration 20261109020000), qui ne font confiance qu'au jeton.
+// get_video_review_access / get_video_review / add_video_review_comment / set_video_review_decision (migration 20261109030000).
 const params = new URLSearchParams(location.search);
-const TOKEN = params.get('k') || '';
+const SLUG = params.get('s') || '';
+// Restaure la belle adresse dans la barre (404.html l'a passée en __pretty), clé comprise.
+if (params.get('__pretty')) { try { history.replaceState(null, '', params.get('__pretty') + location.hash); } catch (e) { /* tant pis */ } }
+let SECRET = (/[#&]k=([^&]+)/.exec(location.hash) || [])[1] || '';
+try { SECRET = decodeURIComponent(SECRET); } catch (e) { /* clé telle quelle */ }
 const pageLang = params.get('lang') === 'en' || (!params.get('lang') && /^en/i.test(navigator.language || '')) ? 'en' : 'fr';
 document.documentElement.lang = pageLang;
 function tr(key, vars) {
@@ -94,13 +100,41 @@ const versionKey = () => (mounted && mounted.current() ? mounted.current().key :
 const versionInfo = key => (data.versions || []).find(v => v.key === key) || {};
 const statusLabel = st => tr('reviewStatus_' + st);
 
-async function load() { return rpc('get_video_review', { p_token: TOKEN }); }
+async function load() { return rpc('get_video_review', { p_slug: SLUG, p_secret: SECRET }); }
+
+// Lien protégé par mot de passe : un petit formulaire, le mot de passe n'est gardé qu'en mémoire (jamais dans l'adresse).
+function askPassword(msg) {
+  root.innerHTML = `<div class="card"><h2>${esc(tr('reviewPasswordLabel'))}</h2><div class="sub">${esc(tr('reviewPasswordPrompt'))}</div>
+    <form id="pwForm" class="row"><input type="password" id="pwInput" autocomplete="current-password" style="flex:1;min-width:160px;font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit">
+    <button type="submit" class="primary">${esc(tr('reviewPasswordGo'))}</button></form><div class="err" id="pwErr">${esc(msg || '')}</div></div>`;
+  const input = document.getElementById('pwInput'); input.focus();
+  document.getElementById('pwForm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (!input.value) return;
+    SECRET = input.value;
+    const err = document.getElementById('pwErr');
+    let d = null;
+    try { d = await load(); } catch (e) { err.textContent = /essais|throttled/i.test((e && (e.message + (e.hint || ''))) || '') ? tr('reviewThrottled') : tr('reviewSendFailed', { error: e.message }); return; }
+    if (!d || !(d.versions || []).length) { err.textContent = tr('reviewPasswordWrong'); input.select(); return; }
+    data = d; await show();
+  });
+}
 
 async function start() {
   document.title = 'LayerPitch';
-  if (!TOKEN) { root.innerHTML = `<div class="empty">${esc(tr('reviewUnavailable'))}</div>`; return; }
+  const unavailable = key => { root.innerHTML = `<div class="empty">${esc(tr(key || 'reviewUnavailable'))}</div>`; };
+  if (!SLUG) { unavailable(); return; }
+  let access = null;
+  try { access = await rpc('get_video_review_access', { p_slug: SLUG }); } catch (e) { access = null; }
+  if (!access) { unavailable(); return; }
+  if (access.mode === 'password') { askPassword(); return; }
+  if (!SECRET) { unavailable('reviewKeyMissing'); return; }
   try { data = await load(); } catch (e) { data = null; }
-  if (!data || !(data.versions || []).length) { root.innerHTML = `<div class="empty">${esc(tr('reviewUnavailable'))}</div>`; return; }
+  if (!data || !(data.versions || []).length) { unavailable(); return; }
+  await show();
+}
+
+async function show() {
   document.title = tr('reviewPageTitle').replace('{title}', data.title || 'LayerPitch');
   root.innerHTML = `
     <h1>${esc(data.title || '')}</h1>
@@ -113,10 +147,19 @@ async function start() {
     <div class="card"><h2>${esc(tr('reviewComments'))}</h2><div id="list"></div></div>
     <div class="foot">${esc(tr('reviewFooter'))} <a href="https://layerpitch.com" target="_blank" rel="noopener">LayerPitch</a></div>`;
   video = document.getElementById('vid'); wrap = document.getElementById('vwrap');
-  // Même lecteur que les pages publiques : vidéo muette + son de la version choisie, synchronisés, menu de version, étiquettes.
-  mounted = await window.LayerPitchVideoVersions.mount(video, wrap, { montageId: TOKEN, defaultKey: 'original', tr, load: async () => data });
+  // Même lecteur que les pages publiques : vidéo muette + son de la version choisie, synchronisés, menu de version, bascule A/B, étiquettes.
+  mounted = await window.LayerPitchVideoVersions.mount(video, wrap, {
+    montageId: SLUG, defaultKey: 'original', tr, ab: true, load: async () => data,
+    onVersionChange: () => { selectedId = null; renderAll(); }
+  });
   if (!mounted) { root.innerHTML = `<div class="empty">${esc(tr('reviewUnavailable'))}</div>`; return; }
-  if (mounted.select) mounted.select.addEventListener('change', () => { selectedId = null; renderAll(); });
+  // Touche B : bascule A/B (sauf pendant qu'on écrit une remarque).
+  document.addEventListener('keydown', ev => {
+    if ((ev.key || '').toLowerCase() !== 'b' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    const t = ev.target && ev.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || (ev.target && ev.target.isContentEditable)) return;
+    ev.preventDefault(); mounted.toggleAB();
+  });
   video.addEventListener('timeupdate', moveHead);
   renderAll();
   // Les remarques des autres relecteurs et les réponses arrivent sans recharger la page.
@@ -177,7 +220,7 @@ async function decide(decision) {
   const err = document.getElementById('decErr');
   if (!name) { err.textContent = tr('reviewNameNeeded'); const n = document.getElementById('nameInput'); if (n) n.focus(); return; }
   busy = true;
-  try { await rpc('set_video_review_decision', { p_token: TOKEN, p_version_id: versionKey(), p_decision: decision, p_author: name }); data = (await load()) || data; err.textContent = ''; }
+  try { const r = await rpc('set_video_review_decision', { p_slug: SLUG, p_secret: SECRET, p_version_id: versionKey(), p_decision: decision, p_author: name }); if (r && r.ok === false) throw new Error(tr('reviewUnavailable')); data = (await load()) || data; err.textContent = ''; }
   catch (e) { err.textContent = tr('reviewSendFailed', { error: e.message }); }
   busy = false; renderAll();
 }
@@ -200,7 +243,8 @@ function renderForm() {
     if (!text) { err.textContent = tr('reviewCommentEmpty'); return; }
     busy = true; err.textContent = '';
     try {
-      await rpc('add_video_review_comment', { p_token: TOKEN, p_version_key: versionKey(), p_t: Math.round((video.currentTime || 0) * 100) / 100, p_author: name, p_body: text, p_parent_id: null });
+      const r = await rpc('add_video_review_comment', { p_slug: SLUG, p_secret: SECRET, p_version_key: versionKey(), p_t: Math.round((video.currentTime || 0) * 100) / 100, p_author: name, p_body: text, p_parent_id: null });
+      if (r && r.ok === false) throw new Error(tr('reviewUnavailable'));
       document.getElementById('cmText').value = '';
       data = (await load()) || data;
     } catch (e) { err.textContent = tr('reviewSendFailed', { error: e.message }); }
@@ -233,7 +277,7 @@ function renderList() {
     if (!name) { err.textContent = tr('reviewNameNeeded'); const n = document.getElementById('nameInput'); if (n) n.focus(); return; }
     if (!text) return;
     busy = true;
-    try { await rpc('add_video_review_comment', { p_token: TOKEN, p_version_key: versionKey(), p_t: 0, p_author: name, p_body: text, p_parent_id: id }); data = (await load()) || data; }
+    try { const r = await rpc('add_video_review_comment', { p_slug: SLUG, p_secret: SECRET, p_version_key: versionKey(), p_t: 0, p_author: name, p_body: text, p_parent_id: id }); if (r && r.ok === false) throw new Error(tr('reviewUnavailable')); data = (await load()) || data; }
     catch (e) { err.textContent = tr('reviewSendFailed', { error: e.message }); busy = false; return; }
     busy = false; renderAll();
   }));

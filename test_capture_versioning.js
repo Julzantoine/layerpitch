@@ -39,9 +39,19 @@ const path = require('path');
         if (name === 'set_video_capture_version_status') { const r = store.rows.find(x => x.id === args.p_id); if (r) { r.status = args.p_status; r.statusAt = '2026-11-09T10:00:00Z'; } return { data: { ok: true }, error: null }; }
         if (name === 'get_video_review_link') return { data: store.link ? Object.assign({}, store.link) : null, error: null };
         if (name === 'set_video_review_link') {
-          if (!store.link) store.link = { token: 'T1'.repeat(32), enabled: true };
-          else { store.link.enabled = args.p_enabled; if (args.p_rotate) store.link.token = 'T2'.repeat(32); }
-          return { data: Object.assign({}, store.link), error: null };
+          const bad = (message, hint) => ({ data: null, error: { message, hint } });
+          if (args.p_slug === 'deja-pris') return bad('adresse déjà prise', 'taken');
+          const mode = args.p_mode || (store.link && store.link.mode) || 'magic';
+          if (mode === 'password' && args.p_password != null && args.p_password.length < 6) return bad('Mot de passe trop court', 'short');
+          let secret = null;
+          if (!store.link) { if (!args.p_slug) return bad('adresse manquante', 'slug'); store.link = { slug: args.p_slug, enabled: true, mode }; if (mode === 'magic') secret = 'K1'.repeat(32); }
+          else {
+            if (args.p_enabled != null) store.link.enabled = args.p_enabled;
+            if (args.p_slug) store.link.slug = args.p_slug;
+            if (mode !== store.link.mode) { store.link.mode = mode; if (mode === 'magic') secret = 'K3'.repeat(32); }
+            if (args.p_rotate) secret = 'K2'.repeat(32);
+          }
+          return { data: Object.assign({}, store.link, { secret }), error: null };
         }
         if (name === 'list_video_review_comments') return { data: JSON.parse(JSON.stringify(store.comments)), error: null };
         if (name === 'reply_video_review_comment') { const par = store.comments.find(c => c.id === args.p_parent_id); store.comments.push({ id: 'r' + store.comments.length, versionKey: par.versionKey, parentId: par.id, t: par.t, author: args.p_author, fromOwner: true, body: args.p_body, resolved: false }); return { data: { ok: true }, error: null }; }
@@ -161,7 +171,9 @@ const path = require('path');
   check('relecture : pas encore de lien -> bouton « Créer le lien de relecture »', !!host.querySelector('[data-act="rvCreate"]') && !host.querySelector('[data-role="rvUrl"]'));
   host.querySelector('[data-act="rvCreate"]').click(); await tick(); await tick(); await tick();
   const urlInput = host.querySelector('[data-role="rvUrl"]');
-  check('relecture : lien créé et affiché (page relecture.html + jeton)', urlInput && /relecture\.html\?k=T1/.test(urlInput.value) && urlInput.value.includes('T1'.repeat(32)));
+  check('relecture : lien créé -> adresse lisible /relecture/<nom> avec la clé après le # (montrée une fois)', urlInput && /\/relecture\/trailer#k=K1/.test(urlInput.value) && urlInput.value.includes('K1'.repeat(32)) && host.querySelector('.vcv-review-box').textContent.includes(tr('versioningReviewShowOnce')));
+  const createCall = store.calls.find(c => c[0] === 'set_video_review_link');
+  check('relecture : création envoyée avec l\'adresse, le mode magique, sans mot de passe', createCall && createCall[1].p_slug === 'trailer' && createCall[1].p_mode === 'magic' && createCall[1].p_password === null);
   store.comments = [
     { id: 'c1', versionKey: store.rows[0].id, parentId: null, t: 12.5, author: 'Camille', fromOwner: false, body: 'Drone trop fort', resolved: false },
     { id: 'c2', versionKey: 'original', parentId: null, t: 3, author: 'Léa', fromOwner: false, body: 'Début parfait', resolved: true },
@@ -184,7 +196,28 @@ const path = require('path');
   check('relecture : désactiver le lien -> avertissement, champ et copie grisés', store.link.enabled === false && host.querySelector('.vcv-review-box').textContent.includes(tr('versioningReviewOff')) && host.querySelector('[data-role="rvUrl"]').disabled);
   host.querySelector('[data-act="rvToggle"]').click(); await tick(); await tick(); await tick();
   host.querySelector('[data-act="rvRotate"]').click(); await tick(); await tick(); await tick(); await tick();
-  check('relecture : renouveler (après confirmation) -> nouveau jeton affiché', store.link.token === 'T2'.repeat(32) && host.querySelector('[data-role="rvUrl"]').value.includes('T2'.repeat(32)));
+  check('relecture : nouvelle clé (après confirmation) -> nouvelle clé affichée une fois', store.calls.filter(c => c[0] === 'set_video_review_link').pop()[1].p_rotate === true && host.querySelector('[data-role="rvUrl"]').value.includes('K2'.repeat(32)));
+  // Renommer : adresse déjà prise
+  host.querySelector('[data-act="rvRename"]').click(); await tick();
+  const slugIn = host.querySelector('[data-role="rvSlug"]'); slugIn.value = 'deja-pris'; slugIn.dispatchEvent(new W.Event('input'));
+  host.querySelector('[data-act="rvSave"]').click(); await tick(); await tick(); await tick();
+  check('relecture : adresse déjà prise -> message clair, adresse inchangée', host.querySelector('[data-role="rvStatus"]').textContent === tr('versioningReviewSlugTaken') && store.link.slug === 'trailer');
+  host.querySelector('[data-role="rvSlug"]').value = 'trailer-v2'; host.querySelector('[data-role="rvSlug"]').dispatchEvent(new W.Event('input'));
+  host.querySelector('[data-act="rvSave"]').click(); await tick(); await tick(); await tick(); await tick();
+  check('relecture : renommer -> la nouvelle adresse est affichée', store.link.slug === 'trailer-v2' && host.querySelector('[data-role="rvUrl"]').value.endsWith('/relecture/trailer-v2'));
+  // Passer en mot de passe
+  host.querySelector('[data-act="rvMode"]').click(); await tick();
+  check('relecture : changer de mode -> choix du mode et champ mot de passe', !!host.querySelector('[data-role="rvPassword"]'));
+  host.querySelector('[data-role="rvPassword"]').value = 'abc'; host.querySelector('[data-role="rvPassword"]').dispatchEvent(new W.Event('input'));
+  host.querySelector('[data-act="rvSave"]').click(); await tick(); await tick(); await tick();
+  check('relecture : mot de passe trop court -> message, mode inchangé', host.querySelector('[data-role="rvStatus"]').textContent === tr('versioningReviewPasswordShort') && store.link.mode === 'magic');
+  host.querySelector('[data-role="rvPassword"]').value = 'sesame-2026'; host.querySelector('[data-role="rvPassword"]').dispatchEvent(new W.Event('input'));
+  host.querySelector('[data-act="rvSave"]').click(); await tick(); await tick(); await tick(); await tick();
+  const pwCall = store.calls.filter(c => c[0] === 'set_video_review_link').pop()[1];
+  check('relecture : mode mot de passe -> envoyé avec le mot de passe, adresse seule affichée (pas de clé), mode annoncé', pwCall.p_mode === 'password' && pwCall.p_password === 'sesame-2026' && store.link.mode === 'password'
+    && host.querySelector('[data-role="rvUrl"]').value.endsWith('/relecture/trailer-v2') && !host.querySelector('[data-role="rvUrl"]').value.includes('#') && host.querySelector('.vcv-review-box').textContent.includes(tr('versioningReviewPasswordMode')));
+  check('relecture : le mot de passe n\'est plus affiché une fois enregistré', !host.innerHTML.includes('sesame-2026'));
+  check('relecture : en mode mot de passe, « Changer le mot de passe » remplace « Nouvelle clé »', !!host.querySelector('[data-act="rvPassword"]') && !host.querySelector('[data-act="rvRotate"]'));
 
   // Rendu en série des deux versions, rangées en bibliothèque.
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; });
@@ -197,6 +230,42 @@ const path = require('path');
     && exports[0].evs.some(e => e.name === 'stinger_play' && e.detail.sfxId === 'x2') && !exports[0].evs.some(e => e.detail && e.detail.trackId === 'st1'));
   check('rendu : rangé dans la bibliothèque sous le nom du montage + de la version, rattaché à la version', saved.length === 2 && saved[0].startsWith('Trailer — ') && store.rows.every(r => r.lastExportVideoId));
   check('rendu : avancement affiché puis bilan', host.querySelector('[data-role="batchStatus"]').textContent.includes('2'));
+
+  // Bascule A/B (9/11) : deux versions rendues, jouées ensemble sur la vidéo, une seule audible, bascule instantanée.
+  const sources = [], gainsMade = [];
+  const AC = W.AudioContext.prototype;
+  AC.createBufferSource = function () { const n = { buffer: null, started: null, stopped: false, connect(g) { n.to = g; }, start(at, off) { n.started = [at, off]; }, stop() { n.stopped = true; } }; sources.push(n); return n; };
+  const origGain = AC.createGain;
+  AC.createGain = function () { const g = origGain.call(this); g.connect = function (d) {}; gainsMade.push(g); return g; };
+  W.LayerCaptureRender.render = async () => ({ duration: 30 });
+  ctx.videoEl.play = () => Promise.resolve(); ctx.videoEl.currentTime = 7;
+  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
+  host.querySelector('[data-act="abListen"]').click(); await tick();
+  check('A/B sans rien de coché : message pour cocher une version', host.querySelector('[data-role="batchStatus"]').textContent === tr('versioningABPick') && sources.length === 0);
+  const picks = host.querySelectorAll('[data-role="pick"]');
+  picks[0].checked = true; picks[0].dispatchEvent(new W.Event('change'));
+  host.querySelector('[data-act="abListen"]').click();
+  for (let i = 0; i < 20 && sources.length < 2; i++) await tick();
+  await tick();
+  check('A/B avec une version cochée : l\'original (A) contre elle (B), deux sons rendus', sources.length === 2 && !!host.querySelector('.vcv-ab-bar') && host.querySelectorAll('.vcv-ab-btn')[0].textContent.includes(tr('versioningABOriginal')));
+  check('A/B : les deux sons démarrent au même instant et au même endroit (calés sur la vidéo)', sources[0].started[0] === sources[1].started[0] && sources[0].started[1] === 7 && sources[1].started[1] === 7);
+  const gA = () => gainsMade.slice(-2).map(g => g.gain.value);
+  check('A/B : au départ A est audible, B muet', JSON.stringify(gA()) === '[1,0]' && host.querySelectorAll('.vcv-ab-btn')[0].classList.contains('vcv-ab-on'));
+  host.querySelector('[data-act="abSwitch"]').click(); await tick();
+  check('A/B : « Basculer » -> B audible, A muet, sans arrêter les sources', JSON.stringify(gA()) === '[0,1]' && sources.every(x => !x.stopped) && host.querySelectorAll('.vcv-ab-btn')[1].classList.contains('vcv-ab-on'));
+  host.querySelectorAll('[data-act="abSet"]')[0].click(); await tick();
+  check('A/B : clic direct sur A -> A audible', JSON.stringify(gA()) === '[1,0]');
+  host.querySelector('[data-act="abStop"]').click(); await tick();
+  check('A/B : arrêt -> sources coupées, barre retirée', sources.every(x => x.stopped) && !host.querySelector('.vcv-ab-bar') && !V.isListening());
+  // Deux versions cochées : A et B sont ces deux versions
+  sources.length = 0; host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
+  host.querySelector('[data-act="abListen"]').click();
+  for (let i = 0; i < 20 && sources.length < 2; i++) await tick();
+  await tick();
+  const labs = [...host.querySelectorAll('.vcv-ab-btn')].map(b => b.textContent);
+  check('A/B avec deux versions cochées : A et B portent leur nom (pas l\'original)', sources.length === 2 && labs.length === 2 && !labs.some(t => t.includes(tr('versioningABOriginal'))));
+  host.querySelector('[data-act="abStop"]').click(); await tick();
+  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
 
   // Détacher.
   host.querySelector('.vcv-version [data-act="detach"]').click(); await tick(); await tick();

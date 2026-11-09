@@ -246,6 +246,9 @@
   .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
   .vcv-by { color: #888; font-size: 11px; }
   .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-review-edit { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 6px; background: #181818; border: 1px dashed #3a3a3a; }
+  .vcv-ab-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; margin: 6px 0; border: 1px solid #2f80c0; border-radius: 6px; background: #17222c; }
+  .vcv-ab-on { background: #2f80c0 !important; border-color: #2f80c0 !important; color: #fff !important; }
   .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
   .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
   .vcv-rcm-done { opacity: .55; }

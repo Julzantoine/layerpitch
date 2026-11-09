@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1794236650602">
+<link rel="stylesheet" href="player.css?v=1794255065639">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -258,6 +258,9 @@
   .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
   .vcv-by { color: #888; font-size: 11px; }
   .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-review-edit { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 6px; background: #181818; border: 1px dashed #3a3a3a; }
+  .vcv-ab-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; margin: 6px 0; border: 1px solid #2f80c0; border-radius: 6px; background: #17222c; }
+  .vcv-ab-on { background: #2f80c0 !important; border-color: #2f80c0 !important; color: #fff !important; }
   .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
   .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
   .vcv-rcm-done { opacity: .55; }
@@ -501,11 +504,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794236650602"></script>
-<script src="layerpitch-notify.js?v=1794236650602"></script>
-<script src="public-page.js?v=1794236650602"></script>
-<script src="layerpitch-seller-contact.js?v=1794236650602"></script>
-<script src="player.js?v=1794236650602"></script>
+<script src="layerpitch-i18n.js?v=1794255065639"></script>
+<script src="layerpitch-notify.js?v=1794255065639"></script>
+<script src="public-page.js?v=1794255065639"></script>
+<script src="layerpitch-seller-contact.js?v=1794255065639"></script>
+<script src="player.js?v=1794255065639"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1258,6 +1261,6 @@ window.addEventListener('load', init);
   }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
 })();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794236650602"></script>
+<script src="layerpitch-preview-tuto.js?v=1794255065639"></script>
 </body>
 </html>

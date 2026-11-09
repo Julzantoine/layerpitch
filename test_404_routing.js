@@ -8,13 +8,14 @@ let failures = 0;
 const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
 const html = fs.readFileSync(path.join(__dirname, '404.html'), 'utf-8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-function route(pathname, search) {
+function route(pathname, search, hash) {
   let target = null;
-  const location = { pathname, search: search || '', replace: u => { target = u; } };
+  const location = { pathname, search: search || '', hash: hash || '', replace: u => { target = u; } };
   vm.runInNewContext(script, { location, URLSearchParams, decodeURIComponent });
   if (!target) return null;
-  const [file, q] = target.split('?');
-  return { file, params: Object.fromEntries(new URLSearchParams(q)) };
+  const [file, rest] = target.split('?');
+  const [q, frag] = rest.split('#');
+  return { file, params: Object.fromEntries(new URLSearchParams(q)), hash: frag ? '#' + frag : '' };
 }
 let r = route('/jean/');
 check('/nom/ -> index.html?u=nom', r && r.file === '/index.html' && r.params.u === 'jean' && !r.params.s && r.params.__pretty === '/jean/');
@@ -35,5 +36,8 @@ check('/album/id -> album.html?s=id (page publique d\'album, 29/09)', r && r.fil
 check('/album/fichier.html -> pas une page d\'album', !(route('/album/x.html') || {}).file || route('/album/x.html').file !== '/album.html');
 r = route('/shop', '?tab=ost');
 check('/shop -> shop.html (Shop, 29/09), onglet conservé', r && r.file === '/shop.html' && r.params.tab === 'ost' && !r.params.u && r.params.__pretty === '/shop?tab=ost');
+r = route('/relecture/traversee-v2', '?lang=en', '#k=abc123');
+check('/relecture/nom -> relecture.html?s=nom (relecture client, 9/11), clé # conservée', r && r.file === '/relecture.html' && r.params.s === 'traversee-v2' && r.params.lang === 'en' && !r.params.u && r.params.__pretty === '/relecture/traversee-v2?lang=en' && r.hash === '#k=abc123');
+check('/relecture/fichier.html -> pas une relecture', !(route('/relecture/x.html') || {}).file || route('/relecture/x.html').file !== '/relecture.html');
 console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
 process.exit(failures ? 1 : 0);
