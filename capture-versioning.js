@@ -15,7 +15,7 @@
 //
 // mount(host, ctx) -> { refresh() }. ctx, fourni par openCapturePanel :
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
-//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
+//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked (hérité : l'export MP4 complet a été retiré le 09/11),
 //   exportEvents(events, mode, onProgress) -> Blob, saveToLibrary(blob, title) -> id de vidéo, detach(events, title).
 //   Publication automatique (09/11) : publishVersion(events, title) -> id du son, getSoundKey() (état du montage), cuesOf(events), keepOld(), afterExport(res), onProgress(msg).
 (function () {
@@ -469,7 +469,6 @@
           <span>${esc(tr('versioningRenderPicked'))}</span>
           <button type="button" class="video-capture-download-btn" data-render="audio" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportAudioHelp'))}">${esc(tr('captureExportAudioBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-render="copy" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportCopyHelp'))}">${esc(tr('captureExportCopyBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-render="video" ${busy || ctx.fullExportLocked ? 'disabled' : ''}>${esc(tr('captureExportBtn'))}</button>
           <label class="video-capture-export-opt"><input type="checkbox" data-role="toLibrary"> ${esc(tr('versioningToLibrary'))}</label>
           <span class="vcv-status" data-role="batchStatus">${esc(batchStatus)}</span>
         </div>`;
@@ -687,7 +686,6 @@
         const picked = [...host.querySelectorAll('.vcv-version')].filter(r => r.querySelector('[data-role="pick"]').checked).map(r => versions.find(x => x.id === r.dataset.id));
         if (!picked.length) { setBatchStatus(tr('versioningPickNone')); return; }
         const mode = btn.dataset.render;
-        if (mode === 'video' && ctx.fullExportLocked) return;
         const toLibrary = host.querySelector('[data-role="toLibrary"]').checked;
         stopListening();
         renderVersions(picked, mode, toLibrary);

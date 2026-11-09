@@ -70,28 +70,6 @@ async function setupCaptureTrigger(pack, container, opts) {
   const montageParam = new URLSearchParams(location.search).get('montage');
   if (montageParam) openVideoCaptureDialog(montageParam);
 
-  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
-  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
-  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
-  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
-  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
-  document.querySelectorAll('[data-track-id]').forEach(row => {
-    const playBtn = row.querySelector('[data-role="playBtn"]');
-    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
-    const armBtn = document.createElement('button');
-    armBtn.type = 'button';
-    armBtn.className = 'video-capture-arm-track-btn';
-    armBtn.textContent = '⏺';
-    armBtn.title = tr('captureArmBtnTitle');
-    armBtn.addEventListener('click', () => {
-      const trackId = row.dataset.trackId;
-      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
-      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
-      if (armedTrackId === trackId) armBtn.classList.add('armed');
-      updateArmedStatusDisplay();
-    });
-    playBtn.insertAdjacentElement('afterend', armBtn);
-  });
   return true;
 }
 

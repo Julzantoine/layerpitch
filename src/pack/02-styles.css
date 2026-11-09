@@ -181,15 +181,6 @@
   .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
   @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   .video-capture-count { flex: 1; }
-  .video-capture-armed-status { color: #e74c3c; }
-  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
-     discret par défaut, coloré quand la piste est armée. */
-  .video-capture-arm-track-btn {
-    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
-    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
-  }
-  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
-  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
   .video-capture-download-btn {
     padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
     cursor: pointer; font-size: 11px;
