@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794237430273">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794237490667">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2091,19 +2091,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794237430273"></script>
-<script src="layerpitch-i18n.js?v=1794237430273"></script>
-<script src="layerpitch-import-engine.js?v=1794237430273"></script>
-<script src="layerpitch-appearance.js?v=1794237430273"></script>
-<script src="layerpitch-album-shared.js?v=1794237430273"></script>
-<script src="layerpitch-album-editor.js?v=1794237430273"></script>
-<script src="layerpitch-shell.js?v=1794237430273"></script>
-<script src="layerpitch-social-icons.js?v=1794237430273"></script>
-<script src="layerpitch-notify.js?v=1794237430273"></script>
-<script src="layerpitch-guide.js?v=1794237430273"></script>
-<script src="layerpitch-lesson-previews.js?v=1794237430273"></script>
-<script src="layerpitch-help.js?v=1794237430273"></script>
-<script src="player.js?v=1794237430273"></script>
+<script src="layerpitch-tuto.js?v=1794237490667"></script>
+<script src="layerpitch-i18n.js?v=1794237490667"></script>
+<script src="layerpitch-import-engine.js?v=1794237490667"></script>
+<script src="layerpitch-appearance.js?v=1794237490667"></script>
+<script src="layerpitch-album-shared.js?v=1794237490667"></script>
+<script src="layerpitch-album-editor.js?v=1794237490667"></script>
+<script src="layerpitch-shell.js?v=1794237490667"></script>
+<script src="layerpitch-social-icons.js?v=1794237490667"></script>
+<script src="layerpitch-notify.js?v=1794237490667"></script>
+<script src="layerpitch-video-compress.js?v=1794237490667"></script>
+<script src="layerpitch-guide.js?v=1794237490667"></script>
+<script src="layerpitch-lesson-previews.js?v=1794237490667"></script>
+<script src="layerpitch-help.js?v=1794237490667"></script>
+<script src="player.js?v=1794237490667"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15322,80 +15323,15 @@ function readVideoLibraryDuration(file) {
 // Remplace ffmpeg.wasm comme premier choix : l'encodeur H.264 du navigateur (souvent matériel) tourne ~6x plus vite que le
 // temps réel, contre ~8x LA DURÉE de la vidéo en 1080p avec ffmpeg.wasm mono-thread (essais 09/11 dans Firefox 159 : 150 s de
 // vidéo en ~22 s). Et ffmpeg-core est compilé avec --enable-gpl (x264) : le sortir du chemin principal réduit l'exposition GPL.
-// Règles :
-//  - IMAGE : recopiée telle quelle (aucun ré-encodage, donc aucune perte de plus) si elle est déjà en H.264, tient dans
-//    1280x720 et pèse <= VIDEO_LIBRARY_COPY_MAX_BPS ; sinon réencodée en H.264 ~1,2 Mbps, plafonnée à 720p, jamais agrandie.
-//  - SON : copié s'il est déjà en AAC (cas courant : iPhone, exports) ; sinon AAC natif du navigateur s'il sait encoder ;
-//    sinon Opus (Firefox n'encode pas l'AAC). Pas d'encodeur AAC en WASM livré par nous : question de brevets AAC en attente
-//    de la réponse de Via LA (mail envoyé 09/11). Lecture de l'Opus dans un MP4 vérifiée : Firefox, Aperçu (macOS) ; iPhone PAS testé.
+// Règles et seuils (image recopiée si déjà légère, son copié si AAC sinon AAC natif sinon Opus) : voir l'en-tête de layerpitch-video-compress.js.
 //  - Toute erreur ici (navigateur sans WebCodecs, codec non encodable, source illisible) retombe sur ffmpeg.wasm : on ne
 //    transforme jamais un défaut de vitesse en échec complet.
-const VIDEO_LIBRARY_COPY_MAX_BPS = 2000000;
-const VIDEO_LIBRARY_TARGET_BPS = 1200000;
-let mediabunnySingleton = null;
-async function loadMediabunny() {
-  if (!mediabunnySingleton) mediabunnySingleton = await import('./vendor/mediabunny/mediabunny.min.mjs');
-  return mediabunnySingleton;
-}
+// La logique elle-même (règles image/son, seuils) vit dans layerpitch-video-compress.js, partagée avec l'Atelier.
 async function compressVideoWithWebCodecs(file, onProgress) {
-  if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined' || !window.isSecureContext) {
-    throw new Error('WebCodecs indisponible dans ce navigateur');
-  }
-  const MB = await loadMediabunny();
-  const input = new MB.Input({ source: new MB.BlobSource(file), formats: MB.ALL_FORMATS });
-  const videoTrack = await input.getPrimaryVideoTrack();
-  if (!videoTrack) throw new Error('aucune piste vidéo lisible');
-  const audioTrack = await input.getPrimaryAudioTrack();
-
-  // IMAGE : copier ou réencoder ?
-  const w = videoTrack.displayWidth, h = videoTrack.displayHeight;
-  const fits = w <= 1280 && h <= 720;
-  // Débit MOYEN de TOUT le fichier (taille / durée, son compris : estimation prudente), pas celui des premières images. Bug du 09/11 :
-  // computePacketStats(200) ne lit que le début ; sur un fichier de 267 Mo (13 Mbps) qui s'ouvre sur un fondu quasi noir, il mesurait
-  // 941 kbps -> « déjà assez léger » -> le fichier entier partait tel quel (envoi interminable). computePacketStats ne sert plus que si la durée est inconnue.
-  const duration = await input.computeDuration();
-  const overallBps = duration > 0 ? file.size * 8 / duration : (await videoTrack.computePacketStats(2000)).averageBitrate;
-  const videoOpts = { codec: 'avc' };
-  if (videoTrack.codec === 'avc' && fits && overallBps <= VIDEO_LIBRARY_COPY_MAX_BPS) {
-    // Rien à toucher : copie des paquets.
-    log(`Vidéo : déjà assez légère (${Math.round(overallBps / 1000)} kbps en moyenne, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
-  } else {
-    const scale = Math.min(1, 1280 / w, 720 / h);
-    if (scale < 1) {
-      // Dimensions paires (exigence de l'H.264). Jamais agrandie : le plafond ne s'applique qu'aux vidéos plus grandes.
-      videoOpts.width = Math.max(2, 2 * Math.round(w * scale / 2));
-      videoOpts.height = Math.max(2, 2 * Math.round(h * scale / 2));
-      videoOpts.fit = 'fill';
-    }
-    videoOpts.bitrate = VIDEO_LIBRARY_TARGET_BPS;
-    videoOpts.forceTranscode = true;
-  }
-
-  // SON : copier, AAC natif ou Opus.
-  const audioOpts = {};
-  let audioPlan = 'aucun';
-  if (audioTrack) {
-    if (audioTrack.codec === 'aac') audioPlan = 'copie AAC';
-    else if (await MB.canEncodeAudio('aac')) { audioOpts.codec = 'aac'; audioOpts.bitrate = 128000; audioPlan = 'AAC natif'; }
-    else if (await MB.canEncodeAudio('opus')) { audioOpts.codec = 'opus'; audioOpts.bitrate = 128000; audioPlan = 'Opus'; }
-    else throw new Error('aucun encodeur audio (AAC/Opus) disponible');
-  }
-  log(`Compression WebCodecs : son ${audioPlan} (source ${audioTrack ? audioTrack.codec : 'aucun'}).`, 'info');
-
-  const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
-  const conversion = await MB.Conversion.init({ input, output, video: videoOpts, audio: audioOpts });
-  if (!conversion.isValid) {
-    throw new Error('conversion impossible : ' + conversion.discardedTracks.map(t => t.reason).join(', '));
-  }
-  // Une piste écartée (hors son/image principaux) n'est pas grave ; mais perdre l'image ou le son d'origine, si.
-  const lostVideo = !conversion.utilizedTracks.some(t => t.isVideoTrack());
-  const lostAudio = !!audioTrack && !conversion.utilizedTracks.some(t => t.isAudioTrack());
-  if (lostVideo || lostAudio) throw new Error('une piste a été écartée (' + conversion.discardedTracks.map(t => t.reason).join(', ') + ')');
-  conversion.onProgress = (p) => {
-    onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct: Math.max(0, Math.min(100, Math.round(p * 100))) }));
-  };
-  await conversion.execute();
-  return new Blob([output.target.buffer], { type: 'video/mp4' });
+  return window.LayerPitchVideoCompress.compress(file, {
+    log,
+    onProgress: (pct) => { onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct })); },
+  });
 }
 async function compressVideoForLibrary(file, onProgress) {
   onProgress && onProgress(tr('videoLibraryCompressing'));

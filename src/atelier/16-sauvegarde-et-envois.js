@@ -145,6 +145,18 @@ async function r2PutFile(key, bytes, contentType, onProgress) {
 }
 // Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
 async function makeSilentVideo(videoFile, onProgress) {
+  // 09/11 : par WebCodecs + Mediabunny d'abord (layerpitch-video-compress.js, même règles que la bibliothèque du Backstage) : une vidéo chargée depuis
+  // l'ordinateur n'était JAMAIS compressée ici (-c:v copy) et partait en taille brute ; elle est désormais compressée si elle est lourde, et recopiée
+  // telle quelle si elle est déjà légère. Repli sur l'ancienne copie ffmpeg.wasm (sans compression) si le navigateur ne peut pas.
+  try {
+    return await window.LayerPitchVideoCompress.compress(videoFile, {
+      keepAudio: false,
+      log: (msg) => console.info('LayerPitch — vidéo muette :', msg),
+      onProgress: (pct) => { onProgress && onProgress(tr('captureMakingSilentVideo') + ' ' + pct + ' %'); },
+    });
+  } catch (e) {
+    console.warn('LayerPitch — vidéo muette : compression WebCodecs impossible, repli sur ffmpeg.wasm (copie sans compression) :', e);
+  }
   const ffmpeg = await loadFfmpegWasm(onProgress);
   const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
   await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));

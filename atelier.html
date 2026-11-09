@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794237430273">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794237430273">
+<link rel="stylesheet" href="player.css?v=1794237490667">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794237490667">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -539,16 +539,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794237430273"></script>
-<script src="layerpitch-notify.js?v=1794237430273"></script>
-<script src="public-page.js?v=1794237430273"></script>
-<script src="player.js?v=1794237430273"></script>
-<script src="capture-plan.js?v=1794237430273"></script>
-<script src="capture-render.js?v=1794237430273"></script>
-<script src="capture-retarget.js?v=1794237430273"></script>
-<script src="capture-versioning.js?v=1794237430273"></script>
-<script src="layerpitch-guide.js?v=1794237430273"></script>
-<script src="atelier-lecons.js?v=1794237430273"></script>
+<script src="layerpitch-i18n.js?v=1794237490667"></script>
+<script src="layerpitch-notify.js?v=1794237490667"></script>
+<script src="layerpitch-video-compress.js?v=1794237490667"></script>
+<script src="public-page.js?v=1794237490667"></script>
+<script src="player.js?v=1794237490667"></script>
+<script src="capture-plan.js?v=1794237490667"></script>
+<script src="capture-render.js?v=1794237490667"></script>
+<script src="capture-retarget.js?v=1794237490667"></script>
+<script src="capture-versioning.js?v=1794237490667"></script>
+<script src="layerpitch-guide.js?v=1794237490667"></script>
+<script src="atelier-lecons.js?v=1794237490667"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2190,6 +2191,18 @@ async function r2PutFile(key, bytes, contentType, onProgress) {
 }
 // Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
 async function makeSilentVideo(videoFile, onProgress) {
+  // 09/11 : par WebCodecs + Mediabunny d'abord (layerpitch-video-compress.js, même règles que la bibliothèque du Backstage) : une vidéo chargée depuis
+  // l'ordinateur n'était JAMAIS compressée ici (-c:v copy) et partait en taille brute ; elle est désormais compressée si elle est lourde, et recopiée
+  // telle quelle si elle est déjà légère. Repli sur l'ancienne copie ffmpeg.wasm (sans compression) si le navigateur ne peut pas.
+  try {
+    return await window.LayerPitchVideoCompress.compress(videoFile, {
+      keepAudio: false,
+      log: (msg) => console.info('LayerPitch — vidéo muette :', msg),
+      onProgress: (pct) => { onProgress && onProgress(tr('captureMakingSilentVideo') + ' ' + pct + ' %'); },
+    });
+  } catch (e) {
+    console.warn('LayerPitch — vidéo muette : compression WebCodecs impossible, repli sur ffmpeg.wasm (copie sans compression) :', e);
+  }
   const ffmpeg = await loadFfmpegWasm(onProgress);
   const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
   await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));
