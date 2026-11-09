@@ -203,7 +203,6 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
         <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
       </label>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
@@ -228,24 +227,18 @@ function openCapturePanel(file, opts) {
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
-  const exportBtn = document.getElementById('videoCaptureExportBtn');
   const exportAudioBtn = document.getElementById('videoCaptureExportAudioBtn');
   const exportCopyBtn = document.getElementById('videoCaptureExportCopyBtn');
-  // Export COMPLET grisé pour tout compte non-admin (24/09, demande de Jules-Antoine) : ré-encoder l'image avec
-  // ffmpeg.wasm mono-coeur prend ~10 min pour 3 min de vidéo -- réservé à l'admin tant qu'il n'y a pas d'abonnement
-  // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Les deux exports rapides
-  // (audio seul, vidéo sans ré-encodage) restent ouverts à tous les éligibles.
+  // Export COMPLET (image ré-encodée avec ffmpeg.wasm : ~10 min pour 3 min de vidéo) : bouton retiré de ce panneau le 09/11 (demande de
+  // Jules-Antoine) ; il reste dans le Versioning (version rendue), grisé pour tout compte non-admin tant qu'il n'y a pas d'abonnement
+  // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Ici : audio seul et vidéo sans ré-encodage.
   const fullExportLocked = !window.__lpCaptureIsAdmin;
   // Échelle Test in game (15/09, matrice du 27/09) : Rookie = capture seule (frise non modifiable), Warrior = frise
   // modifiable mais rien d'enregistré, Boss = modifiable + enregistré. Le serveur refuse aussi l'enregistrement hors Boss.
   const captureLevel = window.__lpCaptureLevel || 'capture';
   const captureCanEdit = captureLevel !== 'capture';
   const captureCanSave = captureLevel === 'saved';
-  const setExportButtonsDisabled = (v) => { exportBtn.disabled = v || fullExportLocked; exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
-  if (fullExportLocked) {
-    exportBtn.title = tr('captureExportFullLockedHint');
-    exportBtn.insertAdjacentHTML('afterend', `<span class="video-capture-count" id="videoCaptureFullLockedNote">${tr('captureExportFullLockedNote')}</span>`);
-  }
+  const setExportButtonsDisabled = (v) => { exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
   const keepOldCheckbox = document.getElementById('videoCaptureKeepOld');
@@ -575,7 +568,6 @@ function openCapturePanel(file, opts) {
       setExportButtonsDisabled(lastEvents.length === 0);
     }
   }
-  exportBtn.addEventListener('click', () => runExport('video'));
   exportAudioBtn.addEventListener('click', () => runExport('audio'));
   exportCopyBtn.addEventListener('click', () => runExport('copy'));
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
@@ -638,7 +630,7 @@ function openCapturePanel(file, opts) {
   const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
   const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
   const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
-  const montageNeedsPublish = () => captureCanSave && !!packId && lastEvents.length > 0 && soundKey() !== lastPublishedKey;
+  const montageNeedsPublish = () => captureCanSave && !!packId && ((lastEvents.length > 0 && soundKey() !== lastPublishedKey) || !!(versioning && versioning.hasPending && versioning.hasPending()));
   const hostPublishes = typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio; // composeur dans le Backstage : son bouton global publie
   const setSaveState = (state, text) => { saveStatus.dataset.state = state; saveStatus.textContent = text; };
   function scheduleAutosave() {
@@ -706,11 +698,17 @@ function openCapturePanel(file, opts) {
     })();
     try { return await publishRunning; } finally { publishRunning = null; }
   }
+  // Le montage, puis ses versions enregistrées qui ont changé (09/11) : un seul geste publie tout ce qui concerne ce montage.
+  async function publishEverythingNow(opts) {
+    const r = await publishMontageNow(opts);
+    const n = versioning && versioning.publishPending ? await versioning.publishPending(opts) : 0;
+    return (r === 'done' || n > 0) ? 'done' : 'none';
+  }
   updateEverywhereBtn.addEventListener('click', async () => {
     if (!lastEvents.length || !packId) return;
     updateEverywhereBtn.disabled = true; setExportButtonsDisabled(true);
     try {
-      await publishMontageNow({ force: true });
+      await publishEverythingNow({ force: true });
       exportStatus.textContent = tr('captureUpdatedEverywhere');
     } catch (e) {
       console.error(e);
@@ -728,7 +726,7 @@ function openCapturePanel(file, opts) {
   window.__lpFinishMontage = async () => {
     setExportButtonsDisabled(true);
     try {
-      const r = await publishMontageNow();
+      const r = await publishEverythingNow();
       if (r === 'done') exportStatus.textContent = tr('captureUpdatedEverywhere');
       return r;
     } catch (e) {
@@ -825,6 +823,7 @@ function openCapturePanel(file, opts) {
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       cuesOf: (events) => buildCaptureCues(events, laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
+      getSoundKey: soundKey, onProgress: (msg) => { exportStatus.textContent = msg; }, // publication automatique des versions (09/11)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
       afterExport: (result) => { r2DeleteRemovedVideos(result && result.removed); renderExportHistory(); },
