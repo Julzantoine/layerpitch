@@ -274,6 +274,9 @@
   .video-versioning-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .video-versioning-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
   .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
+  .video-versioning-chip.st-sent { border-color: var(--accent); }
+  .video-versioning-chip.st-changes_requested { border-color: #d9822b; color: #d9822b; }
+  .video-versioning-chip.st-approved { border-color: #3a9d6a; color: #3a9d6a; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   /* Barre de gauche : fixe sous la barre d'actions, et elle défile TOUTE SEULE quand elle est plus haute que l'écran (7/10) -- sinon

@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794043066183">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794227439319">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -290,6 +290,9 @@
   .video-versioning-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .video-versioning-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
   .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
+  .video-versioning-chip.st-sent { border-color: var(--accent); }
+  .video-versioning-chip.st-changes_requested { border-color: #d9822b; color: #d9822b; }
+  .video-versioning-chip.st-approved { border-color: #3a9d6a; color: #3a9d6a; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   /* Barre de gauche : fixe sous la barre d'actions, et elle défile TOUTE SEULE quand elle est plus haute que l'écran (7/10) -- sinon
@@ -2036,19 +2039,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794043066183"></script>
-<script src="layerpitch-i18n.js?v=1794043066183"></script>
-<script src="layerpitch-import-engine.js?v=1794043066183"></script>
-<script src="layerpitch-appearance.js?v=1794043066183"></script>
-<script src="layerpitch-album-shared.js?v=1794043066183"></script>
-<script src="layerpitch-album-editor.js?v=1794043066183"></script>
-<script src="layerpitch-shell.js?v=1794043066183"></script>
-<script src="layerpitch-social-icons.js?v=1794043066183"></script>
-<script src="layerpitch-notify.js?v=1794043066183"></script>
-<script src="layerpitch-guide.js?v=1794043066183"></script>
-<script src="layerpitch-lesson-previews.js?v=1794043066183"></script>
-<script src="layerpitch-help.js?v=1794043066183"></script>
-<script src="player.js?v=1794043066183"></script>
+<script src="layerpitch-tuto.js?v=1794227439319"></script>
+<script src="layerpitch-i18n.js?v=1794227439319"></script>
+<script src="layerpitch-import-engine.js?v=1794227439319"></script>
+<script src="layerpitch-appearance.js?v=1794227439319"></script>
+<script src="layerpitch-album-shared.js?v=1794227439319"></script>
+<script src="layerpitch-album-editor.js?v=1794227439319"></script>
+<script src="layerpitch-shell.js?v=1794227439319"></script>
+<script src="layerpitch-social-icons.js?v=1794227439319"></script>
+<script src="layerpitch-notify.js?v=1794227439319"></script>
+<script src="layerpitch-guide.js?v=1794227439319"></script>
+<script src="layerpitch-lesson-previews.js?v=1794227439319"></script>
+<script src="layerpitch-help.js?v=1794227439319"></script>
+<script src="player.js?v=1794227439319"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15684,7 +15687,7 @@ async function renderVideoVersioningList() {
     const vs = versionsByCapture[c.id];
     const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
     const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
-      : vs.length ? vs.map(v => `<span class="video-versioning-chip ${v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? 'exported' : ''}" title="${escapeHtml(v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? tr('videoVersioningExported') : '')}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}</span>`).join('')
+      : vs.length ? vs.map(v => { const st = ['draft', 'sent', 'changes_requested', 'approved'].includes(v.status) ? v.status : 'draft'; const exp = v.lastExportVideoId && videoIds.has(v.lastExportVideoId); return `<span class="video-versioning-chip st-${st} ${exp ? 'exported' : ''}" title="${escapeHtml([tr('versioningStatus_' + st), exp ? tr('videoVersioningExported') : ''].filter(Boolean).join(' · '))}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}${st === 'draft' ? '' : ' · ' + escapeHtml(tr('versioningStatus_' + st))}</span>`; }).join('')
       : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
     return `
       <div class="video-library-item">
