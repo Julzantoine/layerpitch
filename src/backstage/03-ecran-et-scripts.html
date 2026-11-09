@@ -374,8 +374,7 @@
 
         <div class="content-appearance-toggle">
           <button class="nav-item active" data-video-subtab="library" type="button"><span data-i18n="videoSubtabLibrary">Bibliothèque</span></button>
-          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Atelier</span></button>
-          <button class="nav-item" data-video-subtab="versioning" type="button"><span data-i18n="videoSubtabVersioning">Versioning</span></button>
+          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Projets vidéo</span></button>
         </div>
 
         <div class="video-subpanel active" data-video-subpanel="library">
@@ -388,24 +387,44 @@
           <div id="videoLibraryList" class="video-library-list"></div>
         </div>
 
-        <!-- Sous-onglet Atelier (21/10, décidé par Jules-Antoine ; « Capture » depuis le 16/09) : l'atelier vidéo (atelier.html, outil de
-             capture et de Versioning sorti de la page publique du pack) dans un cadre. Le choix du pack se fait dans l'atelier. Ouvert
-             aussi par « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc vidéo d'un AdReel) : openVideoAtelier(). -->
+        <!-- Sous-onglet « Projets vidéo » (09/11, demande de Jules-Antoine : « même logique qu'un AdReel »). Un projet vidéo = un montage
+             sauvegardé (video_captures : nom, pack, vidéo d'origine) et ses versions vidéo (video_capture_versions) : on le crée, on le choisit
+             dans la liste, et l'atelier (atelier.html, dans un cadre) s'ouvre dessus (&montage=<id>). Remplace les anciens sous-onglets
+             « Atelier » (on partait du pack) et « Versioning » (liste de montages) : les versions vivent dans le projet. Palier qui enregistre
+             les montages seulement ; sinon l'atelier s'ouvre comme avant, sans projet. Ouvert aussi par « Créer une version vidéo » (bloc
+             vidéo d'un AdReel) : openVideoAtelier(). -->
         <div class="video-subpanel" data-video-subpanel="capture">
-          <div class="sub" data-i18n="videoCaptureSubtabHint">Choisis un pack, puis une vidéo, et joue sa musique adaptative sur l'image : retouche la prise, enregistre le montage, fais-en des versions avec d'autres musiques, et mets la vidéo à jour partout où elle est montrée.</div>
+          <div class="sub" data-i18n="videoCaptureSubtabHint">Un projet vidéo, c'est une vidéo et un pack : tu y joues la musique adaptative sur l'image, tu enregistres le montage, tu en fais des versions avec d'autres musiques, et tu mets la vidéo à jour partout où elle est montrée.</div>
+          <div class="video-project-bar" id="videoProjectBar" hidden>
+            <label for="videoProjectSelect" data-i18n="videoProjectLabel">Projet vidéo</label>
+            <select id="videoProjectSelect"></select>
+            <button class="btn" id="videoProjectNewBtn" type="button" data-i18n="addNew">+ Nouveau</button>
+            <button class="btn btn-danger" id="videoProjectDeleteBtn" type="button" data-i18n="deleteShort">Suppr.</button>
+          </div>
+          <div class="video-project-meta" id="videoProjectMeta" hidden></div>
+          <div class="video-library-empty" id="videoProjectEmpty" hidden>
+            <span data-i18n="videoProjectEmpty">Aucun projet vidéo pour l'instant. Crée le premier : un nom, un pack, puis tu choisis ta vidéo.</span>
+          </div>
+          <!-- Nouveau projet : un nom et un pack (la vidéo se choisit ensuite, dans l'atelier). -->
+          <dialog id="videoProjectDialog" class="video-test-dialog">
+            <form method="dialog" class="video-test-form" id="videoProjectForm">
+              <div class="video-test-dialog-title" data-i18n="videoProjectNewTitle">Nouveau projet vidéo</div>
+              <label for="videoProjectName" data-i18n="videoProjectNameLabel">Nom du projet</label>
+              <input type="text" id="videoProjectName" maxlength="120" data-i18n-placeholder="videoProjectNamePlaceholder" placeholder="ex. Joris">
+              <label for="videoProjectPack" data-i18n="videoProjectPackLabel">Pack</label>
+              <select id="videoProjectPack"></select>
+              <div class="video-test-dialog-error" id="videoProjectError"></div>
+              <div class="video-test-dialog-actions">
+                <button type="button" class="video-test-btn-secondary" id="videoProjectCancelBtn" data-i18n="cancel">Annuler</button>
+                <button type="submit" class="video-test-btn-primary" id="videoProjectCreateBtn" data-i18n="videoProjectCreateBtn">Créer</button>
+              </div>
+            </form>
+          </dialog>
           <!-- 04/11 : changements pas encore sauvegardés (un pack tout juste créé…) : l'atelier ne lit que ce qui est en base. -->
           <div id="videoAtelierUnsavedNote" class="video-atelier-unsaved-note" hidden data-i18n="videoAtelierUnsavedNote">Tu as des changements pas encore sauvegardés : un pack que tu viens de créer ou de modifier apparaîtra ici après « Sauvegarder / publier ».</div>
           <!-- 05/11 : plein écran (le cadre couvre toute la fenêtre ; Échap ou le même bouton pour revenir). -->
           <div class="video-atelier-bar"><button type="button" class="btn btn-small" id="videoAtelierFullBtn" data-i18n="videoAtelierFull">⤢ Plein écran</button></div>
           <iframe id="videoAtelierFrame" class="video-atelier-frame" title="Atelier vidéo" allow="autoplay; fullscreen"></iframe>
-        </div>
-
-        <!-- Sous-onglet Versioning (26/09) : tous les montages sauvegardés (video_captures), tous packs confondus, avec
-             leurs versions vidéo (video_capture_versions). « Ouvrir » ouvre le montage dans l'atelier vidéo (sous-onglet Atelier,
-             atelier.html?...&montage=<id>). Réservé au palier qui enregistre les versions (les fonctions serveur le vérifient aussi). -->
-        <div class="video-subpanel" data-video-subpanel="versioning">
-          <div class="sub" data-i18n="videoVersioningSubtabHint">Tes montages vidéo sauvegardés et leurs versions (le même montage rejoué avec d'autres morceaux ou d'autres Sfx). Ouvre un montage pour créer, écouter ou rendre ses versions, dans un nouvel onglet.</div>
-          <div id="videoVersioningList" class="video-library-list"></div>
         </div>
       </div>
 
@@ -982,17 +1001,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794233349534"></script>
-<script src="layerpitch-i18n.js?v=1794233349534"></script>
-<script src="layerpitch-import-engine.js?v=1794233349534"></script>
-<script src="layerpitch-appearance.js?v=1794233349534"></script>
-<script src="layerpitch-album-shared.js?v=1794233349534"></script>
-<script src="layerpitch-album-editor.js?v=1794233349534"></script>
-<script src="layerpitch-shell.js?v=1794233349534"></script>
-<script src="layerpitch-social-icons.js?v=1794233349534"></script>
-<script src="layerpitch-notify.js?v=1794233349534"></script>
-<script src="layerpitch-guide.js?v=1794233349534"></script>
-<script src="layerpitch-lesson-previews.js?v=1794233349534"></script>
-<script src="layerpitch-help.js?v=1794233349534"></script>
-<script src="player.js?v=1794233349534"></script>
+<script src="layerpitch-tuto.js?v=1794234100973"></script>
+<script src="layerpitch-i18n.js?v=1794234100973"></script>
+<script src="layerpitch-import-engine.js?v=1794234100973"></script>
+<script src="layerpitch-appearance.js?v=1794234100973"></script>
+<script src="layerpitch-album-shared.js?v=1794234100973"></script>
+<script src="layerpitch-album-editor.js?v=1794234100973"></script>
+<script src="layerpitch-shell.js?v=1794234100973"></script>
+<script src="layerpitch-social-icons.js?v=1794234100973"></script>
+<script src="layerpitch-notify.js?v=1794234100973"></script>
+<script src="layerpitch-guide.js?v=1794234100973"></script>
+<script src="layerpitch-lesson-previews.js?v=1794234100973"></script>
+<script src="layerpitch-help.js?v=1794234100973"></script>
+<script src="player.js?v=1794234100973"></script>
 <script>

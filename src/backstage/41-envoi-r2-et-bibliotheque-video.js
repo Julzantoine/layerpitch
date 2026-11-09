@@ -487,13 +487,12 @@ async function uploadLibraryVideo(file) {
   });
 })();
 
-// Sous-onglets Bibliothèque/Atelier/Versioning du panneau Vidéo (16 septembre) -- toggle purement local, pas le switchTab() global
+// Sous-onglets Bibliothèque / Projets vidéo du panneau Vidéo (16 septembre ; Versioning et Atelier réunis en « Projets vidéo » le 09/11) -- toggle purement local, pas le switchTab() global
 // (réservé aux panneaux de premier niveau).
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') { ensureVideoAtelierLoaded(); refreshAtelierUnsavedNote(); }
-  if (name === 'versioning') renderVideoVersioningList();
+  if (name === 'capture') { initVideoProjects(); refreshAtelierUnsavedNote(); }
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
@@ -559,8 +558,11 @@ function openVideoAtelier(opts) {
   openTab('videoLibrary');
   switchVideoSubtab('capture');
   const frame = document.getElementById('videoAtelierFrame');
-  if (frame && opts && (opts.packId || opts.montageId)) frame.src = videoAtelierUrl(opts);
-  else ensureVideoAtelierLoaded();
+  if (frame && opts && (opts.packId || opts.montageId)) {
+    frame.hidden = false;
+    frame.src = videoAtelierUrl(opts);
+    if (opts.montageId) { videoProjectSelectedId = opts.montageId; refreshVideoProjects(); } // le projet ouvert est celui du sélecteur
+  } else ensureVideoAtelierLoaded();
   if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 // « Terminer le montage » (06/11) : étape de « Sauvegarder / publier » (voir publishAll), juste avant les AdReels qui affichent les montages.
@@ -598,9 +600,8 @@ window.addEventListener('message', e => {
   // Enregistrement dans l'atelier : listes à jour (index des montages des blocs vidéo, bibliothèque, Versioning).
   if (e.data.type === 'changed') {
     videoVersioningIndexPromise = null;
-    const sub = document.querySelector('#panelVideoLibrary .video-subpanel.active');
-    if (sub && sub.dataset.videoSubpanel === 'versioning') renderVideoVersioningList();
-    else renderVideoLibrary();
+    refreshVideoProjects(); // liste des projets et versions à jour (sans recharger l'atelier ouvert)
+    renderVideoLibrary();
   }
 });
 
@@ -640,50 +641,156 @@ function videoMontageFields(v) {
     ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
     : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
-async function renderVideoVersioningList() {
-  const listEl = document.getElementById('videoVersioningList');
-  if (!listEl) return;
-  // 28/09 : liste des versions ENREGISTRÉES = palier Boss (versioning 'saved') ; Warrior versionne pendant la session, dans le pack.
-  if (entitlementLevel('versioning') !== 'saved') { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr(flagOpen('versioning') ? 'videoVersioningTierOnly' : 'videoVersioningAdminOnly'))}</div>`; return; }
-  listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoading'))}</div>`;
+// ---- Projets vidéo (09/11, demande de Jules-Antoine : « même logique que pour un AdReel : créer un projet vidéo, puis y choisir la vidéo et
+// le pack ») ----------------------------------------------------------------------------------------------------------------------------
+// Un projet vidéo EST un montage sauvegardé (video_captures : nom, pack, vidéo d'origine, frise) ; ses versions vidéo sont celles de
+// video_capture_versions. Rien de neuf en base : « + Nouveau » crée un montage vide (nom + pack), l'atelier s'ouvre dessus, la vidéo s'y choisit.
+// Palier qui enregistre les montages (versioning 'saved') ; sans lui, l'atelier s'ouvre comme avant (choix du pack dans l'atelier), sans projet.
+let videoProjects = [];
+let videoProjectSelectedId = null;
+let videoProjectsLoadedFor = null; // montage affiché dans le cadre (évite de le recharger quand on réaffiche l'onglet)
+function videoProjectsMode() { return entitlementLevel('versioning') === 'saved' && !isTutoMode(); } // tutoriel : l'atelier garde son parcours guidé (choix du pack dans l'atelier)
+function videoProjectFrameUrl(p) { return videoAtelierUrl({ packId: p.packId, montageId: p.id }); }
+function videoProjectTitle(p) { return p.title || (p.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'); }
+function videoProjectEls() {
+  const g = id => document.getElementById(id);
+  return { bar: g('videoProjectBar'), select: g('videoProjectSelect'), meta: g('videoProjectMeta'), empty: g('videoProjectEmpty'), frame: g('videoAtelierFrame'), hint: document.querySelector('[data-video-subpanel="capture"] > .sub') };
+}
+async function fetchVideoProjects() {
+  const res = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', { p_pack_id: null });
+  if (res.error) throw res.error;
+  videoProjects = res.data || [];
+}
+// Remplit le sélecteur et la ligne d'infos (pack, vidéo, versions) du projet choisi. Ne touche pas au cadre.
+async function renderVideoProjectBar() {
+  const el = videoProjectEls();
+  if (!el.select) return;
+  if (!videoProjects.some(p => p.id === videoProjectSelectedId)) videoProjectSelectedId = videoProjects.length ? videoProjects[0].id : null;
+  el.select.innerHTML = videoProjects.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === videoProjectSelectedId ? 'selected' : ''}>${escapeHtml(videoProjectTitle(p))}</option>`).join('');
+  el.empty.hidden = videoProjects.length > 0;
+  const deleteBtn = document.getElementById('videoProjectDeleteBtn');
+  if (deleteBtn) deleteBtn.disabled = !videoProjectSelectedId;
+  const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  if (!cur) { el.meta.hidden = true; el.meta.innerHTML = ''; return; }
+  const pack = packs.find(p => p.id === cur.packId);
+  const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), cur.videoFilename ? tr('videoVersioningVideo').replace('{video}', cur.videoFilename) : '', new Date(cur.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
+  el.meta.hidden = false;
+  el.meta.innerHTML = `<div class="video-library-item-meta">${escapeHtml(meta)}</div><div class="video-versioning-versions"></div>`;
+  // Versions vidéo du projet (celles déjà rendues et rangées en bibliothèque repérées).
+  const wantedId = cur.id;
   const client = window.LayerPitchSupabaseClient.getClient();
-  let captures = [], videos = [];
+  let vs = null, videoIds = new Set();
   try {
-    const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
-    if (res.error) throw res.error;
-    captures = res.data || [];
-    videos = (await loadMyVideos()).videos || [];
-  } catch (e) {
-    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoadFailed').replace('{error}', e.message))}</div>`;
+    const r = await client.rpc('list_video_capture_versions', { p_capture_id: cur.id });
+    vs = r.error ? null : (r.data || []);
+    videoIds = new Set(((await loadMyVideos()).videos || []).map(v => v.id));
+  } catch (e) { /* versions indisponibles : la puce le dit */ }
+  if (videoProjectSelectedId !== wantedId) return; // un autre projet a été choisi entre-temps
+  const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
+    : vs.length ? vs.map(v => { const st = ['draft', 'sent', 'changes_requested', 'approved'].includes(v.status) ? v.status : 'draft'; const exp = v.lastExportVideoId && videoIds.has(v.lastExportVideoId); return `<span class="video-versioning-chip st-${st} ${exp ? 'exported' : ''}" title="${escapeHtml([tr('versioningStatus_' + st), exp ? tr('videoVersioningExported') : ''].filter(Boolean).join(' · '))}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}${st === 'draft' ? '' : ' · ' + escapeHtml(tr('versioningStatus_' + st))}</span>`; }).join('')
+    : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
+  const host = el.meta.querySelector('.video-versioning-versions');
+  if (host) host.innerHTML = chips;
+}
+// Affiche le projet choisi dans le cadre (une seule fois par projet : réafficher l'onglet ne recharge pas l'atelier).
+function showSelectedVideoProject(force) {
+  const el = videoProjectEls();
+  const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  if (!el.frame) return;
+  el.frame.hidden = !cur; // aucun projet : pas d'atelier (on invite à en créer un)
+  const bar = document.querySelector('[data-video-subpanel="capture"] .video-atelier-bar');
+  if (bar) bar.hidden = !cur;
+  if (!cur) { videoProjectsLoadedFor = null; el.frame.removeAttribute('src'); return; }
+  if (force || videoProjectsLoadedFor !== cur.id) { videoProjectsLoadedFor = cur.id; el.frame.src = videoProjectFrameUrl(cur); }
+}
+// Ouverture du sous-onglet : sans le palier, l'atelier s'ouvre comme avant ; sinon liste des projets, premier (ou dernier choisi) ouvert.
+async function initVideoProjects() {
+  const el = videoProjectEls();
+  if (!el.bar) return;
+  if (!videoProjectsMode()) {
+    el.bar.hidden = true; el.meta.hidden = true; el.empty.hidden = true; if (el.frame) el.frame.hidden = false;
+    ensureVideoAtelierLoaded();
     return;
   }
-  if (!captures.length) { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningEmpty'))}</div>`; return; }
-  // Versions de chaque montage (une lecture par montage, en parallèle).
-  const versionsByCapture = {};
-  await Promise.all(captures.map(async c => {
-    const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
-    versionsByCapture[c.id] = r.error ? null : (r.data || []);
-  }));
-  const videoIds = new Set(videos.map(v => v.id));
-  listEl.innerHTML = captures.map(c => {
-    const pack = packs.find(p => p.id === c.packId);
-    const vs = versionsByCapture[c.id];
-    const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
-    const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
-      : vs.length ? vs.map(v => { const st = ['draft', 'sent', 'changes_requested', 'approved'].includes(v.status) ? v.status : 'draft'; const exp = v.lastExportVideoId && videoIds.has(v.lastExportVideoId); return `<span class="video-versioning-chip st-${st} ${exp ? 'exported' : ''}" title="${escapeHtml([tr('versioningStatus_' + st), exp ? tr('videoVersioningExported') : ''].filter(Boolean).join(' · '))}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}${st === 'draft' ? '' : ' · ' + escapeHtml(tr('versioningStatus_' + st))}</span>`; }).join('')
-      : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
-    return `
-      <div class="video-library-item">
-        <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(c.title || (c.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'))}</div>
-          <div class="video-library-item-meta">${escapeHtml(meta)}</div>
-          <div class="video-versioning-versions">${chips}</div>
-        </div>
-        <button class="btn btn-small" type="button" data-atelier-pack="${escapeHtml(c.packId)}" data-atelier-montage="${escapeHtml(c.id)}">${escapeHtml(tr('videoVersioningOpenBtn'))}</button>
-      </div>`;
-  }).join('');
-  listEl.querySelectorAll('[data-atelier-montage]').forEach(b => b.addEventListener('click', () => openVideoAtelier({ packId: b.dataset.atelierPack, montageId: b.dataset.atelierMontage })));
+  el.bar.hidden = false;
+  try { await fetchVideoProjects(); }
+  catch (e) { window.LayerPitchNotify.error(tr('videoVersioningLoadFailed', { error: e.message })); return; }
+  await renderVideoProjectBar();
+  showSelectedVideoProject(false);
 }
+// Liste mise à jour (enregistrement dans l'atelier, projet créé…) sans recharger le cadre.
+async function refreshVideoProjects() {
+  if (!videoProjectsMode() || !document.getElementById('videoProjectBar') || document.getElementById('videoProjectBar').hidden) return;
+  try { await fetchVideoProjects(); } catch (e) { return; }
+  await renderVideoProjectBar();
+}
+(function wireVideoProjects() {
+  const sel = document.getElementById('videoProjectSelect');
+  const newBtn = document.getElementById('videoProjectNewBtn');
+  const delBtn = document.getElementById('videoProjectDeleteBtn');
+  const dialog = document.getElementById('videoProjectDialog');
+  if (!sel || !newBtn || !delBtn || !dialog) return;
+  sel.addEventListener('change', async () => {
+    videoProjectSelectedId = sel.value || null;
+    await renderVideoProjectBar();
+    showSelectedVideoProject(false);
+  });
+  const nameEl = document.getElementById('videoProjectName');
+  const packEl = document.getElementById('videoProjectPack');
+  const errEl = document.getElementById('videoProjectError');
+  const createBtn = document.getElementById('videoProjectCreateBtn');
+  newBtn.addEventListener('click', () => {
+    errEl.textContent = '';
+    nameEl.value = '';
+    const own = packs || [];
+    packEl.innerHTML = own.length ? own.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.title || tr('defaultPackTitle'))}</option>`).join('')
+      : `<option value="">${escapeHtml(tr('videoProjectNoPack'))}</option>`;
+    createBtn.disabled = !own.length;
+    dialog.showModal();
+    nameEl.focus();
+  });
+  document.getElementById('videoProjectCancelBtn').addEventListener('click', () => dialog.close());
+  document.getElementById('videoProjectForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const title = nameEl.value.trim();
+    if (!title) { errEl.textContent = tr('videoProjectNameRequired'); return; }
+    if (!packEl.value) { errEl.textContent = tr('videoProjectNoPack'); return; }
+    createBtn.disabled = true;
+    try {
+      const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      // Montage vide : pas encore de vidéo (elle se choisit dans l'atelier), pas de prise.
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('save_video_capture', {
+        p_id: id, p_pack_id: packEl.value, p_title: title, p_video_filename: null, p_events: [], p_lane_overrides: {}, p_collapsed_groups: {}, p_markers: [],
+      });
+      if (error) throw error;
+      dialog.close();
+      videoProjectSelectedId = id;
+      await fetchVideoProjects();
+      await renderVideoProjectBar();
+      showSelectedVideoProject(true);
+    } catch (err) {
+      // Pack pas encore en base (créé mais pas sauvegardé) : la clé étrangère le refuse.
+      errEl.textContent = /foreign key|packs/i.test(err.message || '') ? tr('videoProjectPackNotSaved') : tr('videoProjectCreateFailed', { error: err.message });
+    } finally {
+      createBtn.disabled = false;
+    }
+  });
+  delBtn.addEventListener('click', async () => {
+    const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+    if (!cur) return;
+    if (!(await window.LayerPitchNotify.confirm(tr('videoProjectDeleteConfirm', { title: videoProjectTitle(cur) }), { danger: true }))) return;
+    try {
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video_capture', { p_id: cur.id });
+      if (error) throw error;
+      videoProjectSelectedId = null;
+      await fetchVideoProjects();
+      await renderVideoProjectBar();
+      showSelectedVideoProject(true);
+    } catch (err) {
+      window.LayerPitchNotify.error(tr('videoProjectDeleteFailed', { error: err.message }));
+    }
+  });
+})();
 
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés
 // (remoteFile non nul -- un pendingFile jamais uploadé n'existe pas sur R2, rien à supprimer) d'un

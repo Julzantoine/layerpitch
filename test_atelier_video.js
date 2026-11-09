@@ -26,12 +26,12 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('atelier : données publiées du compositeur du pack (le sien ou le vendeur)', /lastResolvedOwnerId = owner\.owner_id/.test(atelier) && /loadSiteDataFromPostgres\(owner\.owner_id\)/.test(atelier));
   check('atelier : prévient la page qui l’accueille (même origine)', /postMessage\(Object\.assign\(\{ source: 'lp-atelier', type \}/.test(atelier) && /location\.origin\)/.test(atelier));
 
-  // Backstage : sous-onglet Atelier (cadre), Versioning et bloc vidéo l'ouvrent.
+  // Backstage : sous-onglet Projets vidéo (cadre) et bloc vidéo l'ouvrent.
   const bs = read('layerpitch-backstage.html');
   check('Backstage : sous-onglet Atelier = cadre atelier.html', /<iframe id="videoAtelierFrame"/.test(bs) && /return '\.\/atelier\.html\?' \+/.test(bs));
   check('Backstage : plus de lien vers l’outil de la page pack', !/pack\.html\?[^`'"]*capture=1/.test(bs) && !/capture=1&montage/.test(bs));
-  check('Backstage : « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc) ouvrent l’atelier sur le montage',
-    /openVideoAtelier\(\{ packId: b\.dataset\.atelierPack, montageId: b\.dataset\.atelierMontage \}\)/.test(bs) && /openVideoAtelier\(\{ packId: newVersion\.dataset\.pack, montageId: newVersion\.dataset\.montage \}\)/.test(bs));
+  check('Backstage : projet vidéo choisi (et « Créer une version vidéo » du bloc) ouvrent l’atelier sur le montage',
+    /function videoProjectFrameUrl\(p\) \{ return videoAtelierUrl\(\{ packId: p\.packId, montageId: p\.id \}\); \}/.test(bs) && /openVideoAtelier\(\{ packId: newVersion\.dataset\.pack, montageId: newVersion\.dataset\.montage \}\)/.test(bs));
   check('Backstage : bloc vidéo → « Faire une vidéo avec un pack (atelier) »', /data-role="openAtelier"/.test(bs) && /atelierBtn\.addEventListener\('click', \(\) => openVideoAtelier\(\)\)/.test(bs));
   check('Backstage : messages de l’atelier acceptés de la même origine seulement', /if \(e\.origin !== location\.origin \|\| !e\.data \|\| e\.data\.source !== 'lp-atelier'\) return;/.test(bs));
   const studio = read('studio.html');
