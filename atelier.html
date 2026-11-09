@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794255065639">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794255065639">
+<link rel="stylesheet" href="player.css?v=1794256532982">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794256532982">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -194,15 +194,6 @@
   .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
   @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   .video-capture-count { flex: 1; }
-  .video-capture-armed-status { color: #e74c3c; }
-  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
-     discret par défaut, coloré quand la piste est armée. */
-  .video-capture-arm-track-btn {
-    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
-    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
-  }
-  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
-  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
   .video-capture-download-btn {
     padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
     cursor: pointer; font-size: 11px;
@@ -542,16 +533,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794255065639"></script>
-<script src="layerpitch-notify.js?v=1794255065639"></script>
-<script src="public-page.js?v=1794255065639"></script>
-<script src="player.js?v=1794255065639"></script>
-<script src="capture-plan.js?v=1794255065639"></script>
-<script src="capture-render.js?v=1794255065639"></script>
-<script src="capture-retarget.js?v=1794255065639"></script>
-<script src="capture-versioning.js?v=1794255065639"></script>
-<script src="layerpitch-guide.js?v=1794255065639"></script>
-<script src="atelier-lecons.js?v=1794255065639"></script>
+<script src="layerpitch-i18n.js?v=1794256532982"></script>
+<script src="layerpitch-notify.js?v=1794256532982"></script>
+<script src="public-page.js?v=1794256532982"></script>
+<script src="player.js?v=1794256532982"></script>
+<script src="capture-plan.js?v=1794256532982"></script>
+<script src="capture-render.js?v=1794256532982"></script>
+<script src="capture-retarget.js?v=1794256532982"></script>
+<script src="capture-versioning.js?v=1794256532982"></script>
+<script src="layerpitch-guide.js?v=1794256532982"></script>
+<script src="atelier-lecons.js?v=1794256532982"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -816,24 +807,9 @@ applyI18n();
 // relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
 let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler }
 
-// Piste armée pour la capture (2026-09-15) -- réglée depuis un bouton ⏺ posé à côté du lecteur de CHAQUE
-// morceau (voir setupCaptureTrigger), exclusif (armer une piste désarme l'ancienne). Persiste tant que la
-// page reste ouverte, indépendamment du panneau de capture -- on arme d'abord dans le lecteur du pack,
-// avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
-// s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
-let armedTrackId = null;
-
-// Affiche la piste armée dans le panneau de capture. Restée dans src/pack/12 lors du passage à l'atelier (21/10) : sans
-// elle, ouvrir le panneau plantait avant de brancher « Démarrer la capture » (rétablie le 04/11, avec startCapture/stopCapture
-// ci-dessous, perdues au même moment : l'atelier ne pouvait plus rien enregistrer).
-function updateArmedStatusDisplay() {
-  const statusEl = document.getElementById('videoCaptureArmedStatus');
-  if (!statusEl) return; // panneau de capture pas encore ouvert
-  if (!armedTrackId) { statusEl.textContent = tr('captureArmedNone'); return; }
-  const row = document.querySelector(`[data-track-id="${armedTrackId}"]`);
-  const titleEl = row && row.querySelector('[data-role="titleToggle"]');
-  statusEl.textContent = tr('captureArmedLabel').replace('{name}', titleEl ? titleEl.textContent.trim() : armedTrackId);
-}
+// Plus d'armement (06/11, retour de Jules-Antoine : « à partir du moment où on fait une capture, tout ce sur quoi on clique est
+// enregistré ») : « Démarrer la capture » lance la vidéo, puis chaque morceau, Sfx, calque, curseur... déclenché pendant la prise
+// laisse son repère. Les ⏺ posés à côté des morceaux et le statut « piste armée » ont été retirés.
 
 function startCapture(videoEl) {
   const events = [];
@@ -860,7 +836,7 @@ function startCapture(videoEl) {
   document.addEventListener('layerpitch-head-yaw', headHandler);
   const yaw0 = window.LayerPlayerCore && window.LayerPlayerCore.getListenerYaw ? window.LayerPlayerCore.getListenerYaw() : 0;
   if (yaw0) events.push({ t: stamp(P.audioNow()), name: 'head_turn', detail: { yaw: yaw0 } });
-  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur. Au démarrage d'une piste armée, le lecteur
+  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur. Au démarrage d'un morceau, le lecteur
   // remet les curseurs à leur position de départ SANS émettre : l'état initial d'une prise est la valeur par défaut.
   const sliderHandler = (e) => events.push({ t: stamp(P.audioNow()), name: 'fx_slider', detail: { trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value } });
   document.addEventListener('layerpitch-fx-slider', sliderHandler);
@@ -2153,11 +2129,39 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// Progression d'envoi (09/11) : même principe que dans le Backstage (src/backstage/41-envoi-r2-et-bibliotheque-video.js) -- fetch() ne donne
+// pas l'avancement d'un envoi, donc XMLHttpRequest quand un onProgress(envoyé, total) est fourni.
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+// Texte d'avancement affiché pendant un envoi, au plus 4 fois par seconde.
+function uploadProgressReporter(onStatus) {
+  if (!onStatus) return undefined;
+  let last = 0;
+  return (done, total) => {
+    const now = Date.now();
+    if (done < total && now - last < 250) return;
+    last = now;
+    onStatus(tr('captureUploadingProgress').replace('{pct}', Math.round(done / total * 100)).replace('{done}', (done / 1048576).toFixed(1)).replace('{total}', (total / 1048576).toFixed(1)));
+  };
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -2165,6 +2169,18 @@ async function r2PutFile(key, bytes, contentType) {
 }
 // Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
 async function makeSilentVideo(videoFile, onProgress) {
+  // 09/11 : par WebCodecs + Mediabunny d'abord (layerpitch-video-compress.js, même règles que la bibliothèque du Backstage) : une vidéo chargée depuis
+  // l'ordinateur n'était JAMAIS compressée ici (-c:v copy) et partait en taille brute ; elle est désormais compressée si elle est lourde, et recopiée
+  // telle quelle si elle est déjà légère. Repli sur l'ancienne copie ffmpeg.wasm (sans compression) si le navigateur ne peut pas.
+  try {
+    return await window.LayerPitchVideoCompress.compress(videoFile, {
+      keepAudio: false,
+      log: (msg) => console.info('LayerPitch — vidéo muette :', msg),
+      onProgress: (pct) => { onProgress && onProgress(tr('captureMakingSilentVideo') + ' ' + pct + ' %'); },
+    });
+  } catch (e) {
+    console.warn('LayerPitch — vidéo muette : compression WebCodecs impossible, repli sur ffmpeg.wasm (copie sans compression) :', e);
+  }
   const ffmpeg = await loadFfmpegWasm(onProgress);
   const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
   await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));
@@ -2199,13 +2215,13 @@ async function r2DeleteRemovedVideos(removed) {
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
 // kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
 // d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind, onStatus) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
     const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
-    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    await r2PutFile(`video/${id}/${fileName}`, blob, 'video/mp4', uploadProgressReporter(onStatus));
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
@@ -2593,7 +2609,6 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-export-opt" title="${tr('captureStopFadeHelp')}">
         ${tr('captureStopFadeLabel')} <input type="number" id="videoCaptureStopFade" min="0" max="10" step="0.5"> s
       </label>
-      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
     </div>
     </div>
@@ -2620,7 +2635,6 @@ function openCapturePanel(file, opts) {
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   pinCaptureVideo(panel);
-  updateArmedStatusDisplay(); // reflète tout de suite une piste déjà armée avant l'ouverture du panneau
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
@@ -2840,9 +2854,9 @@ function openCapturePanel(file, opts) {
       // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
       // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
       // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
-      // train de jouer. Couvre la piste armée ET toutes celles lancées pendant la prise (04/11 : la leçon Versioning
+      // train de jouer. Couvre tous les morceaux lancés pendant la prise (04/11 : la leçon Versioning
       // passe de la rue au club en changeant de morceau, le second continuait de jouer après l'arrêt).
-      new Set([armedTrackId].concat(newPassEvents.map(e => e.detail && e.detail.trackId)).filter(Boolean))
+      new Set(newPassEvents.map(e => e.detail && e.detail.trackId).filter(Boolean))
         .forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
       videoEl.pause();
       recordBtn.classList.remove('recording');
@@ -2869,27 +2883,9 @@ function openCapturePanel(file, opts) {
       // a alors qu'une seule passe.
       if (additive) videoEl.currentTime = 0;
       startCapture(videoEl);
-      // Démarrer la capture doit vraiment lancer la vidéo ET la piste armée (2026-09-16, retour direct
-      // de Jules-Antoine en testant : "Start capture doit lancer la vidéo et la musique qui est armée.
-      // Ça ne fait ni l'un ni l'autre") -- avant, seul un repère track_play SYNTHÉTIQUE était injecté
-      // dans les événements, sans jamais vraiment démarrer quoi que ce soit à l'écran ni au casque.
-      // videoEl.play() ET un vrai clic simulé sur le bouton de lecture réel de la piste armée, tous les
-      // deux SYNCHRONES dans le même geste utilisateur que le clic sur "Démarrer la capture" (nécessaire
-      // pour que les navigateurs autorisent la lecture -- un geste différé, même de quelques
-      // millisecondes via un timeout, serait refusé). Le clic réel traverse toute la vraie logique de
-      // player.js (choix initial selon le mode, vraie télémétrie track_play...) -- capturée normalement
-      // par l'interception déjà active (startCapture ci-dessus) -- pas besoin de réimplémenter "démarrer
-      // une piste" ni de deviner ce que "niveau 0"/"boucle de référence" veut dire selon le mode.
+      // Démarrer la capture lance la vidéo (geste synchrone avec le clic, sinon le navigateur refuse la lecture). Rien d'autre
+      // n'est lancé : les morceaux et Sfx sont déclenchés à la main pendant la prise, et chacun est enregistré.
       videoEl.play().catch(() => {}); // ignore un refus navigateur (rare -- ex. vidéo déjà en lecture)
-      if (armedTrackId) {
-        const armedPlayBtn = document.querySelector(`[data-track-id="${armedTrackId}"] [data-role="playBtn"]`);
-        if (armedPlayBtn) {
-          armedPlayBtn.click();
-        } else {
-          // Repli si le bouton n'est plus dans le DOM (cas limite) -- au moins un repère, comme avant.
-          videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
-        }
-      }
       recordBtn.classList.add('recording');
       recordLabel.textContent = tr('captureStopBtn');
       countEl.textContent = tr('captureInProgress');
@@ -2981,7 +2977,7 @@ function openCapturePanel(file, opts) {
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null, undefined, (msg) => { exportStatus.textContent = msg; });
       // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
       // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');
@@ -3004,7 +3000,7 @@ function openCapturePanel(file, opts) {
     if (!cur.error && cur.data) return cur.data;
     onStatus(tr('captureMakingSilentVideo'));
     const blob = await makeSilentVideo(file, onStatus);
-    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
+    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base', onStatus);
     const { error } = await client.rpc('set_video_capture_base', withStudio({ p_capture_id: savedCaptureId, p_video_id: id }));
     if (error) throw error;
     return id;
@@ -3017,7 +3013,7 @@ function openCapturePanel(file, opts) {
     onStatus(tr('captureEncodingSound'));
     const sound = await encodeSoundForLibrary(wav, onStatus);
     onStatus(tr('captureAddingToLibrary'));
-    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio');
+    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio', onStatus);
   }
   // --- Enregistrement automatique et publication du montage (06/11, décidé avec Jules-Antoine) -------------------------------------
   // Plus de bouton « Sauvegarder » : toute retouche (prise, frise, noms, repères, titre) est enregistrée toute seule, sans geste, une
@@ -3377,28 +3373,6 @@ async function setupCaptureTrigger(pack, container, opts) {
   const montageParam = new URLSearchParams(location.search).get('montage');
   if (montageParam) openVideoCaptureDialog(montageParam);
 
-  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
-  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
-  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
-  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
-  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
-  document.querySelectorAll('[data-track-id]').forEach(row => {
-    const playBtn = row.querySelector('[data-role="playBtn"]');
-    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
-    const armBtn = document.createElement('button');
-    armBtn.type = 'button';
-    armBtn.className = 'video-capture-arm-track-btn';
-    armBtn.textContent = '⏺';
-    armBtn.title = tr('captureArmBtnTitle');
-    armBtn.addEventListener('click', () => {
-      const trackId = row.dataset.trackId;
-      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
-      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
-      if (armedTrackId === trackId) armBtn.classList.add('armed');
-      updateArmedStatusDisplay();
-    });
-    playBtn.insertAdjacentElement('afterend', armBtn);
-  });
   return true;
 }
 
@@ -3610,7 +3584,12 @@ async function init() {
       return;
     }
     atelierFillPackSelect(select, choices, packId);
-    row.hidden = false;
+    // Ouvert sur un projet vidéo (09/11, &montage=<id> depuis le Backstage) : le pack est celui du projet, choisi dans le Backstage -- ni liste de packs
+    // ni phrase « choisis le pack » ici. Tutoriel : parcours guidé inchangé.
+    const inProject = atelierParams.has('montage') && !atelierParams.has('tuto');
+    row.hidden = inProject;
+    const introEl = document.querySelector('.atelier-intro');
+    if (introEl) introEl.hidden = inProject;
     if (!select.dataset.bound) {
       select.dataset.bound = '1';
       select.addEventListener('change', () => {
