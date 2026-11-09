@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794258907856">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794259114959">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -354,6 +354,8 @@
   .content-appearance-toggle { display: flex; gap: 6px; margin-top: 10px; }
   .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 2px; font-size: 12px; border: 1px solid #e2e2e6; border-radius: 6px; }
   .content-appearance-toggle .nav-item.active { border-color: #262521; }
+  /* Onglets de la page Vidéo : toujours visibles sous la barre du haut (09/11) -- sinon leur bas dépasse, coupé, quand on défile. */
+  #panelVideoLibrary > .content-appearance-toggle { position: sticky; top: var(--lp-topbar-bottom, 60px); z-index: 300; background: var(--backstage-bg); padding: 6px 0 8px; margin-top: 4px; }
   .backstage-content { flex: 1; min-width: 0; }
   /* Barre repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js, classe posée sur
      <html>). Repliée = icônes seules, libellés en infobulle ; le bloc « AdReel en édition » ne garde que Contenu /
@@ -2118,19 +2120,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794258907856"></script>
-<script src="layerpitch-i18n.js?v=1794258907856"></script>
-<script src="layerpitch-import-engine.js?v=1794258907856"></script>
-<script src="layerpitch-appearance.js?v=1794258907856"></script>
-<script src="layerpitch-album-shared.js?v=1794258907856"></script>
-<script src="layerpitch-album-editor.js?v=1794258907856"></script>
-<script src="layerpitch-shell.js?v=1794258907856"></script>
-<script src="layerpitch-social-icons.js?v=1794258907856"></script>
-<script src="layerpitch-notify.js?v=1794258907856"></script>
-<script src="layerpitch-guide.js?v=1794258907856"></script>
-<script src="layerpitch-lesson-previews.js?v=1794258907856"></script>
-<script src="layerpitch-help.js?v=1794258907856"></script>
-<script src="player.js?v=1794258907856"></script>
+<script src="layerpitch-tuto.js?v=1794259114959"></script>
+<script src="layerpitch-i18n.js?v=1794259114959"></script>
+<script src="layerpitch-import-engine.js?v=1794259114959"></script>
+<script src="layerpitch-appearance.js?v=1794259114959"></script>
+<script src="layerpitch-album-shared.js?v=1794259114959"></script>
+<script src="layerpitch-album-editor.js?v=1794259114959"></script>
+<script src="layerpitch-shell.js?v=1794259114959"></script>
+<script src="layerpitch-social-icons.js?v=1794259114959"></script>
+<script src="layerpitch-notify.js?v=1794259114959"></script>
+<script src="layerpitch-guide.js?v=1794259114959"></script>
+<script src="layerpitch-lesson-previews.js?v=1794259114959"></script>
+<script src="layerpitch-help.js?v=1794259114959"></script>
+<script src="player.js?v=1794259114959"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15704,6 +15706,17 @@ function ensureVideoAtelierLoaded() {
   const frame = document.getElementById('videoAtelierFrame');
   if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
 }
+// 09/11 : les onglets Bibliothèque / Atelier / Versioning restent collés sous la barre du haut (sticky) ; leur position dépend de la hauteur de
+// cette barre (elle passe sur deux lignes sur une fenêtre étroite), mesurée ici et recalculée quand elle change.
+(function trackTopbarHeight() {
+  try {
+    const row = document.querySelector('.page-top-row');
+    if (!row || typeof ResizeObserver === 'undefined') return;
+    const apply = () => document.documentElement.style.setProperty('--lp-topbar-bottom', (12 + row.offsetHeight - 4) + 'px');
+    new ResizeObserver(apply).observe(row);
+    apply();
+  } catch (e) { /* mesure facultative : sans elle, les onglets se calent sous 60 px */ }
+})();
 // 04/11 : l'atelier ne lit que ce qui est en base. Ligne d'avertissement tant qu'il reste des changements non sauvegardés (un pack tout
 // juste créé n'y apparaît qu'après « Sauvegarder / publier ») ; revérifiée après chaque clic ou saisie (toute modification en passe par
 // là), rien à brancher sur chaque modification. Pas de minuterie : elle empêchait les tests (Node) de se terminer.

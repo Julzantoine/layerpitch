@@ -491,6 +491,17 @@ function ensureVideoAtelierLoaded() {
   const frame = document.getElementById('videoAtelierFrame');
   if (frame && !frame.getAttribute('src')) frame.src = videoAtelierUrl();
 }
+// 09/11 : les onglets Bibliothèque / Atelier / Versioning restent collés sous la barre du haut (sticky) ; leur position dépend de la hauteur de
+// cette barre (elle passe sur deux lignes sur une fenêtre étroite), mesurée ici et recalculée quand elle change.
+(function trackTopbarHeight() {
+  try {
+    const row = document.querySelector('.page-top-row');
+    if (!row || typeof ResizeObserver === 'undefined') return;
+    const apply = () => document.documentElement.style.setProperty('--lp-topbar-bottom', (12 + row.offsetHeight - 4) + 'px');
+    new ResizeObserver(apply).observe(row);
+    apply();
+  } catch (e) { /* mesure facultative : sans elle, les onglets se calent sous 60 px */ }
+})();
 // 04/11 : l'atelier ne lit que ce qui est en base. Ligne d'avertissement tant qu'il reste des changements non sauvegardés (un pack tout
 // juste créé n'y apparaît qu'après « Sauvegarder / publier ») ; revérifiée après chaque clic ou saisie (toute modification en passe par
 // là), rien à brancher sur chaque modification. Pas de minuterie : elle empêchait les tests (Node) de se terminer.

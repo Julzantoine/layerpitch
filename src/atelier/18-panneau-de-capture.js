@@ -192,14 +192,11 @@ function openCapturePanel(file, opts) {
     </div>
     </div>
     <div class="video-capture-bar">
-      <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
-        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
-      </label>
-      <label class="video-capture-count" id="videoCaptureKeepOldLabel" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
+      <input type="checkbox" id="videoCaptureCreditCheckbox" checked hidden>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
+      <label class="video-capture-count" id="videoCaptureKeepOldLabel" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
@@ -218,8 +215,7 @@ function openCapturePanel(file, opts) {
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
-  const exportAudioBtn = document.getElementById('videoCaptureExportAudioBtn');
-  const exportCopyBtn = document.getElementById('videoCaptureExportCopyBtn');
+  const exportBtn = document.getElementById('videoCaptureExportBtn');
   // Export COMPLET (image ré-encodée avec ffmpeg.wasm : ~10 min pour 3 min de vidéo) : bouton retiré de ce panneau le 09/11 (demande de
   // Jules-Antoine) ; il reste dans le Versioning (version rendue), grisé pour tout compte non-admin tant qu'il n'y a pas d'abonnement
   // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Ici : audio seul et vidéo sans ré-encodage.
@@ -229,7 +225,7 @@ function openCapturePanel(file, opts) {
   const captureLevel = window.__lpCaptureLevel || 'capture';
   const captureCanEdit = captureLevel !== 'capture';
   const captureCanSave = captureLevel === 'saved';
-  const setExportButtonsDisabled = (v) => { exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
+  const setExportButtonsDisabled = (v) => { exportBtn.disabled = v; };
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
   const keepOldCheckbox = document.getElementById('videoCaptureKeepOld');
@@ -541,8 +537,32 @@ function openCapturePanel(file, opts) {
       setExportButtonsDisabled(lastEvents.length === 0);
     }
   }
-  exportAudioBtn.addEventListener('click', () => runExport('audio'));
-  exportCopyBtn.addEventListener('click', () => runExport('copy'));
+  // Un seul bouton « Exporter… » (09/11, demande de Jules-Antoine) : les choix (audio seul ou vidéo, crédit compositeur) se posent
+  // au moment de l'export, dans ce petit dialogue, plutôt que d'encombrer la barre de commandes.
+  const exportDialog = document.createElement('dialog');
+  exportDialog.className = 'video-test-dialog';
+  const esc = window.LayerPlayerCore.escapeHtml;
+  exportDialog.innerHTML = `<form method="dialog" class="video-test-form">
+      <div class="video-test-dialog-title">${esc(tr('captureExportMenuTitle'))}</div>
+      <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
+      <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
+      <label class="atelier-export-opt" title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
+      <div class="video-test-dialog-actions">
+        <button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button>
+        <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('captureExportGoBtn'))}</button>
+      </div>
+    </form>`;
+  panel.appendChild(exportDialog);
+  exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
+  exportBtn.addEventListener('click', () => {
+    exportDialog.querySelector('#atelierExportCredit').checked = creditCheckbox.checked;
+    exportDialog.showModal();
+  });
+  exportDialog.addEventListener('close', () => {
+    if (exportDialog.returnValue !== 'go') return;
+    creditCheckbox.checked = exportDialog.querySelector('#atelierExportCredit').checked;
+    runExport(exportDialog.querySelector('input[name="atelierExportMode"]:checked').value);
+  });
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
   // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
   // exporter plusieurs essais avant de choisir lequel garder). Réutilise le champ "Nom de la prise"

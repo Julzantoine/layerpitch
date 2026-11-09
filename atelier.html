@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794258907856">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794258907856">
+<link rel="stylesheet" href="player.css?v=1794259114959">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794259114959">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -494,6 +494,9 @@
 
   .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
   .vct-zoom-slider { width: 130px; accent-color: #2f80c0; }
+
+  .atelier-export-opt { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+  .atelier-export-opt input { width: auto; margin: 0; }
 </style>
 </head>
 <body>
@@ -541,16 +544,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794258907856"></script>
-<script src="layerpitch-notify.js?v=1794258907856"></script>
-<script src="public-page.js?v=1794258907856"></script>
-<script src="player.js?v=1794258907856"></script>
-<script src="capture-plan.js?v=1794258907856"></script>
-<script src="capture-render.js?v=1794258907856"></script>
-<script src="capture-retarget.js?v=1794258907856"></script>
-<script src="capture-versioning.js?v=1794258907856"></script>
-<script src="layerpitch-guide.js?v=1794258907856"></script>
-<script src="atelier-lecons.js?v=1794258907856"></script>
+<script src="layerpitch-i18n.js?v=1794259114959"></script>
+<script src="layerpitch-notify.js?v=1794259114959"></script>
+<script src="public-page.js?v=1794259114959"></script>
+<script src="player.js?v=1794259114959"></script>
+<script src="capture-plan.js?v=1794259114959"></script>
+<script src="capture-render.js?v=1794259114959"></script>
+<script src="capture-retarget.js?v=1794259114959"></script>
+<script src="capture-versioning.js?v=1794259114959"></script>
+<script src="layerpitch-guide.js?v=1794259114959"></script>
+<script src="atelier-lecons.js?v=1794259114959"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2614,14 +2617,11 @@ function openCapturePanel(file, opts) {
     </div>
     </div>
     <div class="video-capture-bar">
-      <label class="video-capture-export-opt" title="${tr('captureCreditHelp')}">
-        <input type="checkbox" id="videoCaptureCreditCheckbox" checked> ${tr('captureCreditLabel')}
-      </label>
-      <label class="video-capture-count" id="videoCaptureKeepOldLabel" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportAudioBtn" disabled title="${tr('captureExportAudioHelp')}">${tr('captureExportAudioBtn')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoCaptureExportCopyBtn" disabled title="${tr('captureExportCopyHelp')}">${tr('captureExportCopyBtn')}</button>
+      <input type="checkbox" id="videoCaptureCreditCheckbox" checked hidden>
+      <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
+      <label class="video-capture-count" id="videoCaptureKeepOldLabel" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
@@ -2640,8 +2640,7 @@ function openCapturePanel(file, opts) {
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
   const countEl = document.getElementById('videoCaptureCount');
-  const exportAudioBtn = document.getElementById('videoCaptureExportAudioBtn');
-  const exportCopyBtn = document.getElementById('videoCaptureExportCopyBtn');
+  const exportBtn = document.getElementById('videoCaptureExportBtn');
   // Export COMPLET (image ré-encodée avec ffmpeg.wasm : ~10 min pour 3 min de vidéo) : bouton retiré de ce panneau le 09/11 (demande de
   // Jules-Antoine) ; il reste dans le Versioning (version rendue), grisé pour tout compte non-admin tant qu'il n'y a pas d'abonnement
   // multicoeur (compression côté serveur, voir la note sur les limites de ffmpeg.wasm). Ici : audio seul et vidéo sans ré-encodage.
@@ -2651,7 +2650,7 @@ function openCapturePanel(file, opts) {
   const captureLevel = window.__lpCaptureLevel || 'capture';
   const captureCanEdit = captureLevel !== 'capture';
   const captureCanSave = captureLevel === 'saved';
-  const setExportButtonsDisabled = (v) => { exportAudioBtn.disabled = v; exportCopyBtn.disabled = v; };
+  const setExportButtonsDisabled = (v) => { exportBtn.disabled = v; };
   const addToLibraryBtn = document.getElementById('videoCaptureAddToLibraryBtn');
   const updateEverywhereBtn = document.getElementById('videoCaptureUpdateEverywhereBtn');
   const keepOldCheckbox = document.getElementById('videoCaptureKeepOld');
@@ -2963,8 +2962,32 @@ function openCapturePanel(file, opts) {
       setExportButtonsDisabled(lastEvents.length === 0);
     }
   }
-  exportAudioBtn.addEventListener('click', () => runExport('audio'));
-  exportCopyBtn.addEventListener('click', () => runExport('copy'));
+  // Un seul bouton « Exporter… » (09/11, demande de Jules-Antoine) : les choix (audio seul ou vidéo, crédit compositeur) se posent
+  // au moment de l'export, dans ce petit dialogue, plutôt que d'encombrer la barre de commandes.
+  const exportDialog = document.createElement('dialog');
+  exportDialog.className = 'video-test-dialog';
+  const esc = window.LayerPlayerCore.escapeHtml;
+  exportDialog.innerHTML = `<form method="dialog" class="video-test-form">
+      <div class="video-test-dialog-title">${esc(tr('captureExportMenuTitle'))}</div>
+      <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
+      <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
+      <label class="atelier-export-opt" title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
+      <div class="video-test-dialog-actions">
+        <button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button>
+        <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('captureExportGoBtn'))}</button>
+      </div>
+    </form>`;
+  panel.appendChild(exportDialog);
+  exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
+  exportBtn.addEventListener('click', () => {
+    exportDialog.querySelector('#atelierExportCredit').checked = creditCheckbox.checked;
+    exportDialog.showModal();
+  });
+  exportDialog.addEventListener('close', () => {
+    if (exportDialog.returnValue !== 'go') return;
+    creditCheckbox.checked = exportDialog.querySelector('#atelierExportCredit').checked;
+    runExport(exportDialog.querySelector('input[name="atelierExportMode"]:checked').value);
+  });
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
   // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
   // exporter plusieurs essais avant de choisir lequel garder). Réutilise le champ "Nom de la prise"

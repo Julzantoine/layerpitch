@@ -98,3 +98,6 @@
 
   .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
   .vct-zoom-slider { width: 130px; accent-color: #2f80c0; }
+
+  .atelier-export-opt { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+  .atelier-export-opt input { width: auto; margin: 0; }

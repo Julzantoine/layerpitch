@@ -338,6 +338,8 @@
   .content-appearance-toggle { display: flex; gap: 6px; margin-top: 10px; }
   .content-appearance-toggle .nav-item { flex: 1; justify-content: center; margin-bottom: 0; padding: 6px 2px; font-size: 12px; border: 1px solid #e2e2e6; border-radius: 6px; }
   .content-appearance-toggle .nav-item.active { border-color: #262521; }
+  /* Onglets de la page Vidéo : toujours visibles sous la barre du haut (09/11) -- sinon leur bas dépasse, coupé, quand on défile. */
+  #panelVideoLibrary > .content-appearance-toggle { position: sticky; top: var(--lp-topbar-bottom, 60px); z-index: 300; background: var(--backstage-bg); padding: 6px 0 8px; margin-top: 4px; }
   .backstage-content { flex: 1; min-width: 0; }
   /* Barre repliable (28/09) : même bouton et même réglage que les autres pages (layerpitch-shell.js, classe posée sur
      <html>). Repliée = icônes seules, libellés en infobulle ; le bloc « AdReel en édition » ne garde que Contenu /
