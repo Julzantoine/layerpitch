@@ -8,24 +8,9 @@
 // relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
 let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler }
 
-// Piste armée pour la capture (2026-09-15) -- réglée depuis un bouton ⏺ posé à côté du lecteur de CHAQUE
-// morceau (voir setupCaptureTrigger), exclusif (armer une piste désarme l'ancienne). Persiste tant que la
-// page reste ouverte, indépendamment du panneau de capture -- on arme d'abord dans le lecteur du pack,
-// avant même d'ouvrir "Capturer une prise" (confirmé par Jules-Antoine 2026-09-15 : "on va d'abord
-// s'intéresser au lecteur du pack, avant d'aller dans l'éditeur vidéo").
-let armedTrackId = null;
-
-// Affiche la piste armée dans le panneau de capture. Restée dans src/pack/12 lors du passage à l'atelier (21/10) : sans
-// elle, ouvrir le panneau plantait avant de brancher « Démarrer la capture » (rétablie le 04/11, avec startCapture/stopCapture
-// ci-dessous, perdues au même moment : l'atelier ne pouvait plus rien enregistrer).
-function updateArmedStatusDisplay() {
-  const statusEl = document.getElementById('videoCaptureArmedStatus');
-  if (!statusEl) return; // panneau de capture pas encore ouvert
-  if (!armedTrackId) { statusEl.textContent = tr('captureArmedNone'); return; }
-  const row = document.querySelector(`[data-track-id="${armedTrackId}"]`);
-  const titleEl = row && row.querySelector('[data-role="titleToggle"]');
-  statusEl.textContent = tr('captureArmedLabel').replace('{name}', titleEl ? titleEl.textContent.trim() : armedTrackId);
-}
+// Plus d'armement (06/11, retour de Jules-Antoine : « à partir du moment où on fait une capture, tout ce sur quoi on clique est
+// enregistré ») : « Démarrer la capture » lance la vidéo, puis chaque morceau, Sfx, calque, curseur... déclenché pendant la prise
+// laisse son repère. Les ⏺ posés à côté des morceaux et le statut « piste armée » ont été retirés.
 
 function startCapture(videoEl) {
   const events = [];
@@ -52,7 +37,7 @@ function startCapture(videoEl) {
   document.addEventListener('layerpitch-head-yaw', headHandler);
   const yaw0 = window.LayerPlayerCore && window.LayerPlayerCore.getListenerYaw ? window.LayerPlayerCore.getListenerYaw() : 0;
   if (yaw0) events.push({ t: stamp(P.audioNow()), name: 'head_turn', detail: { yaw: yaw0 } });
-  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur. Au démarrage d'une piste armée, le lecteur
+  // Curseurs de paramètre (24/09) : même principe, évènement DOM du lecteur. Au démarrage d'un morceau, le lecteur
   // remet les curseurs à leur position de départ SANS émettre : l'état initial d'une prise est la valeur par défaut.
   const sliderHandler = (e) => events.push({ t: stamp(P.audioNow()), name: 'fx_slider', detail: { trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value } });
   document.addEventListener('layerpitch-fx-slider', sliderHandler);

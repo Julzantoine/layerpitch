@@ -19,8 +19,9 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('atelier : choix du pack, outil, dialogue de la vidéo, leçon', /id="atelierPackSelect"/.test(atelier) && /async function setupCaptureTrigger\(pack, container, opts\)/.test(atelier)
     && /id="videoCaptureDialog"/.test(atelier) && /function openCapturePanel/.test(atelier) && /atelier-lecons\.js/.test(atelier) && /capture-versioning\.js/.test(atelier));
   // 04/11 : ces trois fonctions s'étaient perdues au déplacement (21/10), l'atelier ne pouvait plus rien enregistrer.
-  check('atelier : la capture démarre, s’arrête et montre la piste armée', ['startCapture', 'stopCapture', 'updateArmedStatusDisplay'].every(f => new RegExp('function ' + f + '\\(').test(atelier)));
-  check('atelier : arrêter la capture arrête aussi les morceaux lancés pendant la prise', /new Set\(\[armedTrackId\]\.concat\(newPassEvents\.map/.test(atelier));
+  check('atelier : la capture démarre et s’arrête', ['startCapture', 'stopCapture'].every(f => new RegExp('function ' + f + '\\(').test(atelier)));
+  check('atelier : plus d’armement : ni bouton ⏺ ni piste armée', !/armedTrackId|video-capture-arm-track-btn/.test(atelier));
+  check('atelier : arrêter la capture arrête aussi les morceaux lancés pendant la prise', /new Set\(newPassEvents\.map/.test(atelier));
   check('atelier : studio = packs achetés par l’équipe, compositeur = ses packs', /client\.rpc\('my_team_purchases'\)/.test(atelier) && /\.eq\('owner_id', composerId\)/.test(atelier));
   check('atelier : plus besoin du réglage « Tester en jeu » du pack', !/if \(!pack\.videoTestModeEnabled\) return/.test(atelier));
   check('atelier : données publiées du compositeur du pack (le sien ou le vendeur)', /lastResolvedOwnerId = owner\.owner_id/.test(atelier) && /loadSiteDataFromPostgres\(owner\.owner_id\)/.test(atelier));

@@ -195,7 +195,6 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-export-opt" title="${tr('captureStopFadeHelp')}">
         ${tr('captureStopFadeLabel')} <input type="number" id="videoCaptureStopFade" min="0" max="10" step="0.5"> s
       </label>
-      <span class="video-capture-armed-status" id="videoCaptureArmedStatus" title="${tr('captureArmedHelp')}"></span>
       <span class="video-capture-count" id="videoCaptureCount"></span>
     </div>
     </div>
@@ -222,7 +221,6 @@ function openCapturePanel(file, opts) {
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   pinCaptureVideo(panel);
-  updateArmedStatusDisplay(); // reflète tout de suite une piste déjà armée avant l'ouverture du panneau
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
@@ -442,9 +440,9 @@ function openCapturePanel(file, opts) {
       // pour arrêter n'importe quelle piste (mécanisme "une seule piste à la fois" de playThisTrack) --
       // réutilisé tel quel plutôt que de deviner l'état interne (playing) depuis l'extérieur du closure
       // de player.js, qu'aucun signal DOM fiable n'expose. Sans effet si la piste n'était déjà plus en
-      // train de jouer. Couvre la piste armée ET toutes celles lancées pendant la prise (04/11 : la leçon Versioning
+      // train de jouer. Couvre tous les morceaux lancés pendant la prise (04/11 : la leçon Versioning
       // passe de la rue au club en changeant de morceau, le second continuait de jouer après l'arrêt).
-      new Set([armedTrackId].concat(newPassEvents.map(e => e.detail && e.detail.trackId)).filter(Boolean))
+      new Set(newPassEvents.map(e => e.detail && e.detail.trackId).filter(Boolean))
         .forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
       videoEl.pause();
       recordBtn.classList.remove('recording');
@@ -471,27 +469,9 @@ function openCapturePanel(file, opts) {
       // a alors qu'une seule passe.
       if (additive) videoEl.currentTime = 0;
       startCapture(videoEl);
-      // Démarrer la capture doit vraiment lancer la vidéo ET la piste armée (2026-09-16, retour direct
-      // de Jules-Antoine en testant : "Start capture doit lancer la vidéo et la musique qui est armée.
-      // Ça ne fait ni l'un ni l'autre") -- avant, seul un repère track_play SYNTHÉTIQUE était injecté
-      // dans les événements, sans jamais vraiment démarrer quoi que ce soit à l'écran ni au casque.
-      // videoEl.play() ET un vrai clic simulé sur le bouton de lecture réel de la piste armée, tous les
-      // deux SYNCHRONES dans le même geste utilisateur que le clic sur "Démarrer la capture" (nécessaire
-      // pour que les navigateurs autorisent la lecture -- un geste différé, même de quelques
-      // millisecondes via un timeout, serait refusé). Le clic réel traverse toute la vraie logique de
-      // player.js (choix initial selon le mode, vraie télémétrie track_play...) -- capturée normalement
-      // par l'interception déjà active (startCapture ci-dessus) -- pas besoin de réimplémenter "démarrer
-      // une piste" ni de deviner ce que "niveau 0"/"boucle de référence" veut dire selon le mode.
+      // Démarrer la capture lance la vidéo (geste synchrone avec le clic, sinon le navigateur refuse la lecture). Rien d'autre
+      // n'est lancé : les morceaux et Sfx sont déclenchés à la main pendant la prise, et chacun est enregistré.
       videoEl.play().catch(() => {}); // ignore un refus navigateur (rare -- ex. vidéo déjà en lecture)
-      if (armedTrackId) {
-        const armedPlayBtn = document.querySelector(`[data-track-id="${armedTrackId}"] [data-role="playBtn"]`);
-        if (armedPlayBtn) {
-          armedPlayBtn.click();
-        } else {
-          // Repli si le bouton n'est plus dans le DOM (cas limite) -- au moins un repère, comme avant.
-          videoCaptureState.events.push({ t: 0, name: 'track_play', detail: { trackId: armedTrackId } });
-        }
-      }
       recordBtn.classList.add('recording');
       recordLabel.textContent = tr('captureStopBtn');
       countEl.textContent = tr('captureInProgress');
