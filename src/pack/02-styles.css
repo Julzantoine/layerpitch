@@ -221,6 +221,20 @@
   .vcv-notes { border-top: 1px dashed #2c2c2c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
   .vcv-note { color: #aaa; }
   .vcv-note-info { color: #9ab; }
+  .vcv-review { font: inherit; padding: 2px 6px; border-radius: 999px; border: 1px solid #444; background: #222; color: #ccc; }
+  .vcv-review-sent { border-color: #2f80c0; color: #7db8e8; }
+  .vcv-review-changes_requested { border-color: #f0a050; color: #f0a050; }
+  .vcv-review-approved { border-color: #4caf7a; color: #6fcf97; }
+  .vcv-diff { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; overflow-x: auto; }
+  .vcv-diff-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .vcv-diff-table { border-collapse: collapse; width: 100%; }
+  .vcv-diff-table th, .vcv-diff-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #2c2c2c; color: #ddd; font-weight: normal; }
+  .vcv-diff-table th { color: #eee; font-weight: 600; }
+  .vcv-diff-label { color: #999 !important; }
+  .vcv-diff-kind { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; margin-right: 4px; }
+  .vcv-diff-same { color: #777 !important; }
+  .vcv-diff-choose { color: #f0a050 !important; }
+  .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -229,7 +243,18 @@
     font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #ccc; position: relative;
   }
   .vct-empty { padding: 10px; color: #777; }
-  .vct-playhead { position: absolute; top: 20px; bottom: 34px; width: 1px; background: #ff4444; pointer-events: none; z-index: 20; }
+  .vct-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4444; pointer-events: none; z-index: 14; }
+  /* Trait d'aimantation (09/11) : montre le repère auquel le point glissé vient de s'accrocher. */
+  .vct-snap-guide { display: none; position: absolute; top: 0; bottom: 0; width: 1px; background: #2f80c0; box-shadow: 0 0 4px #2f80c0; pointer-events: none; z-index: 13; }
+  /* Zoom de la frise (06/11) : la frise défile à l'horizontale, les noms de pistes restent collés à gauche. */
+  .vct-zoombar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .vct-zoom-btn { font: inherit; font-size: 11px; min-width: 24px; padding: 2px 7px; border-radius: 4px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; }
+  .vct-zoom-btn:hover { border-color: var(--accent); color: #fff; }
+  .vct-zoom-val { min-width: 34px; text-align: center; color: #9ab; font-size: 10px; }
+  .vct-scroll { overflow-x: auto; overflow-y: hidden; }
+  .vct-body { position: relative; }
+  .vct-ruler-corner { position: sticky; left: 0; width: 96px; height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
+  .vct-lane-label, .vct-lane-rename-input { position: sticky; left: 0; z-index: 16; background: #1a1a1a; }
   .vct-playhead::before {
     content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
     border-top-color: #ff4444;

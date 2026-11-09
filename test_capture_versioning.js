@@ -36,6 +36,7 @@ const path = require('path');
           return { data: { ok: true }, error: null };
         }
         if (name === 'delete_video_capture_version') { store.rows = store.rows.filter(r => r.id !== args.p_id); return { data: null, error: null }; }
+        if (name === 'set_video_capture_version_status') { const r = store.rows.find(x => x.id === args.p_id); if (r) { r.status = args.p_status; r.statusAt = '2026-11-09T10:00:00Z'; } return { data: { ok: true }, error: null }; }
         if (name === 'set_video_capture_version_export') { const r = store.rows.find(x => x.id === args.p_id); if (r) r.lastExportVideoId = args.p_video_id; return { data: null, error: null }; }
         return { data: null, error: { message: 'inconnu' } };
       } }) };
@@ -123,6 +124,28 @@ const path = require('path');
   host.querySelector('[data-act="saveDraft"]').click(); await tick(); await tick();
   check('dupliquer : deuxième version distincte', store.rows.length === 2 && store.rows[0].id !== store.rows[1].id);
 
+  // Statuts de relecture et différences (9/11, idée Pibox).
+  check('statut : chaque version démarre en « Brouillon »', [...host.querySelectorAll('[data-role="reviewStatus"]')].every(sel => sel.value === 'draft'));
+  const stSel = host.querySelector('[data-role="reviewStatus"]');
+  stSel.value = 'sent'; stSel.dispatchEvent(new W.Event('change')); await tick(); await tick();
+  const stCall = store.calls.find(c => c[0] === 'set_video_capture_version_status');
+  check('statut : changement envoyé au serveur (« Envoyée au client »)', stCall && stCall[1].p_status === 'sent' && stCall[1].p_id === store.rows[0].id);
+  check('statut : la liste affiche le nouveau statut sur la bonne version', host.querySelector('[data-role="reviewStatus"]').value === 'sent' && host.querySelectorAll('[data-role="reviewStatus"]')[1].value === 'draft');
+  await V.refresh(); await tick();
+  check('statut : relu depuis le serveur après rechargement', host.querySelector('[data-role="reviewStatus"]').value === 'sent');
+  host.querySelector('[data-act="diff"]').click(); await tick();
+  const dtxt = host.querySelector('.vcv-diff').textContent;
+  check('différences (1 version) : morceau et Sfx changés par rapport à l\'original', dtxt.includes('Galactic Baston') && dtxt.includes('Les Petits Poissons') && dtxt.includes('Pas ville') && dtxt.includes(tr('versioningDiffToChoose')));
+  host.querySelector('[data-act="closeDiff"]').click(); await tick();
+  check('différences : fermeture', !host.querySelector('.vcv-diff'));
+  host.querySelector('[data-act="compare"]').click(); await tick();
+  check('comparer sans cocher deux versions : message, pas de tableau', !host.querySelector('.vcv-diff') && host.textContent.includes(tr('versioningComparePickTwo')));
+  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
+  host.querySelector('[data-act="compare"]').click(); await tick();
+  check('comparer deux versions : tableau Original + 2 colonnes', host.querySelectorAll('.vcv-diff-table thead th').length === 4);
+  host.querySelector('[data-act="closeDiff"]').click(); await tick();
+  check('cases cochées conservées après réaffichage', [...host.querySelectorAll('[data-role="pick"]')].every(cb => cb.checked));
+
   // Rendu en série des deux versions, rangées en bibliothèque.
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; });
   host.querySelector('[data-role="toLibrary"]').checked = true;
@@ -164,6 +187,29 @@ const path = require('path');
   host2.querySelector('[data-act="delete"]').click(); await tick(); await tick();
   check('séance : suppression en mémoire', host2.querySelectorAll('.vcv-version').length === 0 && store.calls.length === callsBefore);
   V2.stop();
+
+  // Publication automatique des versions (09/11) : le bouton global du Backstage / « Publier le montage » publie aussi les versions enregistrées
+  // jamais publiées ou changées depuis (retouche du montage = toutes les versions) ; jamais en séance (Warrior).
+  const pub = []; let soundKeyVar = 'k1'; const afterExports = []; const progress = [];
+  const ctx3 = Object.assign({}, ctx, { getCaptureId: () => 'cap1', getSoundKey: () => soundKeyVar, cuesOf: () => [{ start: 0, end: 1, text: 'x' }], keepOld: () => true,
+    publishVersion: async (evs, title) => { pub.push(title); return 'snd-' + pub.length; }, afterExport: r => afterExports.push(r), onProgress: m => progress.push(m) });
+  const host3 = doc.createElement('div'); doc.body.appendChild(host3);
+  const V3 = W.LayerCaptureVersioning.mount(host3, ctx3); await tick(); await tick();
+  check('publication auto : versions déjà publiées, rien en attente', V3.hasPending() === false && (await V3.publishPending()) === 0 && pub.length === 0);
+  store.rows.push({ id: 'vNew', captureId: 'cap1', title: 'Nouvelle', substitutions: JSON.parse(JSON.stringify(store.rows[0].substitutions)), lastExportVideoId: null });
+  await V3.refresh(); await tick();
+  check('publication auto : une version jamais publiée est en attente', V3.hasPending() === true);
+  const n1 = await V3.publishPending(); await tick();
+  check('publication auto : seule la version en attente est publiée (son + étiquettes rattachés), progression affichée', n1 === 1 && pub.length === 1 && pub[0].endsWith('Nouvelle')
+    && store.rows.find(r => r.id === 'vNew').lastExportVideoId === 'snd-1' && store.calls.some(c => c[0] === 'set_video_capture_version_export' && c[1].p_id === 'vNew' && c[1].p_cues.length === 1) && progress.length === 1 && afterExports.length === 1);
+  check('publication auto : republier tout de suite ne refait rien', V3.hasPending() === false && (await V3.publishPending()) === 0 && pub.length === 1);
+  soundKeyVar = 'k2'; // le montage a été retouché : toutes ses versions changent
+  check('publication auto : montage retouché = toutes les versions en attente', V3.hasPending() === true);
+  const n2 = await V3.publishPending(); await tick();
+  check('publication auto : toutes les versions sont republiées après la retouche du montage', n2 === store.rows.filter(r => r.captureId === 'cap1').length && V3.hasPending() === false);
+  const V4 = W.LayerCaptureVersioning.mount(doc.createElement('div'), Object.assign({}, ctx3, { sessionOnly: true, getCaptureId: () => 'session' })); await tick();
+  check('publication auto : versions de la séance (Warrior) jamais publiées', V4.hasPending() === false && (await V4.publishPending()) === 0);
+  V4.stop(); V3.stop();
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTous les tests passent.');
   process.exit(failures ? 1 : 0);

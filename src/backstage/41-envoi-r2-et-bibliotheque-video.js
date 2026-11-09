@@ -21,11 +21,28 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// onProgress(envoyé, total) (09/11, demande de Jules-Antoine : « un état d'avancement de l'upload ») : fetch() ne dit rien de la progression d'un
+// envoi, donc avec un onProgress on passe par XMLHttpRequest (upload.onprogress). `bytes` peut être un Blob (évite de copier une grosse vidéo en mémoire).
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -115,7 +132,96 @@ function readVideoLibraryDuration(file) {
     v.src = url;
   });
 }
+// ---- Compression par WebCodecs + Mediabunny (09/11) -----------------------------------------------------------------
+// Remplace ffmpeg.wasm comme premier choix : l'encodeur H.264 du navigateur (souvent matériel) tourne ~6x plus vite que le
+// temps réel, contre ~8x LA DURÉE de la vidéo en 1080p avec ffmpeg.wasm mono-thread (essais 09/11 dans Firefox 159 : 150 s de
+// vidéo en ~22 s). Et ffmpeg-core est compilé avec --enable-gpl (x264) : le sortir du chemin principal réduit l'exposition GPL.
+// Règles :
+//  - IMAGE : recopiée telle quelle (aucun ré-encodage, donc aucune perte de plus) si elle est déjà en H.264, tient dans
+//    1280x720 et pèse <= VIDEO_LIBRARY_COPY_MAX_BPS ; sinon réencodée en H.264 ~1,2 Mbps, plafonnée à 720p, jamais agrandie.
+//  - SON : copié s'il est déjà en AAC (cas courant : iPhone, exports) ; sinon AAC natif du navigateur s'il sait encoder ;
+//    sinon Opus (Firefox n'encode pas l'AAC). Pas d'encodeur AAC en WASM livré par nous : question de brevets AAC en attente
+//    de la réponse de Via LA (mail envoyé 09/11). Lecture de l'Opus dans un MP4 vérifiée : Firefox, Aperçu (macOS) ; iPhone PAS testé.
+//  - Toute erreur ici (navigateur sans WebCodecs, codec non encodable, source illisible) retombe sur ffmpeg.wasm : on ne
+//    transforme jamais un défaut de vitesse en échec complet.
+const VIDEO_LIBRARY_COPY_MAX_BPS = 2000000;
+const VIDEO_LIBRARY_TARGET_BPS = 1200000;
+let mediabunnySingleton = null;
+async function loadMediabunny() {
+  if (!mediabunnySingleton) mediabunnySingleton = await import('./vendor/mediabunny/mediabunny.min.mjs');
+  return mediabunnySingleton;
+}
+async function compressVideoWithWebCodecs(file, onProgress) {
+  if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined' || !window.isSecureContext) {
+    throw new Error('WebCodecs indisponible dans ce navigateur');
+  }
+  const MB = await loadMediabunny();
+  const input = new MB.Input({ source: new MB.BlobSource(file), formats: MB.ALL_FORMATS });
+  const videoTrack = await input.getPrimaryVideoTrack();
+  if (!videoTrack) throw new Error('aucune piste vidéo lisible');
+  const audioTrack = await input.getPrimaryAudioTrack();
+
+  // IMAGE : copier ou réencoder ?
+  const w = videoTrack.displayWidth, h = videoTrack.displayHeight;
+  const fits = w <= 1280 && h <= 720;
+  // Débit MOYEN de TOUT le fichier (taille / durée, son compris : estimation prudente), pas celui des premières images. Bug du 09/11 :
+  // computePacketStats(200) ne lit que le début ; sur un fichier de 267 Mo (13 Mbps) qui s'ouvre sur un fondu quasi noir, il mesurait
+  // 941 kbps -> « déjà assez léger » -> le fichier entier partait tel quel (envoi interminable). computePacketStats ne sert plus que si la durée est inconnue.
+  const duration = await input.computeDuration();
+  const overallBps = duration > 0 ? file.size * 8 / duration : (await videoTrack.computePacketStats(2000)).averageBitrate;
+  const videoOpts = { codec: 'avc' };
+  if (videoTrack.codec === 'avc' && fits && overallBps <= VIDEO_LIBRARY_COPY_MAX_BPS) {
+    // Rien à toucher : copie des paquets.
+    log(`Vidéo : déjà assez légère (${Math.round(overallBps / 1000)} kbps en moyenne, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
+  } else {
+    const scale = Math.min(1, 1280 / w, 720 / h);
+    if (scale < 1) {
+      // Dimensions paires (exigence de l'H.264). Jamais agrandie : le plafond ne s'applique qu'aux vidéos plus grandes.
+      videoOpts.width = Math.max(2, 2 * Math.round(w * scale / 2));
+      videoOpts.height = Math.max(2, 2 * Math.round(h * scale / 2));
+      videoOpts.fit = 'fill';
+    }
+    videoOpts.bitrate = VIDEO_LIBRARY_TARGET_BPS;
+    videoOpts.forceTranscode = true;
+  }
+
+  // SON : copier, AAC natif ou Opus.
+  const audioOpts = {};
+  let audioPlan = 'aucun';
+  if (audioTrack) {
+    if (audioTrack.codec === 'aac') audioPlan = 'copie AAC';
+    else if (await MB.canEncodeAudio('aac')) { audioOpts.codec = 'aac'; audioOpts.bitrate = 128000; audioPlan = 'AAC natif'; }
+    else if (await MB.canEncodeAudio('opus')) { audioOpts.codec = 'opus'; audioOpts.bitrate = 128000; audioPlan = 'Opus'; }
+    else throw new Error('aucun encodeur audio (AAC/Opus) disponible');
+  }
+  log(`Compression WebCodecs : son ${audioPlan} (source ${audioTrack ? audioTrack.codec : 'aucun'}).`, 'info');
+
+  const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
+  const conversion = await MB.Conversion.init({ input, output, video: videoOpts, audio: audioOpts });
+  if (!conversion.isValid) {
+    throw new Error('conversion impossible : ' + conversion.discardedTracks.map(t => t.reason).join(', '));
+  }
+  // Une piste écartée (hors son/image principaux) n'est pas grave ; mais perdre l'image ou le son d'origine, si.
+  const lostVideo = !conversion.utilizedTracks.some(t => t.isVideoTrack());
+  const lostAudio = !!audioTrack && !conversion.utilizedTracks.some(t => t.isAudioTrack());
+  if (lostVideo || lostAudio) throw new Error('une piste a été écartée (' + conversion.discardedTracks.map(t => t.reason).join(', ') + ')');
+  conversion.onProgress = (p) => {
+    onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct: Math.max(0, Math.min(100, Math.round(p * 100))) }));
+  };
+  await conversion.execute();
+  return new Blob([output.target.buffer], { type: 'video/mp4' });
+}
 async function compressVideoForLibrary(file, onProgress) {
+  onProgress && onProgress(tr('videoLibraryCompressing'));
+  try {
+    return await compressVideoWithWebCodecs(file, onProgress);
+  } catch (e) {
+    console.warn('LayerPitch — compression WebCodecs impossible, repli sur ffmpeg.wasm :', e);
+    log(`Compression rapide indisponible (${e.message}) : repli sur ffmpeg.wasm, plus lent.`, 'warn');
+    return compressVideoWithFfmpeg(file, onProgress);
+  }
+}
+async function compressVideoWithFfmpeg(file, onProgress) {
   onProgress && onProgress(tr('videoLibraryCompressing'));
   const ffmpeg = await loadVideoLibraryFfmpeg();
   const inName = 'in' + (file.name.slice(file.name.lastIndexOf('.')) || '.mp4');
@@ -223,9 +329,13 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
         </div>
         <span class="video-library-kind-badge">${v.kind === 'capture_export' ? tr('videoLibraryKindExport') : tr('videoLibraryKindUpload')}</span>
+        <button type="button" class="btn btn-small video-library-rename-btn" data-id="${v.id}">${tr('videoLibraryRenameBtn')}</button>
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
+      btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
+    });
     listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, interrupted.concat(videos)));
     });
@@ -265,6 +375,21 @@ async function renderVideoHistoryCleanup(nearQuota) {
     window.LayerPitchNotify.info(tr('videoHistoryCleared', { n: ((res.data && res.data.removed) || []).length }));
     renderVideoLibrary();
   };
+}
+
+// Renomme une vidéo de la bibliothèque (6/11) : le nom affiché partout où la vidéo est choisie (liste du Backstage, menu de l'Atelier).
+async function renameLibraryVideo(id, knownVideos) {
+  const v = (knownVideos || []).find(x => x.id === id);
+  const current = v ? (v.title || v.originalName || v.file || '') : '';
+  const name = await window.LayerPitchNotify.prompt(tr('videoLibraryRenamePrompt'), { inputValue: current });
+  if (name === null || !name.trim() || name.trim() === current) return;
+  try {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('rename_video', { p_id: id, p_title: name.trim() });
+    if (error) throw error;
+    renderVideoLibrary();
+  } catch (e) {
+    window.LayerPitchNotify.error(tr('videoLibraryRenameFailed', { error: e.message }));
+  }
 }
 
 async function deleteLibraryVideo(id, knownVideos) {
@@ -310,7 +435,18 @@ async function uploadLibraryVideo(file) {
     statusEl.textContent = withName(tr('videoLibraryUploading'));
     const base = `${MEDIA_BASE}video/${id}/`;
     if (tuto) await new Promise(r => setTimeout(r, 1200));
-    else await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    else {
+      // Avancement de l'envoi : pourcentage + Mo envoyés. Mis à jour au plus 4 fois par seconde (l'événement tombe très souvent).
+      let lastShown = 0;
+      await r2PutFile(`video/${id}/source.mp4`, blob, 'video/mp4', (done, total) => {
+        const now = Date.now();
+        if (done < total && now - lastShown < 250) return;
+        lastShown = now;
+        statusEl.textContent = withName(tr('videoLibraryUploadingProgress', {
+          pct: Math.round(done / total * 100), done: (done / 1048576).toFixed(1), total: (total / 1048576).toFixed(1),
+        }));
+      });
+    }
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
         id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',
@@ -401,7 +537,18 @@ function setVideoAtelierFull(on) {
   document.body.classList.toggle('video-atelier-full', on);
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.textContent = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull');
+  const frame = document.getElementById('videoAtelierFrame');
+  try { if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'fullState', on: !!on }, location.origin); } catch (e) { /* cadre pas prêt */ }
 }
+// Le bouton « Plein écran » de l'atelier (dans le cadre) passe par ici : ainsi la barre du Backstage reste visible (07/11).
+window.addEventListener('message', e => {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (e.origin !== location.origin || !frame || e.source !== frame.contentWindow || !e.data || e.data.source !== 'lp-atelier') return;
+  if (e.data.type === 'toggleFull' || e.data.type === 'setFull') {
+    const on = e.data.type === 'toggleFull' ? !document.body.classList.contains('video-atelier-full') : !!e.data.on;
+    setVideoAtelierFull(on);
+  }
+});
 (function wireVideoAtelierFull() {
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.addEventListener('click', () => setVideoAtelierFull(!document.body.classList.contains('video-atelier-full')));
@@ -415,6 +562,30 @@ function openVideoAtelier(opts) {
   if (frame && opts && (opts.packId || opts.montageId)) frame.src = videoAtelierUrl(opts);
   else ensureVideoAtelierLoaded();
   if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// « Terminer le montage » (06/11) : étape de « Sauvegarder / publier » (voir publishAll), juste avant les AdReels qui affichent les montages.
+// Demande à l'atelier (s'il est ouvert dans son cadre) de publier le montage retouché : son + étiquettes. Réponses : 'none' (rien à publier,
+// pas d'atelier, ou atelier qui ne répond pas dans les 4 s : ancienne version en cache), 'done' ; un échec lève une erreur avec la raison.
+function finishAtelierMontage() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return Promise.resolve('none');
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2);
+  return new Promise((resolve, reject) => {
+    let ackTimer = 0, longTimer = 0;
+    const finish = fn => { clearTimeout(ackTimer); clearTimeout(longTimer); window.removeEventListener('message', onMsg); fn(); };
+    function onMsg(e) {
+      if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.id !== id) return;
+      if (e.data.type === 'finishMontageAck') { clearTimeout(ackTimer); return; }
+      if (e.data.type !== 'finishMontageResult') return;
+      if (e.data.status === 'error') finish(() => reject(new Error(e.data.message || 'erreur inconnue')));
+      else finish(() => resolve(e.data.status === 'done' ? 'done' : 'none'));
+    }
+    window.addEventListener('message', onMsg);
+    ackTimer = setTimeout(() => finish(() => resolve('none')), 4000);
+    longTimer = setTimeout(() => finish(() => reject(new Error(tr('montageFinishTimeout')))), 15 * 60 * 1000);
+    try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'finishMontage', id }, location.origin); }
+    catch (err) { finish(() => resolve('none')); }
+  });
 }
 // Messages de l'atelier (même origine seulement) : fin de sa partie de la leçon Versioning -> le Backstage reprend la main.
 window.addEventListener('message', e => {
@@ -440,19 +611,20 @@ window.addEventListener('message', e => {
 let videoVersioningIndexPromise = null;
 function loadVideoVersioningIndex(force) {
   if (videoVersioningIndexPromise && !force) return videoVersioningIndexPromise;
-  const empty = { byVideoId: {}, available: false };
+  const empty = { byVideoId: {}, captures: [], available: false };
   videoVersioningIndexPromise = (async () => {
     if (entitlementLevel('versioning') !== 'saved') return empty;
     const client = window.LayerPitchSupabaseClient.getClient();
     const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
     if (res.error) return empty;
-    const out = { byVideoId: {}, available: true };
+    const out = { byVideoId: {}, captures: [], available: true };
     await Promise.all((res.data || []).map(async c => {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
       const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
+      out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
       if (c.baseVideoId) out.byVideoId[c.baseVideoId] = { capture: c, siblings }; // la vidéo muette du montage (migration 20261021040000) mène aussi au montage
     }));
@@ -498,12 +670,12 @@ async function renderVideoVersioningList() {
     const vs = versionsByCapture[c.id];
     const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
     const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
-      : vs.length ? vs.map(v => `<span class="video-versioning-chip ${v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? 'exported' : ''}" title="${escapeHtml(v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? tr('videoVersioningExported') : '')}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}</span>`).join('')
+      : vs.length ? vs.map(v => { const st = ['draft', 'sent', 'changes_requested', 'approved'].includes(v.status) ? v.status : 'draft'; const exp = v.lastExportVideoId && videoIds.has(v.lastExportVideoId); return `<span class="video-versioning-chip st-${st} ${exp ? 'exported' : ''}" title="${escapeHtml([tr('versioningStatus_' + st), exp ? tr('videoVersioningExported') : ''].filter(Boolean).join(' · '))}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}${st === 'draft' ? '' : ' · ' + escapeHtml(tr('versioningStatus_' + st))}</span>`; }).join('')
       : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
     return `
       <div class="video-library-item">
         <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
+          <div class="video-capture-pack-row-title">${escapeHtml(c.title || (c.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'))}</div>
           <div class="video-library-item-meta">${escapeHtml(meta)}</div>
           <div class="video-versioning-versions">${chips}</div>
         </div>

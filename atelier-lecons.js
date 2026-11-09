@@ -1,18 +1,19 @@
-/* atelier-lecons.js — partie « atelier » de la leçon guidée « Versioning vidéo » (atelier.html?tuto&lesson=versioning), 21/10.
+/* atelier-lecons.js — partie « atelier » de la leçon guidée « Versioning vidéo » (atelier.html?tuto&lesson=versioning), 21/10, refaite le 07/11 sur « Joris ».
  *
  * L'atelier vit dans un cadre du Backstage (onglet Vidéo → Atelier) : le Backstage guide jusqu'à l'atelier, ce fichier guide DANS
- * l'atelier (choisir le pack, la vidéo, jouer, enregistrer, versionner), puis rend la main au Backstage (onDone) pour le bloc vidéo.
+ * l'atelier (choisir le pack, la vidéo, marqueurs, frise, passe additive, versionner), puis rend la main au Backstage (onDone).
  * Choisir le pack recharge l'atelier : la leçon reprend alors juste après cette étape (le pack est dans l'adresse).
  *
- * Parcours choisi par Jules-Antoine : partir d'une vidéo SANS son (le gameplay de « Music City » : la rue de Jazz City, puis le club), y poser une première musique en
- * jouant le pack sur la vidéo (capture), enregistrer le montage, puis en faire une deuxième version où le morceau est remplacé par un
- * autre du même mode (« Jazz Lo Lay. Add. » par « Jazz Hi Lay. Add. », 05/11), et l'écouter en direct (sans rendu vidéo). Moteur partagé layerpitch-guide.js ; faux serveur api/demo-client.js (montages
- * et versions gardés en mémoire, rien n'est enregistré). Sans vidéo muette (KIT.video vide), la leçon ne démarre pas ; la vidéo est
- * en ligne depuis le 04/11.
+ * Parcours (demande de Jules-Antoine, 07/11) : la vidéo muette du gameplay de « Joris » (accord de Joris). 1) deux marqueurs posés d'après l'image : 0 s (18h30, début de la
+ * musique 1) et ~53,3 s (sortie d'ascenseur, début de la musique 2) ; 2) les blocs créés à la souris dans la frise : « Welcome to the Office » de 0 s à l'ascenseur (~50,3 s),
+ * l'ascenseur, puis le drone « rencontre » au 2e marqueur ; 3) une passe additive en temps réel : les pas « Concrete Walk » jusqu'à l'ascenseur ; 4) la version : le drone
+ * « rencontre » devient le drone « urbex », les pas « concrete » des pas « stone » (pack « Footsteps » ajouté pendant le Versioning). Rien n'est enregistré (faux serveur
+ * api/demo-client.js). TODO Jules-Antoine : la musique 1 sera décomposée en couches additives (aujourd'hui une seule couche) -- ajouter alors une étape par couche.
+ * Moteur partagé layerpitch-guide.js.
  */
 (function () {
-  // Vidéo muette du gameplay (fichier à déposer par Jules-Antoine dans media.layerpitch.com/tuto/).
-  const KIT = { video: { label: 'music-city-gameplay-muette.mp4', name: 'music-city-gameplay-muette.mp4', url: 'https://media.layerpitch.com/tuto/music-city-gameplay-muette.mp4' } };
+  // Vidéo muette du gameplay de « Joris » (copie allégée sans son, déposée le 06/11 dans media.layerpitch.com/tuto/Joris/).
+  const KIT = { video: { label: 'joris-gameplay-muette.mp4', name: 'joris-gameplay-muette.mp4', url: 'https://media.layerpitch.com/tuto/Joris/joris-gameplay-muette.mp4' } };
   const ready = () => !!KIT.video.url;
 
   function init(ctx) {
@@ -28,52 +29,55 @@
     };
     const $ = sel => document.querySelector(sel);
     const hasPack = new URLSearchParams(location.search).has('id');
-    // Morceaux du pack « Music City » (api/demo-client.js) et instants clés de la vidéo muette (04/11, en secondes) :
-    // porte du club 13,5 · entrée 15,8 · fondu puis la salle se remplit 19,3-20,3 · assis au bar ~24 · glaçons 31,4-33,1 · fin 37,7.
-    // Un seul morceau d'un bout à l'autre (05/11) : « Jazz Lo Lay. Add. » démarre sur sa contrebasse, les couches arrivent quand la salle se remplit ;
-    // la version le remplace par « Jazz Hi Lay. Add. » (même mode, trois couches aussi).
-    const LO = 'bmvzpxrmghud9j', HI = 'bmvidtfhvfa5tt', STREET = 'bmvzsfnd1c3n9o';
-    const row = id => document.querySelector(`.track-row-wrapper[data-track-id="${id}"]`); // (la frise de capture porte aussi data-track-id)
-    const layerBtn = n => { const r = row(LO); return r ? r.querySelectorAll('.vert-layer-btn')[n] : null; };
-    const videoAt = s => { const v = $('#videoCaptureEl'); return !!(v && v.currentTime >= s); };
-    // Montage « à la souris » (05/11, demande de Jules-Antoine : « pas en temps réel, ce serait galère ») : pas de capture, on double-clique
-    // dans la frise pour poser le départ de la contrebasse (début), de la batterie (~9 s), du clavier (~18 s), les glaçons (32 s) et le
-    // verre (~34 s) ; les couches entrent à la mesure suivante (frise). Chaque bloc doit tomber dans sa fenêtre de temps (il se glisse ensuite si besoin). Le jeu en direct a sa propre leçon (page pack).
+    // Pack « Joris » (api/demo-client.js, lignes de la base de Jules-Antoine) : musique 1 « Welcome to the Office », ascenseur, pas « Concrete Walk » ; les drones servent à la version.
+    // Le fichier de « Drone Urbex#2_Joris » est le drone « rencontre », celui de « Drone Urbex#1_Joris » le drone « urbex » (le fichier fait foi). Instants clés de la vidéo
+    // muette (en secondes) : image 18h30 = 0 · ascenseur 50,3 · sortie d'ascenseur 53,3 (début de la musique 2).
+    const WELCOME = 'bmw3drvaib1os9', RENC = 'bmw3ds8idckeds', URBEX = 'bmw41gclr2m44q', ELEV = 'bmw40wgx1bwy7y', CONC = 'bmw3dfcf4ye93a', STONE = 'bmw3dg2foqzndw', FOOT_PACK = 'p-footsteps';
+    const T_START = 0, T_ELEV = 50.29, T_EXIT = 53.34;
+    // Montage « à la souris » : pas de capture, on double-clique dans la frise pour poser chaque bloc ; les marqueurs se posent au double-clic sur la règle.
     const lane = sel => document.querySelector(`#videoCaptureTimeline .vct-lane-track${sel}`);
-    const layerLane = (n, id) => lane(`[data-addable="layer"][data-add-track-id="${id || LO}"][data-add-level="${n}"]`);
+    const layerLane = (n, id) => lane(`[data-addable="layer"][data-add-track-id="${id}"][data-add-level="${n}"]`);
     const sfxLane = id => lane(`[data-addable="sfx"][data-add-sfx-id="${id}"]`);
-    // Fin du bloc de la rue (en secondes), pour l'étape « jusqu'à la porte du club ».
-    const blockEnd = el => {
-      const tl = $('#videoCaptureTimeline'), total = tl && tl.__vctTotal, bk = el && el.querySelector('.vct-block');
-      return bk && total ? (parseFloat(bk.style.left) + parseFloat(bk.style.width)) / 100 * total : null;
-    };
-    const blockIn = (el, from, to) => {
-      const tl = $('#videoCaptureTimeline'), total = tl && tl.__vctTotal;
-      return !!(el && total && [...el.querySelectorAll('.vct-block')].some(bk => { const t = parseFloat(bk.style.left) / 100 * total; return t >= from && t <= to; }));
-    };
-    const swapSel = () => document.querySelector(`#videoCaptureVersioning select[data-track="${LO}"]`);
+    const total = () => { const tl = $('#videoCaptureTimeline'); return tl && tl.__vctTotal; };
+    const markerTimes = () => { const tl = $('#videoCaptureTimeline'), T = total(); return tl && T ? [...tl.querySelectorAll('.vct-marker')].map(m => parseFloat(m.style.left) / 100 * T) : []; };
+    const markerNear = (t, tol) => markerTimes().some(x => Math.abs(x - t) <= tol);
+    const blockEnd = el => { const T = total(), bk = el && el.querySelector('.vct-block'); return bk && T ? (parseFloat(bk.style.left) + parseFloat(bk.style.width)) / 100 * T : null; };
+    const blockIn = (el, from, to) => { const T = total(); return !!(el && T && [...el.querySelectorAll('.vct-block')].some(bk => { const t = parseFloat(bk.style.left) / 100 * T; return t >= from && t <= to; })); };
+    // Passe additive en temps réel : on compte les clics sur le bouton de lecture de « Concrete Walk » PENDANT l'enregistrement (la frise vivante ne montre pas toujours les Sfx).
+    const recording = () => !!$('#videoCaptureRecordBtn.recording');
+    const concreteBtn = () => { const w = [...document.querySelectorAll('.sfx-row-wrapper')].find(x => { const n = x.querySelector('.name'); return n && n.textContent.trim() === 'Concrete Walk'; }); return w && w.querySelector('[data-role="playBtn"]'); };
+    let steps_n = 0;
+    const watchSteps = () => document.addEventListener && document.addEventListener('click', ev => { const b = concreteBtn(); if (b && recording() && ev.target.closest && ev.target.closest('.sfx-row-wrapper') === b.closest('.sfx-row-wrapper') && ev.target.closest('[data-role="playBtn"]')) steps_n++; }, true);
+    const trackSel = id => document.querySelector(`#videoCaptureVersioning select[data-track="${id}"]`);
+    const sfxSel = id => document.querySelector(`#videoCaptureVersioning select[data-sfx="${id}"]`);
     const steps = [
       { titleKey: 'pvWelcomeTitle', textKey: 'pvWelcomeText' },
       { selector: '#atelierPackSelect', titleKey: 'pvPackTitle', textKey: 'pvPackText', done: () => !!($('#atelierPackSelect') && $('#atelierPackSelect').value) },
       { selector: '.video-capture-trigger-btn', titleKey: 'pvOpenTitle', textKey: 'pvOpenText', clickDone: true },
       { selector: '#videoCaptureDropzone', titleKey: 'pvVideoTitle', textKey: 'pvVideoText', done: () => !!$('#videoCaptureEl'),
         drops: ready() ? [{ kind: 'file', label: KIT.video.label, url: KIT.video.url, name: KIT.video.name }] : [] },
-      // Montage à la souris (05/11) : sans capture, tout se pose dans la frise au double-clic -- la contrebasse dès le début, les autres
-      // couches à leur moment, puis les bruitages ; on écoute, puis on enregistre.
-      // La rue d'abord (05/11) : l'ambiance « Street+Footsteps », doucement, de 0 s jusqu'à l'entrée dans le club (~16 s).
-      { selector: () => layerLane(0, STREET), titleKey: 'pvStreetTitle', textKey: 'pvStreetText', done: () => blockIn(layerLane(0, STREET), 0, 2) },
-      { selector: () => layerLane(0, STREET), titleKey: 'pvStreetEndTitle', textKey: 'pvStreetEndText', done: () => { const e = blockEnd(layerLane(0, STREET)); return e != null && e >= 13.5 && e <= 18; } },
-      { selector: () => layerLane(0), titleKey: 'pvBassTitle', textKey: 'pvBassText', done: () => blockIn(layerLane(0), 0, 3) },
-      { selector: () => layerLane(1), titleKey: 'pvDrumsTitle', textKey: 'pvDrumsText', done: () => blockIn(layerLane(1), 6.5, 11.5) },
-      { selector: () => layerLane(2), titleKey: 'pvKeysTitle', textKey: 'pvKeysText', done: () => blockIn(layerLane(2), 15, 20) },
-      { selector: () => sfxLane('sfx-glacons'), titleKey: 'pvIceTitle', textKey: 'pvIceText', done: () => blockIn(sfxLane('sfx-glacons'), 30.5, 33.5) },
-      { selector: () => sfxLane('sfx-verre'), titleKey: 'pvGlassTitle', textKey: 'pvGlassText', done: () => blockIn(sfxLane('sfx-verre'), 32.5, 38) },
+      // Marqueurs d'abord, d'après l'image : le début de la musique 1 (horloge 18h30) puis la sortie de l'ascenseur (début de la musique 2).
+      { selector: '#videoCaptureTimeline .vct-ruler', titleKey: 'pvMark1Title', textKey: 'pvMark1Text', done: () => markerNear(T_START, 2) },
+      { selector: '#videoCaptureTimeline .vct-ruler', titleKey: 'pvMark2Title', textKey: 'pvMark2Text', done: () => markerNear(T_EXIT, 2.5) },
+      // Puis les blocs, à la souris.
+      { selector: () => layerLane(0, WELCOME), titleKey: 'pvMusic1Title', textKey: 'pvMusic1Text', done: () => blockIn(layerLane(0, WELCOME), 0, 2) },
+      { selector: () => layerLane(0, WELCOME), titleKey: 'pvMusic1EndTitle', textKey: 'pvMusic1EndText', done: () => { const e = blockEnd(layerLane(0, WELCOME)); return e != null && e >= 48.5 && e <= 52; } },
+      { selector: () => sfxLane(ELEV), titleKey: 'pvElevTitle', textKey: 'pvElevText', done: () => blockIn(sfxLane(ELEV), 48.5, 52) },
+      { selector: () => layerLane(0, RENC), titleKey: 'pvMusic2Title', textKey: 'pvMusic2Text', done: () => blockIn(layerLane(0, RENC), 52, 55) },
+      // Passe additive en temps réel : les pas jusqu'à l'ascenseur.
+      { selector: '#videoCaptureAdditiveLabel', titleKey: 'pvAdditiveTitle', textKey: 'pvAdditiveText', done: () => { const c = $('#videoCaptureAdditiveCheckbox'); return !!(c && c.checked); } },
+      { selector: '#videoCaptureRecordBtn', titleKey: 'pvRecordTitle', textKey: 'pvRecordText', done: () => { if (recording() && !steps.__rec) { steps.__rec = true; steps_n = 0; } return recording(); } },
+      { selector: () => concreteBtn() || $('#videoCaptureRecordBtn'), titleKey: 'pvStepsTitle', textKey: 'pvStepsText', done: () => steps_n >= 10 },
+      { selector: '#videoCaptureRecordBtn', titleKey: 'pvStopTitle', textKey: 'pvStopText', done: () => !recording() },
       { selector: '#videoCaptureListenBtn', titleKey: 'pvHearTitle', textKey: 'pvHearText', clickDone: true },
       { selector: '#videoCaptureTitleInput', titleKey: 'pvNameTitle', textKey: 'pvNameText', done: () => !!($('#videoCaptureTitleInput') && $('#videoCaptureTitleInput').value.trim().length > 2),
-        drops: [{ kind: 'text', label: 'Music City : de la rue au club', value: 'Music City : de la rue au club' }] },
-      { selector: '#videoCaptureSaveBtn', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', clickDone: true },
+        drops: [{ kind: 'text', label: 'Joris : de 18h30 à l’ascenseur', value: 'Joris : de 18h30 à l’ascenseur' }] },
+      { selector: '#videoCaptureSaveStatus', titleKey: 'pvSaveTitle', textKey: 'pvSaveText', done: () => !!($('#videoCaptureSaveStatus') && $('#videoCaptureSaveStatus').dataset.state === 'saved') }, // enregistrement automatique (06/11)
+      // La version : les deux drones, puis les pas « stone » (dans un autre pack, à ajouter).
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="new"]'), titleKey: 'pvNewTitle', textKey: 'pvNewText', clickDone: true },
-      { selector: () => swapSel() || $('#videoCaptureVersioning'), titleKey: 'pvPickTitle', textKey: 'pvPickText', done: () => { const sel = swapSel(); return !!(sel && sel.value === HI); } },
+      { selector: () => trackSel(RENC) || $('#videoCaptureVersioning'), titleKey: 'pvPickTitle', textKey: 'pvPickText', done: () => { const sel = trackSel(RENC); return !!(sel && sel.value === URBEX); } },
+      { selector: () => document.querySelector('#videoCaptureVersioning [data-role="addPack"]') || $('#videoCaptureVersioning'), titleKey: 'pvAddPackTitle', textKey: 'pvAddPackText', done: () => !!document.querySelector(`#videoCaptureVersioning [data-role="removePack"][data-pack="${FOOT_PACK}"]`) },
+      { selector: () => sfxSel(CONC) || $('#videoCaptureVersioning'), titleKey: 'pvPickStepsTitle', textKey: 'pvPickStepsText', done: () => { const sel = sfxSel(CONC); return !!(sel && sel.value === STONE); } },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="listenDraft"]'), titleKey: 'pvListenTitle', textKey: 'pvListenText', clickDone: true },
       { selector: () => document.querySelector('#videoCaptureVersioning [data-act="saveDraft"]'), titleKey: 'pvKeepTitle', textKey: 'pvKeepText', clickDone: true },
       { titleKey: 'pvAtelierEndTitle', textKey: 'pvAtelierEndText', final: true },
@@ -83,7 +87,7 @@
     // milieu du cadre de l'atelier, souvent hors de l'écran (05/11).
     const run = hasPack ? steps.slice(2) : steps.slice(1, 2);
     const G = window.LayerPitchGuide.create({ tr, onLessonDone: ctx.onDone && hasPack ? (() => ctx.onDone()) : undefined, onOpen: ctx.onOpen, onClose: ctx.onClose });
-    return { start: () => { if (!ready()) return false; G.open('lesson', run, 'versioning'); return true; }, guide: G, steps };
+    return { start: () => { if (!ready()) return false; watchSteps(); G.open('lesson', run, 'versioning'); return true; }, guide: G, steps };
   }
 
   window.LayerPitchAtelierLessons = { init, KIT };

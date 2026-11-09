@@ -20,7 +20,8 @@
   .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }
   /* Vidéo accrochée en haut quand on fait défiler (05/11, voir pinCaptureVideo dans 18-panneau-de-capture.js). */
-  .video-test-panel-frame-wrap.video-capture-pinned { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 40; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  .video-capture-dock.video-capture-pinned { position: fixed; top: 0; z-index: 40; background: #111; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  .vct-lane-nested .vct-lane-label.vct-lane-label-solo { padding-left: 6px; font-weight: 600; color: #7fb0e8; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
   .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
   /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
@@ -52,8 +53,17 @@
   body.video-panel-active { max-width: none; padding: 16px 20px 40px; align-items: stretch; }
   body.video-panel-active .video-test-panel { width: 100%; max-width: none; }
   body.video-panel-active .page { max-width: none; width: 100%; }
-  body.video-panel-active .video-test-panel-frame-wrap { max-height: 56vh; }
+  body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
   body.video-panel-active .atelier-intro { display: none; }
+  /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
+  body.video-panel-active .atelier-fullscreen-btn { display: none; }
+  body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  body.video-panel-active.atelier-hide-trigger #content .video-capture-trigger-btn, body.video-panel-active.atelier-hide-music #content .pub-section { display: none; }
+  body.video-panel-active.atelier-right-hidden .page { display: none; }
+  .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+  .atelier-pane-menu[hidden] { display: none; }
+  .atelier-pane-menu label { display: flex; gap: 8px; align-items: center; padding: 5px 2px; font-size: 12px; color: #ddd; cursor: pointer; white-space: nowrap; }
+  .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
   body.video-panel-active .atelier-pack-name { font-size: 15px; }
@@ -69,3 +79,6 @@
   .video-capture-image-hidden .video-capture-image-hidden-note { display: block; }
   .video-capture-image-hidden .video-test-panel-frame-wrap { aspect-ratio: auto; height: 0; overflow: hidden; }
   .video-capture-image-hidden #videoCaptureHideImageBtn { color: var(--accent); }
+
+  .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
+  .vct-zoom-slider { width: 130px; accent-color: #2f80c0; }

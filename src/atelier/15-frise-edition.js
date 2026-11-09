@@ -20,12 +20,19 @@ function positionCapturePlayhead(container, videoEl) {
   const ph = container.querySelector('#vctPlayhead');
   const ruler = container.querySelector('.vct-ruler');
   if (!ph || !ruler) return;
-  const containerRect = container.getBoundingClientRect();
+  // Repère = le parent de la tête de lecture (.vct-body, qui défile avec le zoom) : les positions en px restent justes même défilé.
+  const base = ph.parentElement.getBoundingClientRect();
   const rulerRect = ruler.getBoundingClientRect();
   const total = container.__vctTotal || videoEl.duration || 1;
   const t = videoEl.currentTime || 0;
-  const leftPx = (rulerRect.left - containerRect.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
+  const leftPx = (rulerRect.left - base.left) + Math.min(1, Math.max(0, t / total)) * rulerRect.width;
   ph.style.left = leftPx + 'px';
+  // Zoomé et en lecture : la vue suit la tête de lecture.
+  const scroller = container.querySelector('.vct-scroll');
+  if (scroller && !videoEl.paused) {
+    const sr = scroller.getBoundingClientRect(), pr = ph.getBoundingClientRect();
+    if (pr.left > sr.right - 20 || pr.left < sr.left + 96) scroller.scrollLeft += pr.left - (sr.left + 120);
+  }
 }
 
 function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
@@ -54,12 +61,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
-  const tickStep = total <= 20 ? 1 : (total <= 60 ? 5 : 10);
+  // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
+  const fullW = Math.max(300, (container.clientWidth || 800) - 20);
+  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
+  const zoom = Math.min(maxZoom, Math.max(1, container.__vctZoom || 1));
+  container.__vctZoom = zoom;
+  const pxPerSec = (fullW * zoom - 96) / total;
+  const TICK_STEPS = [1 / 30, 1 / 15, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120];
+  const tickStep = TICK_STEPS.find(st => st * pxPerSec >= 60) || 120;
+  const tickDec = tickStep >= 1 ? 0 : (tickStep < 0.05 ? 2 : (tickStep < 0.1 ? 2 : 1));
   const pct = (t) => Math.min(100, Math.max(0, t / total * 100));
 
   let ticksHtml = '';
-  for (let t = 0; t <= total; t += tickStep) {
-    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t}s</div>`;
+  for (let i = 0; i * tickStep <= total + 1e-9; i++) {
+    const t = i * tickStep;
+    ticksHtml += `<div class="vct-tick" style="left:${pct(t)}%">${t.toFixed(tickDec)}s</div>`;
   }
 
   // Tous les événements qui appartiennent à un groupe donné (même morceau ou même Sfx) -- utilisé à la
@@ -91,6 +107,12 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
+    // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
+    // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
+    if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>`);
+      return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
+    }
     const collapsed = !!collapsedGroups[key];
     const members = groupMembers(key);
     let blockHtml = '';
@@ -348,16 +370,68 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   });
 
   container.__vctTotal = total;
-  container.innerHTML = `
-    <div class="vct-body">
+  const prevScroller = container.querySelector('.vct-scroll');
+  const keepScroll = prevScroller ? prevScroller.scrollLeft : 0;
+  // La barre de zoom reste en place d'un affichage à l'autre (07/11) : le curseur peut ainsi être glissé pendant que la frise se redessine.
+  const zoomLabel = '×' + (zoom < 10 ? zoom.toFixed(1).replace(/\.0$/, '') : Math.round(zoom));
+  let zoomBar = container.querySelector(':scope > .vct-zoombar');
+  if (!zoomBar) {
+    container.innerHTML = `
+    <div class="vct-zoombar">
+      <button type="button" class="vct-zoom-btn" data-zoom="out" title="${tr('captureZoomOut')}" aria-label="${tr('captureZoomOut')}">−</button>
+      <input type="range" class="vct-zoom-slider" min="0" max="100" step="0.5" value="0" title="${tr('captureZoomHint')}" aria-label="${tr('captureZoomHint')}">
+      <button type="button" class="vct-zoom-btn" data-zoom="in" title="${tr('captureZoomIn')}" aria-label="${tr('captureZoomIn')}">+</button>
+      <span class="vct-zoom-val"></span>
+      <button type="button" class="vct-zoom-btn vct-zoom-fit" data-zoom="fit" title="${tr('captureZoomFit')}">${tr('captureZoomFit')}</button>
+    </div>`;
+    zoomBar = container.querySelector(':scope > .vct-zoombar');
+    zoomBar.querySelectorAll('.vct-zoom-btn').forEach(btn => btn.addEventListener('click', () => container.__vctZoomCmd && container.__vctZoomCmd(btn.dataset.zoom)));
+    zoomBar.querySelector('.vct-zoom-slider').addEventListener('input', ev => container.__vctZoomCmd && container.__vctZoomCmd('slider', Number(ev.target.value)));
+  }
+  zoomBar.querySelector('.vct-zoom-val').textContent = zoomLabel;
+  zoomBar.querySelector('.vct-zoom-slider').value = maxZoom > 1 ? Math.round(Math.log(zoom) / Math.log(maxZoom) * 200) / 2 : 0;
+  [...container.children].forEach(c => { if (c !== zoomBar) c.remove(); });
+  container.insertAdjacentHTML('beforeend', `
+    <div class="vct-scroll">
+    <div class="vct-body" style="width:${(zoom * 100).toFixed(3)}%">
+    <div class="vct-ruler-corner"></div>
     <div class="vct-ruler">${ticksHtml}</div>
     <div class="vct-lanes">${lanesHtml}</div>
     <div class="vct-markers">${markersHtml}</div>
-    </div>
+    <div class="vct-snap-guide" id="vctSnapGuide"></div>
     <div class="vct-playhead" id="vctPlayhead"></div>
+    </div>
+    </div>
     <div class="vct-detail" id="vctDetail"><span class="vct-detail-empty">${editable ? tr('captureTimelineHint') : ''}</span></div>
-  `;
+  `);
+  const scroller = container.querySelector('.vct-scroll');
+  scroller.scrollLeft = keepScroll;
   positionCapturePlayhead(container, videoEl);
+  drawSnapGuide();
+  // Zoom : boutons, Ctrl/Cmd + molette (et pincement du pavé tactile), ancré sous le curseur.
+  const setZoom = (z, anchorX) => {
+    const rr = container.querySelector('.vct-ruler').getBoundingClientRect();
+    const sr = scroller.getBoundingClientRect();
+    const ax = anchorX == null ? sr.left + 96 + (sr.width - 96) / 2 : anchorX;
+    const frac = (ax - rr.left) / rr.width;
+    container.__vctZoom = Math.min(maxZoom, Math.max(1, z));
+    rerender();
+    const sc2 = container.querySelector('.vct-scroll');
+    const rr2 = container.querySelector('.vct-ruler').getBoundingClientRect();
+    sc2.scrollLeft += (rr2.left + frac * rr2.width) - ax;
+    positionCapturePlayhead(container, videoEl);
+  };
+  // Commandes de la barre de zoom (câblée une fois) : boutons et curseur (échelle logarithmique : chaque cran multiplie le zoom du même facteur).
+  container.__vctZoomCmd = (k, v) => {
+    if (k === 'fit') { container.__vctZoom = 1; rerender(); }
+    else if (k === 'slider') setZoom(Math.pow(maxZoom, v / 100));
+    else setZoom(zoom * (k === 'in' ? 2 : 0.5));
+  };
+  scroller.addEventListener('wheel', ev => {
+    if (!ev.ctrlKey && !ev.metaKey) return;
+    ev.preventDefault();
+    setZoom(zoom * Math.exp(-ev.deltaY * 0.01), ev.clientX);
+  }, { passive: false });
   // Tête de lecture déplaçable (05/11, demande de Jules-Antoine) : cliquer ou glisser sur la règle des temps place la vidéo à cet
   // instant (la ligne rouge suit). Pas pendant une prise : l'horloge de la capture est calée sur la vidéo qui défile.
   const scrubRuler = container.querySelector('.vct-ruler');
@@ -370,12 +444,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const seek = e => {
         const r = scrubRuler.getBoundingClientRect();
         const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-        videoEl.currentTime = Math.min(f * total, Number.isFinite(videoEl.duration) ? videoEl.duration : f * total);
+        let tt = f * total;
+        tt += snapDelta([tt], snapTargets(null, null), e, r.width);
+        videoEl.currentTime = Math.min(tt, Number.isFinite(videoEl.duration) ? videoEl.duration : tt);
         positionCapturePlayhead(container, videoEl);
+        drawSnapGuide();
       };
       seek(ev);
       if (scrubRuler.setPointerCapture) scrubRuler.setPointerCapture(ev.pointerId);
-      const up = () => { scrubRuler.removeEventListener('pointermove', seek); scrubRuler.removeEventListener('pointerup', up); scrubRuler.removeEventListener('pointercancel', up); };
+      const up = () => { clearSnapGuide(); scrubRuler.removeEventListener('pointermove', seek); scrubRuler.removeEventListener('pointerup', up); scrubRuler.removeEventListener('pointercancel', up); };
       scrubRuler.addEventListener('pointermove', seek);
       scrubRuler.addEventListener('pointerup', up);
       scrubRuler.addEventListener('pointercancel', up);
@@ -412,12 +489,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
       rerender();
     });
-    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
-      const i = markers.indexOf(m);
-      if (i !== -1) markers.splice(i, 1);
-      container.__vctSelectedMarker = null;
-      rerender();
-    });
+    detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => removeMarker(m));
+  }
+  // Effacer un marqueur (06/11, demande de Jules-Antoine : « la même manip que pour le créer ») : double-clic ou clic droit sur son
+  // fanion, touche Suppr / Retour arrière quand il est sélectionné, ou ✕ dans son détail.
+  function removeMarker(m) {
+    const i = markers.indexOf(m);
+    if (i !== -1) markers.splice(i, 1);
+    container.__vctSelectedMarker = null;
+    rerender();
   }
   function addMarker(t) {
     if (t == null) return;
@@ -448,10 +528,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         const dt = (e.clientX - startX) / r.width * total;
         if (!moved && Math.abs(e.clientX - startX) < 3) return;
         moved = true;
-        m.t = Math.min(total, Math.max(0, startT + dt));
+        const raw = startT + dt;
+        m.t = Math.min(total, Math.max(0, raw + snapDelta([raw], snapTargets(null, m), e, r.width)));
         markerEl.style.left = pct(m.t) + '%';
+        drawSnapGuide();
       };
       const onUp = () => {
+        clearSnapGuide();
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onUp);
         container.__vctSelectedMarker = m.id;
@@ -461,11 +544,29 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     });
+    if (editable) flagEl.addEventListener('dblclick', ev => { ev.preventDefault(); ev.stopPropagation(); if (!videoCaptureState) removeMarker(m); });
   });
+  // Touche Suppr : un seul écouteur par frise (posé au premier affichage), qui appelle l'effaceur du DERNIER affichage -- le tableau
+  // des marqueurs change à chaque montage chargé. Jamais pendant qu'on tape dans un champ (nom du marqueur, nom de la prise…).
+  container.__vctDeleteSelectedMarker = editable ? () => {
+    const m = markers.find(o => o.id === container.__vctSelectedMarker);
+    if (!m || videoCaptureState || !container.isConnected) return false;
+    removeMarker(m);
+    return true;
+  } : null;
+  if (!container.__vctMarkerKeys) {
+    container.__vctMarkerKeys = true;
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
+    });
+  }
   if (editable) {
     // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
     // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
-    // (règle ou pistes), à l'endroit cliqué. Clic droit sur un fanion = son détail.
+    // (règle ou pistes), à l'endroit cliqué. Double-clic ou clic droit sur un fanion = l'effacer (voir removeMarker).
     const bodyEl = container.querySelector('.vct-body');
     bodyEl.addEventListener('dblclick', ev => {
       if (videoCaptureState || !ev.target.closest) return;
@@ -475,7 +576,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     bodyEl.addEventListener('contextmenu', ev => {
       if (videoCaptureState) return;
       const flag = ev.target.closest && ev.target.closest('.vct-marker-flag');
-      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) selectMarker(m); return; }
+      if (flag) { ev.preventDefault(); const m = markers[parseInt(flag.dataset.markerIdx, 10)]; if (m) removeMarker(m); return; }
       const t = timeAtX(ev.clientX);
       if (t == null) return; // clic droit sur un nom de piste : menu habituel du navigateur
       ev.preventDefault();
@@ -503,6 +604,50 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   function setEventDuration(e, v) {
     if (e.name === 'layer_segment' || e.name === 'fx_segment') e.detail.duration = Math.max(0.1, v);
     else e.detail.durationOverride = (v == null || v <= 0) ? null : v;
+  }
+
+  // Aimantation (09/11, demande de Jules-Antoine, façon Logic X) : en glissant la tête de lecture, un marqueur ou un bloc,
+  // le point tenu s'accroche aux repères proches (début/fin de la vidéo, autres marqueurs, bords des autres blocs, tête de
+  // lecture) quand il passe à moins de 8 px ; un trait bleu montre l'accroche. Maj ou Cmd maintenu = glisser libre.
+  const SNAP_PX = 8;
+  function snapTargets(skipEvents, skipMarker) {
+    const ts = [0];
+    if (videoEl && Number.isFinite(videoEl.duration)) ts.push(videoEl.duration);
+    if (videoEl && !videoCaptureState) ts.push(videoEl.currentTime || 0);
+    markers.forEach(m => { if (m !== skipMarker) ts.push(m.t); });
+    events.forEach(o => {
+      if (skipEvents && skipEvents.indexOf(o) !== -1) return;
+      ts.push(o.t);
+      if (hasIndependentDuration(o)) ts.push(o.t + getEventDuration(o));
+    });
+    return ts;
+  }
+  // refs : les instants que porte l'objet glissé (son début, sa fin). Renvoie le décalage à ajouter pour que le plus proche
+  // s'accroche à un repère, ou 0 s'il n'y en a pas à portée / si l'aimantation est coupée.
+  function snapDelta(refs, targets, ev, widthPx) {
+    container.__vctSnapT = null;
+    if (ev.shiftKey || ev.metaKey || !(widthPx > 0)) return 0;
+    const maxD = SNAP_PX / widthPx * total;
+    let best = null;
+    refs.forEach(r => targets.forEach(t => {
+      const d = t - r;
+      if (Math.abs(d) <= maxD && (best === null || Math.abs(d) < Math.abs(best.d))) best = { d, at: t };
+    }));
+    if (!best) return 0;
+    container.__vctSnapT = best.at;
+    return best.d;
+  }
+  function clearSnapGuide() { container.__vctSnapT = null; drawSnapGuide(); }
+  function drawSnapGuide() {
+    const g = container.querySelector('#vctSnapGuide');
+    const ruler = container.querySelector('.vct-ruler');
+    if (!g || !ruler) return;
+    const t = container.__vctSnapT;
+    if (t == null) { g.style.display = 'none'; return; }
+    const base = g.parentElement.getBoundingClientRect();
+    const rr = ruler.getBoundingClientRect();
+    g.style.left = ((rr.left - base.left) + Math.min(1, Math.max(0, t / total)) * rr.width) + 'px';
+    g.style.display = 'block';
   }
 
   function selectBlock(idx, el) {
@@ -654,11 +799,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     function onMove(ev) {
       const dx = ev.clientX - startX;
       if (Math.abs(dx) > 3) moved = true;
-      const dt = dx / trackRect.width * total;
+      let dt = dx / trackRect.width * total;
       if (kind === 'move') {
+        const dur = hasIndependentDuration(e) ? getEventDuration(e) : 0;
+        dt += snapDelta(dur ? [startT + dt, startT + dt + dur] : [startT + dt], snapTargets([e].concat(linked), null), ev, trackRect.width);
         e.t = isChainPoint ? Math.min(Math.max(startT + dt, minT), maxT) : Math.max(0, startT + dt);
         linked.forEach((m, i) => { m.t = Math.max(0, linkedStartTs[i] + (e.t - startT)); });
       } else {
+        const endT = startT + startDuration + dt;
+        dt += snapDelta([endT], snapTargets([e], null), ev, trackRect.width);
         setEventDuration(e, startDuration + dt);
       }
       rerender();
@@ -666,6 +815,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     function onUp() {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
+      clearSnapGuide();
       if (!moved) {
         // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
         const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
@@ -707,6 +857,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const dx = ev.clientX - startX;
       if (Math.abs(dx) > 3) moved = true;
       let dt = dx / trackRect.width * total;
+      dt += snapDelta([minStartT + dt], snapTargets(members, null), ev, trackRect.width);
       dt = Math.max(dt, -minStartT); // n'autorise jamais un membre à passer sous 0
       members.forEach((m, i) => { m.t = startTs[i] + dt; });
       rerender();
@@ -714,6 +865,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     function onUp() {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
+      clearSnapGuide();
       if (!moved) return;
       events.sort((a, b) => a.t - b.t);
       rerender();

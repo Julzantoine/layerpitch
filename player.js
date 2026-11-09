@@ -4232,6 +4232,13 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // l'autre (Backstage vs public) mais jamais PENDANT la vie d'une page (posé une fois par la page hôte
   // avant tout rendu, comme currentSeqMapTheme()) -- lues à chaque appel plutôt que figées une fois pour
   // ne pas dupliquer cette logique entre updateSeqMap() et seqMapDrawEdges(), qui en ont toutes deux besoin.
+  // Retour de Peter K (06/11) : « Répétitions avant de passer au suivant » ne se voyait pas sur la carte. Pastille « ×N » quand
+  // l'emplacement se joue plusieurs fois d'affilée (sans objet pour un emplacement à embranchements, qui ne repart jamais tout seul).
+  function seqMapRepeatBadge(slot) {
+    const n = Math.max(1, parseInt(slot && slot.repeatCount, 10) || 1);
+    if (n < 2 || (slot.nextOptions && slot.nextOptions.length)) return '';
+    return `<span class="seq-map-node-repeat" title="${escapeHtml(t('seqMapRepeatTitle', { n }))}">×${n}</span>`;
+  }
   function seqMapColGap() { return currentSeqMapDensity() === 'roomy' ? 56 : 40; }
   function seqMapRowGap() { return currentSeqMapDensity() === 'roomy' ? 24 : 16; }
   // Boucles de retour (03/09, retour direct "elles sont tracées un peu aléatoirement") : marge sous TOUTE
@@ -4490,7 +4497,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const label = slot.label || t('slotFallback', { n: idx + 1 });
         const cls = 'seq-map-node' + nodeStateCls(idx, slot);
         const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
-        return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+        return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}${seqMapRepeatBadge(slot)}</span>${check}</div>`;
       }).join('');
       attachSeqMapNodeClicks(currentSlot);
       return;
@@ -4576,7 +4583,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
       const accent = roomy ? SEQ_MAP_NODE_PALETTE[idx % SEQ_MAP_NODE_PALETTE.length] : null;
       const style = `left:${positions[idx].x}px;top:${positions[idx].y}px` + (accent ? `;--seq-map-node-accent:${accent}` : '');
-      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}${seqMapRepeatBadge(slot)}</span>${check}</div>`;
     }).join('');
     seqMapDrawEdges(layout, visibleIdx, positions, w, h, totalW, totalH, roomy);
     attachSeqMapNodeClicks(currentSlot);

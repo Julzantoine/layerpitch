@@ -17,6 +17,7 @@
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
 //   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
 //   exportEvents(events, mode, onProgress) -> Blob, saveToLibrary(blob, title) -> id de vidéo, detach(events, title).
+//   Publication automatique (09/11) : publishVersion(events, title) -> id du son, getSoundKey() (état du montage), cuesOf(events), keepOld(), afterExport(res), onProgress(msg).
 (function () {
   const RT = () => window.LayerCaptureRetarget;
   const P = () => window.LayerCapturePlan;
@@ -36,7 +37,11 @@
     save: (id, captureId, title, subs) => rpc('save_video_capture_version', { p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs }),
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
+    setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
   };
+  // Statuts de relecture d'une version vidéo (9/11, idée Pibox) : même liste que la contrainte de la migration 20261109010000.
+  const STATUSES = ['draft', 'sent', 'changes_requested', 'approved'];
+  const statusOf = v => (v && STATUSES.indexOf(v.status) >= 0 ? v.status : 'draft');
   // Fonctions serveur absentes : la migration n'a pas encore été appliquée.
   const isMissingBackend = e => /does not exist|could not find the function|PGRST202|42883|42P01/i.test((e && (e.message || e.code)) || '');
 
@@ -47,10 +52,11 @@
       list: async () => [...rows.values()].sort((a, b) => a.createdAt - b.createdAt).map(clone),
       save: async (id, captureId, title, subs) => {
         const prev = rows.get(id);
-        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now() });
+        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now(), status: prev ? prev.status : 'draft', statusAt: prev ? prev.statusAt : null });
       },
       setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; }, // (session : pas d'étiquettes rangées)
       remove: async id => { rows.delete(id); },
+      setStatus: async (id, status) => { const v = rows.get(id); if (v) { v.status = status; v.statusAt = new Date().toISOString(); } },
     };
   }
 
@@ -62,9 +68,19 @@
     let editing = null; // { id, title, subs, isNew, titleTouched }
     let listening = null; // { key, stop() }
     let busy = false;
+    let diffView = null; // { ids: [id] } -> tableau de différences sous la liste (1 version contre l'original, ou 2 versions entre elles)
+    const pickedIds = new Set(); // versions cochées, gardées d'un affichage à l'autre
     let batchStatus = ''; // avancement du rendu en série (survit aux ré-affichages de la section)
     const setBatchStatus = m => { batchStatus = m; const el = host.querySelector('[data-role="batchStatus"]'); if (el) el.textContent = m; };
     const durationCache = new Map(); // "id|fichier" -> secondes (fichiers décodés à la demande)
+    // Publication automatique des versions (09/11) : « Sauvegarder / publier » du Backstage (ou « Publier le montage » dans le studio) publie aussi
+    // les versions enregistrées qui ont changé depuis leur dernière publication. Clé d'une version = ses remplacements + l'état du montage
+    // (la retouche du montage change toutes ses versions, Q5) ; published = clé au moment où la version a été publiée ou vue pour la première fois.
+    const published = new Map();
+    const baseKey = () => (ctx.getSoundKey ? ctx.getSoundKey() : '');
+    const keyOf = v => JSON.stringify({ s: v.substitutions, b: baseKey() });
+    const needsPublish = v => !v.lastExportVideoId || (published.has(v.id) && published.get(v.id) !== keyOf(v));
+    const canPublish = () => !ctx.sessionOnly && !!ctx.publishVersion && ctx.getCaptureId() && ctx.getCaptureId() !== 'session';
 
     // ---- Ingrédients du montage ----
     const ingredients = () => {
@@ -73,7 +89,21 @@
       const sfxIds = [...new Set(events.filter(e => e.name === 'stinger_play').map(e => e.detail.sfxId))].filter(id => ctx.findSfx(id));
       return { trackIds, sfxIds };
     };
-    const folderName = id => { const f = (ctx.library.sfxFolders || []).find(x => x.id === id); return f ? (f.name || f.title || '') : ''; };
+    // Autres packs du compositeur ajoutés au choix du Versioning (06/11, demande de Jules-Antoine) : leurs morceaux et Sfx s'ajoutent à ceux
+    // du pack ouvert. Choix de séance seulement (pas enregistré) : une version enregistrée cite déjà les morceaux par identifiant.
+    const extraPackIds = [];
+    const extraOf = pid => (ctx.extraPackContent ? ctx.extraPackContent(pid) : null) || { tracks: [], sfx: [] };
+    const lib = () => {
+      const base = ctx.library;
+      if (!extraPackIds.length) return base;
+      const seenT = new Set((base.library || []).map(t => t.id)), seenS = new Set((base.sfxLibrary || []).map(x => x.id));
+      const tracks = (base.library || []).slice(), sfx = (base.sfxLibrary || []).slice();
+      extraPackIds.forEach(pid => { const c = extraOf(pid); c.tracks.forEach(t => { if (!seenT.has(t.id)) { seenT.add(t.id); tracks.push(t); } }); c.sfx.forEach(x => { if (!seenS.has(x.id)) { seenS.add(x.id); sfx.push(x); } }); });
+      return Object.assign({}, base, { library: tracks, sfxLibrary: sfx });
+    };
+    // Les dossiers Sfx portent leur nom dans `label` (06/11 : on lisait name/title et l'on affichait l'identifiant brut) ; sans nom, « Dossier n ».
+    const folderLabel = (f, i) => f.label || f.name || f.title || tr('defaultOrgFolderLabel').replace('{n}', String(i + 1));
+    const folderName = id => { const all = ctx.library.sfxFolders || []; const i = all.findIndex(x => x.id === id); return i < 0 ? '' : folderLabel(all[i], i); };
 
     // ---- Durées de fichiers dont la traduction a besoin (transition d'embranchement sans durée réglée, Sfx remplacés) ----
     const fileUrl = (owner, file) => owner.base + encodeURIComponent(file) + (owner.publishedAt ? '?v=' + encodeURIComponent(owner.publishedAt) : '');
@@ -141,6 +171,51 @@
       return bits.join(' + ') || tr('versioningNoChange');
     }
 
+    // ---- Différences (9/11, idée Pibox) : ce que chaque version change par rapport à l'original, ou l'une par rapport à l'autre ----
+    // Colonnes = l'original puis 1 ou 2 versions. Lignes = chaque morceau / Sfx touché par au moins une des versions affichées.
+    function diffModel(list) {
+      const rows = [];
+      const cellOf = (subs, kind, id) => {
+        if (kind === 'track') {
+          const s = subs && subs.tracks && subs.tracks[id];
+          return s && s.to ? { key: 'to:' + s.to + (s.snapToImage ? '*' : ''), text: trackTitle(s.to) + (s.snapToImage ? ' (' + tr('versioningSnapShort') + ')' : '') } : { key: '', text: null };
+        }
+        const has = subs && subs.sfx && Object.prototype.hasOwnProperty.call(subs.sfx, id);
+        if (!has) return { key: '', text: null };
+        const to = subs.sfx[id];
+        return to ? { key: 'to:' + to, text: sfxTitle(to) } : { key: 'choose', text: null, toChoose: true };
+      };
+      ['track', 'sfx'].forEach(kind => {
+        const ids = new Set();
+        list.forEach(v => Object.keys(((v.substitutions || {})[kind === 'track' ? 'tracks' : 'sfx']) || {}).forEach(id => ids.add(id)));
+        ids.forEach(id => {
+          const cells = list.map(v => cellOf(v.substitutions, kind, id));
+          if (cells.every(c => !c.key)) return; // aucune version ne touche cet élément
+          rows.push({ kind, id, label: kind === 'track' ? trackTitle(id) : sfxTitle(id), cells, differ: cells.length === 2 && cells[0].key !== cells[1].key });
+        });
+      });
+      return rows;
+    }
+    function diffHtml() {
+      const list = (diffView ? diffView.ids : []).map(id => versions.find(x => x.id === id)).filter(Boolean);
+      if (!list.length) return '';
+      const rows = diffModel(list);
+      const name = v => v.title || tr('captureUntitled');
+      const cell = (c, differ) => {
+        if (c.toChoose) return `<td class="vcv-diff-choose">${esc(tr('versioningDiffToChoose'))}</td>`;
+        if (!c.key) return `<td class="vcv-diff-same">${esc(tr('versioningDiffSame'))}</td>`;
+        return `<td class="${differ ? 'vcv-diff-changed' : ''}">${esc(c.text)}</td>`;
+      };
+      let html = `<div class="vcv-diff"><div class="vcv-diff-head"><span class="vcv-title">${esc(list.length === 2 ? tr('versioningDiffCompareTitle') : tr('versioningDiffTitle'))}</span>`
+        + `<button type="button" class="video-capture-download-btn" data-act="closeDiff">${esc(tr('versioningDiffClose'))}</button></div>`;
+      if (!rows.length) return html + `<div class="vcv-empty">${esc(tr('versioningNoChange'))}</div></div>`;
+      html += `<table class="vcv-diff-table"><thead><tr><th></th><th>${esc(tr('versioningDiffOriginal'))}</th>${list.map(v => `<th>${esc(name(v))}</th>`).join('')}</tr></thead><tbody>`;
+      rows.forEach(r => {
+        html += `<tr><td class="vcv-diff-label"><span class="vcv-diff-kind">${esc(r.kind === 'track' ? tr('versioningDiffKindTrack') : 'Sfx')}</span> ${esc(r.label)}</td><td>${esc(r.label)}</td>${r.cells.map(c => cell(c, r.differ)).join('')}</tr>`;
+      });
+      return html + `</tbody></table></div>`;
+    }
+
     // ---- Écoute en direct sur la vidéo : rendu du son (quelques secondes), puis lecture calée sur l'image ----
     function stopListening() {
       if (!listening) return;
@@ -203,7 +278,7 @@
             const videoId = ctx.publishVersion && ctx.getCaptureId() !== 'session' ? await ctx.publishVersion(events, title) : await ctx.saveToLibrary(blob, title);
             const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
             if (ctx.afterExport) ctx.afterExport(res && res.data); // historique (3 derniers) et fichiers à effacer
-            v.lastExportVideoId = videoId;
+            v.lastExportVideoId = videoId; published.set(v.id, keyOf(v));
           }
           done++;
         }
@@ -225,8 +300,32 @@
       if (captureId) {
         try { versions = await store.list(captureId); }
         catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
+        versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
       }
       render();
+    }
+    // Publie les versions enregistrées qui n'ont jamais été publiées ou ont changé (force : toutes). Renvoie le nombre publié.
+    async function publishPending(opts) {
+      if (!canPublish()) return 0;
+      await refresh();
+      if (loadError) return 0;
+      const todo = versions.filter(v => (opts && opts.force) || needsPublish(v));
+      if (!todo.length) return 0;
+      let n = 0;
+      busy = true; render();
+      try {
+        for (const v of todo) {
+          if (ctx.onProgress) ctx.onProgress(tr('versioningPublishing').replace('{name}', v.title || tr('captureUntitled')).replace('{i}', n + 1).replace('{n}', todo.length));
+          const key = keyOf(v);
+          const { events } = await versionResult(v.substitutions);
+          const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
+          const videoId = await ctx.publishVersion(events, title); // un son sur la vidéo muette du montage
+          const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true);
+          if (ctx.afterExport) ctx.afterExport(res && res.data);
+          v.lastExportVideoId = videoId; published.set(v.id, key); n++;
+        }
+      } finally { busy = false; render(); }
+      return n;
     }
 
     // ---- Affichage ----
@@ -246,8 +345,10 @@
         html += `<div class="vcv-version" data-id="${esc(v.id)}">
           <input type="checkbox" data-role="pick" ${busy ? 'disabled' : ''} title="${esc(tr('versioningPickHelp'))}">
           <span class="vcv-name">${esc(v.title || tr('captureUntitled'))}</span>
+          <select data-role="reviewStatus" class="vcv-review vcv-review-${statusOf(v)}" ${busy ? 'disabled' : ''} title="${esc(v.statusAt ? tr('versioningStatusSince').replace('{date}', new Date(v.statusAt).toLocaleDateString()) : tr('versioningStatusHelp'))}">${STATUSES.map(st => `<option value="${st}" ${statusOf(v) === st ? 'selected' : ''}>${esc(tr('versioningStatus_' + st))}</option>`).join('')}</select>
           <span class="vcv-summary">${esc(summaryOf(v.substitutions))}${v.lastExportVideoId ? ' · ' + esc(tr('versioningInLibrary')) : ''}</span>
           <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(listening && listening.key === key ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
+          <button type="button" class="video-capture-download-btn" data-act="diff" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDiffHelp'))}">${esc(tr('versioningDiffBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="edit" ${busy ? 'disabled' : ''}>${esc(tr('versioningEditBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="duplicate" ${busy ? 'disabled' : ''}>${esc(tr('versioningDuplicateBtn'))}</button>
           ${ctx.sessionOnly ? '' : `<button type="button" class="video-capture-download-btn" data-act="detach" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDetachHelp'))}">${esc(tr('versioningDetachBtn'))}</button>`}
@@ -255,8 +356,10 @@
           <span class="vcv-status" data-role="status"></span>
         </div>`;
       });
+      if (diffView) html += diffHtml();
       if (versions.length) {
         html += `<div class="vcv-batch">
+          <button type="button" class="video-capture-download-btn" data-act="compare" ${busy ? 'disabled' : ''} title="${esc(tr('versioningCompareHelp'))}">${esc(tr('versioningCompareBtn'))}</button>
           <span>${esc(tr('versioningRenderPicked'))}</span>
           <button type="button" class="video-capture-download-btn" data-render="audio" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportAudioHelp'))}">${esc(tr('captureExportAudioBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-render="copy" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportCopyHelp'))}">${esc(tr('captureExportCopyBtn'))}</button>
@@ -266,6 +369,7 @@
         </div>`;
       }
       host.innerHTML = html;
+      host.querySelectorAll('.vcv-version').forEach(row => { if (pickedIds.has(row.dataset.id)) row.querySelector('[data-role="pick"]').checked = true; });
       bindList();
     }
 
@@ -274,20 +378,36 @@
       let h = `<div class="vcv-editor">
         <div class="vcv-row"><span class="vcv-label">${esc(tr('versioningNameLabel'))}</span>
           <input type="text" class="video-capture-title-input vcv-name-input" data-role="title" value="${esc(editing.title)}" placeholder="${esc(autoTitle(subs))}"></div>`;
+      const addable = (ctx.otherPacks || []).filter(x => extraPackIds.indexOf(x.id) < 0);
+      if ((ctx.otherPacks || []).length) {
+        h += `<div class="vcv-section">${esc(tr('versioningExtraPacksLabel'))}
+          ${extraPackIds.map(pid => { const pk = (ctx.otherPacks || []).find(x => x.id === pid); return `<button type="button" class="video-capture-download-btn" data-role="removePack" data-pack="${esc(pid)}" title="${esc(tr('versioningRemovePack'))}">${esc(pk ? pk.title : pid)} ✕</button>`; }).join(' ')}
+          ${addable.length ? `<select class="video-capture-load-select" data-role="addPack"><option value="">${esc(tr('versioningAddPack'))}</option>${addable.map(x => `<option value="${esc(x.id)}">${esc(x.title || x.id)}</option>`).join('')}</select>` : ''}
+        </div>`;
+      }
       if (trackIds.length) {
         h += `<div class="vcv-section">${esc(tr('versioningTracksLabel'))}</div>`;
         trackIds.forEach(id => {
           const src = ctx.findTrack(id);
           const cur = (subs.tracks || {})[id] || {};
-          const others = (ctx.library.library || []).filter(t => t.id !== id);
-          const ok = others.filter(t => RT().compareTracks(src, t).compatible);
+          const baseIds = new Set((ctx.library.library || []).map(t => t.id));
+          const others = (lib().library || []).filter(t => t.id !== id);
+          const okAll = others.filter(t => RT().compareTracks(src, t).compatible);
+          const ok = okAll.filter(t => baseIds.has(t.id));
+          const optOf = t => `<option value="${esc(t.id)}" ${cur.to === t.id ? 'selected' : ''}>${esc(t.title || t.id)}</option>`;
+          const extraGroups = extraPackIds.map(pid => {
+            const pk = (ctx.otherPacks || []).find(x => x.id === pid);
+            const ids = new Set(extraOf(pid).tracks.map(t => t.id));
+            const list = okAll.filter(t => !baseIds.has(t.id) && ids.has(t.id));
+            return list.length ? `<optgroup label="${esc(pk ? pk.title : pid)}">${list.map(optOf).join('')}</optgroup>` : '';
+          }).join('');
           const sameModeBlocked = others.filter(t => t.mode === src.mode && !RT().compareTracks(src, t).compatible).length;
           h += `<div class="vcv-row">
             <span class="vcv-src">${esc(src.title || id)} <em>${esc(tr('versioningMode_' + src.mode))}</em></span><span class="vcv-arrow">→</span>
             <select class="video-capture-load-select" data-track="${esc(id)}">
               <option value="">${esc(tr('versioningKeepTrack'))}</option>
-              ${ok.map(t => `<option value="${esc(t.id)}" ${cur.to === t.id ? 'selected' : ''}>${esc(t.title || t.id)}</option>`).join('')}
-              ${!ok.length ? `<option disabled>${esc(tr('versioningNoCompatible'))}</option>` : ''}
+              ${ok.map(optOf).join('')}${extraGroups}
+              ${!okAll.length ? `<option disabled>${esc(tr('versioningNoCompatible'))}</option>` : ''}
               ${sameModeBlocked ? `<option disabled>${esc(tr('versioningOthersBlocked').replace('{n}', sameModeBlocked))}</option>` : ''}
             </select>
             <label class="video-capture-export-opt" title="${esc(tr('versioningSnapHelp'))}"><input type="checkbox" data-snap="${esc(id)}" ${cur.snapToImage ? 'checked' : ''} ${cur.to ? '' : 'disabled'}> ${esc(tr('versioningSnapLabel'))}</label>
@@ -295,18 +415,18 @@
         });
       }
       if (sfxIds.length) {
-        const folders = (ctx.library.sfxFolders || []).filter(f => (ctx.library.sfxLibrary || []).some(s => s.folderId === f.id));
+        const folders = (ctx.library.sfxFolders || []).filter(f => (lib().sfxLibrary || []).some(s => s.folderId === f.id)).map(f => ({ id: f.id, label: folderName(f.id) }));
         h += `<div class="vcv-section">${esc(tr('versioningSfxLabel'))}
-          ${folders.length ? `<select class="video-capture-load-select" data-role="folder"><option value="">${esc(tr('versioningFolderPick'))}</option>${folders.map(f => `<option value="${esc(f.id)}">${esc(f.name || f.title || f.id)}</option>`).join('')}</select>` : ''}
+          ${folders.length ? `<select class="video-capture-load-select" data-role="folder"><option value="">${esc(tr('versioningFolderPick'))}</option>${folders.map(f => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join('')}</select>` : ''}
         </div>`;
         const byFolder = {};
-        (ctx.library.sfxLibrary || []).forEach(s => (byFolder[s.folderId || ''] = byFolder[s.folderId || ''] || []).push(s));
+        (lib().sfxLibrary || []).forEach(s => (byFolder[s.folderId || ''] = byFolder[s.folderId || ''] || []).push(s));
         sfxIds.forEach(id => {
           const src = ctx.findSfx(id);
           const has = subs.sfx && (id in subs.sfx);
           const cur = has ? subs.sfx[id] : undefined;
-          const sugg = RT().suggestSfx(src, (ctx.library.sfxLibrary || []));
-          const groups = Object.keys(byFolder).map(fid => `<optgroup label="${esc(fid ? folderName(fid) : tr('versioningNoFolder'))}">${byFolder[fid].filter(s => s.id !== id).map(s =>
+          const sugg = RT().suggestSfx(src, (lib().sfxLibrary || []));
+          const groups = Object.keys(byFolder).filter(fid => byFolder[fid].some(s => s.id !== id)).map(fid => `<optgroup label="${esc(fid ? folderName(fid) : tr('versioningNoFolder'))}">${byFolder[fid].filter(s => s.id !== id).map(s =>
             `<option value="${esc(s.id)}" ${cur === s.id ? 'selected' : ''}>${esc(s.title || s.id)}${s.tag ? ' — ' + esc(s.tag) : ''}</option>`).join('')}</optgroup>`).join('');
           h += `<div class="vcv-row ${cur === null ? 'vcv-orange' : ''}">
             <span class="vcv-src">${esc(src.title || id)}${src.tag ? ' <em>' + esc(src.tag) + '</em>' : ''}</span><span class="vcv-arrow">→</span>
@@ -375,10 +495,13 @@
       }));
       // Tout un dossier Sfx d'un coup : chaque Sfx du montage prend son équivalent le plus proche dans ce dossier, ou
       // passe « à choisir » (l'original joue) s'il n'y en a pas.
+      const addPackSel = q('[data-role="addPack"]');
+      if (addPackSel) addPackSel.addEventListener('change', () => { if (addPackSel.value) { extraPackIds.push(addPackSel.value); render(); } });
+      host.querySelectorAll('[data-role="removePack"]').forEach(b => b.addEventListener('click', () => { const i = extraPackIds.indexOf(b.dataset.pack); if (i >= 0) { extraPackIds.splice(i, 1); render(); } }));
       const folderSel = q('[data-role="folder"]');
       if (folderSel) folderSel.addEventListener('change', () => {
         if (!folderSel.value) return;
-        const pool = (ctx.library.sfxLibrary || []).filter(s => s.folderId === folderSel.value);
+        const pool = (lib().sfxLibrary || []).filter(s => s.folderId === folderSel.value);
         sfxIds.forEach(id => {
           const m = RT().suggestSfx(ctx.findSfx(id), pool);
           const value = m ? m.sfx.id : '__choose';
@@ -421,6 +544,13 @@
         row.querySelector('[data-act="listen"]').addEventListener('click', () => listen('v:' + v.id, v.substitutions, status));
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), isNew: false, titleTouched: true }; render(); });
         row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), isNew: true, titleTouched: true }; render(); });
+        row.querySelector('[data-role="pick"]').addEventListener('change', e => { if (e.target.checked) pickedIds.add(v.id); else pickedIds.delete(v.id); });
+        row.querySelector('[data-role="reviewStatus"]').addEventListener('change', async e => {
+          const next = e.target.value;
+          try { await store.setStatus(v.id, next); v.status = next; v.statusAt = new Date().toISOString(); render(); }
+          catch (err) { console.error(err); status.textContent = tr('versioningStatusFailed').replace('{error}', err.message); e.target.value = statusOf(v); }
+        });
+        row.querySelector('[data-act="diff"]').addEventListener('click', () => { diffView = { ids: [v.id] }; render(); });
         const detachBtn = row.querySelector('[data-act="detach"]');
         if (detachBtn) detachBtn.addEventListener('click', async () => {
           const ok = await window.LayerPitchNotify.confirm(tr('versioningDetachConfirm').replace('{name}', v.title || ''), { okLabel: tr('versioningDetachBtn') });
@@ -434,9 +564,17 @@
         row.querySelector('[data-act="delete"]').addEventListener('click', async () => {
           const ok = await window.LayerPitchNotify.confirm(tr('versioningDeleteConfirm').replace('{name}', v.title || ''), { okLabel: tr('versioningDeleteBtn'), danger: true });
           if (!ok) return;
-          try { await store.remove(v.id); await refresh(); }
+          try { await store.remove(v.id); pickedIds.delete(v.id); if (diffView && diffView.ids.indexOf(v.id) >= 0) diffView = null; await refresh(); }
           catch (e) { console.error(e); status.textContent = tr('versioningDeleteFailed').replace('{error}', e.message); }
         });
+      });
+      const closeDiff = host.querySelector('[data-act="closeDiff"]');
+      if (closeDiff) closeDiff.addEventListener('click', () => { diffView = null; render(); });
+      const compareBtn = host.querySelector('[data-act="compare"]');
+      if (compareBtn) compareBtn.addEventListener('click', () => {
+        const ids = versions.filter(x => pickedIds.has(x.id)).map(x => x.id);
+        if (ids.length !== 2) { setBatchStatus(tr('versioningComparePickTwo')); return; }
+        diffView = { ids }; render();
       });
       host.querySelectorAll('[data-render]').forEach(btn => btn.addEventListener('click', () => {
         const picked = [...host.querySelectorAll('.vcv-version')].filter(r => r.querySelector('[data-role="pick"]').checked).map(r => versions.find(x => x.id === r.dataset.id));
@@ -450,7 +588,7 @@
     }
 
     refresh();
-    return { refresh, stop: stopListening, isListening: () => !!listening };
+    return { refresh, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
   }
 
   window.LayerCaptureVersioning = { mount };

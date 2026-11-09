@@ -51,7 +51,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon refusée tant que in_app_lessons est fermé', w.__closed === true);
   check('10 leçons déclarées, aucune « bientôt »', w.__r.lessons === 10 && w.__r.soon === 0);
   check('séquentiel simple : 23 étapes (deux sections de quatre alternatives, duplication en AABA, case de mélange présentée), sans raccourci d’import', w.__r.seq === 23 && w.__r.seqSkip === 0);
-  check('séquentiel à embranchement : raccourci d’import (41 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 41 && w.__r.brSkip === 9);
+  // 06/11 : les trois autres villes ont chacune leurs 5 étapes (dont le dépôt de « Trans Rock City ») : 41 -> 56.
+  check('séquentiel à embranchement : raccourci d’import (56 étapes dont 9 sautées sans bulk_drop)', w.__r.br === 56 && w.__r.brSkip === 9);
   check('embranchement vertical : 25 étapes', w.__r.emb === 25);
   
   
@@ -94,7 +95,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   check('fichier d’exemple : bouton absent sans URL, présent avec', sampleOk.before === false && sampleOk.after === true);
   check('fichiers d’exemple : 3 noms pour les couches additives', sampleOk.names === 3);
-  check('19 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 19);
+  check('22 étapes de dépôt acceptent l’exemple', sampleOk.flagged === 22); // +3 dépôts de « Trans Rock City » (06/11)
   // Dépôt réel d'un exemple : un événement « drop » transporte les fichiers jusqu'au gestionnaire de la zone.
   w.DataTransfer = class { constructor() { this.files = []; this.items = { add: f => this.files.push(f) }; } };
   w.DragEvent = class extends w.Event { constructor(t, o) { super(t, o); this.dataTransfer = o.dataTransfer; } };
