@@ -269,11 +269,13 @@
     // On commence par la version choisie ; les autres se préparent (rendu du son) en tâche de fond puis s'ajoutent au menu. Tous les sons sont
     // calés sur la vidéo et jouent ensemble, un seul audible : changer de version ne fait que changer le volume (immédiat, sans couper la vidéo).
     let abSeq = 0;
+    let abPending = ''; // message du dock tant que la première version n'est pas prête (le menu n'existe pas encore)
     async function listenAB(list, statusEl, startIdx) {
       if (listening && listening.key === 'ab') { stopListening(); return; }
       stopListening();
       startIdx = Math.min(Math.max(startIdx || 0, 0), list.length - 1);
       statusEl.textContent = tr('versioningPreparingListen');
+      abPending = tr('versioningLoadingFirst'); renderAbDock();
       let stopped = false;
       try {
         const renderOne = async (i, progress) => {
@@ -281,7 +283,7 @@
           const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
           return window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => progress(list[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot)) });
         };
-        const first = await renderOne(startIdx, m => { statusEl.textContent = m; });
+        const first = await renderOne(startIdx, m => { statusEl.textContent = m; abPending = tr('versioningLoadingFirst') + ' ' + m; renderAbDock(); });
         await C().resumeAudio();
         const ac = C().audioContext();
         const video = ctx.videoEl;
@@ -314,6 +316,7 @@
         state.stop = () => { stopped = true; video.removeEventListener('pause', onPause); document.removeEventListener('keydown', onKey); nodes.forEach(n => { if (n) { try { n.src.stop(); } catch (e) {} } }); if (!video.paused) video.pause(); };
         firstSrc.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
         listening = state;
+        abPending = '';
         statusEl.textContent = '';
         render();
         // Les autres versions : préparées l'une après l'autre pendant que la première joue, puis calées sur la position de la vidéo.
@@ -330,6 +333,7 @@
         }
       } catch (e) {
         console.error(e);
+        abPending = ''; renderAbDock();
         statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
       }
     }
@@ -345,7 +349,10 @@
     function renderAbDock() {
       const el = abDock();
       if (!el) return;
-      if (!listening || !listening.ab) { el.innerHTML = ''; el.hidden = true; el.dataset.sid = ''; return; }
+      if (!listening || !listening.ab) {
+        if (abPending) { el.hidden = false; el.dataset.sid = 'pending'; el.innerHTML = `<span class="vcv-ab-note vcv-ab-loading">${esc(abPending)}</span>`; return; }
+        el.innerHTML = ''; el.hidden = true; el.dataset.sid = ''; return;
+      }
       const ab = listening.ab;
       el.hidden = false;
       if (el.dataset.sid !== String(ab.id)) {
@@ -361,7 +368,13 @@
       if (sel.options.length !== ab.labels.length) sel.innerHTML = ab.labels.map((l, i) => `<option value="${i}"></option>`).join('');
       [...sel.options].forEach((o, i) => { o.textContent = opts[i]; o.disabled = !ab.ready[i]; });
       sel.value = String(ab.active);
-      el.querySelector('[data-role="abNote"]').textContent = ab.note || '';
+      // Tant qu'une version n'est pas prête : message bien visible (n/total) ; ensuite, « toutes prêtes ».
+      const done = ab.ready.filter(Boolean).length, failed = ab.failed.filter(Boolean).length;
+      const noteEl = el.querySelector('[data-role="abNote"]');
+      noteEl.classList.toggle('vcv-ab-loading', done + failed < ab.labels.length);
+      noteEl.textContent = done + failed < ab.labels.length
+        ? tr('versioningLoadingAll').replace('{i}', done).replace('{n}', ab.labels.length) + (ab.note ? ' — ' + ab.note : '')
+        : tr('versioningAllReady');
     }
     function render() { renderList(); renderAbDock(); }
 
