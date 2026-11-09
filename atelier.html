@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794227439319">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794227439319">
+<link rel="stylesheet" href="player.css?v=1794230245105">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794230245105">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -512,16 +512,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794227439319"></script>
-<script src="layerpitch-notify.js?v=1794227439319"></script>
-<script src="public-page.js?v=1794227439319"></script>
-<script src="player.js?v=1794227439319"></script>
-<script src="capture-plan.js?v=1794227439319"></script>
-<script src="capture-render.js?v=1794227439319"></script>
-<script src="capture-retarget.js?v=1794227439319"></script>
-<script src="capture-versioning.js?v=1794227439319"></script>
-<script src="layerpitch-guide.js?v=1794227439319"></script>
-<script src="atelier-lecons.js?v=1794227439319"></script>
+<script src="layerpitch-i18n.js?v=1794230245105"></script>
+<script src="layerpitch-notify.js?v=1794230245105"></script>
+<script src="public-page.js?v=1794230245105"></script>
+<script src="player.js?v=1794230245105"></script>
+<script src="capture-plan.js?v=1794230245105"></script>
+<script src="capture-render.js?v=1794230245105"></script>
+<script src="capture-retarget.js?v=1794230245105"></script>
+<script src="capture-versioning.js?v=1794230245105"></script>
+<script src="layerpitch-guide.js?v=1794230245105"></script>
+<script src="atelier-lecons.js?v=1794230245105"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2583,6 +2583,7 @@ function openCapturePanel(file, opts) {
   });
   let lastEvents = [];
   let lastExportBlob = null; // dernier export réussi, en attente d'un envoi optionnel vers la bibliothèque
+  let lastExportName = ''; // dernier nom donné à un export (proposé à nouveau, et pour la bibliothèque)
   // Enregistrement automatique et publication du montage (06/11) : voir « Enregistrement automatique » plus bas.
   let autosaveTimer = 0;
   let autosaveRunning = null;
@@ -2825,6 +2826,12 @@ function openCapturePanel(file, opts) {
   videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
   async function runExport(mode) {
     if (mode === 'video' && fullExportLocked) return; // garde-fou : même si le bouton était réactivé à la main
+    // Nom du fichier (09/11, demande de Jules-Antoine : « export-nombre » à chaque fois) : demandé AVANT l'export (il peut durer longtemps),
+    // proposé d'après le nom du montage. Annuler = pas d'export. Le même nom sert de proposition si on ajoute ensuite l'export à la bibliothèque.
+    const askedName = await window.LayerPitchNotify.prompt(tr('captureDownloadNamePrompt'), { inputValue: lastExportName || titleInput.value || '' });
+    if (askedName === null) return;
+    const fileBase = askedName.replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-').replace(/\.(mp4|wav)$/i, '').trim().replace(/^\.+/, '') || ('export-' + Date.now());
+    lastExportName = askedName.trim();
     setExportButtonsDisabled(true);
     try {
       // Sélecteur de palier retiré du panneau le 16 septembre (retour direct de Jules-Antoine : "ça ne
@@ -2837,7 +2844,7 @@ function openCapturePanel(file, opts) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export-${Date.now()}.${mode === 'audio' ? 'wav' : 'mp4'}`;
+      a.download = `${fileBase}.${mode === 'audio' ? 'wav' : 'mp4'}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -2866,7 +2873,7 @@ function openCapturePanel(file, opts) {
     if (!lastExportBlob || !packId) return;
     // Nom de la vidéo (6/11, demande de Jules-Antoine) : demandé à l'ajout, proposé d'après le nom de la prise ; renommable ensuite
     // dans la bibliothèque. Annuler = on n'envoie rien.
-    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: titleInput.value || '' });
+    const exportName = await window.LayerPitchNotify.prompt(tr('captureExportNamePrompt'), { inputValue: lastExportName || titleInput.value || '' });
     if (exportName === null) return;
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
