@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794262222024">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794262222024">
+<link rel="stylesheet" href="player.css?v=1794262487889">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794262487889">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -573,16 +573,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794262222024"></script>
-<script src="layerpitch-notify.js?v=1794262222024"></script>
-<script src="public-page.js?v=1794262222024"></script>
-<script src="player.js?v=1794262222024"></script>
-<script src="capture-plan.js?v=1794262222024"></script>
-<script src="capture-render.js?v=1794262222024"></script>
-<script src="capture-retarget.js?v=1794262222024"></script>
-<script src="capture-versioning.js?v=1794262222024"></script>
-<script src="layerpitch-guide.js?v=1794262222024"></script>
-<script src="atelier-lecons.js?v=1794262222024"></script>
+<script src="layerpitch-i18n.js?v=1794262487889"></script>
+<script src="layerpitch-notify.js?v=1794262487889"></script>
+<script src="public-page.js?v=1794262487889"></script>
+<script src="player.js?v=1794262487889"></script>
+<script src="capture-plan.js?v=1794262487889"></script>
+<script src="capture-render.js?v=1794262487889"></script>
+<script src="capture-retarget.js?v=1794262487889"></script>
+<script src="capture-versioning.js?v=1794262487889"></script>
+<script src="layerpitch-guide.js?v=1794262487889"></script>
+<script src="atelier-lecons.js?v=1794262487889"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2673,7 +2673,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
-      <label class="video-capture-count" id="videoCaptureKeepOldLabel" style="display:inline-flex;align-items:center;gap:4px" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
+      <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
@@ -3024,6 +3024,7 @@ function openCapturePanel(file, opts) {
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
       <label class="atelier-export-opt" title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
+      <label class="atelier-export-opt" title="${esc(tr('captureKeepOldHelp'))}"><input type="checkbox" id="atelierExportKeepOld"> ${esc(tr('captureKeepOldLabel'))}</label>
       <div class="video-test-dialog-actions">
         <button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button>
         <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('captureExportGoBtn'))}</button>
@@ -3033,11 +3034,13 @@ function openCapturePanel(file, opts) {
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {
     exportDialog.querySelector('#atelierExportCredit').checked = creditCheckbox.checked;
+    exportDialog.querySelector('#atelierExportKeepOld').checked = keepOldCheckbox.checked;
     exportDialog.showModal();
   });
   exportDialog.addEventListener('close', () => {
     if (exportDialog.returnValue !== 'go') return;
     creditCheckbox.checked = exportDialog.querySelector('#atelierExportCredit').checked;
+    keepOldCheckbox.checked = exportDialog.querySelector('#atelierExportKeepOld').checked;
     runExport(exportDialog.querySelector('input[name="atelierExportMode"]:checked').value);
   });
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
