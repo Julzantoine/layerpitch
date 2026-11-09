@@ -15,7 +15,7 @@
 //
 // mount(host, ctx) -> { refresh() }. ctx, fourni par openCapturePanel :
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
-//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
+//   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked (hérité : l'export MP4 complet a été retiré le 09/11),
 //   exportEvents(events, mode, onProgress) -> Blob, saveToLibrary(blob, title) -> id de vidéo, detach(events, title).
 //   Publication automatique (09/11) : publishVersion(events, title) -> id du son, getSoundKey() (état du montage), cuesOf(events), keepOld(), afterExport(res), onProgress(msg).
 (function () {
@@ -38,6 +38,13 @@
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
     setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
+    // Lien de relecture client et remarques (9/11, migration 20261109020000).
+    getLink: captureId => rpc('get_video_review_link', { p_capture_id: captureId }),
+    setLink: (captureId, enabled, rotate) => rpc('set_video_review_link', { p_capture_id: captureId, p_enabled: enabled, p_rotate: !!rotate }),
+    listComments: captureId => rpc('list_video_review_comments', { p_capture_id: captureId }),
+    reply: (parentId, body, author) => rpc('reply_video_review_comment', { p_parent_id: parentId, p_body: body, p_author: author }),
+    resolve: (id, resolved) => rpc('resolve_video_review_comment', { p_id: id, p_resolved: resolved }),
+    removeComment: id => rpc('delete_video_review_comment', { p_id: id }),
   };
   // Statuts de relecture d'une version vidéo (9/11, idée Pibox) : même liste que la contrainte de la migration 20261109010000.
   const STATUSES = ['draft', 'sent', 'changes_requested', 'approved'];
@@ -68,6 +75,8 @@
     let editing = null; // { id, title, subs, isNew, titleTouched }
     let listening = null; // { key, stop() }
     let busy = false;
+    // Relecture client : le lien secret du montage et les remarques reçues (rien en versions de séance : il faut un montage enregistré).
+    const review = { link: null, comments: [], available: true, replying: null, drafts: {} };
     let diffView = null; // { ids: [id] } -> tableau de différences sous la liste (1 version contre l'original, ou 2 versions entre elles)
     const pickedIds = new Set(); // versions cochées, gardées d'un affichage à l'autre
     let batchStatus = ''; // avancement du rendu en série (survit aux ré-affichages de la section)
@@ -302,8 +311,103 @@
         catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
         versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
       }
+      await refreshReview();
       render();
     }
+    // Lien et remarques : lus avec les versions ; la migration absente masque simplement ce panneau.
+    async function refreshReview() {
+      review.link = null; review.comments = []; review.available = !ctx.sessionOnly;
+      // Tutoriel (faux serveur local) : pas de vrai lien à donner à un client, le panneau n'est pas proposé.
+      try { if (window.LayerPitchDemoClient && window.LayerPitchSupabaseClient.getClient() === window.LayerPitchDemoClient) review.available = false; } catch (e) { /* client absent */ }
+      const captureId = ctx.getCaptureId();
+      if (!review.available || !captureId || loadError) { publishReviewMarks(); return; }
+      try {
+        review.link = await api.getLink(captureId);
+        review.comments = review.link ? (await api.listComments(captureId)) || [] : [];
+      } catch (e) { if (isMissingBackend(e)) review.available = false; else console.error(e); }
+      publishReviewMarks();
+    }
+    const reviewVersionTitle = key => {
+      if (key === 'original') return tr('versioningReviewOriginal');
+      const v = versions.find(x => x.id === key);
+      return v ? (v.title || tr('captureUntitled')) : tr('captureUntitled');
+    };
+    // Les remarques du client deviennent des drapeaux sur la frise de l'atelier (ctx.onReviewComments, s'il est fourni).
+    function publishReviewMarks() {
+      if (!ctx.onReviewComments) return;
+      const marks = review.comments.filter(c => !c.parentId).map(c => ({ id: c.id, t: Number(c.t), author: c.author, body: c.body, versionTitle: reviewVersionTitle(c.versionKey), resolved: !!c.resolved }));
+      try { ctx.onReviewComments(marks); } catch (e) { /* la frise n'est pas prête : prochaine mise à jour */ }
+    }
+    const fmtT = t => { t = Math.max(0, Number(t) || 0); return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
+    const reviewUrl = () => new URL('relecture.html?k=' + encodeURIComponent(review.link.token), document.baseURI).href;
+    function reviewHtml() {
+      if (!review.available) return '';
+      let html = `<div class="vcv-review-box"><div class="vcv-head"><span class="vcv-title">${esc(tr('versioningReviewTitle'))}</span><span class="vcv-hint">${esc(tr('versioningReviewIntro'))}</span></div>`;
+      if (!review.link) return html + `<div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvCreate" ${busy ? 'disabled' : ''}>${esc(tr('versioningReviewCreate'))}</button></div></div>`;
+      html += `<div class="vcv-row"><input type="text" readonly class="vcv-link-input" data-role="rvUrl" value="${esc(reviewUrl())}" ${review.link.enabled ? '' : 'disabled'}>
+        <button type="button" class="video-capture-download-btn" data-act="rvCopy" ${review.link.enabled ? '' : 'disabled'}>${esc(tr('versioningReviewCopy'))}</button>
+        <button type="button" class="video-capture-download-btn" data-act="rvToggle">${esc(tr(review.link.enabled ? 'versioningReviewDisable' : 'versioningReviewEnable'))}</button>
+        <button type="button" class="video-capture-download-btn" data-act="rvRotate" title="${esc(tr('versioningReviewRotateHelp'))}">${esc(tr('versioningReviewRotate'))}</button>
+        <span class="vcv-status" data-role="rvStatus"></span></div>`;
+      if (!review.link.enabled) html += `<div class="vcv-note-warn">${esc(tr('versioningReviewOff'))}</div>`;
+      const top = review.comments.filter(c => !c.parentId).sort((a, b) => (a.versionKey === b.versionKey ? Number(a.t) - Number(b.t) : String(a.versionKey).localeCompare(String(b.versionKey))));
+      const open = top.filter(c => !c.resolved).length;
+      html += `<div class="vcv-section"><span>${esc(tr('versioningReviewComments'))} ${top.length ? '(' + esc(tr('versioningReviewOpen').replace('{n}', open)) + ')' : ''}</span>
+        <button type="button" class="video-capture-download-btn" data-act="rvRefresh">${esc(tr('versioningReviewRefresh'))}</button></div>`;
+      if (!top.length) html += `<div class="vcv-empty">${esc(tr('versioningReviewNone'))}</div>`;
+      top.forEach(c => {
+        const replies = review.comments.filter(r => r.parentId === c.id);
+        html += `<div class="vcv-rcm${c.resolved ? ' vcv-rcm-done' : ''}" data-cid="${esc(c.id)}">
+          <div class="vcv-rcm-meta"><button type="button" class="vcv-rcm-t" data-act="rvSeek" title="${esc(tr('versioningReviewSeek'))}">${esc(fmtT(c.t))}</button>
+            <span class="vcv-rcm-who">${esc(c.author)}</span><span class="vcv-rcm-ver">${esc(reviewVersionTitle(c.versionKey))}</span>${c.resolved ? `<span>✓ ${esc(tr('versioningReviewDone'))}</span>` : ''}</div>
+          <div class="vcv-rcm-body">${esc(c.body)}</div>
+          ${replies.map(r => `<div class="vcv-rcm-reply"><span class="vcv-rcm-who">${esc(r.author)}${r.fromOwner ? ' ✎' : ''}</span> ${esc(r.body)}</div>`).join('')}
+          <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvReply">${esc(tr('versioningReviewReply'))}</button>
+            <button type="button" class="video-capture-download-btn" data-act="rvResolve">${esc(tr(c.resolved ? 'versioningReviewReopen' : 'versioningReviewResolve'))}</button>
+            <button type="button" class="video-capture-download-btn" data-act="rvDelete">${esc(tr('versioningDeleteBtn'))}</button></div>
+          ${review.replying === c.id ? `<div class="vcv-row"><textarea class="vcv-rcm-input" data-role="rvReplyText" rows="2" maxlength="2000" placeholder="${esc(tr('versioningReviewReplyPlaceholder'))}">${esc(review.drafts[c.id] || '')}</textarea>
+            <button type="button" class="video-capture-download-btn" data-act="rvSend">${esc(tr('versioningReviewSend'))}</button></div>` : ''}
+        </div>`;
+      });
+      return html + `</div>`;
+    }
+    async function reviewAction(fn, statusEl) {
+      try { await fn(); await refreshReview(); render(); }
+      catch (e) { console.error(e); const el = statusEl || host.querySelector('[data-role="rvStatus"]'); if (el) el.textContent = tr('versioningReviewFailed').replace('{error}', e.message); }
+    }
+    function bindReview() {
+      const captureId = ctx.getCaptureId();
+      const on = (sel, fn) => host.querySelectorAll(sel).forEach(b => b.addEventListener('click', e => fn(e, b)));
+      on('[data-act="rvCreate"]', () => reviewAction(() => api.setLink(captureId, true, false)));
+      on('[data-act="rvToggle"]', () => reviewAction(() => api.setLink(captureId, !review.link.enabled, false)));
+      on('[data-act="rvRotate"]', async () => {
+        const ok = await window.LayerPitchNotify.confirm(tr('versioningReviewRotateConfirm'), { okLabel: tr('versioningReviewRotate'), danger: true });
+        if (ok) reviewAction(() => api.setLink(captureId, true, true));
+      });
+      on('[data-act="rvCopy"]', async () => {
+        const st = host.querySelector('[data-role="rvStatus"]'), input = host.querySelector('[data-role="rvUrl"]');
+        try { await navigator.clipboard.writeText(input.value); st.textContent = tr('versioningReviewCopied'); }
+        catch (e) { input.select(); st.textContent = tr('versioningReviewCopyManual'); }
+      });
+      on('[data-act="rvRefresh"]', () => reviewAction(async () => {}));
+      host.querySelectorAll('[data-role="rvUrl"]').forEach(i => i.addEventListener('focus', () => i.select()));
+      const cidOf = b => b.closest('.vcv-rcm').dataset.cid;
+      on('[data-act="rvSeek"]', (e, b) => { const c = review.comments.find(x => x.id === cidOf(b)); if (c && ctx.videoEl) { try { ctx.videoEl.currentTime = Number(c.t); } catch (err) { /* vidéo pas prête */ } } });
+      on('[data-act="rvResolve"]', (e, b) => { const c = review.comments.find(x => x.id === cidOf(b)); reviewAction(() => api.resolve(c.id, !c.resolved)); });
+      on('[data-act="rvDelete"]', async (e, b) => {
+        const id = cidOf(b);
+        const ok = await window.LayerPitchNotify.confirm(tr('versioningReviewDeleteConfirm'), { okLabel: tr('versioningDeleteBtn'), danger: true });
+        if (ok) reviewAction(() => api.removeComment(id));
+      });
+      on('[data-act="rvReply"]', (e, b) => { review.replying = review.replying === cidOf(b) ? null : cidOf(b); render(); const t = host.querySelector('[data-role="rvReplyText"]'); if (t) t.focus(); });
+      host.querySelectorAll('[data-role="rvReplyText"]').forEach(t => t.addEventListener('input', () => { review.drafts[review.replying] = t.value; }));
+      on('[data-act="rvSend"]', (e, b) => {
+        const id = cidOf(b), text = (review.drafts[id] || '').trim();
+        if (!text) return;
+        reviewAction(async () => { await api.reply(id, text, ctx.authorName ? ctx.authorName() : tr('versioningReviewOwnerName')); review.drafts[id] = ''; review.replying = null; });
+      });
+    }
+
     // Publie les versions enregistrées qui n'ont jamais été publiées ou ont changé (force : toutes). Renvoie le nombre publié.
     async function publishPending(opts) {
       if (!canPublish()) return 0;
@@ -346,6 +450,7 @@
           <input type="checkbox" data-role="pick" ${busy ? 'disabled' : ''} title="${esc(tr('versioningPickHelp'))}">
           <span class="vcv-name">${esc(v.title || tr('captureUntitled'))}</span>
           <select data-role="reviewStatus" class="vcv-review vcv-review-${statusOf(v)}" ${busy ? 'disabled' : ''} title="${esc(v.statusAt ? tr('versioningStatusSince').replace('{date}', new Date(v.statusAt).toLocaleDateString()) : tr('versioningStatusHelp'))}">${STATUSES.map(st => `<option value="${st}" ${statusOf(v) === st ? 'selected' : ''}>${esc(tr('versioningStatus_' + st))}</option>`).join('')}</select>
+          ${v.statusBy ? `<span class="vcv-by">${esc(tr('versioningStatusBy').replace('{name}', v.statusBy))}</span>` : ''}
           <span class="vcv-summary">${esc(summaryOf(v.substitutions))}${v.lastExportVideoId ? ' · ' + esc(tr('versioningInLibrary')) : ''}</span>
           <button type="button" class="video-capture-download-btn" data-act="listen" ${busy ? 'disabled' : ''}>${esc(listening && listening.key === key ? tr('versioningStopListenBtn') : tr('versioningListenBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="diff" ${busy ? 'disabled' : ''} title="${esc(tr('versioningDiffHelp'))}">${esc(tr('versioningDiffBtn'))}</button>
@@ -356,6 +461,7 @@
           <span class="vcv-status" data-role="status"></span>
         </div>`;
       });
+      html += reviewHtml();
       if (diffView) html += diffHtml();
       if (versions.length) {
         html += `<div class="vcv-batch">
@@ -363,12 +469,12 @@
           <span>${esc(tr('versioningRenderPicked'))}</span>
           <button type="button" class="video-capture-download-btn" data-render="audio" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportAudioHelp'))}">${esc(tr('captureExportAudioBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-render="copy" ${busy ? 'disabled' : ''} title="${esc(tr('captureExportCopyHelp'))}">${esc(tr('captureExportCopyBtn'))}</button>
-          <button type="button" class="video-capture-download-btn" data-render="video" ${busy || ctx.fullExportLocked ? 'disabled' : ''}>${esc(tr('captureExportBtn'))}</button>
           <label class="video-capture-export-opt"><input type="checkbox" data-role="toLibrary"> ${esc(tr('versioningToLibrary'))}</label>
           <span class="vcv-status" data-role="batchStatus">${esc(batchStatus)}</span>
         </div>`;
       }
       host.innerHTML = html;
+      bindReview();
       host.querySelectorAll('.vcv-version').forEach(row => { if (pickedIds.has(row.dataset.id)) row.querySelector('[data-role="pick"]').checked = true; });
       bindList();
     }
@@ -580,7 +686,6 @@
         const picked = [...host.querySelectorAll('.vcv-version')].filter(r => r.querySelector('[data-role="pick"]').checked).map(r => versions.find(x => x.id === r.dataset.id));
         if (!picked.length) { setBatchStatus(tr('versioningPickNone')); return; }
         const mode = btn.dataset.render;
-        if (mode === 'video' && ctx.fullExportLocked) return;
         const toLibrary = host.querySelector('[data-role="toLibrary"]').checked;
         stopListening();
         renderVersions(picked, mode, toLibrary);
