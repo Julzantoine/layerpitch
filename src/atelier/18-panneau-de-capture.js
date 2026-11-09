@@ -869,15 +869,36 @@ function openCapturePanel(file, opts) {
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
   });
-  // Replier / déplier les infos (titre, pack, étapes) : toutes les commandes restent dans la partie lecteur (06/11). Retenu sur cet appareil.
+  // Colonne de droite (09/11) : un petit menu à cases à cocher, comme dans Guitar Pro, choisit ce qui reste affiché (infos, bouton
+  // « Choisir la vidéo », morceaux). Tout décoché = la colonne disparaît et la vidéo prend toute la largeur. Retenu sur cet appareil.
   const infoBtn = document.getElementById('videoCaptureInfoBtn');
-  const applyInfoFold = (fold) => { document.body.classList.toggle('atelier-info-collapsed', fold); infoBtn.classList.toggle('active', fold); infoBtn.setAttribute('aria-pressed', fold ? 'true' : 'false'); };
-  try { applyInfoFold(localStorage.getItem('lpAtelierInfoFolded') === '1'); } catch (e) { applyInfoFold(false); }
-  infoBtn.addEventListener('click', () => {
-    const fold = !document.body.classList.contains('atelier-info-collapsed');
-    applyInfoFold(fold);
-    try { localStorage.setItem('lpAtelierInfoFolded', fold ? '1' : '0'); } catch (e) {}
+  const paneParts = [['info', 'atelierPaneInfo'], ['trigger', 'atelierPaneTrigger'], ['music', 'atelierPaneMusic']];
+  let paneHidden = {};
+  try { paneHidden = JSON.parse(localStorage.getItem('lpAtelierPaneHidden') || '{}') || {}; } catch (e) {}
+  const applyPane = () => {
+    paneParts.forEach(([k]) => document.body.classList.toggle('atelier-hide-' + k, !!paneHidden[k]));
+    document.body.classList.toggle('atelier-info-collapsed', !!paneHidden.info);
+    document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
+    infoBtn.classList.toggle('active', paneParts.some(([k]) => paneHidden[k]));
+    try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
+  };
+  applyPane();
+  const paneMenu = document.createElement('div');
+  paneMenu.className = 'atelier-pane-menu';
+  paneMenu.hidden = true;
+  paneMenu.innerHTML = paneParts.map(([k, key]) => `<label><input type="checkbox" data-pane="${k}"> ${window.LayerPlayerCore.escapeHtml(tr(key))}</label>`).join('');
+  infoBtn.parentNode.style.position = 'relative';
+  infoBtn.parentNode.appendChild(paneMenu);
+  paneMenu.addEventListener('change', (ev) => {
+    const k = ev.target.dataset.pane;
+    if (k) { paneHidden[k] = !ev.target.checked; applyPane(); }
   });
+  infoBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    paneMenu.querySelectorAll('input').forEach(i => { i.checked = !paneHidden[i.dataset.pane]; });
+    paneMenu.hidden = !paneMenu.hidden;
+  });
+  document.addEventListener('click', (ev) => { if (!paneMenu.hidden && !paneMenu.contains(ev.target)) paneMenu.hidden = true; });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   wireCaptureImageHiding(panel, videoEl);
   wireAtelierFullscreenButtons(panel);
