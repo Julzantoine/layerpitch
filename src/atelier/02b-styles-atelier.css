@@ -70,8 +70,8 @@
   body.video-panel-active.atelier-right-hidden .page { display: none; }
   #atelierPaneEdge { display: none; }
   @media (min-width: 960px) {
-    body.video-panel-active #atelierPaneEdge { display: block; position: fixed; top: 90px; right: 322px; z-index: 50; width: 22px; height: 44px; padding: 0; border: 1px solid var(--border); border-right: 0; border-radius: 6px 0 0 6px; background: var(--bg-card, #fff); color: var(--text-dim); font-size: 14px; cursor: pointer; }
-    body.video-panel-active.atelier-right-hidden #atelierPaneEdge { right: 0; }
+    body.video-panel-active #atelierPaneEdge { display: block; position: fixed; top: 80px; left: calc(100vw - 332px); z-index: 50; width: 22px; height: 40px; padding: 0 0 2px; border: 1px solid var(--border); border-radius: 11px; background: var(--bg-card, #fff); color: var(--text-dim); font-size: 15px; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); }
+    body.video-panel-active.atelier-right-hidden #atelierPaneEdge { left: auto; right: 6px; }
     #atelierPaneEdge:hover { color: var(--accent); border-color: var(--accent); }
   }
   .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }

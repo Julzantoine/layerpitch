@@ -861,6 +861,17 @@ function openCapturePanel(file, opts) {
   if (!paneEdge) { paneEdge = document.createElement('button'); paneEdge.type = 'button'; paneEdge.id = 'atelierPaneEdge'; document.body.appendChild(paneEdge); }
   paneEdge.setAttribute('aria-label', tr('atelierPaneEdge'));
   paneEdge.title = tr('atelierPaneEdge');
+  // La languette chevauche le bord gauche de la colonne, où qu'il tombe (fenêtre redimensionnée, défilement).
+  const placePaneEdge = () => {
+    const pg = document.querySelector('body.video-panel-active .page');
+    if (!pg || document.body.classList.contains('atelier-right-hidden')) { paneEdge.style.left = ''; paneEdge.style.top = ''; return; }
+    const r = pg.getBoundingClientRect();
+    paneEdge.style.left = Math.round(r.left - 11) + 'px';
+    paneEdge.style.top = Math.max(Math.round(r.top + 14), 8) + 'px';
+  };
+  window.addEventListener('resize', placePaneEdge);
+  window.addEventListener('scroll', placePaneEdge, { passive: true });
+  setTimeout(placePaneEdge, 0);
   paneEdge.onclick = () => {
     const allHidden = paneParts.every(([k]) => paneHidden[k]);
     paneParts.forEach(([k]) => { paneHidden[k] = !allHidden; });
@@ -873,6 +884,7 @@ function openCapturePanel(file, opts) {
     document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
     infoBtn.classList.toggle('active', paneParts.some(([k]) => paneHidden[k]));
     paneEdge.textContent = document.body.classList.contains('atelier-right-hidden') ? '«' : '»';
+    setTimeout(placePaneEdge, 0);
     try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
   };
   applyPane();
