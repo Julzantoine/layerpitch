@@ -255,6 +255,8 @@
   .vcv-ab-dock { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; background: #17222d; border-top: 1px solid #2f80c0; }
   .vcv-ab-dock[hidden] { display: none; }
   .vcv-ab-lbl { font-size: 12px; color: #9ab; }
+  .vcv-ab-select { min-width: 220px; max-width: 100%; }
+  .vcv-ab-note { flex: 1; font-size: 11px; color: #9ab; }
   .vcv-ab-dock kbd { font: inherit; font-size: 10px; padding: 0 4px; margin-right: 4px; border: 1px solid #4a6a85; border-radius: 3px; opacity: .8; }
   .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
   .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }

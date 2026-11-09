@@ -237,8 +237,8 @@ const path = require('path');
   check('rendu : rangé dans la bibliothèque sous le nom du montage + de la version, rattaché à la version', saved.length === 2 && saved[0].startsWith('Trailer — ') && store.rows.every(r => r.lastExportVideoId));
   check('rendu : avancement affiché puis bilan', host.querySelector('[data-role="batchStatus"]').textContent.includes('2'));
 
-  // Écoute multi-versions (9/11) : la musique d'origine + les versions cochées, rendues et jouées ensemble sur la vidéo, une seule audible à la fois,
-  // bascule instantanée -- boutons rangés dans le dock sous la vidéo (toujours visible), touches 1, 2, 3…, interrupteur sur chaque ligne.
+  // Écoute multi-versions (9/11) : la musique d'origine + TOUTES les versions dans un menu déroulant sous la vidéo (dock toujours visible), sans rien
+  // cocher ; on démarre par la version dont on a cliqué « Écouter », les autres se préparent en tâche de fond ; touches 1, 2, 3… aussi.
   const dockEl = doc.createElement('div'); dockEl.className = 'video-capture-dock'; doc.body.appendChild(dockEl); dockEl.appendChild(ctx.videoEl);
   const sources = [], gainsMade = [];
   const AC = W.AudioContext.prototype;
@@ -249,35 +249,29 @@ const path = require('path');
   ctx.videoEl.play = () => Promise.resolve(); ctx.videoEl.currentTime = 7;
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
   check('barre des versions cochées : cachée quand plus rien n\'est coché', host.querySelector('[data-role="pickedBar"]').hidden);
-  host.querySelector('[data-act="abListen"]').click(); await tick();
-  check('écoute sans rien de coché : message pour cocher une version', host.querySelector('[data-role="batchStatus"]').textContent === tr('versioningABPick') && sources.length === 0);
-  const picks = host.querySelectorAll('[data-role="pick"]');
-  picks[0].checked = true; picks[0].dispatchEvent(new W.Event('change'));
-  host.querySelector('[data-act="abListen"]').click();
-  for (let i = 0; i < 20 && sources.length < 2; i++) await tick();
+  const nVersions = host.querySelectorAll('.vcv-version').length;
+  host.querySelectorAll('.vcv-version [data-act="listen"]')[0].click();
+  for (let i = 0; i < 40 && sources.length < nVersions + 1; i++) await tick();
   await tick();
-  const dockBtns = () => [...dockEl.querySelectorAll('.vcv-ab-btn')];
-  check('écoute avec une version cochée : l\'original (touche 1) et elle, deux sons rendus, sélecteur visible dans le dock', sources.length === 2 && !!dockEl.querySelector('.vcv-ab-dock:not([hidden])') && dockBtns()[0].textContent.includes(tr('versioningABOriginal')) && dockBtns().length === 2);
-  check('écoute : les sons démarrent au même instant et au même endroit (calés sur la vidéo)', sources[0].started[0] === sources[1].started[0] && sources[0].started[1] === 7 && sources[1].started[1] === 7);
-  const gA = () => gainsMade.slice(-sources.length).map(g => g.gain.value);
-  check('écoute : la version cochée sonne d\'abord, l\'original est muet', JSON.stringify(gA()) === '[0,1]' && dockBtns()[1].classList.contains('vcv-ab-on'));
-  dockBtns()[0].click(); await tick();
-  check('écoute : clic sur l\'original -> il sonne, sans arrêter les sources', JSON.stringify(gA()) === '[1,0]' && sources.every(x => !x.stopped) && dockBtns()[0].classList.contains('vcv-ab-on'));
+  const sel = () => dockEl.querySelector('.vcv-ab-select');
+  // Les sons sont créés dans l'ordre : d'abord celui de la version cliquée (entrée 1 du menu), puis les autres dans l'ordre du menu.
+  const creation = [1].concat(Array.from({ length: nVersions + 1 }, (_, i) => i).filter(i => i !== 1));
+  const gA = () => { const g = gainsMade.slice(-sources.length).map(x => x.gain.value), out = []; creation.forEach((idx, k) => { out[idx] = g[k]; }); return out; };
+  check('écoute : rien à cocher -- le menu du dock liste l\'original + toutes les versions', !!dockEl.querySelector('.vcv-ab-dock:not([hidden])') && sel().options.length === nVersions + 1 && sel().options[0].textContent.includes(tr('versioningABOriginal')));
+  check('écoute : tous les sons sont préparés (en tâche de fond) et calés sur la vidéo', sources.length === nVersions + 1 && sources.every(x => x.started[1] === 7) && [...sel().options].every(o => !o.disabled));
+  check('écoute : on a démarré par la version cliquée, les autres sont muettes', sel().value === '1' && JSON.stringify(gA()) === JSON.stringify([0, 1].concat(new Array(nVersions - 1).fill(0))));
+  sel().value = '0'; sel().dispatchEvent(new W.Event('change')); await tick();
+  check('écoute : choisir l\'original dans le menu -> il sonne, sans arrêter les sources', gA()[0] === 1 && gA().slice(1).every(v => v === 0) && sources.every(x => !x.stopped));
   doc.dispatchEvent(new W.KeyboardEvent('keydown', { key: '2', bubbles: true })); await tick();
-  check('écoute : touche 2 -> bascule sur la version', JSON.stringify(gA()) === '[0,1]');
+  check('écoute : touche 2 -> bascule sur la 2e entrée du menu', sel().value === '1' && gA()[1] === 1);
+  if (nVersions > 1) {
+    host.querySelectorAll('.vcv-version [data-act="listen"]')[1].click(); await tick();
+    check('écoute : « Écouter » sur la ligne d\'une autre version bascule dessus, sans rien relancer', sel().value === '2' && sources.length === nVersions + 1 && sources.every(x => !x.stopped));
+  }
   host.querySelector('.vcv-version [data-act="listen"]').click(); await tick();
-  check('écoute : « Arrêter » sur la ligne de la version qui sonne arrête tout', sources.every(x => x.stopped) && !V.isListening() && dockEl.querySelector('.vcv-ab-dock').hidden);
-  // Plusieurs versions cochées : l'original puis chacune ; la ligne d'une autre version sert d'interrupteur.
-  sources.length = 0; host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; cb.dispatchEvent(new W.Event('change')); });
-  host.querySelector('[data-act="abListen"]').click();
-  for (let i = 0; i < 20 && sources.length < 3; i++) await tick();
-  await tick();
-  check('écoute de deux versions cochées : original + les deux versions, trois sons rendus', sources.length === 3 && dockBtns().length === 3 && dockBtns()[0].textContent.includes(tr('versioningABOriginal')));
-  host.querySelectorAll('.vcv-version [data-act="listen"]')[1].click(); await tick();
-  check('écoute : « Écouter » sur la ligne de l\'autre version bascule dessus, sans rien relancer', JSON.stringify(gA()) === '[0,0,1]' && sources.length === 3 && sources.every(x => !x.stopped));
-  dockEl.querySelector('[data-stop]').click(); await tick();
-  check('écoute : arrêt -> sources coupées, sélecteur retiré', sources.every(x => x.stopped) && dockEl.querySelector('.vcv-ab-dock').hidden);
-  host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
+  host.querySelectorAll('.vcv-version [data-act="listen"]').forEach(b => { if (b.textContent === tr('versioningStopListenBtn')) b.click(); }); await tick();
+  dockEl.querySelector('[data-stop]') && dockEl.querySelector('.vcv-ab-dock:not([hidden])') && dockEl.querySelector('[data-stop]').click(); await tick();
+  check('écoute : arrêt -> sources coupées, sélecteur retiré', sources.every(x => x.stopped) && dockEl.querySelector('.vcv-ab-dock').hidden && !V.isListening());
 
   // Détacher.
   host.querySelector('.vcv-version [data-act="detach"]').click(); await tick(); await tick();

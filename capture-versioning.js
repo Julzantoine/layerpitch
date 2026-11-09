@@ -265,37 +265,43 @@
       }
     }
 
-    // ---- Écoute A/B (9/11, idée Pibox « bascule A/B ») : deux versions rendues, jouées ensemble sur la vidéo, une seule audible à la fois ----
-    // Les deux sons démarrent au même instant et restent calés ; basculer ne fait que changer le volume (immédiat, sans couper la vidéo).
-    async function listenAB(pair, statusEl, startIdx) {
-      startIdx = Math.min(Math.max(startIdx || 0, 0), pair.length - 1);
+    // ---- Écoute multi-versions (9/11, idée Pibox « bascule A/B », étendue) : la musique d'origine + TOUTES les versions, dans un menu déroulant ----
+    // On commence par la version choisie ; les autres se préparent (rendu du son) en tâche de fond puis s'ajoutent au menu. Tous les sons sont
+    // calés sur la vidéo et jouent ensemble, un seul audible : changer de version ne fait que changer le volume (immédiat, sans couper la vidéo).
+    let abSeq = 0;
+    async function listenAB(list, statusEl, startIdx) {
       if (listening && listening.key === 'ab') { stopListening(); return; }
       stopListening();
+      startIdx = Math.min(Math.max(startIdx || 0, 0), list.length - 1);
       statusEl.textContent = tr('versioningPreparingListen');
+      let stopped = false;
       try {
-        const buffers = [];
-        for (let i = 0; i < pair.length; i++) {
-          const { events } = await versionResult(pair[i].subs);
+        const renderOne = async (i, progress) => {
+          const { events } = await versionResult(list[i].subs);
           const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
-          buffers.push(await window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => { statusEl.textContent = pair[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot); } }));
-        }
+          return window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => progress(list[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot)) });
+        };
+        const first = await renderOne(startIdx, m => { statusEl.textContent = m; });
         await C().resumeAudio();
         const ac = C().audioContext();
         const video = ctx.videoEl;
+        const nodes = new Array(list.length).fill(null);
+        const startNode = (i, buffer, offset, at, gain) => {
+          const src = ac.createBufferSource(); src.buffer = buffer;
+          const g = ac.createGain(); g.gain.value = gain;
+          src.connect(g); g.connect(ac.destination);
+          src.start(at, Math.min(offset, buffer.duration));
+          nodes[i] = { src, g };
+          return src;
+        };
         const from = video.currentTime || 0;
         const startAt = ac.currentTime + 0.05;
-        const nodes = buffers.map((buffer, i) => {
-          const src = ac.createBufferSource(); src.buffer = buffer;
-          const g = ac.createGain(); g.gain.value = i === startIdx ? 1 : 0;
-          src.connect(g); g.connect(ac.destination);
-          src.start(startAt, Math.min(from, buffer.duration));
-          return { src, g };
-        });
+        const firstSrc = startNode(startIdx, first, from, startAt, 1);
         video.muted = true;
         video.play().catch(() => {});
         const onPause = () => stopListening();
         video.addEventListener('pause', onPause);
-        const state = { key: 'ab', ab: { labels: pair.map(x => x.label), ids: pair.map(x => x.id || ''), active: startIdx } };
+        const state = { key: 'ab', ab: { id: ++abSeq, labels: list.map(x => x.label), ids: list.map(x => x.id || ''), active: startIdx, ready: list.map((x, i) => i === startIdx), failed: list.map(() => false), note: '' } };
         // Touches 1, 2, 3… : bascule au clavier, sans quitter la vidéo (pas dans un champ de saisie).
         const onKey = ev => {
           if (ev.metaKey || ev.ctrlKey || ev.altKey || !/^[1-9]$/.test(ev.key)) return;
@@ -304,19 +310,31 @@
           if (nodes[i]) { ev.preventDefault(); state.setActive(i); }
         };
         document.addEventListener('keydown', onKey);
-        state.setActive = i => { if (!nodes[i]) return; state.ab.active = i; nodes.forEach((n, j) => { n.g.gain.value = j === i ? 1 : 0; }); render(); };
-        state.stop = () => { video.removeEventListener('pause', onPause); document.removeEventListener('keydown', onKey); nodes.forEach(n => { try { n.src.stop(); } catch (e) {} }); if (!video.paused) video.pause(); };
-        nodes[0].src.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
+        state.setActive = i => { if (!nodes[i]) return; state.ab.active = i; nodes.forEach((n, j) => { if (n) n.g.gain.value = j === i ? 1 : 0; }); render(); };
+        state.stop = () => { stopped = true; video.removeEventListener('pause', onPause); document.removeEventListener('keydown', onKey); nodes.forEach(n => { if (n) { try { n.src.stop(); } catch (e) {} } }); if (!video.paused) video.pause(); };
+        firstSrc.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
         listening = state;
         statusEl.textContent = '';
         render();
+        // Les autres versions : préparées l'une après l'autre pendant que la première joue, puis calées sur la position de la vidéo.
+        for (let i = 0; i < list.length && !stopped; i++) {
+          if (i === startIdx) continue;
+          try {
+            const buf = await renderOne(i, m => { state.ab.note = m; renderAbDock(); });
+            if (stopped) break;
+            startNode(i, buf, video.currentTime || 0, ac.currentTime + 0.02, 0);
+            state.ab.ready[i] = true;
+          } catch (e) { console.error(e); state.ab.failed[i] = true; }
+          state.ab.note = '';
+          renderAbDock();
+        }
       } catch (e) {
         console.error(e);
         statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
       }
     }
-    // Sélecteur d'écoute (09/11) : rangé sous la vidéo, dans le « dock » qui reste en haut quand on défile -- on peut donc toujours passer
-    // d'une version à l'autre pendant l'écoute, où qu'on soit dans la page.
+    // Sélecteur d'écoute : rangé sous la vidéo, dans le « dock » qui reste en haut quand on défile -- on peut donc toujours changer de version
+    // pendant l'écoute, où qu'on soit dans la page. Construit une fois par écoute, ensuite mis à jour sur place (le menu ouvert ne se referme pas).
     function abDock() {
       const dock = ctx.videoEl && ctx.videoEl.closest && ctx.videoEl.closest('.video-capture-dock');
       if (!dock) return null;
@@ -327,14 +345,23 @@
     function renderAbDock() {
       const el = abDock();
       if (!el) return;
-      if (!listening || !listening.ab) { el.innerHTML = ''; el.hidden = true; return; }
+      if (!listening || !listening.ab) { el.innerHTML = ''; el.hidden = true; el.dataset.sid = ''; return; }
       const ab = listening.ab;
       el.hidden = false;
-      el.innerHTML = `<span class="vcv-ab-lbl">${esc(tr('versioningABListening'))}</span>`
-        + ab.labels.map((l, i) => `<button type="button" class="video-capture-download-btn vcv-ab-btn${ab.active === i ? ' vcv-ab-on' : ''}" data-i="${i}" aria-pressed="${ab.active === i}"><kbd>${i + 1}</kbd> ${esc(l)}</button>`).join('')
-        + `<button type="button" class="video-capture-download-btn" data-stop="1">${esc(tr('versioningStopListenBtn'))}</button>`;
-      el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { if (listening && listening.setActive) listening.setActive(Number(b.dataset.i)); }));
-      el.querySelector('[data-stop]').addEventListener('click', () => stopListening());
+      if (el.dataset.sid !== String(ab.id)) {
+        el.dataset.sid = String(ab.id);
+        el.innerHTML = `<span class="vcv-ab-lbl">${esc(tr('versioningABListening'))}</span><select class="video-capture-load-select vcv-ab-select" aria-label="${esc(tr('versioningABListening'))}"></select>`
+          + `<span class="vcv-ab-note" data-role="abNote"></span><button type="button" class="video-capture-download-btn" data-stop="1">${esc(tr('versioningStopListenBtn'))}</button>`;
+        const sel = el.querySelector('select');
+        sel.addEventListener('change', () => { if (listening && listening.setActive) listening.setActive(Number(sel.value)); });
+        el.querySelector('[data-stop]').addEventListener('click', () => stopListening());
+      }
+      const sel = el.querySelector('select');
+      const opts = ab.labels.map((l, i) => `${i < 9 ? i + 1 + ' · ' : ''}${l}${ab.failed[i] ? ' ✗' : ab.ready[i] ? '' : ' …'}`);
+      if (sel.options.length !== ab.labels.length) sel.innerHTML = ab.labels.map((l, i) => `<option value="${i}"></option>`).join('');
+      [...sel.options].forEach((o, i) => { o.textContent = opts[i]; o.disabled = !ab.ready[i]; });
+      sel.value = String(ab.active);
+      el.querySelector('[data-role="abNote"]').textContent = ab.note || '';
     }
     function render() { renderList(); renderAbDock(); }
 
@@ -609,7 +636,6 @@
       if (versions.length) {
         html += `<div class="vcv-picked-bar" data-role="pickedBar" ${pickedIds.size ? '' : 'hidden'}>
           <span class="vcv-picked-count" data-role="pickedCount">${esc(tr('versioningPickedCount').replace('{n}', pickedIds.size))}</span>
-          <button type="button" class="video-capture-download-btn" data-act="abListen" ${busy ? 'disabled' : ''} title="${esc(tr('versioningABHint'))}">${esc(listening && listening.key === 'ab' ? tr('versioningStopListenBtn') : '\u21C4 ' + tr('versioningListenCompareBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="compare" ${busy ? 'disabled' : ''} title="${esc(tr('versioningCompareHelp'))}">${esc(tr('versioningCompareBtn'))}</button>
           <button type="button" class="video-capture-download-btn" data-act="exportOpen" ${busy ? 'disabled' : ''}>${esc(tr('versioningExportBtn'))}</button>
           <span class="vcv-status" data-role="batchStatus">${esc(batchStatus)}</span>
@@ -802,10 +828,17 @@
         const v = versions.find(x => x.id === row.dataset.id);
         const status = row.querySelector('[data-role="status"]');
         row.querySelector('[data-act="listen"]').addEventListener('click', () => {
-          // Pendant une écoute multi-versions, « Écouter » sur une ligne sert d'interrupteur : bascule sur cette version si elle y figure.
-          const i = listening && listening.ab ? listening.ab.ids.indexOf(v.id) : -1;
-          if (i >= 0) { if (listening.ab.active === i) stopListening(); else listening.setActive(i); return; }
-          listen('v:' + v.id, v.substitutions, status);
+          // Écoute en cours : « Écouter » sur une ligne bascule sur cette version (ou arrête, si c'est déjà elle qui sonne).
+          if (listening && listening.ab) {
+            const i = listening.ab.ids.indexOf(v.id);
+            if (i >= 0 && listening.ab.active === i) stopListening();
+            else if (i >= 0) listening.setActive(i);
+            return;
+          }
+          // Sinon : on démarre sur cette version ; la musique d'origine et toutes les autres versions sont dans le menu du dock.
+          const list = [{ id: '', label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }]
+            .concat(versions.map(x => ({ id: x.id, label: x.title || tr('captureUntitled'), subs: x.substitutions })));
+          listenAB(list, status, 1 + versions.indexOf(v));
         });
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), isNew: false, titleTouched: true }; render(); });
         row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), isNew: true, titleTouched: true }; render(); });
@@ -839,16 +872,6 @@
       });
       const closeDiff = host.querySelector('[data-act="closeDiff"]');
       if (closeDiff) closeDiff.addEventListener('click', () => { diffView = null; render(); });
-      const abListen = host.querySelector('[data-act="abListen"]');
-      if (abListen) abListen.addEventListener('click', () => {
-        if (listening && listening.key === 'ab') { stopListening(); return; }
-        const picked = versions.filter(x => pickedIds.has(x.id));
-        if (!picked.length || picked.length > 8) { setBatchStatus(tr('versioningABPick')); return; }
-        // La musique d'origine est toujours la première touche (1) ; la première version cochée sonne d'abord.
-        const list = [{ id: '', label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }]
-          .concat(picked.map(v => ({ id: v.id, label: v.title || tr('captureUntitled'), subs: v.substitutions })));
-        listenAB(list, host.querySelector('[data-role="batchStatus"]'), 1);
-      });
       const compareBtn = host.querySelector('[data-act="compare"]');
       if (compareBtn) compareBtn.addEventListener('click', () => {
         const ids = versions.filter(x => pickedIds.has(x.id)).map(x => x.id);
