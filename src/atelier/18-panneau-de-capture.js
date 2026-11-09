@@ -177,7 +177,6 @@ function openCapturePanel(file, opts) {
       <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
       <div class="video-test-panel-actions">
         <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
-        <button type="button" class="video-test-panel-btn" id="videoCaptureInfoBtn" title="${tr('atelierInfoToggle')}" aria-label="${tr('atelierInfoToggle')}">ⓘ</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
@@ -853,7 +852,6 @@ function openCapturePanel(file, opts) {
   });
   // Colonne de droite (09/11) : un petit menu à cases à cocher, comme dans Guitar Pro, choisit ce qui reste affiché (infos, bouton
   // « Choisir la vidéo », morceaux). Tout décoché = la colonne disparaît et la vidéo prend toute la largeur. Retenu sur cet appareil.
-  const infoBtn = document.getElementById('videoCaptureInfoBtn');
   const paneParts = [['info', 'atelierPaneInfo'], ['trigger', 'atelierPaneTrigger'], ['music', 'atelierPaneMusic']];
   let paneHidden = {};
   // Languette au bord de la colonne : un clic la replie entièrement, un clic la rouvre (09/11). Le menu ⓘ affine ce qui reste.
@@ -878,32 +876,16 @@ function openCapturePanel(file, opts) {
     applyPane();
   };
   try { paneHidden = JSON.parse(localStorage.getItem('lpAtelierPaneHidden') || '{}') || {}; } catch (e) {}
+  if (!paneParts.every(([k]) => paneHidden[k])) paneHidden = {}; // plus de menu ⓘ : la colonne est repliée en entier ou pas du tout
   const applyPane = () => {
     paneParts.forEach(([k]) => document.body.classList.toggle('atelier-hide-' + k, !!paneHidden[k]));
     document.body.classList.toggle('atelier-info-collapsed', !!paneHidden.info);
     document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
-    infoBtn.classList.toggle('active', paneParts.some(([k]) => paneHidden[k]));
     paneEdge.textContent = document.body.classList.contains('atelier-right-hidden') ? '«' : '»';
     setTimeout(placePaneEdge, 0);
     try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
   };
   applyPane();
-  const paneMenu = document.createElement('div');
-  paneMenu.className = 'atelier-pane-menu';
-  paneMenu.hidden = true;
-  paneMenu.innerHTML = paneParts.map(([k, key]) => `<label><input type="checkbox" data-pane="${k}"> ${window.LayerPlayerCore.escapeHtml(tr(key))}</label>`).join('');
-  infoBtn.parentNode.style.position = 'relative';
-  infoBtn.parentNode.appendChild(paneMenu);
-  paneMenu.addEventListener('change', (ev) => {
-    const k = ev.target.dataset.pane;
-    if (k) { paneHidden[k] = !ev.target.checked; applyPane(); }
-  });
-  infoBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    paneMenu.querySelectorAll('input').forEach(i => { i.checked = !paneHidden[i.dataset.pane]; });
-    paneMenu.hidden = !paneMenu.hidden;
-  });
-  document.addEventListener('click', (ev) => { if (!paneMenu.hidden && !paneMenu.contains(ev.target)) paneMenu.hidden = true; });
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   wireCaptureImageHiding(panel, videoEl);
   wireAtelierFullscreenButtons(panel);
