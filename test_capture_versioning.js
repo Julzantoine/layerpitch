@@ -13,7 +13,7 @@ const path = require('path');
   <script>${read('layerpitch-i18n.js')}</script><script>${read('player.js')}</script>
   <script>${read('capture-render.js')}</script><script>${read('capture-plan.js')}</script><script>${read('capture-retarget.js')}</script>
   <script>${read('capture-versioning.js')}</script></body></html>`;
-  const store = { rows: [], calls: [], missing: false };
+  const store = { rows: [], calls: [], missing: false, link: null, comments: [] };
   const dom = new JSDOM(html, {
     url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) {
@@ -37,6 +37,16 @@ const path = require('path');
         }
         if (name === 'delete_video_capture_version') { store.rows = store.rows.filter(r => r.id !== args.p_id); return { data: null, error: null }; }
         if (name === 'set_video_capture_version_status') { const r = store.rows.find(x => x.id === args.p_id); if (r) { r.status = args.p_status; r.statusAt = '2026-11-09T10:00:00Z'; } return { data: { ok: true }, error: null }; }
+        if (name === 'get_video_review_link') return { data: store.link ? Object.assign({}, store.link) : null, error: null };
+        if (name === 'set_video_review_link') {
+          if (!store.link) store.link = { token: 'T1'.repeat(32), enabled: true };
+          else { store.link.enabled = args.p_enabled; if (args.p_rotate) store.link.token = 'T2'.repeat(32); }
+          return { data: Object.assign({}, store.link), error: null };
+        }
+        if (name === 'list_video_review_comments') return { data: JSON.parse(JSON.stringify(store.comments)), error: null };
+        if (name === 'reply_video_review_comment') { const par = store.comments.find(c => c.id === args.p_parent_id); store.comments.push({ id: 'r' + store.comments.length, versionKey: par.versionKey, parentId: par.id, t: par.t, author: args.p_author, fromOwner: true, body: args.p_body, resolved: false }); return { data: { ok: true }, error: null }; }
+        if (name === 'resolve_video_review_comment') { store.comments.find(c => c.id === args.p_id).resolved = args.p_resolved; return { data: null, error: null }; }
+        if (name === 'delete_video_review_comment') { store.comments = store.comments.filter(c => c.id !== args.p_id && c.parentId !== args.p_id); return { data: null, error: null }; }
         if (name === 'set_video_capture_version_export') { const r = store.rows.find(x => x.id === args.p_id); if (r) r.lastExportVideoId = args.p_video_id; return { data: null, error: null }; }
         return { data: null, error: { message: 'inconnu' } };
       } }) };
@@ -73,7 +83,7 @@ const path = require('path');
     { t: 12, name: 'voices_stop', detail: { trackId: 'st1' } },
   ];
   let captureId = null;
-  const exports = [], saved = [], detached = [];
+  const exports = [], saved = [], detached = [], reviewMarks = [];
   const ctx = {
     tr, videoEl: doc.createElement('video'), fetchBytes: async () => { throw new Error('pas de réseau dans le test'); }, fullExportLocked: false,
     library, findTrack, findSfx,
@@ -81,6 +91,7 @@ const path = require('path');
     exportEvents: async (evs, mode, onProgress) => { onProgress('rendu'); exports.push({ evs, mode }); return new W.Blob(['x']); },
     saveToLibrary: async (blob, title) => { saved.push(title); return 'vid-' + saved.length; },
     detach: async (evs, title) => { detached.push({ evs, title }); },
+    onReviewComments: marks => { reviewMarks.length = 0; reviewMarks.push(...marks); }, authorName: () => 'Danny',
   };
   W.URL.createObjectURL = () => 'blob:x'; W.URL.revokeObjectURL = () => {};
   const host = doc.getElementById('host');
@@ -145,6 +156,35 @@ const path = require('path');
   check('comparer deux versions : tableau Original + 2 colonnes', host.querySelectorAll('.vcv-diff-table thead th').length === 4);
   host.querySelector('[data-act="closeDiff"]').click(); await tick();
   check('cases cochées conservées après réaffichage', [...host.querySelectorAll('[data-role="pick"]')].every(cb => cb.checked));
+
+  // Relecture client (9/11) : lien secret, remarques reçues, réponse, traité, suppression, drapeaux de la frise.
+  check('relecture : pas encore de lien -> bouton « Créer le lien de relecture »', !!host.querySelector('[data-act="rvCreate"]') && !host.querySelector('[data-role="rvUrl"]'));
+  host.querySelector('[data-act="rvCreate"]').click(); await tick(); await tick(); await tick();
+  const urlInput = host.querySelector('[data-role="rvUrl"]');
+  check('relecture : lien créé et affiché (page relecture.html + jeton)', urlInput && /relecture\.html\?k=T1/.test(urlInput.value) && urlInput.value.includes('T1'.repeat(32)));
+  store.comments = [
+    { id: 'c1', versionKey: store.rows[0].id, parentId: null, t: 12.5, author: 'Camille', fromOwner: false, body: 'Drone trop fort', resolved: false },
+    { id: 'c2', versionKey: 'original', parentId: null, t: 3, author: 'Léa', fromOwner: false, body: 'Début parfait', resolved: true },
+  ];
+  host.querySelector('[data-act="rvRefresh"]').click(); await tick(); await tick(); await tick();
+  const boxTxt = host.querySelector('.vcv-review-box').textContent;
+  check('relecture : remarques listées avec auteur, instant, version et nombre à traiter', boxTxt.includes('Drone trop fort') && boxTxt.includes('Camille') && boxTxt.includes('0:12') && boxTxt.includes('1 à traiter'));
+  check('relecture : drapeaux envoyés à la frise (instant, auteur, version, traité)', reviewMarks.length === 2 && reviewMarks.some(m => m.id === 'c1' && m.t === 12.5 && m.author === 'Camille' && !m.resolved && m.versionTitle) && reviewMarks.some(m => m.id === 'c2' && m.resolved && m.versionTitle === tr('versioningReviewOriginal')));
+  host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvSeek"]').click();
+  check('relecture : clic sur l\'instant -> la vidéo saute', Math.abs(ctx.videoEl.currentTime - 12.5) < 0.01 || ctx.videoEl.currentTime === 0 /* jsdom ne simule pas la lecture */);
+  host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvReply"]').click(); await tick();
+  const rt = host.querySelector('[data-role="rvReplyText"]'); rt.value = 'Je baisse le drone'; rt.dispatchEvent(new W.Event('input'));
+  host.querySelector('[data-act="rvSend"]').click(); await tick(); await tick(); await tick();
+  check('relecture : réponse du compositeur envoyée avec son nom et affichée', store.comments.some(c => c.fromOwner && c.body === 'Je baisse le drone' && c.author === 'Danny') && host.querySelector('.vcv-rcm[data-cid="c1"] .vcv-rcm-reply').textContent.includes('Je baisse le drone'));
+  host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvResolve"]').click(); await tick(); await tick(); await tick();
+  check('relecture : « Marquer traité » -> traité, plus rien à traiter, drapeau grisé', store.comments.find(c => c.id === 'c1').resolved === true && host.querySelector('.vcv-review-box').textContent.includes('0 à traiter') && reviewMarks.find(m => m.id === 'c1').resolved);
+  host.querySelector('.vcv-rcm[data-cid="c2"] [data-act="rvDelete"]').click(); await tick(); await tick(); await tick();
+  check('relecture : suppression (après confirmation) -> remarque et drapeau retirés', !store.comments.some(c => c.id === 'c2') && !host.querySelector('.vcv-rcm[data-cid="c2"]') && !reviewMarks.some(m => m.id === 'c2'));
+  host.querySelector('[data-act="rvToggle"]').click(); await tick(); await tick(); await tick();
+  check('relecture : désactiver le lien -> avertissement, champ et copie grisés', store.link.enabled === false && host.querySelector('.vcv-review-box').textContent.includes(tr('versioningReviewOff')) && host.querySelector('[data-role="rvUrl"]').disabled);
+  host.querySelector('[data-act="rvToggle"]').click(); await tick(); await tick(); await tick();
+  host.querySelector('[data-act="rvRotate"]').click(); await tick(); await tick(); await tick(); await tick();
+  check('relecture : renouveler (après confirmation) -> nouveau jeton affiché', store.link.token === 'T2'.repeat(32) && host.querySelector('[data-role="rvUrl"]').value.includes('T2'.repeat(32)));
 
   // Rendu en série des deux versions, rangées en bibliothèque.
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = true; });

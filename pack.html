@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1794236653292">
+<link rel="stylesheet" href="player.css?v=1794237430273">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -256,6 +256,18 @@
   .vcv-diff-same { color: #777 !important; }
   .vcv-diff-choose { color: #f0a050 !important; }
   .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
+  .vcv-by { color: #888; font-size: 11px; }
+  .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
+  .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
+  .vcv-rcm-done { opacity: .55; }
+  .vcv-rcm-meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; color: #999; font-size: 11px; }
+  .vcv-rcm-t { background: none; border: 0; color: #7db8e8; font-weight: 600; cursor: pointer; padding: 0; }
+  .vcv-rcm-who { color: #ddd; font-weight: 600; }
+  .vcv-rcm-ver { color: #888; }
+  .vcv-rcm-body { color: #ddd; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vcv-rcm-reply { margin-left: 12px; padding-left: 8px; border-left: 2px solid #333; color: #bbb; }
+  .vcv-rcm-input { flex: 1; min-width: 200px; background: #151515; border: 1px solid #333; border-radius: 4px; color: #ddd; padding: 4px 6px; font: inherit; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -489,11 +501,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794236653292"></script>
-<script src="layerpitch-notify.js?v=1794236653292"></script>
-<script src="public-page.js?v=1794236653292"></script>
-<script src="layerpitch-seller-contact.js?v=1794236653292"></script>
-<script src="player.js?v=1794236653292"></script>
+<script src="layerpitch-i18n.js?v=1794237430273"></script>
+<script src="layerpitch-notify.js?v=1794237430273"></script>
+<script src="public-page.js?v=1794237430273"></script>
+<script src="layerpitch-seller-contact.js?v=1794237430273"></script>
+<script src="player.js?v=1794237430273"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1246,6 +1258,6 @@ window.addEventListener('load', init);
   }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
 })();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794236653292"></script>
+<script src="layerpitch-preview-tuto.js?v=1794237430273"></script>
 </body>
 </html>
