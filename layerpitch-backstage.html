@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794043066183">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794230616096">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -479,6 +479,15 @@
   #quickSearchOverlay .qs-kind { flex-shrink: 0; font-size: 11px; color: var(--text-dimmer); }
   #quickSearchOverlay .qs-empty { padding: 14px 10px; font-size: 13px; color: var(--text-dim); }
   #quickSearchOverlay .qs-hint { border-top: 1px solid var(--border); padding: 8px 16px; font-size: 11px; color: var(--text-dimmer); }
+  #creditsModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #creditsModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #creditsModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  #creditsModal .sub { margin-bottom: 12px; }
+  #creditsModal .credits-list { list-style: none; padding: 0; margin: 0 0 14px; font-size: 12px; color: var(--text); }
+  #creditsModal .credits-list li { padding: 7px 0; border-top: 1px solid #ececf0; line-height: 1.45; }
+  #creditsModal .credits-list li:first-child { border-top: none; }
+  #creditsModal .credits-lic { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: #eef1f6; color: var(--text-dimmer); font-size: 10.5px; white-space: nowrap; }
+  #creditsModal .actions { justify-content: flex-end; }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
   #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -1220,6 +1229,11 @@
           <a class="account-menu-item" href="mailto:contact@layerpitch.com">
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg><span data-i18n="accountMenuContact">Nous contacter</span></span>
           </a>
+          <!-- Crédits et licences (09/11) : logiciels libres utilisés (Mediabunny MPL-2.0, ffmpeg.wasm GPL...). Visible de tous (obligation
+               de mention, pas une fonctionnalité) -- le contenu est dans #creditsModalOverlay, voir 47-credits-licences.js. -->
+          <button class="account-menu-item" id="btnAccountCredits" type="button">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M14.5 3.5V8H19"/><path d="M9 12.5h6M9 16h6"/></svg><span data-i18n="accountMenuCredits">Crédits et licences</span></span>
+          </button>
           <div class="account-menu-sep"></div>
           <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden>
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/></svg><span data-i18n="accountMenuSignOut">Se déconnecter</span></span>
@@ -1997,6 +2011,25 @@
   </div>
 </div>
 
+<div id="creditsModalOverlay">
+  <div id="creditsModal" role="dialog" aria-modal="true" aria-labelledby="creditsModalTitle">
+    <h3 id="creditsModalTitle" data-i18n="creditsModalTitle">Crédits et licences</h3>
+    <div class="sub" data-i18n="creditsModalIntro">LayerPitch s'appuie sur des logiciels libres. Merci à leurs auteurs. Les noms de licences et les liens ci-dessous sont ceux publiés par les projets.</div>
+    <ul class="credits-list">
+      <li><a href="https://mediabunny.dev" target="_blank" rel="noopener">Mediabunny</a> — <span data-i18n="creditsMediabunny">compression et conversion des vidéos dans ton navigateur</span> <span class="credits-lic">MPL-2.0</span></li>
+      <li><a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">ffmpeg.wasm</a> / <a href="https://ffmpeg.org" target="_blank" rel="noopener">FFmpeg</a> — <span data-i18n="creditsFfmpeg">montage et compression de secours des vidéos (le moteur « core » est publié sous GPL-2.0 ou ultérieure, code source sur le dépôt ffmpeg.wasm)</span> <span class="credits-lic">MIT / GPL-2.0+</span></li>
+      <li><a href="https://github.com/supabase/supabase-js" target="_blank" rel="noopener">Supabase JS</a> — <span data-i18n="creditsSupabase">connexion et base de données</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/eshaz/wasm-audio-decoders" target="_blank" rel="noopener">wasm-audio-decoders (ogg-vorbis)</a> — <span data-i18n="creditsOgg">lecture des fichiers audio Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/arseneyr/wasm-media-encoders" target="_blank" rel="noopener">wasm-media-encoders</a> — <span data-i18n="creditsEncoders">encodage audio MP3 et Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a> — <span data-i18n="creditsJszip">création des archives ZIP</span> <span class="credits-lic">MIT ou GPL-3.0+</span></li>
+      <li>Space Grotesk, Inter, JetBrains Mono — <span data-i18n="creditsFonts">polices de caractères</span> <span class="credits-lic">SIL OFL 1.1</span></li>
+    </ul>
+    <div class="actions">
+      <button class="btn btn-small btn-primary" id="creditsClose" type="button" data-i18n="creditsClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div id="implSheetModalOverlay">
   <div id="implSheetModal">
     <h3 data-i18n="implSheetModalTitle">Fiche d'implémentation</h3>
@@ -2036,19 +2069,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794043066183"></script>
-<script src="layerpitch-i18n.js?v=1794043066183"></script>
-<script src="layerpitch-import-engine.js?v=1794043066183"></script>
-<script src="layerpitch-appearance.js?v=1794043066183"></script>
-<script src="layerpitch-album-shared.js?v=1794043066183"></script>
-<script src="layerpitch-album-editor.js?v=1794043066183"></script>
-<script src="layerpitch-shell.js?v=1794043066183"></script>
-<script src="layerpitch-social-icons.js?v=1794043066183"></script>
-<script src="layerpitch-notify.js?v=1794043066183"></script>
-<script src="layerpitch-guide.js?v=1794043066183"></script>
-<script src="layerpitch-lesson-previews.js?v=1794043066183"></script>
-<script src="layerpitch-help.js?v=1794043066183"></script>
-<script src="player.js?v=1794043066183"></script>
+<script src="layerpitch-tuto.js?v=1794230616096"></script>
+<script src="layerpitch-i18n.js?v=1794230616096"></script>
+<script src="layerpitch-import-engine.js?v=1794230616096"></script>
+<script src="layerpitch-appearance.js?v=1794230616096"></script>
+<script src="layerpitch-album-shared.js?v=1794230616096"></script>
+<script src="layerpitch-album-editor.js?v=1794230616096"></script>
+<script src="layerpitch-shell.js?v=1794230616096"></script>
+<script src="layerpitch-social-icons.js?v=1794230616096"></script>
+<script src="layerpitch-notify.js?v=1794230616096"></script>
+<script src="layerpitch-guide.js?v=1794230616096"></script>
+<script src="layerpitch-lesson-previews.js?v=1794230616096"></script>
+<script src="layerpitch-help.js?v=1794230616096"></script>
+<script src="player.js?v=1794230616096"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -15152,11 +15185,28 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// onProgress(envoyé, total) (09/11, demande de Jules-Antoine : « un état d'avancement de l'upload ») : fetch() ne dit rien de la progression d'un
+// envoi, donc avec un onProgress on passe par XMLHttpRequest (upload.onprogress). `bytes` peut être un Blob (évite de copier une grosse vidéo en mémoire).
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -15278,11 +15328,15 @@ async function compressVideoWithWebCodecs(file, onProgress) {
   // IMAGE : copier ou réencoder ?
   const w = videoTrack.displayWidth, h = videoTrack.displayHeight;
   const fits = w <= 1280 && h <= 720;
-  const stats = await videoTrack.computePacketStats(200);
+  // Débit MOYEN de TOUT le fichier (taille / durée, son compris : estimation prudente), pas celui des premières images. Bug du 09/11 :
+  // computePacketStats(200) ne lit que le début ; sur un fichier de 267 Mo (13 Mbps) qui s'ouvre sur un fondu quasi noir, il mesurait
+  // 941 kbps -> « déjà assez léger » -> le fichier entier partait tel quel (envoi interminable). computePacketStats ne sert plus que si la durée est inconnue.
+  const duration = await input.computeDuration();
+  const overallBps = duration > 0 ? file.size * 8 / duration : (await videoTrack.computePacketStats(2000)).averageBitrate;
   const videoOpts = { codec: 'avc' };
-  if (videoTrack.codec === 'avc' && fits && stats.averageBitrate <= VIDEO_LIBRARY_COPY_MAX_BPS) {
+  if (videoTrack.codec === 'avc' && fits && overallBps <= VIDEO_LIBRARY_COPY_MAX_BPS) {
     // Rien à toucher : copie des paquets.
-    log(`Vidéo : déjà assez légère (${Math.round(stats.averageBitrate / 1000)} kbps, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
+    log(`Vidéo : déjà assez légère (${Math.round(overallBps / 1000)} kbps en moyenne, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
   } else {
     const scale = Math.min(1, 1280 / w, 720 / h);
     if (scale < 1) {
@@ -15545,7 +15599,18 @@ async function uploadLibraryVideo(file) {
     statusEl.textContent = withName(tr('videoLibraryUploading'));
     const base = `${MEDIA_BASE}video/${id}/`;
     if (tuto) await new Promise(r => setTimeout(r, 1200));
-    else await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    else {
+      // Avancement de l'envoi : pourcentage + Mo envoyés. Mis à jour au plus 4 fois par seconde (l'événement tombe très souvent).
+      let lastShown = 0;
+      await r2PutFile(`video/${id}/source.mp4`, blob, 'video/mp4', (done, total) => {
+        const now = Date.now();
+        if (done < total && now - lastShown < 250) return;
+        lastShown = now;
+        statusEl.textContent = withName(tr('videoLibraryUploadingProgress', {
+          pct: Math.round(done / total * 100), done: (done / 1048576).toFixed(1), total: (total / 1048576).toFixed(1),
+        }));
+      });
+    }
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
         id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',
@@ -18586,6 +18651,31 @@ function switchEssentialsPath(path) {
   trackBackstageEvent('essentials_switch', { path });
   renderTutorialMenu();
 }
+/* ---------------- Crédits et licences (09/11) ----------------
+ * Entrée « Crédits et licences » du menu du compte (roue dentée) -> fenêtre qui liste les logiciels libres utilisés et leur licence.
+ * Visible de tous les comptes (mention de licence : pas une fonctionnalité à griser avant feu vert). La liste est dans le HTML
+ * (#creditsModalOverlay, src/backstage/03-ecran-et-scripts.html) ; la mettre à jour quand une bibliothèque est ajoutée ou retirée
+ * (vendor/mediabunny, vendor/ffmpeg, scripts chargés par unpkg/jsdelivr). Textes dans layerpitch-i18n.js (clés credits*).
+ */
+(function initCreditsModal() {
+  const overlay = document.getElementById('creditsModalOverlay');
+  const openBtn = document.getElementById('btnAccountCredits');
+  if (!overlay || !openBtn) return;
+  const close = () => { overlay.style.display = 'none'; };
+  openBtn.addEventListener('click', () => {
+    // Le menu du compte ne se referme pas tout seul sur un clic à l'intérieur : on le ferme ici.
+    const dropdown = document.getElementById('accountMenuDropdown');
+    const menuBtn = document.getElementById('btnAccountMenu');
+    if (dropdown) dropdown.hidden = true;
+    if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+    overlay.style.display = 'flex';
+    const closeBtn = document.getElementById('creditsClose');
+    if (closeBtn) closeBtn.focus();
+  });
+  document.getElementById('creditsClose').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.style.display === 'flex') close(); });
+})();
 </script>
 <script type="text/javascript">
   // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,
