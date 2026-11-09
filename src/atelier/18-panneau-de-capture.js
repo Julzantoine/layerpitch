@@ -176,6 +176,11 @@ function openCapturePanel(file, opts) {
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
       <div class="video-test-panel-actions">
+        <span class="atelier-zones">
+          <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
+          <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneBottom" title="${tr('atelierZoneBottom')}" aria-label="${tr('atelierZoneBottom')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="9.1" width="11.8" height="3.8" fill="currentColor"/></svg></button>
+          <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneRight" title="${tr('atelierZoneRight')}" aria-label="${tr('atelierZoneRight')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="10.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
+        </span>
         <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
@@ -850,42 +855,29 @@ function openCapturePanel(file, opts) {
     URL.revokeObjectURL(objectUrl);
     closeCapturePanel();
   });
-  // Colonne de droite (09/11) : un petit menu à cases à cocher, comme dans Guitar Pro, choisit ce qui reste affiché (infos, bouton
-  // « Choisir la vidéo », morceaux). Tout décoché = la colonne disparaît et la vidéo prend toute la largeur. Retenu sur cet appareil.
-  const paneParts = [['info', 'atelierPaneInfo'], ['trigger', 'atelierPaneTrigger'], ['music', 'atelierPaneMusic']];
-  let paneHidden = {};
-  // Languette au bord de la colonne : un clic la replie entièrement, un clic la rouvre (09/11). Le menu ⓘ affine ce qui reste.
-  let paneEdge = document.getElementById('atelierPaneEdge');
-  if (!paneEdge) { paneEdge = document.createElement('button'); paneEdge.type = 'button'; paneEdge.id = 'atelierPaneEdge'; document.body.appendChild(paneEdge); }
-  paneEdge.setAttribute('aria-label', tr('atelierPaneEdge'));
-  paneEdge.title = tr('atelierPaneEdge');
-  // La languette chevauche le bord gauche de la colonne, où qu'il tombe (fenêtre redimensionnée, défilement).
-  const placePaneEdge = () => {
-    const pg = document.querySelector('body.video-panel-active .page');
-    if (!pg || document.body.classList.contains('atelier-right-hidden')) { paneEdge.style.left = ''; paneEdge.style.top = ''; return; }
-    const r = pg.getBoundingClientRect();
-    paneEdge.style.left = Math.round(r.left - 11) + 'px';
-    paneEdge.style.top = Math.max(Math.round(r.top + 14), 8) + 'px';
+  // Trois zones à afficher ou non (09/11), comme les trois boutons de Guitar Pro : gauche = menu du Backstage (si l'atelier y est ouvert),
+  // bas = frise + Versioning, droite = colonne (pack, étapes, morceaux). Bleu = zone affichée. Droite et bas sont retenus sur cet appareil.
+  const zoneBtn = { left: document.getElementById('atelierZoneLeft'), bottom: document.getElementById('atelierZoneBottom'), right: document.getElementById('atelierZoneRight') };
+  let zonesHidden = {};
+  try { zonesHidden = JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) {}
+  const setZoneBtn = (k, shown) => { zoneBtn[k].classList.toggle('active', shown); zoneBtn[k].setAttribute('aria-pressed', shown ? 'true' : 'false'); };
+  const applyZones = () => {
+    ['bottom', 'right'].forEach(k => { document.body.classList.toggle('atelier-hide-' + k, !!zonesHidden[k]); setZoneBtn(k, !zonesHidden[k]); });
+    try { localStorage.setItem('lpAtelierZonesHidden', JSON.stringify(zonesHidden)); } catch (e) {}
   };
-  window.addEventListener('resize', placePaneEdge);
-  window.addEventListener('scroll', placePaneEdge, { passive: true });
-  setTimeout(placePaneEdge, 0);
-  paneEdge.onclick = () => {
-    const allHidden = paneParts.every(([k]) => paneHidden[k]);
-    paneParts.forEach(([k]) => { paneHidden[k] = !allHidden; });
-    applyPane();
-  };
-  try { paneHidden = JSON.parse(localStorage.getItem('lpAtelierPaneHidden') || '{}') || {}; } catch (e) {}
-  if (!paneParts.every(([k]) => paneHidden[k])) paneHidden = {}; // plus de menu ⓘ : la colonne est repliée en entier ou pas du tout
-  const applyPane = () => {
-    paneParts.forEach(([k]) => document.body.classList.toggle('atelier-hide-' + k, !!paneHidden[k]));
-    document.body.classList.toggle('atelier-info-collapsed', !!paneHidden.info);
-    document.body.classList.toggle('atelier-right-hidden', paneParts.every(([k]) => paneHidden[k]));
-    paneEdge.textContent = document.body.classList.contains('atelier-right-hidden') ? '«' : '»';
-    setTimeout(placePaneEdge, 0);
-    try { localStorage.setItem('lpAtelierPaneHidden', JSON.stringify(paneHidden)); } catch (e) {}
-  };
-  applyPane();
+  ['bottom', 'right'].forEach(k => zoneBtn[k].addEventListener('click', () => { zonesHidden[k] = !zonesHidden[k]; applyZones(); }));
+  applyZones();
+  // Gauche : le menu du Backstage est dans la page qui contient ce cadre (même site) ; seul dans son onglet, l'atelier n'en a pas.
+  let hostRoot = null;
+  try { if (window.parent && window.parent !== window) hostRoot = window.parent.document.documentElement; } catch (e) {}
+  const hostToggle = hostRoot && hostRoot.ownerDocument.querySelector('.lp-collapse-btn-own');
+  if (!hostToggle) zoneBtn.left.hidden = true;
+  else {
+    const syncLeft = () => setZoneBtn('left', !hostRoot.classList.contains('lp-sidebar-collapsed'));
+    zoneBtn.left.addEventListener('click', () => { hostToggle.click(); syncLeft(); });
+    new MutationObserver(syncLeft).observe(hostRoot, { attributes: true, attributeFilter: ['class'] });
+    syncLeft();
+  }
   document.getElementById('videoCaptureDetachBtn').addEventListener('click', detachCapturePanel);
   wireCaptureImageHiding(panel, videoEl);
   wireAtelierFullscreenButtons(panel);

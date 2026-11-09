@@ -66,17 +66,14 @@
   /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
   body.video-panel-active .atelier-fullscreen-btn { display: none; }
   body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
-  body.video-panel-active.atelier-hide-trigger #content .video-capture-trigger-btn, body.video-panel-active.atelier-hide-music #content .pub-section { display: none; }
-  body.video-panel-active.atelier-right-hidden .page { display: none; }
-  #atelierPaneEdge { display: none; }
-  @media (min-width: 960px) {
-    body.video-panel-active #atelierPaneEdge { display: block; position: fixed; top: 80px; left: calc(100vw - 332px); z-index: 50; width: 22px; height: 40px; padding: 0 0 2px; border: 1px solid var(--border); border-radius: 11px; background: var(--bg-card, #fff); color: var(--text-dim); font-size: 15px; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); }
-    body.video-panel-active.atelier-right-hidden #atelierPaneEdge { left: auto; right: 6px; }
-    #atelierPaneEdge:hover { color: var(--accent); border-color: var(--accent); }
-  }
-  .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
-  .atelier-pane-menu[hidden] { display: none; }
-  .atelier-pane-menu label { display: flex; gap: 8px; align-items: center; padding: 5px 2px; font-size: 12px; color: #ddd; cursor: pointer; white-space: nowrap; }
+  body.video-panel-active.atelier-hide-right .page { display: none; }
+  body.video-panel-active.atelier-hide-bottom #videoCaptureTimeline, body.video-panel-active.atelier-hide-bottom #videoCaptureVersioning { display: none; }
+  .atelier-zones { display: inline-flex; margin-right: 6px; border-radius: 6px; overflow: hidden; }
+  .atelier-zones .atelier-zone-btn { border-radius: 0; margin: 0; border-right-width: 0; color: #888; }
+  .atelier-zones .atelier-zone-btn:last-child { border-right-width: 1px; }
+  .atelier-zones .atelier-zone-btn.active { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .atelier-zones .atelier-zone-btn[hidden] { display: none; }
+  .atelier-zones .atelier-zone-btn svg { display: block; margin: 0 auto; }
   .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
