@@ -247,6 +247,15 @@
   .video-library-quota { font-size: 11px; color: var(--text-dimmer); margin-bottom: 18px; }
   .video-library-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .video-library-item { background: var(--bg); padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .video-library-thumb { position: relative; flex: none; width: 96px; height: 54px; padding: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #111; cursor: pointer; }
+  .video-library-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .video-library-thumb-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); background: rgba(0,0,0,0.12); }
+  .video-library-thumb:hover .video-library-thumb-play { background: rgba(0,0,0,0.32); }
+  #videoPlayerOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); align-items: center; justify-content: center; z-index: 1000; }
+  #videoPlayerModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 16px; width: min(900px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  #videoPlayerModal h3 { font-size: 13px; margin-bottom: 10px; color: var(--text); }
+  #videoPlayerModal video { width: 100%; max-height: calc(100vh - 160px); background: #000; border-radius: 6px; display: block; }
+  #videoPlayerModal .actions { justify-content: flex-end; margin-top: 10px; }
   .video-library-item-main { flex: 1; min-width: 0; }
   .video-library-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-library-item-meta { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -261,9 +270,19 @@
   .video-atelier-unsaved-note { margin-top: 10px; padding: 8px 12px; border: 1px solid #2f80c0; border-radius: 8px; background: rgba(47,128,192,0.08); color: var(--text, inherit); font-size: 13px; }
   .video-atelier-bar { display: flex; justify-content: flex-end; margin-top: 10px; }
   /* Plein écran (05/11) : le cadre couvre la fenêtre, le bouton de sortie flotte en haut à droite. */
-  body.video-atelier-full .video-atelier-frame { position: fixed; inset: 0; width: 100vw; height: 100vh; min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
-  body.video-atelier-full .video-atelier-bar { position: fixed; top: 10px; right: 16px; z-index: 901; margin: 0; }
+  /* Plein écran de l'atelier (07/11) : la barre du haut (Prévisualiser, Sauvegarder / publier, Tutoriel…) reste visible, le cadre prend le reste ; le bouton
+     « Quitter » est celui de l'atelier (dans le cadre), Échap marche aussi. */
+  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; }
+  body.video-atelier-full .video-atelier-frame { position: fixed; inset: 58px 0 0 0; width: 100vw; height: calc(100vh - 58px); min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
+  body.video-atelier-full .video-atelier-bar { display: none; }
   body.video-atelier-full { overflow: hidden; }
+  /* Projets vidéo (09/11) : sélecteur « comme un AdReel » au-dessus de l'atelier. */
+  .video-project-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .video-project-bar[hidden], .video-project-meta[hidden], .video-atelier-frame[hidden], .video-atelier-bar[hidden] { display: none; }
+  .video-project-bar label { font-size: 12px; color: var(--text-dim); }
+  .video-project-bar select { min-width: 220px; max-width: 100%; }
+  .video-project-meta { margin-top: 8px; }
+  #videoProjectDialog .video-test-form { display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
   .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .video-capture-pack-row-hint { font-size: 11.5px; color: var(--text-dimmer); margin-top: 2px; }
@@ -271,6 +290,9 @@
   .video-versioning-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .video-versioning-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
   .video-versioning-chip.exported { border-color: var(--accent); color: var(--accent); }
+  .video-versioning-chip.st-sent { border-color: var(--accent); }
+  .video-versioning-chip.st-changes_requested { border-color: #d9822b; color: #d9822b; }
+  .video-versioning-chip.st-approved { border-color: #3a9d6a; color: #3a9d6a; }
 
   .backstage-layout { display: flex; gap: 28px; align-items: flex-start; margin-top: 20px; }
   /* Barre de gauche : fixe sous la barre d'actions, et elle défile TOUTE SEULE quand elle est plus haute que l'écran (7/10) -- sinon
@@ -331,13 +353,13 @@
   html.lp-sidebar-collapsed .backstage-sidebar .nav-badge,
   html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-selector,
   html.lp-sidebar-collapsed .backstage-sidebar .sidebar-adreel-group > .nav-section-label,
-  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item > span { display: none; }
+  html.lp-sidebar-collapsed .backstage-sidebar .content-appearance-toggle .nav-item > span { display: none; }
   html.lp-sidebar-collapsed .backstage-sidebar .nav-section-label { font-size: 0; height: 1px; margin: 12px 2px; background: var(--border); }
   html.lp-sidebar-collapsed .backstage-sidebar .nav-item { justify-content: center; padding: 8px 0; }
   html.lp-sidebar-collapsed .backstage-sidebar .nav-item-label { flex: 0 0 auto; }
   html.lp-sidebar-collapsed .sidebar-adreel-group { padding: 6px 3px; margin-bottom: 12px; }
-  html.lp-sidebar-collapsed .content-appearance-toggle { flex-direction: column; margin-top: 0; gap: 4px; }
-  html.lp-sidebar-collapsed .content-appearance-toggle .nav-item { padding: 7px 0; }
+  html.lp-sidebar-collapsed .backstage-sidebar .content-appearance-toggle { flex-direction: column; margin-top: 0; gap: 4px; }
+  html.lp-sidebar-collapsed .backstage-sidebar .content-appearance-toggle .nav-item { padding: 7px 0; }
   html.lp-sidebar-collapsed .nav-icon-collapsed-only { display: block; }
   }
   .phone-menu-fab { display: none; }
@@ -460,6 +482,15 @@
   #quickSearchOverlay .qs-kind { flex-shrink: 0; font-size: 11px; color: var(--text-dimmer); }
   #quickSearchOverlay .qs-empty { padding: 14px 10px; font-size: 13px; color: var(--text-dim); }
   #quickSearchOverlay .qs-hint { border-top: 1px solid var(--border); padding: 8px 16px; font-size: 11px; color: var(--text-dimmer); }
+  #creditsModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
+  #creditsModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  #creditsModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  #creditsModal .sub { margin-bottom: 12px; }
+  #creditsModal .credits-list { list-style: none; padding: 0; margin: 0 0 14px; font-size: 12px; color: var(--text); }
+  #creditsModal .credits-list li { padding: 7px 0; border-top: 1px solid #ececf0; line-height: 1.45; }
+  #creditsModal .credits-list li:first-child { border-top: none; }
+  #creditsModal .credits-lic { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: #eef1f6; color: var(--text-dimmer); font-size: 10.5px; white-space: nowrap; }
+  #creditsModal .actions { justify-content: flex-end; }
   #feedbackModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000; }
   #feedbackModal { background: var(--bg); border: 1px solid #d8d8dc; border-radius: 8px; padding: 20px; width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #feedbackModal h3 { font-size: 13px; margin-bottom: 4px; color: var(--text); }
@@ -630,6 +661,7 @@
   .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 16px; }
   .seq-map-roomy .seq-map-nodes:not(.compact) .seq-map-node.visited .seq-map-node-label { padding: 0 26px; }
   .seq-map-node-check { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--seq-map-success, var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; z-index: 2; font-size: 8px; line-height: 1; }
+  .seq-map-node-repeat { display: inline-block; margin-left: 4px; padding: 1px 4px; border-radius: 7px; background: var(--seq-map-node-accent, var(--accent)); color: #fff; font-size: 0.85em; line-height: 1.2; font-weight: 700; vertical-align: 1px; font-variant-numeric: tabular-nums; } /* « ×N » des répétitions (06/11) */
   .seq-map-edge { fill: none; stroke: var(--border); stroke-width: 1.5px; cursor: default; }
   /* .seq-map-edge.transition n'a plus de règle de couleur (03/09, retour direct : "oublie la couleur du
      liseré bleu") -- l'indicateur de transition est désormais uniquement le disque .seq-map-transition-dot

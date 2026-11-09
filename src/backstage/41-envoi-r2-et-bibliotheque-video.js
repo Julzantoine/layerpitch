@@ -21,11 +21,28 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// onProgress(envoyé, total) (09/11, demande de Jules-Antoine : « un état d'avancement de l'upload ») : fetch() ne dit rien de la progression d'un
+// envoi, donc avec un onProgress on passe par XMLHttpRequest (upload.onprogress). `bytes` peut être un Blob (évite de copier une grosse vidéo en mémoire).
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -115,7 +132,31 @@ function readVideoLibraryDuration(file) {
     v.src = url;
   });
 }
+// ---- Compression par WebCodecs + Mediabunny (09/11) -----------------------------------------------------------------
+// Remplace ffmpeg.wasm comme premier choix : l'encodeur H.264 du navigateur (souvent matériel) tourne ~6x plus vite que le
+// temps réel, contre ~8x LA DURÉE de la vidéo en 1080p avec ffmpeg.wasm mono-thread (essais 09/11 dans Firefox 159 : 150 s de
+// vidéo en ~22 s). Et ffmpeg-core est compilé avec --enable-gpl (x264) : le sortir du chemin principal réduit l'exposition GPL.
+// Règles et seuils (image recopiée si déjà légère, son copié si AAC sinon AAC natif sinon Opus) : voir l'en-tête de layerpitch-video-compress.js.
+//  - Toute erreur ici (navigateur sans WebCodecs, codec non encodable, source illisible) retombe sur ffmpeg.wasm : on ne
+//    transforme jamais un défaut de vitesse en échec complet.
+// La logique elle-même (règles image/son, seuils) vit dans layerpitch-video-compress.js, partagée avec l'Atelier.
+async function compressVideoWithWebCodecs(file, onProgress) {
+  return window.LayerPitchVideoCompress.compress(file, {
+    log,
+    onProgress: (pct) => { onProgress && onProgress(tr('videoLibraryCompressingProgress', { pct })); },
+  });
+}
 async function compressVideoForLibrary(file, onProgress) {
+  onProgress && onProgress(tr('videoLibraryCompressing'));
+  try {
+    return await compressVideoWithWebCodecs(file, onProgress);
+  } catch (e) {
+    console.warn('LayerPitch — compression WebCodecs impossible, repli sur ffmpeg.wasm :', e);
+    log(`Compression rapide indisponible (${e.message}) : repli sur ffmpeg.wasm, plus lent.`, 'warn');
+    return compressVideoWithFfmpeg(file, onProgress);
+  }
+}
+async function compressVideoWithFfmpeg(file, onProgress) {
   onProgress && onProgress(tr('videoLibraryCompressing'));
   const ffmpeg = await loadVideoLibraryFfmpeg();
   const inName = 'in' + (file.name.slice(file.name.lastIndexOf('.')) || '.mp4');
@@ -201,6 +242,27 @@ async function renderVideoLibrary() {
     listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoLibraryLoadFailed', { error: e.message || String(e) }))}</div>`;
   }
 }
+// Lecture d'une vidéo de la bibliothèque (09/11, demande de Jules-Antoine : « on ne peut pas visionner la vidéo ici ») : la vignette de chaque ligne est
+// la première image de la vidéo elle-même (<video preload="metadata">, le navigateur ne charge que le début), un clic ouvre un lecteur dans une fenêtre.
+function openLibraryVideoPlayer(v) {
+  if (!v) return;
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  document.getElementById('videoPlayerTitle').textContent = v.title || v.originalName || v.file;
+  player.src = v.base + encodeURIComponent(v.file);
+  overlay.style.display = 'flex';
+  player.play().catch(() => { /* lecture automatique refusée : les contrôles restent là */ });
+}
+(function setupLibraryVideoPlayer() {
+  const overlay = document.getElementById('videoPlayerOverlay');
+  const player = document.getElementById('videoPlayerEl');
+  if (!overlay || !player) return;
+  const close = () => { player.pause(); player.removeAttribute('src'); player.load(); overlay.style.display = 'none'; };
+  document.getElementById('videoPlayerClose').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.style.display === 'flex') close(); });
+})();
 async function renderVideoLibraryNow(listEl, quotaEl) {
   // interrupted : envois réservés côté serveur mais jamais terminés (27/09, reserve_video_upload) -- comptés dans le
   // quota, supprimables comme une vidéo (le fichier éventuellement arrivé sur R2 est effacé avec).
@@ -218,14 +280,25 @@ async function renderVideoLibraryNow(listEl, quotaEl) {
       </div>
     `).join('') + videos.map(v => `
       <div class="video-library-item">
+        <button type="button" class="video-library-thumb" data-id="${v.id}" title="${escapeHtml(tr('videoLibraryPlayTitle'))}" aria-label="${escapeHtml(tr('videoLibraryPlayTitle'))}">
+          <video muted playsinline preload="metadata" src="${escapeHtml(v.base + encodeURIComponent(v.file))}#t=0.5"></video>
+          <span class="video-library-thumb-play" aria-hidden="true">&#9654;</span>
+        </button>
         <div class="video-library-item-main">
           <div class="video-library-item-title">${escapeHtml(v.title || v.originalName || v.file)}</div>
           <div class="video-library-item-meta">${[formatVideoBytes(v.sizeBytes), formatVideoDuration(v.durationSeconds), new Date(v.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ')}</div>
         </div>
         <span class="video-library-kind-badge">${v.kind === 'capture_export' ? tr('videoLibraryKindExport') : tr('videoLibraryKindUpload')}</span>
+        <button type="button" class="btn btn-small video-library-rename-btn" data-id="${v.id}">${tr('videoLibraryRenameBtn')}</button>
         <button type="button" class="btn btn-small video-library-delete-btn" data-id="${v.id}">${tr('deleteBtn')}</button>
       </div>
     `).join('');
+    listEl.querySelectorAll('.video-library-thumb').forEach(btn => {
+      btn.addEventListener('click', () => openLibraryVideoPlayer(videos.find(x => x.id === btn.dataset.id)));
+    });
+    listEl.querySelectorAll('.video-library-rename-btn').forEach(btn => {
+      btn.addEventListener('click', () => renameLibraryVideo(btn.dataset.id, videos));
+    });
     listEl.querySelectorAll('.video-library-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteLibraryVideo(btn.dataset.id, interrupted.concat(videos)));
     });
@@ -267,9 +340,39 @@ async function renderVideoHistoryCleanup(nearQuota) {
   };
 }
 
-async function deleteLibraryVideo(id, knownVideos) {
-  if (!(await window.LayerPitchNotify.confirm(tr('videoLibraryDeleteConfirm'), { danger: true }))) return;
+// Renomme une vidéo de la bibliothèque (6/11) : le nom affiché partout où la vidéo est choisie (liste du Backstage, menu de l'Atelier).
+async function renameLibraryVideo(id, knownVideos) {
   const v = (knownVideos || []).find(x => x.id === id);
+  const current = v ? (v.title || v.originalName || v.file || '') : '';
+  const name = await window.LayerPitchNotify.prompt(tr('videoLibraryRenamePrompt'), { inputValue: current });
+  if (name === null || !name.trim() || name.trim() === current) return;
+  try {
+    const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('rename_video', { p_id: id, p_title: name.trim() });
+    if (error) throw error;
+    renderVideoLibrary();
+  } catch (e) {
+    window.LayerPitchNotify.error(tr('videoLibraryRenameFailed', { error: e.message }));
+  }
+}
+
+// Prises de l'Atelier liées à cette vidéo (09/11, demande de Jules-Antoine : « supprimé de la bibliothèque, pourtant encore dans l'atelier »).
+// Une prise (video_captures) se souvient de sa vidéo par le NOM du fichier d'origine (video_filename), et par base_video_id / last_export_video_id
+// quand elles viennent d'une version ou d'un export. Supprimer la vidéo ne supprime PAS ces prises : on prévient seulement, jamais d'effacement surprise.
+// Toute erreur de lecture -> 0 (on retombe sur la confirmation habituelle, sans bloquer la suppression).
+async function countCapturesLinkedToVideo(v) {
+  if (!v) return 0;
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', {});
+    if (error) return 0;
+    const names = [v.originalName, v.title, v.file].filter(Boolean);
+    return (data || []).filter(c => c.baseVideoId === v.id || c.lastExportVideoId === v.id || (c.videoFilename && names.includes(c.videoFilename))).length;
+  } catch (e) { return 0; }
+}
+async function deleteLibraryVideo(id, knownVideos) {
+  const v = (knownVideos || []).find(x => x.id === id);
+  const linked = await countCapturesLinkedToVideo(v);
+  const confirmText = linked > 0 ? tr('videoLibraryDeleteConfirmLinked', { n: linked }) : tr('videoLibraryDeleteConfirm');
+  if (!(await window.LayerPitchNotify.confirm(confirmText, { danger: true }))) return;
   try {
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video', { p_id: id });
     if (error) throw error;
@@ -310,7 +413,18 @@ async function uploadLibraryVideo(file) {
     statusEl.textContent = withName(tr('videoLibraryUploading'));
     const base = `${MEDIA_BASE}video/${id}/`;
     if (tuto) await new Promise(r => setTimeout(r, 1200));
-    else await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    else {
+      // Avancement de l'envoi : pourcentage + Mo envoyés. Mis à jour au plus 4 fois par seconde (l'événement tombe très souvent).
+      let lastShown = 0;
+      await r2PutFile(`video/${id}/source.mp4`, blob, 'video/mp4', (done, total) => {
+        const now = Date.now();
+        if (done < total && now - lastShown < 250) return;
+        lastShown = now;
+        statusEl.textContent = withName(tr('videoLibraryUploadingProgress', {
+          pct: Math.round(done / total * 100), done: (done / 1048576).toFixed(1), total: (total / 1048576).toFixed(1),
+        }));
+      });
+    }
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
         id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',
@@ -351,13 +465,12 @@ async function uploadLibraryVideo(file) {
   });
 })();
 
-// Sous-onglets Bibliothèque/Atelier/Versioning du panneau Vidéo (16 septembre) -- toggle purement local, pas le switchTab() global
+// Sous-onglets Bibliothèque / Projets vidéo du panneau Vidéo (16 septembre ; Versioning et Atelier réunis en « Projets vidéo » le 09/11) -- toggle purement local, pas le switchTab() global
 // (réservé aux panneaux de premier niveau).
 function switchVideoSubtab(name) {
   document.querySelectorAll('#panelVideoLibrary .video-subpanel').forEach(p => p.classList.toggle('active', p.dataset.videoSubpanel === name));
   document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(b => b.classList.toggle('active', b.dataset.videoSubtab === name));
-  if (name === 'capture') { ensureVideoAtelierLoaded(); refreshAtelierUnsavedNote(); }
-  if (name === 'versioning') renderVideoVersioningList();
+  if (name === 'capture') { initVideoProjects(); refreshAtelierUnsavedNote(); }
 }
 document.querySelectorAll('#panelVideoLibrary [data-video-subtab]').forEach(btn => {
   btn.addEventListener('click', () => switchVideoSubtab(btn.dataset.videoSubtab));
@@ -401,7 +514,18 @@ function setVideoAtelierFull(on) {
   document.body.classList.toggle('video-atelier-full', on);
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.textContent = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull');
+  const frame = document.getElementById('videoAtelierFrame');
+  try { if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'fullState', on: !!on }, location.origin); } catch (e) { /* cadre pas prêt */ }
 }
+// Le bouton « Plein écran » de l'atelier (dans le cadre) passe par ici : ainsi la barre du Backstage reste visible (07/11).
+window.addEventListener('message', e => {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (e.origin !== location.origin || !frame || e.source !== frame.contentWindow || !e.data || e.data.source !== 'lp-atelier') return;
+  if (e.data.type === 'toggleFull' || e.data.type === 'setFull') {
+    const on = e.data.type === 'toggleFull' ? !document.body.classList.contains('video-atelier-full') : !!e.data.on;
+    setVideoAtelierFull(on);
+  }
+});
 (function wireVideoAtelierFull() {
   const btn = document.getElementById('videoAtelierFullBtn');
   if (btn) btn.addEventListener('click', () => setVideoAtelierFull(!document.body.classList.contains('video-atelier-full')));
@@ -412,9 +536,36 @@ function openVideoAtelier(opts) {
   openTab('videoLibrary');
   switchVideoSubtab('capture');
   const frame = document.getElementById('videoAtelierFrame');
-  if (frame && opts && (opts.packId || opts.montageId)) frame.src = videoAtelierUrl(opts);
-  else ensureVideoAtelierLoaded();
+  if (frame && opts && (opts.packId || opts.montageId)) {
+    frame.hidden = false;
+    frame.src = videoAtelierUrl(opts);
+    if (opts.montageId) { videoProjectSelectedId = opts.montageId; refreshVideoProjects(); } // le projet ouvert est celui du sélecteur
+  } else ensureVideoAtelierLoaded();
   if (frame && frame.scrollIntoView) frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// « Terminer le montage » (06/11) : étape de « Sauvegarder / publier » (voir publishAll), juste avant les AdReels qui affichent les montages.
+// Demande à l'atelier (s'il est ouvert dans son cadre) de publier le montage retouché : son + étiquettes. Réponses : 'none' (rien à publier,
+// pas d'atelier, ou atelier qui ne répond pas dans les 4 s : ancienne version en cache), 'done' ; un échec lève une erreur avec la raison.
+function finishAtelierMontage() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.getAttribute('src') || !frame.contentWindow) return Promise.resolve('none');
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2);
+  return new Promise((resolve, reject) => {
+    let ackTimer = 0, longTimer = 0;
+    const finish = fn => { clearTimeout(ackTimer); clearTimeout(longTimer); window.removeEventListener('message', onMsg); fn(); };
+    function onMsg(e) {
+      if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.id !== id) return;
+      if (e.data.type === 'finishMontageAck') { clearTimeout(ackTimer); return; }
+      if (e.data.type !== 'finishMontageResult') return;
+      if (e.data.status === 'error') finish(() => reject(new Error(e.data.message || 'erreur inconnue')));
+      else finish(() => resolve(e.data.status === 'done' ? 'done' : 'none'));
+    }
+    window.addEventListener('message', onMsg);
+    ackTimer = setTimeout(() => finish(() => resolve('none')), 4000);
+    longTimer = setTimeout(() => finish(() => reject(new Error(tr('montageFinishTimeout')))), 15 * 60 * 1000);
+    try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'finishMontage', id }, location.origin); }
+    catch (err) { finish(() => resolve('none')); }
+  });
 }
 // Messages de l'atelier (même origine seulement) : fin de sa partie de la leçon Versioning -> le Backstage reprend la main.
 window.addEventListener('message', e => {
@@ -427,9 +578,8 @@ window.addEventListener('message', e => {
   // Enregistrement dans l'atelier : listes à jour (index des montages des blocs vidéo, bibliothèque, Versioning).
   if (e.data.type === 'changed') {
     videoVersioningIndexPromise = null;
-    const sub = document.querySelector('#panelVideoLibrary .video-subpanel.active');
-    if (sub && sub.dataset.videoSubpanel === 'versioning') renderVideoVersioningList();
-    else renderVideoLibrary();
+    refreshVideoProjects(); // liste des projets et versions à jour (sans recharger l'atelier ouvert)
+    renderVideoLibrary();
   }
 });
 
@@ -440,19 +590,20 @@ window.addEventListener('message', e => {
 let videoVersioningIndexPromise = null;
 function loadVideoVersioningIndex(force) {
   if (videoVersioningIndexPromise && !force) return videoVersioningIndexPromise;
-  const empty = { byVideoId: {}, available: false };
+  const empty = { byVideoId: {}, captures: [], available: false };
   videoVersioningIndexPromise = (async () => {
     if (entitlementLevel('versioning') !== 'saved') return empty;
     const client = window.LayerPitchSupabaseClient.getClient();
     const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
     if (res.error) return empty;
-    const out = { byVideoId: {}, available: true };
+    const out = { byVideoId: {}, captures: [], available: true };
     await Promise.all((res.data || []).map(async c => {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
       const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
+      out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
       if (c.baseVideoId) out.byVideoId[c.baseVideoId] = { capture: c, siblings }; // la vidéo muette du montage (migration 20261021040000) mène aussi au montage
     }));
@@ -468,50 +619,191 @@ function videoMontageFields(v) {
     ? { montageId: v.montageId, defaultVersion: v.defaultVersion || 'original', hiddenVersions: Array.isArray(v.hiddenVersions) ? v.hiddenVersions.slice() : [] }
     : { montageId: null, defaultVersion: null, hiddenVersions: [] };
 }
-async function renderVideoVersioningList() {
-  const listEl = document.getElementById('videoVersioningList');
-  if (!listEl) return;
-  // 28/09 : liste des versions ENREGISTRÉES = palier Boss (versioning 'saved') ; Warrior versionne pendant la session, dans le pack.
-  if (entitlementLevel('versioning') !== 'saved') { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr(flagOpen('versioning') ? 'videoVersioningTierOnly' : 'videoVersioningAdminOnly'))}</div>`; return; }
-  listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoading'))}</div>`;
+// ---- Projets vidéo (09/11, demande de Jules-Antoine : « même logique que pour un AdReel : créer un projet vidéo, puis y choisir la vidéo et
+// le pack ») ----------------------------------------------------------------------------------------------------------------------------
+// Un projet vidéo EST un montage sauvegardé (video_captures : nom, pack, vidéo d'origine, frise) ; ses versions vidéo sont celles de
+// video_capture_versions. Rien de neuf en base : « + Nouveau » crée un montage vide (nom + pack), l'atelier s'ouvre dessus, la vidéo s'y choisit.
+// Palier qui enregistre les montages (versioning 'saved') ; sans lui, l'atelier s'ouvre comme avant (choix du pack dans l'atelier), sans projet.
+let videoProjects = [];
+let videoProjectSelectedId = null;
+let videoProjectsLoadedFor = null; // montage affiché dans le cadre (évite de le recharger quand on réaffiche l'onglet)
+function videoProjectsMode() { return entitlementLevel('versioning') === 'saved' && !isTutoMode(); } // tutoriel : l'atelier garde son parcours guidé (choix du pack dans l'atelier)
+function videoProjectFrameUrl(p) { return videoAtelierUrl({ packId: p.packId, montageId: p.id }); }
+function videoProjectTitle(p) { return p.title || (p.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'); }
+function videoProjectEls() {
+  const g = id => document.getElementById(id);
+  return { bar: g('videoProjectBar'), select: g('videoProjectSelect'), meta: g('videoProjectMeta'), empty: g('videoProjectEmpty'), frame: g('videoAtelierFrame'), hint: document.querySelector('[data-video-subpanel="capture"] > .sub') };
+}
+async function fetchVideoProjects() {
+  const res = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', { p_pack_id: null });
+  if (res.error) throw res.error;
+  videoProjects = res.data || [];
+}
+// Remplit le sélecteur et la ligne d'infos (pack, vidéo, versions) du projet choisi. Ne touche pas au cadre.
+async function renderVideoProjectBar() {
+  const el = videoProjectEls();
+  if (!el.select) return;
+  if (!videoProjects.some(p => p.id === videoProjectSelectedId)) videoProjectSelectedId = videoProjects.length ? videoProjects[0].id : null;
+  el.select.innerHTML = videoProjects.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === videoProjectSelectedId ? 'selected' : ''}>${escapeHtml(videoProjectTitle(p))}</option>`).join('');
+  el.empty.hidden = videoProjects.length > 0;
+  const deleteBtn = document.getElementById('videoProjectDeleteBtn');
+  if (deleteBtn) deleteBtn.disabled = !videoProjectSelectedId;
+  const packBtn = document.getElementById('videoProjectPackBtn');
+  if (packBtn) packBtn.disabled = !videoProjectSelectedId;
+  const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  if (!cur) { el.meta.hidden = true; el.meta.innerHTML = ''; return; }
+  const pack = packs.find(p => p.id === cur.packId);
+  const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), cur.videoFilename ? tr('videoVersioningVideo').replace('{video}', cur.videoFilename) : '', new Date(cur.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
+  el.meta.hidden = false;
+  el.meta.innerHTML = `<div class="video-library-item-meta">${escapeHtml(meta)}</div><div class="video-versioning-versions"></div>`;
+  // Versions vidéo du projet (celles déjà rendues et rangées en bibliothèque repérées).
+  const wantedId = cur.id;
   const client = window.LayerPitchSupabaseClient.getClient();
-  let captures = [], videos = [];
+  let vs = null, videoIds = new Set();
   try {
-    const res = await client.rpc('list_my_video_captures', { p_pack_id: null });
-    if (res.error) throw res.error;
-    captures = res.data || [];
-    videos = (await loadMyVideos()).videos || [];
-  } catch (e) {
-    listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningLoadFailed').replace('{error}', e.message))}</div>`;
+    const r = await client.rpc('list_video_capture_versions', { p_capture_id: cur.id });
+    vs = r.error ? null : (r.data || []);
+    videoIds = new Set(((await loadMyVideos()).videos || []).map(v => v.id));
+  } catch (e) { /* versions indisponibles : la puce le dit */ }
+  if (videoProjectSelectedId !== wantedId) return; // un autre projet a été choisi entre-temps
+  const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
+    : vs.length ? vs.map(v => { const st = ['draft', 'sent', 'changes_requested', 'approved'].includes(v.status) ? v.status : 'draft'; const exp = v.lastExportVideoId && videoIds.has(v.lastExportVideoId); return `<span class="video-versioning-chip st-${st} ${exp ? 'exported' : ''}" title="${escapeHtml([tr('versioningStatus_' + st), exp ? tr('videoVersioningExported') : ''].filter(Boolean).join(' · '))}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}${st === 'draft' ? '' : ' · ' + escapeHtml(tr('versioningStatus_' + st))}</span>`; }).join('')
+    : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
+  const host = el.meta.querySelector('.video-versioning-versions');
+  if (host) host.innerHTML = chips;
+}
+// Affiche le projet choisi dans le cadre (une seule fois par projet : réafficher l'onglet ne recharge pas l'atelier).
+function showSelectedVideoProject(force) {
+  const el = videoProjectEls();
+  const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+  if (!el.frame) return;
+  el.frame.hidden = !cur; // aucun projet : pas d'atelier (on invite à en créer un)
+  const bar = document.querySelector('[data-video-subpanel="capture"] .video-atelier-bar');
+  if (bar) bar.hidden = !cur;
+  if (!cur) { videoProjectsLoadedFor = null; el.frame.removeAttribute('src'); return; }
+  if (force || videoProjectsLoadedFor !== cur.id) { videoProjectsLoadedFor = cur.id; el.frame.src = videoProjectFrameUrl(cur); }
+}
+// Ouverture du sous-onglet : sans le palier, l'atelier s'ouvre comme avant ; sinon liste des projets, premier (ou dernier choisi) ouvert.
+async function initVideoProjects() {
+  const el = videoProjectEls();
+  if (!el.bar) return;
+  if (!videoProjectsMode()) {
+    el.bar.hidden = true; el.meta.hidden = true; el.empty.hidden = true; if (el.frame) el.frame.hidden = false;
+    ensureVideoAtelierLoaded();
     return;
   }
-  if (!captures.length) { listEl.innerHTML = `<div class="video-library-empty">${escapeHtml(tr('videoVersioningEmpty'))}</div>`; return; }
-  // Versions de chaque montage (une lecture par montage, en parallèle).
-  const versionsByCapture = {};
-  await Promise.all(captures.map(async c => {
-    const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
-    versionsByCapture[c.id] = r.error ? null : (r.data || []);
-  }));
-  const videoIds = new Set(videos.map(v => v.id));
-  listEl.innerHTML = captures.map(c => {
-    const pack = packs.find(p => p.id === c.packId);
-    const vs = versionsByCapture[c.id];
-    const meta = [pack ? (pack.title || tr('defaultPackTitle')) : tr('videoVersioningPackMissing'), c.videoFilename ? tr('videoVersioningVideo').replace('{video}', c.videoFilename) : '', new Date(c.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
-    const chips = vs === null ? `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningVersionsUnavailable'))}</span>`
-      : vs.length ? vs.map(v => `<span class="video-versioning-chip ${v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? 'exported' : ''}" title="${escapeHtml(v.lastExportVideoId && videoIds.has(v.lastExportVideoId) ? tr('videoVersioningExported') : '')}">${escapeHtml(v.title || tr('videoVersioningUntitled'))}</span>`).join('')
-      : `<span class="video-versioning-chip">${escapeHtml(tr('videoVersioningNoVersion'))}</span>`;
-    return `
-      <div class="video-library-item">
-        <div class="video-library-item-main">
-          <div class="video-capture-pack-row-title">${escapeHtml(c.title || tr('videoVersioningUntitled'))}</div>
-          <div class="video-library-item-meta">${escapeHtml(meta)}</div>
-          <div class="video-versioning-versions">${chips}</div>
-        </div>
-        <button class="btn btn-small" type="button" data-atelier-pack="${escapeHtml(c.packId)}" data-atelier-montage="${escapeHtml(c.id)}">${escapeHtml(tr('videoVersioningOpenBtn'))}</button>
-      </div>`;
-  }).join('');
-  listEl.querySelectorAll('[data-atelier-montage]').forEach(b => b.addEventListener('click', () => openVideoAtelier({ packId: b.dataset.atelierPack, montageId: b.dataset.atelierMontage })));
+  el.bar.hidden = false;
+  try { await fetchVideoProjects(); }
+  catch (e) { window.LayerPitchNotify.error(tr('videoVersioningLoadFailed', { error: e.message })); return; }
+  await renderVideoProjectBar();
+  showSelectedVideoProject(false);
 }
+// Liste mise à jour (enregistrement dans l'atelier, projet créé…) sans recharger le cadre.
+async function refreshVideoProjects() {
+  if (!videoProjectsMode() || !document.getElementById('videoProjectBar') || document.getElementById('videoProjectBar').hidden) return;
+  try { await fetchVideoProjects(); } catch (e) { return; }
+  await renderVideoProjectBar();
+}
+(function wireVideoProjects() {
+  const sel = document.getElementById('videoProjectSelect');
+  const newBtn = document.getElementById('videoProjectNewBtn');
+  const delBtn = document.getElementById('videoProjectDeleteBtn');
+  const dialog = document.getElementById('videoProjectDialog');
+  if (!sel || !newBtn || !delBtn || !dialog) return;
+  sel.addEventListener('change', async () => {
+    videoProjectSelectedId = sel.value || null;
+    await renderVideoProjectBar();
+    showSelectedVideoProject(false);
+  });
+  const nameEl = document.getElementById('videoProjectName');
+  const packEl = document.getElementById('videoProjectPack');
+  const errEl = document.getElementById('videoProjectError');
+  const createBtn = document.getElementById('videoProjectCreateBtn');
+  newBtn.addEventListener('click', () => {
+    errEl.textContent = '';
+    nameEl.value = '';
+    const own = packs || [];
+    packEl.innerHTML = own.length ? own.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.title || tr('defaultPackTitle'))}</option>`).join('')
+      : `<option value="">${escapeHtml(tr('videoProjectNoPack'))}</option>`;
+    createBtn.disabled = !own.length;
+    dialog.showModal();
+    nameEl.focus();
+  });
+  // « Changer de pack » : même dialogue, sans le nom ; le montage garde sa frise (les morceaux hors du nouveau pack restent lisibles).
+  let packChangeFor = null;
+  document.getElementById('videoProjectPackBtn').addEventListener('click', () => {
+    const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+    if (!cur) return;
+    packChangeFor = cur.id;
+    newBtn.click();
+    document.getElementById('videoProjectNewTitle').textContent = tr('videoProjectChangePack');
+    nameEl.hidden = true; document.getElementById('videoProjectNameRow').hidden = true;
+    packEl.value = cur.packId;
+    createBtn.textContent = tr('videoProjectChangePackOk');
+  });
+  dialog.addEventListener('close', () => {
+    packChangeFor = null;
+    nameEl.hidden = false; document.getElementById('videoProjectNameRow').hidden = false;
+    document.getElementById('videoProjectNewTitle').textContent = tr('videoProjectNewTitle');
+    createBtn.textContent = tr('videoProjectCreateBtn');
+  });
+  document.getElementById('videoProjectCancelBtn').addEventListener('click', () => dialog.close());
+  document.getElementById('videoProjectForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (packChangeFor) {
+      createBtn.disabled = true;
+      try {
+        const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_pack', { p_capture_id: packChangeFor, p_pack_id: packEl.value });
+        if (error) throw error;
+        const id = packChangeFor;
+        dialog.close();
+        await fetchVideoProjects();
+        await renderVideoProjectBar();
+        showSelectedVideoProject(true);
+        videoProjectSelectedId = id;
+      } catch (err) { errEl.textContent = tr('videoProjectCreateFailed', { error: err.message }); }
+      finally { createBtn.disabled = false; }
+      return;
+    }
+    const title = nameEl.value.trim();
+    if (!title) { errEl.textContent = tr('videoProjectNameRequired'); return; }
+    if (!packEl.value) { errEl.textContent = tr('videoProjectNoPack'); return; }
+    createBtn.disabled = true;
+    try {
+      const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      // Montage vide : pas encore de vidéo (elle se choisit dans l'atelier), pas de prise.
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('save_video_capture', {
+        p_id: id, p_pack_id: packEl.value, p_title: title, p_video_filename: null, p_events: [], p_lane_overrides: {}, p_collapsed_groups: {}, p_markers: [],
+      });
+      if (error) throw error;
+      dialog.close();
+      videoProjectSelectedId = id;
+      await fetchVideoProjects();
+      await renderVideoProjectBar();
+      showSelectedVideoProject(true);
+    } catch (err) {
+      // Pack pas encore en base (créé mais pas sauvegardé) : la clé étrangère le refuse.
+      errEl.textContent = /foreign key|packs/i.test(err.message || '') ? tr('videoProjectPackNotSaved') : tr('videoProjectCreateFailed', { error: err.message });
+    } finally {
+      createBtn.disabled = false;
+    }
+  });
+  delBtn.addEventListener('click', async () => {
+    const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+    if (!cur) return;
+    if (!(await window.LayerPitchNotify.confirm(tr('videoProjectDeleteConfirm', { title: videoProjectTitle(cur) }), { danger: true }))) return;
+    try {
+      const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('delete_video_capture', { p_id: cur.id });
+      if (error) throw error;
+      videoProjectSelectedId = null;
+      await fetchVideoProjects();
+      await renderVideoProjectBar();
+      showSelectedVideoProject(true);
+    } catch (err) {
+      window.LayerPitchNotify.error(tr('videoProjectDeleteFailed', { error: err.message }));
+    }
+  });
+})();
 
 // Construit la liste des clés R2 (audio/<trackId>/<fichier>) de tous les fichiers déjà publiés
 // (remoteFile non nul -- un pendingFile jamais uploadé n'existe pas sur R2, rien à supprimer) d'un

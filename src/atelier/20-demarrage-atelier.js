@@ -69,6 +69,21 @@ window.addEventListener('message', async e => {
   }
 });
 
+// « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
+// (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis
+// quand c'est fini (finishMontageResult : none = rien à publier, done = publié, error = échec + raison). Pas de panneau ouvert : none.
+window.addEventListener('message', async e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'finishMontage') return;
+  const id = e.data.id;
+  atelierTell('finishMontageAck', { id });
+  try {
+    const status = window.__lpFinishMontage ? await window.__lpFinishMontage() : 'none';
+    atelierTell('finishMontageResult', { id, status });
+  } catch (err) {
+    atelierTell('finishMontageResult', { id, status: 'error', message: (err && err.message) || String(err) });
+  }
+});
+
 async function init() {
   const container = document.getElementById('content');
   const packId = atelierParams.get('id');
@@ -94,7 +109,12 @@ async function init() {
       return;
     }
     atelierFillPackSelect(select, choices, packId);
-    row.hidden = false;
+    // Ouvert sur un projet vidéo (09/11, &montage=<id> depuis le Backstage) : le pack est celui du projet, choisi dans le Backstage -- ni liste de packs
+    // ni phrase « choisis le pack » ici. Tutoriel : parcours guidé inchangé.
+    const inProject = atelierParams.has('montage') && !atelierParams.has('tuto');
+    row.hidden = inProject;
+    const introEl = document.querySelector('.atelier-intro');
+    if (introEl) introEl.hidden = inProject;
     if (!select.dataset.bound) {
       select.dataset.bound = '1';
       select.addEventListener('change', () => {
@@ -129,6 +149,11 @@ async function init() {
         const t = (data.library || []).find(x => x.id === id);
         return (t && t.sfxIds) || [];
       })))],
+      // Autres packs du compositeur, proposés dans le Versioning (06/11) : pas côté studio, où le pack acheté n'ouvre pas le reste de son compte.
+      otherPacks: atelierAsStudio ? [] : (data.packs || []).filter(p => p.id !== packId).map(p => ({
+        id: p.id, title: p.title || p.id, trackIds: (p.trackIds || []).slice(),
+        sfxIds: [...new Set((p.sfxIds || []).concat(...(p.trackIds || []).map(id => { const t = (data.library || []).find(x => x.id === id); return (t && t.sfxIds) || []; })))],
+      })),
     };
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 

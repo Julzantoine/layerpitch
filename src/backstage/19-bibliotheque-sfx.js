@@ -426,7 +426,7 @@ function renderSfxSpaceEditor(host, sfx) {
   if (!alts.length) { testHost.innerHTML = `<div class="hint-inline">${tr('sfxSpaceTestNoFile')}</div>`; return; }
   const previewDef = {
     id: 'spacetest-' + sfx.id, title: sfx.title || '', rrMode: sfx.rrMode,
-    base: `${MEDIA_BASE}audio/sfx-${sfx.id}/`, publishedAt: Date.now(), alternatives: alts, hideSpatialView: true,
+    base: previewMediaBase(sfx, `${MEDIA_BASE}audio/sfx-${sfx.id}/`), publishedAt: Date.now(), alternatives: alts, hideSpatialView: true,
     get spatial() { return sfx.spatial; }
   };
   testHost.appendChild(window.LayerPlayerCore.buildSfxPlayer(previewDef));

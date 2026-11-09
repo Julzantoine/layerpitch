@@ -26,7 +26,9 @@ const TOUR_STEPS = [
 
 // Morceau en cours d'édition dans la Bibliothèque musicale (celui sélectionné dans la liste).
 // Pool « basse » du morceau de la leçon aléatoire (compresseur, 22/10) : son rang dans la section, et ses éléments dans l'éditeur.
-function lessonBassPoolIndex() { const sec = lessonSection(); return sec ? (sec.pools || []).findIndex(p => /\bBS$/i.test((p.label || '').trim())) : -1; }
+// Pool de la basse : par son nom, ou par ses fichiers (« Jazz Lo BS_… ») s'il a été renommé.
+function lessonPoolHasFilePrefix(p, prefix) { return (p.alternatives || []).some(a => ((a.pendingFile && a.pendingFile.name) || a.originalFileName || a.remoteFile || '').toLowerCase().startsWith(prefix)); }
+function lessonBassPoolIndex() { const sec = lessonSection(); return sec ? (sec.pools || []).findIndex(p => /\bBS$/i.test((p.label || '').trim()) || lessonPoolHasFilePrefix(p, 'jazz lo bs')) : -1; }
 function lessonBassFxToggle() { const i = lessonBassPoolIndex(); return i < 0 ? null : document.querySelector(`#libraryDetail [data-role="fxBlockToggle"][data-fx-key*='data-fx-target="pool"'][data-fx-key*='data-pi="${i}"']`); }
 function lessonBassCompressorCheckbox() { const i = lessonBassPoolIndex(); return i < 0 ? null : document.querySelector(`#libraryDetail input[data-fx-effect="compressor"][data-fx-param="enabled"][data-fx-target="pool"][data-pi="${i}"]`); }
 function lessonBassCompressor() { const sec = lessonSection(); const p = sec && sec.pools && sec.pools[lessonBassPoolIndex()]; return (p && p.fx && p.fx.compressor) || null; }
@@ -209,8 +211,14 @@ function lessonArrowPoint(bar) {
   return { x: r.left + r.width * beat / total, y: r.top };
 }
 // Fenêtre de dépôt groupé de la section : la case « + piste vide » du pool dont le nom commence par `label`.
+// Retour de Peter K (06/11) : renommer le pool « Jazz Lo KB » avant de cocher sa case bloquait l'étape. On reconnaît aussi le pool à ses fichiers, dont le nom ne change pas.
 function lessonDialogPoolSilent(label) {
-  const g = [...document.querySelectorAll('.vrs-batch-modal .vrs-batch-group')].find(x => { const i = x.querySelector('[data-vbd-group-label]'); return i && i.value.trim().toLowerCase() === label.toLowerCase(); });
+  const want = label.toLowerCase();
+  const g = [...document.querySelectorAll('.vrs-batch-modal .vrs-batch-group')].find(x => {
+    const i = x.querySelector('[data-vbd-group-label]');
+    if (!i) return false;
+    return i.value.trim().toLowerCase() === want || [...x.querySelectorAll('.vrs-batch-file span[title]')].some(f => f.title.toLowerCase().startsWith(want));
+  });
   return g ? g.querySelector('[data-vbd-group-silent]') : null;
 }
 function lessonPoolHasSilence(label) {
@@ -251,6 +259,25 @@ function lessonFxValue(i, effect, param) { const t = lessonTrigger(i); return t 
 function lessonEventsSection() { const t = lessonTrack(); return t ? document.querySelector(`#libraryDetail details[data-fxt-section-key="${t.id}"] > summary`) : null; }
 function lessonSlotFirstName(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; const al = sl && (sl.alternatives || []).find(lessonHasFile); return al ? ((al.pendingFile && al.pendingFile.name) || al.remoteFile || '') : ''; }
 function lessonSlotFileCount(i) { const t = lessonTrack(); const sl = t && t.segmentSlots && t.segmentSlots[i]; return sl ? (sl.alternatives || []).filter(lessonHasFile).length : 0; }
+// Leçon séquentiel à embranchement : les trois villes qui reviennent à Rock City (emplacement 1), avec leur coupure personnalisée.
+const LESSON_OTHER_CITIES = [{ si: 0, city: 'Jazz City', fade: 2 }, { si: 2, city: 'Disco City', fade: 0.6 }, { si: 3, city: 'Synth City', fade: 2 }];
+function lessonOtherCitySteps(c) {
+  const exit = () => { const sl = lessonSlot(c.si); return (sl && (sl.nextOptions || [])[0]) || null; };
+  const card = '#libraryDetail .branch-option-card:nth-child(1) ';
+  const v = { city: c.city, get fade() { return currentLang() === 'fr' ? String(c.fade).replace('.', ',') : String(c.fade); } };
+  return [
+    { selector: `#libraryDetail .seq-master-item[data-si="${c.si}"]`, titleKey: 'lbOcPickTitle', textKey: 'lbOcPickText', vars: v,
+      done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === c.si; } },
+    { selector: '#libraryDetail input[data-slot-field="hasBranches"]', titleKey: 'lbOcEnableTitle', textKey: 'lbOcEnableText', vars: v,
+      done: () => !!exit() },
+    { selector: card, titleKey: 'lbOcExitTitle', textKey: 'lbOcExitText', vars: v,
+      done: () => { const o = exit(); const rock = lessonSlot(1); return !!(o && rock && o.targetId === rock.id && o.transition); } },
+    { useSample: true, selector: card + '[data-role="transitionFileCtrl"]', titleKey: 'lbOcFileTitle', textKey: 'lbOcFileText', names: 'transRock', vars: v,
+      done: () => { const o = exit(); return !!(o && o.transition && lessonHasFile(o.transition)); } },
+    { selector: '#libraryDetail .branch-options-panel .row', titleKey: 'lbOcTimingTitle', textKey: 'lbOcTimingText', vars: v,
+      done: () => { const sl = lessonSlot(c.si); return !!sl && sl.quantization === 'beat' && sl.cutStyle === 'custom' && Math.abs(Number(sl.customCutFadeSec) - c.fade) < 0.01; } },
+  ];
+}
 function lessonSlot(i) { const t = lessonTrack(); return (t && t.segmentSlots && t.segmentSlots[i]) || null; }
 function lessonLoopFileCount() { const t = lessonTrack(); return t ? (t.loops || []).filter(lessonHasFile).length : 0; }
 // Raccourci « Importer un dossier » (fin de la leçon d'embranchement) : joué seulement si le feu vert est ouvert ET si le dossier d'exemple est en ligne.
@@ -699,6 +726,9 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-slot-field="quantization"]', titleKey: 'lbTriggerTitle', textKey: 'lbTriggerText' },
     { selector: '#libraryDetail select[data-slot-field="cutStyle"]', titleKey: 'lbCutTitle', textKey: 'lbCutText' },
     { selector: '#libraryDetail [data-role="segmentSlotsMaster"]', titleKey: 'lbOthersTitle', textKey: 'lbOthersText' },
+    // Retour de Peter K (06/11) : les trois autres villes tenaient en une seule étape, sans le fichier « Trans Rock City » à glisser.
+    // Une ville à la fois : l'ouvrir, activer l'embranchement, viser Rock City avec transition, déposer le fichier, régler déclenchement et coupure.
+    ...LESSON_OTHER_CITIES.flatMap(lessonOtherCitySteps),
     { selector: '#libraryDetail .seq-master-item[data-seq-key="trackinfo"]', titleKey: 'lqInfoTitle', textKey: 'lqInfoText',
       done: () => { const t = lessonTrack(); return !!t && seqSelectedSlotIndex.get(t.id) === 'trackinfo'; } },
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lqBpmTitle', textKey: 'lqBpmText', enter: lessonSelectTrackInfo,
@@ -1326,7 +1356,7 @@ const GUIDE = window.LayerPitchGuide.create({
       lessonUseSample(step).catch(err => window.LayerPitchNotify.error(tr('lessonSampleError', { error: err.message || String(err) })));
     });
   },
-  textVars: (step, st) => ({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '', n: st.steps.length }),
+  textVars: (step, st) => Object.assign({ file: LESSON_SAMPLE_NAMES[step.names || st.lessonId] || '', n: st.steps.length }, step.vars || {}),
   adminTools: lessonAdminTools,
   autoSample: step => lessonUseSample(step),
   arrowPoint: lessonArrowPoint,

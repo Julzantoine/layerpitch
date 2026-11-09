@@ -601,6 +601,16 @@ async function publishAll() {
     }
     log(`Écriture en base : ${data.packs.length} pack(s) OK.`, 'ok');
 
+    // Montage vidéo (06/11) : après les packs (le montage en dépend), avant les AdReels (ils l'affichent) -- l'atelier, s'il est ouvert, publie
+    // le son et les étiquettes du montage retouché. Un échec arrête la publication, avec la raison (jamais d'AdReel à moitié à jour).
+    if (typeof finishAtelierMontage === 'function') {
+      log(tr('montageFinishing'));
+      let montageResult;
+      try { montageResult = await finishAtelierMontage(); }
+      catch (err) { throw new Error(tr('montageFinishFailed', { error: err && err.message ? err.message : String(err) })); }
+      log(tr(montageResult === 'done' ? 'montagePublished' : 'montageNothingToPublish'), 'ok');
+    }
+
     log('Écriture en base : AdReels...');
     const pgAdReelErrors = [];
     for (const adReel of data.adReels) {
