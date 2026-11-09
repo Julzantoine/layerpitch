@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1793955824541">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1793955824541">
+<link rel="stylesheet" href="player.css?v=1793985321387">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1793985321387">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -481,16 +481,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793955824541"></script>
-<script src="layerpitch-notify.js?v=1793955824541"></script>
-<script src="public-page.js?v=1793955824541"></script>
-<script src="player.js?v=1793955824541"></script>
-<script src="capture-plan.js?v=1793955824541"></script>
-<script src="capture-render.js?v=1793955824541"></script>
-<script src="capture-retarget.js?v=1793955824541"></script>
-<script src="capture-versioning.js?v=1793955824541"></script>
-<script src="layerpitch-guide.js?v=1793955824541"></script>
-<script src="atelier-lecons.js?v=1793955824541"></script>
+<script src="layerpitch-i18n.js?v=1793985321387"></script>
+<script src="layerpitch-notify.js?v=1793985321387"></script>
+<script src="public-page.js?v=1793985321387"></script>
+<script src="player.js?v=1793985321387"></script>
+<script src="capture-plan.js?v=1793985321387"></script>
+<script src="capture-render.js?v=1793985321387"></script>
+<script src="capture-retarget.js?v=1793985321387"></script>
+<script src="capture-versioning.js?v=1793985321387"></script>
+<script src="layerpitch-guide.js?v=1793985321387"></script>
+<script src="atelier-lecons.js?v=1793985321387"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1528,7 +1528,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     `;
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
       const v = parseFloat(ev.target.value);
+      const oldT = e.t;
+      const linkedByTime = window.LayerCapturePlan.linkedMarks(events, e); // repères liés : ils suivent le bloc
       e.t = isNaN(v) ? e.t : Math.max(0, v);
+      linkedByTime.forEach(m => { m.t = Math.max(0, m.t + (e.t - oldT)); });
       events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après une retouche manuelle
       rerender();
       onChange && onChange();
@@ -1650,6 +1653,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
       if (!moved) {
+        // Un frémissement de souris (moins de 3 px) ne change rien : on remet le bloc exactement où il était (sinon la frise et
+        // le son calculé divergent en silence, aucune retouche n'étant signalée).
+        if (kind === 'move') { e.t = startT; linked.forEach((m, i) => { m.t = linkedStartTs[i]; }); }
         // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
         const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
         if (freshEl) selectBlock(idx, freshEl);

@@ -545,7 +545,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     `;
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
       const v = parseFloat(ev.target.value);
+      const oldT = e.t;
+      const linkedByTime = window.LayerCapturePlan.linkedMarks(events, e); // repères liés : ils suivent le bloc
       e.t = isNaN(v) ? e.t : Math.max(0, v);
+      linkedByTime.forEach(m => { m.t = Math.max(0, m.t + (e.t - oldT)); });
       events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après une retouche manuelle
       rerender();
       onChange && onChange();
@@ -667,6 +670,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
       if (!moved) {
+        // Un frémissement de souris (moins de 3 px) ne change rien : on remet le bloc exactement où il était (sinon la frise et
+        // le son calculé divergent en silence, aucune retouche n'étant signalée).
+        if (kind === 'move') { e.t = startT; linked.forEach((m, i) => { m.t = linkedStartTs[i]; }); }
         // Pas de vrai glisser : un simple clic, on rouvre juste le détail du bloc.
         const freshEl = container.querySelector(`.vct-block[data-idx="${idx}"]`);
         if (freshEl) selectBlock(idx, freshEl);
