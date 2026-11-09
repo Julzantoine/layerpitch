@@ -265,6 +265,8 @@
   }
   .vct-empty { padding: 10px; color: #777; }
   .vct-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4444; pointer-events: none; z-index: 14; }
+  /* Trait d'aimantation (09/11) : montre le repère auquel le point glissé vient de s'accrocher. */
+  .vct-snap-guide { display: none; position: absolute; top: 0; bottom: 0; width: 1px; background: #2f80c0; box-shadow: 0 0 4px #2f80c0; pointer-events: none; z-index: 13; }
   /* Zoom de la frise (06/11) : la frise défile à l'horizontale, les noms de pistes restent collés à gauche. */
   .vct-zoombar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   .vct-zoom-btn { font: inherit; font-size: 11px; min-width: 24px; padding: 2px 7px; border-radius: 4px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; }

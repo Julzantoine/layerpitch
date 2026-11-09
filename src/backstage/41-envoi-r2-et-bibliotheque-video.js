@@ -21,11 +21,28 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// onProgress(envoyé, total) (09/11, demande de Jules-Antoine : « un état d'avancement de l'upload ») : fetch() ne dit rien de la progression d'un
+// envoi, donc avec un onProgress on passe par XMLHttpRequest (upload.onprogress). `bytes` peut être un Blob (évite de copier une grosse vidéo en mémoire).
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -147,11 +164,15 @@ async function compressVideoWithWebCodecs(file, onProgress) {
   // IMAGE : copier ou réencoder ?
   const w = videoTrack.displayWidth, h = videoTrack.displayHeight;
   const fits = w <= 1280 && h <= 720;
-  const stats = await videoTrack.computePacketStats(200);
+  // Débit MOYEN de TOUT le fichier (taille / durée, son compris : estimation prudente), pas celui des premières images. Bug du 09/11 :
+  // computePacketStats(200) ne lit que le début ; sur un fichier de 267 Mo (13 Mbps) qui s'ouvre sur un fondu quasi noir, il mesurait
+  // 941 kbps -> « déjà assez léger » -> le fichier entier partait tel quel (envoi interminable). computePacketStats ne sert plus que si la durée est inconnue.
+  const duration = await input.computeDuration();
+  const overallBps = duration > 0 ? file.size * 8 / duration : (await videoTrack.computePacketStats(2000)).averageBitrate;
   const videoOpts = { codec: 'avc' };
-  if (videoTrack.codec === 'avc' && fits && stats.averageBitrate <= VIDEO_LIBRARY_COPY_MAX_BPS) {
+  if (videoTrack.codec === 'avc' && fits && overallBps <= VIDEO_LIBRARY_COPY_MAX_BPS) {
     // Rien à toucher : copie des paquets.
-    log(`Vidéo : déjà assez légère (${Math.round(stats.averageBitrate / 1000)} kbps, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
+    log(`Vidéo : déjà assez légère (${Math.round(overallBps / 1000)} kbps en moyenne, ${w}x${h}), image recopiée sans ré-encodage.`, 'info');
   } else {
     const scale = Math.min(1, 1280 / w, 720 / h);
     if (scale < 1) {
@@ -414,7 +435,18 @@ async function uploadLibraryVideo(file) {
     statusEl.textContent = withName(tr('videoLibraryUploading'));
     const base = `${MEDIA_BASE}video/${id}/`;
     if (tuto) await new Promise(r => setTimeout(r, 1200));
-    else await r2PutFile(`video/${id}/source.mp4`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    else {
+      // Avancement de l'envoi : pourcentage + Mo envoyés. Mis à jour au plus 4 fois par seconde (l'événement tombe très souvent).
+      let lastShown = 0;
+      await r2PutFile(`video/${id}/source.mp4`, blob, 'video/mp4', (done, total) => {
+        const now = Date.now();
+        if (done < total && now - lastShown < 250) return;
+        lastShown = now;
+        statusEl.textContent = withName(tr('videoLibraryUploadingProgress', {
+          pct: Math.round(done / total * 100), done: (done / 1048576).toFixed(1), total: (total / 1048576).toFixed(1),
+        }));
+      });
+    }
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
         id, kind: 'upload', title: file.name.replace(/\.[^.]+$/, ''), base, file: 'source.mp4',

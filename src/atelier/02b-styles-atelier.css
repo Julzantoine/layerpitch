@@ -66,6 +66,11 @@
   /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
   body.video-panel-active .atelier-fullscreen-btn { display: none; }
   body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  body.video-panel-active.atelier-hide-trigger #content .video-capture-trigger-btn, body.video-panel-active.atelier-hide-music #content .pub-section { display: none; }
+  body.video-panel-active.atelier-right-hidden .page { display: none; }
+  .atelier-pane-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 220px; padding: 8px 10px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+  .atelier-pane-menu[hidden] { display: none; }
+  .atelier-pane-menu label { display: flex; gap: 8px; align-items: center; padding: 5px 2px; font-size: 12px; color: #ddd; cursor: pointer; white-space: nowrap; }
   .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
   body.video-panel-active .atelier-head { margin-bottom: 16px; }
   body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }

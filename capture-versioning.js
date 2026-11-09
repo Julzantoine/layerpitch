@@ -17,6 +17,7 @@
 //   tr(clé), getEvents(), getCaptureId(), getCaptureTitle(), library { library, sfxLibrary, sfxFolders },
 //   findTrack(id), findSfx(id), videoEl, fetchBytes(url), fullExportLocked,
 //   exportEvents(events, mode, onProgress) -> Blob, saveToLibrary(blob, title) -> id de vidéo, detach(events, title).
+//   Publication automatique (09/11) : publishVersion(events, title) -> id du son, getSoundKey() (état du montage), cuesOf(events), keepOld(), afterExport(res), onProgress(msg).
 (function () {
   const RT = () => window.LayerCaptureRetarget;
   const P = () => window.LayerCapturePlan;
@@ -81,6 +82,14 @@
     let batchStatus = ''; // avancement du rendu en série (survit aux ré-affichages de la section)
     const setBatchStatus = m => { batchStatus = m; const el = host.querySelector('[data-role="batchStatus"]'); if (el) el.textContent = m; };
     const durationCache = new Map(); // "id|fichier" -> secondes (fichiers décodés à la demande)
+    // Publication automatique des versions (09/11) : « Sauvegarder / publier » du Backstage (ou « Publier le montage » dans le studio) publie aussi
+    // les versions enregistrées qui ont changé depuis leur dernière publication. Clé d'une version = ses remplacements + l'état du montage
+    // (la retouche du montage change toutes ses versions, Q5) ; published = clé au moment où la version a été publiée ou vue pour la première fois.
+    const published = new Map();
+    const baseKey = () => (ctx.getSoundKey ? ctx.getSoundKey() : '');
+    const keyOf = v => JSON.stringify({ s: v.substitutions, b: baseKey() });
+    const needsPublish = v => !v.lastExportVideoId || (published.has(v.id) && published.get(v.id) !== keyOf(v));
+    const canPublish = () => !ctx.sessionOnly && !!ctx.publishVersion && ctx.getCaptureId() && ctx.getCaptureId() !== 'session';
 
     // ---- Ingrédients du montage ----
     const ingredients = () => {
@@ -278,7 +287,7 @@
             const videoId = ctx.publishVersion && ctx.getCaptureId() !== 'session' ? await ctx.publishVersion(events, title) : await ctx.saveToLibrary(blob, title);
             const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
             if (ctx.afterExport) ctx.afterExport(res && res.data); // historique (3 derniers) et fichiers à effacer
-            v.lastExportVideoId = videoId;
+            v.lastExportVideoId = videoId; published.set(v.id, keyOf(v));
           }
           done++;
         }
@@ -300,6 +309,7 @@
       if (captureId) {
         try { versions = await store.list(captureId); }
         catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
+        versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
       }
       await refreshReview();
       render();
@@ -396,6 +406,30 @@
         if (!text) return;
         reviewAction(async () => { await api.reply(id, text, ctx.authorName ? ctx.authorName() : tr('versioningReviewOwnerName')); review.drafts[id] = ''; review.replying = null; });
       });
+    }
+
+    // Publie les versions enregistrées qui n'ont jamais été publiées ou ont changé (force : toutes). Renvoie le nombre publié.
+    async function publishPending(opts) {
+      if (!canPublish()) return 0;
+      await refresh();
+      if (loadError) return 0;
+      const todo = versions.filter(v => (opts && opts.force) || needsPublish(v));
+      if (!todo.length) return 0;
+      let n = 0;
+      busy = true; render();
+      try {
+        for (const v of todo) {
+          if (ctx.onProgress) ctx.onProgress(tr('versioningPublishing').replace('{name}', v.title || tr('captureUntitled')).replace('{i}', n + 1).replace('{n}', todo.length));
+          const key = keyOf(v);
+          const { events } = await versionResult(v.substitutions);
+          const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
+          const videoId = await ctx.publishVersion(events, title); // un son sur la vidéo muette du montage
+          const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true);
+          if (ctx.afterExport) ctx.afterExport(res && res.data);
+          v.lastExportVideoId = videoId; published.set(v.id, key); n++;
+        }
+      } finally { busy = false; render(); }
+      return n;
     }
 
     // ---- Affichage ----
@@ -661,7 +695,7 @@
     }
 
     refresh();
-    return { refresh, stop: stopListening, isListening: () => !!listening };
+    return { refresh, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
   }
 
   window.LayerCaptureVersioning = { mount };

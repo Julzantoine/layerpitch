@@ -142,6 +142,11 @@
           <a class="account-menu-item" href="mailto:contact@layerpitch.com">
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg><span data-i18n="accountMenuContact">Nous contacter</span></span>
           </a>
+          <!-- Crédits et licences (09/11) : logiciels libres utilisés (Mediabunny MPL-2.0, ffmpeg.wasm GPL...). Visible de tous (obligation
+               de mention, pas une fonctionnalité) -- le contenu est dans #creditsModalOverlay, voir 47-credits-licences.js. -->
+          <button class="account-menu-item" id="btnAccountCredits" type="button">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M14.5 3.5V8H19"/><path d="M9 12.5h6M9 16h6"/></svg><span data-i18n="accountMenuCredits">Crédits et licences</span></span>
+          </button>
           <div class="account-menu-sep"></div>
           <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden>
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/></svg><span data-i18n="accountMenuSignOut">Se déconnecter</span></span>
@@ -919,6 +924,25 @@
   </div>
 </div>
 
+<div id="creditsModalOverlay">
+  <div id="creditsModal" role="dialog" aria-modal="true" aria-labelledby="creditsModalTitle">
+    <h3 id="creditsModalTitle" data-i18n="creditsModalTitle">Crédits et licences</h3>
+    <div class="sub" data-i18n="creditsModalIntro">LayerPitch s'appuie sur des logiciels libres. Merci à leurs auteurs. Les noms de licences et les liens ci-dessous sont ceux publiés par les projets.</div>
+    <ul class="credits-list">
+      <li><a href="https://mediabunny.dev" target="_blank" rel="noopener">Mediabunny</a> — <span data-i18n="creditsMediabunny">compression et conversion des vidéos dans ton navigateur</span> <span class="credits-lic">MPL-2.0</span></li>
+      <li><a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">ffmpeg.wasm</a> / <a href="https://ffmpeg.org" target="_blank" rel="noopener">FFmpeg</a> — <span data-i18n="creditsFfmpeg">montage et compression de secours des vidéos (le moteur « core » est publié sous GPL-2.0 ou ultérieure, code source sur le dépôt ffmpeg.wasm)</span> <span class="credits-lic">MIT / GPL-2.0+</span></li>
+      <li><a href="https://github.com/supabase/supabase-js" target="_blank" rel="noopener">Supabase JS</a> — <span data-i18n="creditsSupabase">connexion et base de données</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/eshaz/wasm-audio-decoders" target="_blank" rel="noopener">wasm-audio-decoders (ogg-vorbis)</a> — <span data-i18n="creditsOgg">lecture des fichiers audio Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/arseneyr/wasm-media-encoders" target="_blank" rel="noopener">wasm-media-encoders</a> — <span data-i18n="creditsEncoders">encodage audio MP3 et Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a> — <span data-i18n="creditsJszip">création des archives ZIP</span> <span class="credits-lic">MIT ou GPL-3.0+</span></li>
+      <li>Space Grotesk, Inter, JetBrains Mono — <span data-i18n="creditsFonts">polices de caractères</span> <span class="credits-lic">SIL OFL 1.1</span></li>
+    </ul>
+    <div class="actions">
+      <button class="btn btn-small btn-primary" id="creditsClose" type="button" data-i18n="creditsClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div id="implSheetModalOverlay">
   <div id="implSheetModal">
     <h3 data-i18n="implSheetModalTitle">Fiche d'implémentation</h3>
@@ -958,17 +982,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794233638371"></script>
-<script src="layerpitch-i18n.js?v=1794233638371"></script>
-<script src="layerpitch-import-engine.js?v=1794233638371"></script>
-<script src="layerpitch-appearance.js?v=1794233638371"></script>
-<script src="layerpitch-album-shared.js?v=1794233638371"></script>
-<script src="layerpitch-album-editor.js?v=1794233638371"></script>
-<script src="layerpitch-shell.js?v=1794233638371"></script>
-<script src="layerpitch-social-icons.js?v=1794233638371"></script>
-<script src="layerpitch-notify.js?v=1794233638371"></script>
-<script src="layerpitch-guide.js?v=1794233638371"></script>
-<script src="layerpitch-lesson-previews.js?v=1794233638371"></script>
-<script src="layerpitch-help.js?v=1794233638371"></script>
-<script src="player.js?v=1794233638371"></script>
+<script src="layerpitch-tuto.js?v=1794236650602"></script>
+<script src="layerpitch-i18n.js?v=1794236650602"></script>
+<script src="layerpitch-import-engine.js?v=1794236650602"></script>
+<script src="layerpitch-appearance.js?v=1794236650602"></script>
+<script src="layerpitch-album-shared.js?v=1794236650602"></script>
+<script src="layerpitch-album-editor.js?v=1794236650602"></script>
+<script src="layerpitch-shell.js?v=1794236650602"></script>
+<script src="layerpitch-social-icons.js?v=1794236650602"></script>
+<script src="layerpitch-notify.js?v=1794236650602"></script>
+<script src="layerpitch-guide.js?v=1794236650602"></script>
+<script src="layerpitch-lesson-previews.js?v=1794236650602"></script>
+<script src="layerpitch-help.js?v=1794236650602"></script>
+<script src="player.js?v=1794236650602"></script>
 <script>
