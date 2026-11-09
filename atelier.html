@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794258680018">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794258680018">
+<link rel="stylesheet" href="player.css?v=1794258907856">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794258907856">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -416,7 +416,12 @@
   .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }
   /* Vidéo accrochée en haut quand on fait défiler (05/11, voir pinCaptureVideo dans 18-panneau-de-capture.js). */
-  .video-capture-dock.video-capture-pinned { position: fixed; top: 0; z-index: 40; background: #111; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  /* Dock collant (09/11) : sticky, pas fixed -- aucun changement de mise en page à l'accrochage. `overflow: clip` (et non hidden) garde les coins
+     arrondis du panneau sans le transformer en conteneur de défilement, ce qui empêcherait sticky de fonctionner. */
+  body.video-panel-active .video-test-panel { overflow: clip; }
+  .video-capture-dock { position: sticky; top: 0; z-index: 40; background: #111; }
+  .video-capture-image-hidden .video-capture-dock { position: static; }
+  .video-capture-dock.video-capture-pinned { border-radius: 0 0 8px 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
   .vct-lane-nested .vct-lane-label.vct-lane-label-solo { padding-left: 6px; font-weight: 600; color: #7fb0e8; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
   .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
@@ -536,16 +541,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794258680018"></script>
-<script src="layerpitch-notify.js?v=1794258680018"></script>
-<script src="public-page.js?v=1794258680018"></script>
-<script src="player.js?v=1794258680018"></script>
-<script src="capture-plan.js?v=1794258680018"></script>
-<script src="capture-render.js?v=1794258680018"></script>
-<script src="capture-retarget.js?v=1794258680018"></script>
-<script src="capture-versioning.js?v=1794258680018"></script>
-<script src="layerpitch-guide.js?v=1794258680018"></script>
-<script src="atelier-lecons.js?v=1794258680018"></script>
+<script src="layerpitch-i18n.js?v=1794258907856"></script>
+<script src="layerpitch-notify.js?v=1794258907856"></script>
+<script src="public-page.js?v=1794258907856"></script>
+<script src="player.js?v=1794258907856"></script>
+<script src="capture-plan.js?v=1794258907856"></script>
+<script src="capture-render.js?v=1794258907856"></script>
+<script src="capture-retarget.js?v=1794258907856"></script>
+<script src="capture-versioning.js?v=1794258907856"></script>
+<script src="layerpitch-guide.js?v=1794258907856"></script>
+<script src="atelier-lecons.js?v=1794258907856"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2443,32 +2448,21 @@ function closeCapturePanel() {
 // côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
-  // Depuis le 06/11 (demande de Jules-Antoine) : ce qui s'accroche n'est plus la seule image mais le « dock » = image + barre de
-  // commandes (Enregistrer, Écouter...), et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  // Depuis le 06/11 : ce qui reste en haut n'est plus la seule image mais le « dock » = image + barre de commandes (Enregistrer, Écouter...),
+  // et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  // 09/11 (demande de Jules-Antoine : « l'écran rebondit avant de se décrocher ») : le dock est en `position: sticky` (CSS) : le navigateur
+  // le garde en haut sans rien changer à la mise en page, donc plus de saut au moment de l'accrocher / décrocher. Ici, on ne fait plus
+  // que repérer l'état « accroché » (ombre) et garder la marge de défilement sous le dock.
   const dock = panel.querySelector('.video-capture-dock');
   if (!dock) return;
   const mark = document.createElement('div');
-  const spacer = document.createElement('div');
-  dock.before(mark, spacer);
+  dock.before(mark);
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
     const pinned = dock.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
     dock.classList.toggle('video-capture-pinned', pinned);
-    if (pinned) {
-      // Le panneau n'est plus forcément centré (grande colonne à gauche, morceaux à droite) : le dock suit sa colonne.
-      const r = panel.getBoundingClientRect();
-      dock.style.width = panel.clientWidth + 'px';
-      dock.style.left = r.left + 'px';
-      spacer.style.height = dock.dataset.restHeight || dock.offsetHeight + 'px';
-      root.style.scrollPaddingTop = (dock.offsetHeight + 12) + 'px';
-    } else {
-      dock.style.width = '';
-      dock.style.left = '';
-      spacer.style.height = '';
-      dock.dataset.restHeight = dock.offsetHeight + 'px'; // hauteur réelle au repos
-      root.style.scrollPaddingTop = '';
-    }
+    root.style.scrollPaddingTop = pinned ? (dock.offsetHeight + 12) + 'px' : '';
   };
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);

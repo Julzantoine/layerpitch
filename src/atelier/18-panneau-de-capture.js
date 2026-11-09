@@ -26,32 +26,21 @@ function closeCapturePanel() {
 // côte à côte depuis le 05/11 (panneau en grande colonne, plus « sticky ») ; panneau détaché dans une autre fenêtre : rien à faire. scroll-padding-top garde les cibles
 // des bulles du tutoriel (scrollIntoView) sous l'image, pas derrière.
 function pinCaptureVideo(panel) {
-  // Depuis le 06/11 (demande de Jules-Antoine) : ce qui s'accroche n'est plus la seule image mais le « dock » = image + barre de
-  // commandes (Enregistrer, Écouter...), et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  // Depuis le 06/11 : ce qui reste en haut n'est plus la seule image mais le « dock » = image + barre de commandes (Enregistrer, Écouter...),
+  // et l'image garde la MÊME taille accrochée ou non (largeur fixée en CSS, 40 % de la hauteur de l'écran).
+  // 09/11 (demande de Jules-Antoine : « l'écran rebondit avant de se décrocher ») : le dock est en `position: sticky` (CSS) : le navigateur
+  // le garde en haut sans rien changer à la mise en page, donc plus de saut au moment de l'accrocher / décrocher. Ici, on ne fait plus
+  // que repérer l'état « accroché » (ombre) et garder la marge de défilement sous le dock.
   const dock = panel.querySelector('.video-capture-dock');
   if (!dock) return;
   const mark = document.createElement('div');
-  const spacer = document.createElement('div');
-  dock.before(mark, spacer);
+  dock.before(mark);
   const root = document.documentElement;
   const update = () => {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
     const pinned = dock.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
     dock.classList.toggle('video-capture-pinned', pinned);
-    if (pinned) {
-      // Le panneau n'est plus forcément centré (grande colonne à gauche, morceaux à droite) : le dock suit sa colonne.
-      const r = panel.getBoundingClientRect();
-      dock.style.width = panel.clientWidth + 'px';
-      dock.style.left = r.left + 'px';
-      spacer.style.height = dock.dataset.restHeight || dock.offsetHeight + 'px';
-      root.style.scrollPaddingTop = (dock.offsetHeight + 12) + 'px';
-    } else {
-      dock.style.width = '';
-      dock.style.left = '';
-      spacer.style.height = '';
-      dock.dataset.restHeight = dock.offsetHeight + 'px'; // hauteur réelle au repos
-      root.style.scrollPaddingTop = '';
-    }
+    root.style.scrollPaddingTop = pinned ? (dock.offsetHeight + 12) + 'px' : '';
   };
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);
