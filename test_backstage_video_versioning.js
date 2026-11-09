@@ -25,6 +25,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
     calls.push([name, args]);
     if (name === 'list_video_capture_versions') return { data: versions[args.p_capture_id], error: null };
     if (name === 'save_video_capture') { rpcData.list_my_video_captures.unshift({ id: args.p_id, packId: args.p_pack_id, title: args.p_title, videoFilename: null, updatedAt: '2026-11-09T10:00:00Z' }); return { data: { ok: true }, error: null }; }
+    if (name === 'set_video_capture_pack') { const c = rpcData.list_my_video_captures.find(x => x.id === args.p_capture_id); if (c) c.packId = args.p_pack_id; return { data: null, error: null }; }
     if (name === 'delete_video_capture') { rpcData.list_my_video_captures = rpcData.list_my_video_captures.filter(c => c.id !== args.p_id); return { data: null, error: null }; }
     return { data: rpcData[name], error: null };
   } }) };
@@ -32,7 +33,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   window.LayerPitchNotify.confirm = async () => true;
   // jsdom : <dialog> sans showModal/close
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
-  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new window.Event('close')); };
 
   const tabBtn = doc.querySelector('#panelVideoLibrary [data-video-subtab="capture"]');
   check('onglet Vidéo : sous-onglet « Projets vidéo » présent, plus de « Versioning » ni de panneau à part',
@@ -77,6 +78,14 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('création : montage vide (nom + pack, sans vidéo ni prise)', !!saved && saved[1].p_title === 'Joris' && saved[1].p_pack_id === 'p2' && saved[1].p_video_filename === null && saved[1].p_events.length === 0);
   check('création : le nouveau projet est sélectionné et ouvert dans l\'atelier (sur son pack)', select.options.length === 3 && select.options[select.selectedIndex].textContent.includes('Joris')
     && new RegExp('id=p2&montage=' + saved[1].p_id + '$').test(frame.getAttribute('src') || '') && !dlg.hasAttribute('open'));
+
+  // Changer de pack (projet « modifiable »).
+  doc.getElementById('videoProjectPackBtn').click();
+  check('« Changer de pack » : dialogue sans le nom, pack actuel présélectionné', dlg.hasAttribute('open') && doc.getElementById('videoProjectName').hidden && doc.getElementById('videoProjectPack').value === 'p2');
+  doc.getElementById('videoProjectPack').value = 'p1';
+  doc.getElementById('videoProjectForm').dispatchEvent(new window.Event('submit', { cancelable: true })); await settle(); await settle(); await settle();
+  check('pack changé : appel serveur dédié, atelier rouvert sur le nouveau pack, nom inchangé', calls.some(c => c[0] === 'set_video_capture_pack' && c[1].p_pack_id === 'p1' && c[1].p_capture_id === saved[1].p_id)
+    && new RegExp('id=p1&montage=' + saved[1].p_id + '$').test(frame.getAttribute('src') || '') && select.options[select.selectedIndex].textContent.includes('Joris') && !doc.getElementById('videoProjectName').hidden);
 
   // Supprimer.
   doc.getElementById('videoProjectDeleteBtn').click(); await settle(); await settle(); await settle();

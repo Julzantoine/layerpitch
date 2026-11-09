@@ -670,6 +670,8 @@ async function renderVideoProjectBar() {
   el.empty.hidden = videoProjects.length > 0;
   const deleteBtn = document.getElementById('videoProjectDeleteBtn');
   if (deleteBtn) deleteBtn.disabled = !videoProjectSelectedId;
+  const packBtn = document.getElementById('videoProjectPackBtn');
+  if (packBtn) packBtn.disabled = !videoProjectSelectedId;
   const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
   if (!cur) { el.meta.hidden = true; el.meta.innerHTML = ''; return; }
   const pack = packs.find(p => p.id === cur.packId);
@@ -749,9 +751,42 @@ async function refreshVideoProjects() {
     dialog.showModal();
     nameEl.focus();
   });
+  // « Changer de pack » : même dialogue, sans le nom ; le montage garde sa frise (les morceaux hors du nouveau pack restent lisibles).
+  let packChangeFor = null;
+  document.getElementById('videoProjectPackBtn').addEventListener('click', () => {
+    const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
+    if (!cur) return;
+    packChangeFor = cur.id;
+    newBtn.click();
+    document.getElementById('videoProjectNewTitle').textContent = tr('videoProjectChangePack');
+    nameEl.hidden = true; document.getElementById('videoProjectNameRow').hidden = true;
+    packEl.value = cur.packId;
+    createBtn.textContent = tr('videoProjectChangePackOk');
+  });
+  dialog.addEventListener('close', () => {
+    packChangeFor = null;
+    nameEl.hidden = false; document.getElementById('videoProjectNameRow').hidden = false;
+    document.getElementById('videoProjectNewTitle').textContent = tr('videoProjectNewTitle');
+    createBtn.textContent = tr('videoProjectCreateBtn');
+  });
   document.getElementById('videoProjectCancelBtn').addEventListener('click', () => dialog.close());
   document.getElementById('videoProjectForm').addEventListener('submit', async e => {
     e.preventDefault();
+    if (packChangeFor) {
+      createBtn.disabled = true;
+      try {
+        const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_pack', { p_capture_id: packChangeFor, p_pack_id: packEl.value });
+        if (error) throw error;
+        const id = packChangeFor;
+        dialog.close();
+        await fetchVideoProjects();
+        await renderVideoProjectBar();
+        showSelectedVideoProject(true);
+        videoProjectSelectedId = id;
+      } catch (err) { errEl.textContent = tr('videoProjectCreateFailed', { error: err.message }); }
+      finally { createBtn.disabled = false; }
+      return;
+    }
     const title = nameEl.value.trim();
     if (!title) { errEl.textContent = tr('videoProjectNameRequired'); return; }
     if (!packEl.value) { errEl.textContent = tr('videoProjectNoPack'); return; }
