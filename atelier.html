@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794233926859">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794233926859">
+<link rel="stylesheet" href="player.css?v=1794241512779">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794241512779">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -248,6 +248,18 @@
   .vcv-diff-same { color: #777 !important; }
   .vcv-diff-choose { color: #f0a050 !important; }
   .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
+  .vcv-by { color: #888; font-size: 11px; }
+  .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
+  .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
+  .vcv-rcm-done { opacity: .55; }
+  .vcv-rcm-meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; color: #999; font-size: 11px; }
+  .vcv-rcm-t { background: none; border: 0; color: #7db8e8; font-weight: 600; cursor: pointer; padding: 0; }
+  .vcv-rcm-who { color: #ddd; font-weight: 600; }
+  .vcv-rcm-ver { color: #888; }
+  .vcv-rcm-body { color: #ddd; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vcv-rcm-reply { margin-left: 12px; padding-left: 8px; border-left: 2px solid #333; color: #bbb; }
+  .vcv-rcm-input { flex: 1; min-width: 200px; background: #151515; border: 1px solid #333; border-radius: 4px; color: #ddd; padding: 4px 6px; font: inherit; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -416,6 +428,14 @@
     overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: grab; touch-action: none; user-select: none;
   }
   .vct-marker-selected { border-left-style: solid; }
+  /* Remarques du client (9/11) : drapeaux bleus en bas de la frise, distincts des marqueurs jaunes de l'auteur. */
+  .vct-review-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dotted #2f80c0; }
+  .vct-review-flag {
+    position: absolute; bottom: 0; left: 0; height: 14px; line-height: 14px; max-width: 130px; padding: 0 5px 0 4px;
+    background: #2f80c0; color: #fff; font-size: 9px; font-weight: 600; border-radius: 0 3px 3px 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; user-select: none;
+  }
+  .vct-review-resolved { opacity: .45; }
   .vct-marker-selected .vct-marker-flag { background: #fff; }
   .video-capture-marker-name {
     width: 160px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
@@ -510,16 +530,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794233926859"></script>
-<script src="layerpitch-notify.js?v=1794233926859"></script>
-<script src="public-page.js?v=1794233926859"></script>
-<script src="player.js?v=1794233926859"></script>
-<script src="capture-plan.js?v=1794233926859"></script>
-<script src="capture-render.js?v=1794233926859"></script>
-<script src="capture-retarget.js?v=1794233926859"></script>
-<script src="capture-versioning.js?v=1794233926859"></script>
-<script src="layerpitch-guide.js?v=1794233926859"></script>
-<script src="atelier-lecons.js?v=1794233926859"></script>
+<script src="layerpitch-i18n.js?v=1794241512779"></script>
+<script src="layerpitch-notify.js?v=1794241512779"></script>
+<script src="public-page.js?v=1794241512779"></script>
+<script src="player.js?v=1794241512779"></script>
+<script src="capture-plan.js?v=1794241512779"></script>
+<script src="capture-render.js?v=1794241512779"></script>
+<script src="capture-retarget.js?v=1794241512779"></script>
+<script src="capture-versioning.js?v=1794241512779"></script>
+<script src="layerpitch-guide.js?v=1794241512779"></script>
+<script src="atelier-lecons.js?v=1794241512779"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1059,7 +1079,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ...stingerEvents.map(e => e.t + (e.detail.durationOverride || 1)),
     ...layerSegmentEvents.map(e => e.t + e.detail.duration),
     ...fxSegmentEvents.map(e => e.t + e.detail.duration));
-  const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
+  const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), ...(container.__vctReviewMarks || []).map(r => Number(r.t) + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
   const fullW = Math.max(300, (container.clientWidth || 800) - 20);
   const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
@@ -1368,6 +1388,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       `<span class="vct-marker-flag" data-marker-idx="${i}" title="${label} — ${m.t.toFixed(2)} s${editable ? ' · ' + tr('captureMarkerFlagHint') : ''}">${label}</span></div>`;
   });
 
+  // Remarques du client (9/11, lien de relecture) : un petit drapeau bleu en bas de la frise par commentaire, à son instant. Posés par
+  // le panneau Versioning (container.__vctReviewMarks = [{ id, t, author, body, versionTitle, resolved }]), jamais enregistrés avec le
+  // montage ni mêlés à `markers` ; cliquer saute la vidéo à l'instant et affiche la remarque dans la zone de détail.
+  (container.__vctReviewMarks || []).forEach((r, i) => {
+    const who = window.LayerPlayerCore.escapeHtml(r.author || '');
+    markersHtml += `<div class="vct-review-marker${r.resolved ? ' vct-review-resolved' : ''}" style="left:${pct(Number(r.t))}%">` +
+      `<span class="vct-review-flag" data-review-idx="${i}" title="${who} — ${Number(r.t).toFixed(2)} s">💬 ${who}</span></div>`;
+  });
+
   container.__vctTotal = total;
   const prevScroller = container.querySelector('.vct-scroll');
   const keepScroll = prevScroller ? prevScroller.scrollLeft : 0;
@@ -1511,6 +1540,19 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const nameInput = container.querySelector('.video-capture-marker-name');
     if (nameInput) { nameInput.focus(); nameInput.select(); }
   }
+  container.querySelectorAll('.vct-review-flag').forEach(flagEl => {
+    const r = (container.__vctReviewMarks || [])[parseInt(flagEl.dataset.reviewIdx, 10)];
+    if (!r) return;
+    flagEl.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      seekTo(Number(r.t));
+      const esc = window.LayerPlayerCore.escapeHtml;
+      const d = container.querySelector('#vctDetail');
+      if (d) d.innerHTML = `<span class="vct-detail-label">💬 ${esc(r.author || '')}${r.versionTitle ? ' · ' + esc(r.versionTitle) : ''} · ${Number(r.t).toFixed(2)} s — ${esc(r.body || '')}</span>`;
+      if (container.__vctOnReviewMark) container.__vctOnReviewMark(r);
+    });
+  });
   container.querySelectorAll('.vct-marker-flag').forEach(flagEl => {
     const m = markers[parseInt(flagEl.dataset.markerIdx, 10)];
     if (!m) return;
@@ -2084,11 +2126,39 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// Progression d'envoi (09/11) : même principe que dans le Backstage (src/backstage/41-envoi-r2-et-bibliotheque-video.js) -- fetch() ne donne
+// pas l'avancement d'un envoi, donc XMLHttpRequest quand un onProgress(envoyé, total) est fourni.
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+// Texte d'avancement affiché pendant un envoi, au plus 4 fois par seconde.
+function uploadProgressReporter(onStatus) {
+  if (!onStatus) return undefined;
+  let last = 0;
+  return (done, total) => {
+    const now = Date.now();
+    if (done < total && now - last < 250) return;
+    last = now;
+    onStatus(tr('captureUploadingProgress').replace('{pct}', Math.round(done / total * 100)).replace('{done}', (done / 1048576).toFixed(1)).replace('{total}', (total / 1048576).toFixed(1)));
+  };
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -2130,13 +2200,13 @@ async function r2DeleteRemovedVideos(removed) {
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
 // kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
 // d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind, onStatus) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
     const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
-    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    await r2PutFile(`video/${id}/${fileName}`, blob, 'video/mp4', uploadProgressReporter(onStatus));
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {
@@ -2892,7 +2962,7 @@ function openCapturePanel(file, opts) {
     addToLibraryBtn.disabled = true;
     exportStatus.textContent = tr('captureAddingToLibrary');
     try {
-      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null);
+      const videoId = await saveExportToVideoLibrary(lastExportBlob, packId, exportName.trim(), videoEl.duration || null, undefined, (msg) => { exportStatus.textContent = msg; });
       // (Vidéo complète : à télécharger ou publier ailleurs. Les pages LayerPitch, elles, jouent la vidéo muette du montage et le son de
       // chaque version : voir « Mettre à jour la vidéo partout ».)
       exportStatus.textContent = tr('captureAddedToLibrary');
@@ -2915,7 +2985,7 @@ function openCapturePanel(file, opts) {
     if (!cur.error && cur.data) return cur.data;
     onStatus(tr('captureMakingSilentVideo'));
     const blob = await makeSilentVideo(file, onStatus);
-    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base');
+    const id = await saveExportToVideoLibrary(blob, packId, (titleInput.value || file.name) + ' — ' + tr('captureSilentVideoSuffix'), videoEl.duration || null, 'capture_base', onStatus);
     const { error } = await client.rpc('set_video_capture_base', withStudio({ p_capture_id: savedCaptureId, p_video_id: id }));
     if (error) throw error;
     return id;
@@ -2928,7 +2998,7 @@ function openCapturePanel(file, opts) {
     onStatus(tr('captureEncodingSound'));
     const sound = await encodeSoundForLibrary(wav, onStatus);
     onStatus(tr('captureAddingToLibrary'));
-    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio');
+    return saveExportToVideoLibrary(sound, packId, title || '', videoEl.duration || null, 'capture_audio', onStatus);
   }
   // --- Enregistrement automatique et publication du montage (06/11, décidé avec Jules-Antoine) -------------------------------------
   // Plus de bouton « Sauvegarder » : toute retouche (prise, frise, noms, repères, titre) est enregistrée toute seule, sans geste, une
@@ -3127,6 +3197,8 @@ function openCapturePanel(file, opts) {
       library: capturePackLibrary(), otherPacks: (window.__lpCaptureLibrary.otherPacks || []),
       extraPackContent: (pid) => { const L = window.__lpCaptureLibrary, pk = (L.otherPacks || []).find(x => x.id === pid); if (!pk) return null;
         const t = new Set(pk.trackIds), sx = new Set(pk.sfxIds); return { tracks: (L.library || []).filter(x => t.has(x.id)), sfx: (L.sfxLibrary || []).filter(x => sx.has(x.id)) }; },
+      // Remarques du client (9/11) : drapeaux bleus sur la frise de l'atelier, mis à jour avec le panneau Versioning.
+      onReviewComments: marks => { timelineEl.__vctReviewMarks = marks; try { renderEditableTimeline(); } catch (e) { /* frise pas encore prête */ } },
       findTrack: findCaptureTrack, findSfx: findCaptureSfx,
       getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
       exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
