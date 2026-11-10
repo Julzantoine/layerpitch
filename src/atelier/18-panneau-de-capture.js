@@ -182,6 +182,7 @@ function openCapturePanel(file, opts) {
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
+      <label class="video-capture-export-opt" id="videoAltPropagateLabel" hidden title="${tr('altPropagateHelp')}"><input type="checkbox" id="videoAltPropagate"> ${tr('altPropagateLabel')}</label>
       <div class="video-test-panel-actions">
         <span class="atelier-zones">
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
@@ -326,6 +327,27 @@ function openCapturePanel(file, opts) {
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
   let activeAltId = null, baseSnap = null;
   const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, title: titleInput.value });
+  // « Bouger aussi les marqueurs des autres versions » (10/11) : un marqueur déplacé ici est décalé du même écart dans les autres versions
+  // (retrouvé par son identifiant, copié avec la frise) ; leurs retouches individuelles sont donc gardées. Seuls les déplacements se propagent.
+  let markerMemo = new Map();
+  const memoMarkers = () => { markerMemo = new Map(timelineMarkers.map(m => [m.id, m.t])); };
+  function markersMoved() {
+    const box = document.getElementById('videoAltPropagate');
+    const deltas = new Map();
+    timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    memoMarkers();
+    if (!deltas.size || !box || !box.checked || !versioning || !versioning.alternatives || historyRestoring) return;
+    const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
+    const alts = versioning.alternatives;
+    alts.list().forEach(v => {
+      if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
+      const mk = JSON.parse(JSON.stringify(v.markers || []));
+      if (shift(mk)) alts.saveAlt(v.id, { events: v.events, laneOverrides: v.laneOverrides || {}, collapsedGroups: v.collapsedGroups || {}, markers: mk }).catch(e => console.error(e));
+    });
+    if (activeAltId && baseSnap && shift(baseSnap.markers)) {
+      saveVideoCapture(packId, currentCaptureId, baseSnap.title, file.name, baseSnap.events, baseSnap.laneOverrides, baseSnap.collapsedGroups, baseSnap.markers).catch(e => console.error(e));
+    }
+  }
   const baseState = () => (activeAltId && baseSnap) ? baseSnap : workState(); // ce qui est publié et versionné reste toujours le montage
   // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
   // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
@@ -383,6 +405,7 @@ function openCapturePanel(file, opts) {
   };
   document.addEventListener('keydown', window.__lpHistoryKeyHandler);
   function refreshActionButtons() {
+    markersMoved();
     historyPush();
     syncHistoryButtons();
     setExportButtonsDisabled(lastEvents.length === 0);
@@ -836,6 +859,7 @@ function openCapturePanel(file, opts) {
         .then(r => { if (!r.error && r.data && currentCaptureId === loadedId && lastPublishedKey === null) lastPublishedKey = loadedSound; }).catch(() => {}); }
     setSaveState('', '');
     countEl.textContent = captureCountText(lastEvents);
+    memoMarkers();
     refreshActionButtons();
     historyReset();
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
@@ -938,7 +962,8 @@ function openCapturePanel(file, opts) {
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
-      + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__delete">${esc(tr('altDelete'))}</option>` : '');
+      + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__markers">${esc(tr('altTakeMarkers'))}</option><option value="__delete">${esc(tr('altDelete'))}</option>` : '');
+    const pl = document.getElementById('videoAltPropagateLabel'); if (pl) pl.hidden = altList().length === 0;
     altSelect.value = activeAltId || '';
     altSelect.disabled = !!videoCaptureState;
   }
@@ -971,6 +996,7 @@ function openCapturePanel(file, opts) {
     lastSavedKey = captureStateKey();
     setSaveState('', '');
     countEl.textContent = captureCountText(lastEvents);
+    memoMarkers();
     refreshActionButtons();
     historyReset();
     renderEditableTimeline();
@@ -998,6 +1024,14 @@ function openCapturePanel(file, opts) {
     try { await versioning.alternatives.rename(activeAltId, name.trim()); } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); }
     renderAltSelect();
   }
+  async function takeOriginalMarkers() {
+    if (!activeAltId || !baseSnap) return;
+    if (!await window.LayerPitchNotify.confirm(tr('altTakeMarkersConfirm'), { okLabel: tr('altTakeMarkers') })) return;
+    timelineMarkers = JSON.parse(JSON.stringify(baseSnap.markers));
+    memoMarkers();
+    renderEditableTimeline();
+    refreshActionButtons(); // enregistre aussi, et entre dans l'historique (annulable)
+  }
   async function deleteAlt() {
     if (!activeAltId) return;
     const id = activeAltId, v = altList().find(x => x.id === id);
@@ -1011,6 +1045,7 @@ function openCapturePanel(file, opts) {
     if (val === '__new') await newAlt();
     else if (val === '__rename') await renameAlt();
     else if (val === '__delete') await deleteAlt();
+    else if (val === '__markers') await takeOriginalMarkers();
     else await switchAlt(val);
     renderAltSelect();
   });
