@@ -22,4 +22,12 @@ check('l’original garde la dernière révision et ajoute l’ancienne', out.ve
 check('la version envoyée porte son numéro #n.m', out.versions[2].title === 'Piano · #2.1');
 check('une version sans révision (ancien envoi) reste telle quelle', out.versions[3].title === 'Ancienne' && out.versions[3].url === 'x');
 check('la clé d’une ancienne révision revient à sa version pour les remarques', /String\(k \|\| 'original'\)\.split\('@'\)\[0\]/.test(html));
+const frise = fs.readFileSync(path.join(__dirname, 'src/atelier/15-frise-edition.js'), 'utf8');
+check('fondu à la main : poignée sur le bord droit de chaque arrêt, réglage 0 à 10 s, mémorisé dans l’événement', /vct-fade-handle/.test(frise) && /Math\.min\(10, Math\.round/.test(frise) === false ? /e0\.detail\.fadeSec = sec/.test(frise) && /delete e0\.detail\.fadeSec/.test(frise) : /e0\.detail\.fadeSec = sec/.test(frise));
+const vers = fs.readFileSync(path.join(__dirname, 'capture-versioning.js'), 'utf8');
+check('Envoyer au client : cocher = envoyée, décocher = brouillon, approuvée reste approuvée', /cur === 'approved' \? cur : 'sent'/.test(vers) && /: 'draft';/.test(vers));
+check('Envoyer au client : le montage est publié avant, puis la version n° 1 figée si rien d’autre n’est coché', /ctx\.publishMontage/.test(vers) && /api\.freezeOriginal/.test(vers));
+check('plus de « Sans titre » pour une version : « Version alternative #n »', /function verName/.test(vers) && !/v\.title \|\| tr\('captureUntitled'\)/.test(vers));
+const sql3 = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261110030000_video_review_send_original.sql'), 'utf8');
+check('migration 3 : fonction réservée aux connectés, mêmes barrières que les autres', /grant execute on function public\.freeze_video_review_original\(text, boolean\) to authenticated/.test(sql3) && /video_can_version\(p_studio\)/.test(sql3) && /video_owned/.test(sql3));
 console.log(failures ? failures + ' échec(s)' : 'Tout est OK'); process.exit(failures ? 1 : 0);

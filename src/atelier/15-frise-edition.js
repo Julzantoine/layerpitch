@@ -332,7 +332,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       trackStops.forEach(e => {
         const fade = e.detail.fadeSec > 0 ? e.detail.fadeSec : 0;
         const label = fade ? tr('captureStopFadeShort').replace('{s}', String(Math.round(fade * 10) / 10)) : '';
-        blocksHtml += `<div class="vct-block vct-stop${fade ? ' vct-stop-fade' : ''}" data-idx="${events.indexOf(e)}" style="left:${pct(e.t)}%;width:${pct(e.t + Math.max(fade, 0.3)) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(tr('captureStopBlockTitle'))}">${label ? `<span class="vct-block-label">${label}</span>` : ''}</div>`;
+        blocksHtml += `<div class="vct-block vct-stop${fade ? ' vct-stop-fade' : ''}" data-idx="${events.indexOf(e)}" style="left:${pct(e.t)}%;width:${pct(e.t + Math.max(fade, 0.3)) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(tr('captureStopBlockTitle'))}">${label ? `<span class="vct-block-label">${label}</span>` : ''}${editable ? `<span class="vct-fade-handle" title="${window.LayerPlayerCore.escapeHtml(tr('captureFadeHandleTitle'))}"></span>` : ''}</div>`;
       });
       nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureStopLane')}</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
     }
@@ -860,7 +860,32 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
     const idx = parseInt(el.dataset.idx, 10);
     if (idx < 0) return; // fenêtre implicite de départ (avant le premier vrai clic) -- pas interactive
-    if (el.classList.contains('vct-stop')) { el.addEventListener('click', () => selectBlock(idx, el)); return; } // arrêt : réglage du fondu seulement
+    if (el.classList.contains('vct-stop')) {
+      el.addEventListener('click', () => selectBlock(idx, el)); // arrêt : réglage du fondu seulement
+      // Fondu à la main (10/11, demande de Jules-Antoine, comme la poignée de fondu d'une région dans Logic) : on tire le bord droit de l'arrêt.
+      const fh = el.querySelector('.vct-fade-handle');
+      if (fh && events[idx]) fh.addEventListener('pointerdown', ev => {
+        if (ev.button !== 0 || videoCaptureState) return;
+        ev.preventDefault(); ev.stopPropagation();
+        const e0 = events[idx];
+        const r = container.querySelector('.vct-ruler').getBoundingClientRect();
+        const onMove = m => {
+          const sec = Math.max(0, Math.min(10, Math.round(((m.clientX - r.left) / r.width * total - e0.t) * 10) / 10));
+          if (sec > 0) e0.detail.fadeSec = sec; else delete e0.detail.fadeSec;
+          el.style.width = (pct(e0.t + Math.max(sec, 0.3)) - pct(e0.t)) + '%';
+          el.classList.toggle('vct-stop-fade', sec > 0);
+        };
+        const onUp = () => {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          rerender();
+          onChange && onChange();
+        };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+      return;
+    }
     el.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'move'));
     const handle = el.querySelector('.vct-resize-handle');
     if (handle) handle.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'resize'));

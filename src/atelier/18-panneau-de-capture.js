@@ -962,6 +962,7 @@ function openCapturePanel(file, opts) {
       exportEvents: (events, mode, onProgress, lane) => exportCaptureVideo(events, file, onProgress, lane || baseState().laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       cuesOf: (events, lane) => buildCaptureCues(events, lane || baseState().laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
+      publishMontage: () => publishMontageNow(), // « Envoyer au client » : la version n° 1 est publiée d'abord
       getSoundKey: soundKey, onProgress: (msg) => { exportStatus.textContent = msg; }, // publication automatique des versions (09/11)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette

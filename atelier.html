@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794317485792">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794317485792">
+<link rel="stylesheet" href="player.css?v=1794318302186">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794318302186">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -340,6 +340,8 @@
   .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
   /* Arrêt d'un morceau (05/11) : trait net, ou pente qui descend sur la durée du fondu */
   .vct-block.vct-stop { background: #6b7684; min-width: 6px; cursor: pointer; }
+  .vct-fade-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; background: rgba(47,128,192,0.55); border-radius: 2px; }
+  .vct-fade-handle:hover { background: #2f80c0; }
   .vct-block.vct-stop.vct-stop-fade { background: linear-gradient(to bottom right, #6b7684 49%, transparent 51%); }
   .vct-track-group-head { border-left-color: #3d8a6e; }
   .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
@@ -578,16 +580,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794317485792"></script>
-<script src="layerpitch-notify.js?v=1794317485792"></script>
-<script src="public-page.js?v=1794317485792"></script>
-<script src="player.js?v=1794317485792"></script>
-<script src="capture-plan.js?v=1794317485792"></script>
-<script src="capture-render.js?v=1794317485792"></script>
-<script src="capture-retarget.js?v=1794317485792"></script>
-<script src="capture-versioning.js?v=1794317485792"></script>
-<script src="layerpitch-guide.js?v=1794317485792"></script>
-<script src="atelier-lecons.js?v=1794317485792"></script>
+<script src="layerpitch-i18n.js?v=1794318302186"></script>
+<script src="layerpitch-notify.js?v=1794318302186"></script>
+<script src="public-page.js?v=1794318302186"></script>
+<script src="player.js?v=1794318302186"></script>
+<script src="capture-plan.js?v=1794318302186"></script>
+<script src="capture-render.js?v=1794318302186"></script>
+<script src="capture-retarget.js?v=1794318302186"></script>
+<script src="capture-versioning.js?v=1794318302186"></script>
+<script src="layerpitch-guide.js?v=1794318302186"></script>
+<script src="atelier-lecons.js?v=1794318302186"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1399,7 +1401,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       trackStops.forEach(e => {
         const fade = e.detail.fadeSec > 0 ? e.detail.fadeSec : 0;
         const label = fade ? tr('captureStopFadeShort').replace('{s}', String(Math.round(fade * 10) / 10)) : '';
-        blocksHtml += `<div class="vct-block vct-stop${fade ? ' vct-stop-fade' : ''}" data-idx="${events.indexOf(e)}" style="left:${pct(e.t)}%;width:${pct(e.t + Math.max(fade, 0.3)) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(tr('captureStopBlockTitle'))}">${label ? `<span class="vct-block-label">${label}</span>` : ''}</div>`;
+        blocksHtml += `<div class="vct-block vct-stop${fade ? ' vct-stop-fade' : ''}" data-idx="${events.indexOf(e)}" style="left:${pct(e.t)}%;width:${pct(e.t + Math.max(fade, 0.3)) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(tr('captureStopBlockTitle'))}">${label ? `<span class="vct-block-label">${label}</span>` : ''}${editable ? `<span class="vct-fade-handle" title="${window.LayerPlayerCore.escapeHtml(tr('captureFadeHandleTitle'))}"></span>` : ''}</div>`;
       });
       nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureStopLane')}</div><div class="vct-lane-track">${blocksHtml}</div></div>`;
     }
@@ -1927,7 +1929,32 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
     const idx = parseInt(el.dataset.idx, 10);
     if (idx < 0) return; // fenêtre implicite de départ (avant le premier vrai clic) -- pas interactive
-    if (el.classList.contains('vct-stop')) { el.addEventListener('click', () => selectBlock(idx, el)); return; } // arrêt : réglage du fondu seulement
+    if (el.classList.contains('vct-stop')) {
+      el.addEventListener('click', () => selectBlock(idx, el)); // arrêt : réglage du fondu seulement
+      // Fondu à la main (10/11, demande de Jules-Antoine, comme la poignée de fondu d'une région dans Logic) : on tire le bord droit de l'arrêt.
+      const fh = el.querySelector('.vct-fade-handle');
+      if (fh && events[idx]) fh.addEventListener('pointerdown', ev => {
+        if (ev.button !== 0 || videoCaptureState) return;
+        ev.preventDefault(); ev.stopPropagation();
+        const e0 = events[idx];
+        const r = container.querySelector('.vct-ruler').getBoundingClientRect();
+        const onMove = m => {
+          const sec = Math.max(0, Math.min(10, Math.round(((m.clientX - r.left) / r.width * total - e0.t) * 10) / 10));
+          if (sec > 0) e0.detail.fadeSec = sec; else delete e0.detail.fadeSec;
+          el.style.width = (pct(e0.t + Math.max(sec, 0.3)) - pct(e0.t)) + '%';
+          el.classList.toggle('vct-stop-fade', sec > 0);
+        };
+        const onUp = () => {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          rerender();
+          onChange && onChange();
+        };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+      return;
+    }
     el.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'move'));
     const handle = el.querySelector('.vct-resize-handle');
     if (handle) handle.addEventListener('pointerdown', (ev) => startDrag(ev, idx, 'resize'));
@@ -3427,6 +3454,7 @@ function openCapturePanel(file, opts) {
       exportEvents: (events, mode, onProgress, lane) => exportCaptureVideo(events, file, onProgress, lane || baseState().laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
       cuesOf: (events, lane) => buildCaptureCues(events, lane || baseState().laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
+      publishMontage: () => publishMontageNow(), // « Envoyer au client » : la version n° 1 est publiée d'abord
       getSoundKey: soundKey, onProgress: (msg) => { exportStatus.textContent = msg; }, // publication automatique des versions (09/11)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette

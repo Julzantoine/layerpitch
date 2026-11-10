@@ -41,6 +41,7 @@
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
     setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
+    freezeOriginal: captureId => rpc('freeze_video_review_original', { p_capture_id: captureId }), // révision de la version n° 1 (migration 20261110030000)
     // Lien de relecture client et remarques (9/11, migrations 20261109020000 puis 20261109030000 : adresse lisible + clé magique ou mot de passe).
     getLink: captureId => rpc('get_video_review_link', { p_capture_id: captureId }),
     // o : { enabled, slug, mode: 'magic'|'password', password, rotate } — tout est facultatif sauf à la création (adresse).
@@ -92,6 +93,8 @@
     // (la retouche du montage change toutes ses versions, Q5) ; published = clé au moment où la version a été publiée ou vue pour la première fois.
     const published = new Map();
     const baseKey = () => (ctx.getSoundKey ? ctx.getSoundKey() : '');
+    // Une version sans nom s'appelle « Version alternative #n » (n = rang de création, la version n° 1 étant le montage), plus jamais « Sans titre ».
+    function verName(v) { if (v && v.title) return v.title; const i = versions.findIndex(x => x.id === (v && v.id)); return tr('altDefaultName').replace('{n}', String((i < 0 ? versions.length : i) + 2)); }
     const keyOf = v => JSON.stringify({ s: v.substitutions, b: baseKey(), o: v.events ? [v.events, v.laneOverrides] : null }); // frise propre (alternative) : elle seule compte, le montage n'y change rien
     // Version avec sa propre frise (alternative retouchée) : elle ne dépend plus du montage.
     const needsPublish = v => !v.lastExportVideoId || (published.has(v.id) && published.get(v.id) !== keyOf(v));
@@ -215,7 +218,7 @@
       const list = (diffView ? diffView.ids : []).map(id => versions.find(x => x.id === id)).filter(Boolean);
       if (!list.length) return '';
       const rows = diffModel(list);
-      const name = v => v.title || tr('captureUntitled');
+      const name = v => verName(v);
       const cell = (c, differ) => {
         if (c.toChoose) return `<td class="vcv-diff-choose">${esc(tr('versioningDiffToChoose'))}</td>`;
         if (!c.key) return `<td class="vcv-diff-same">${esc(tr('versioningDiffSame'))}</td>`;
@@ -390,7 +393,7 @@
       let done = 0;
       try {
         for (const v of list) {
-          const label = (m) => setBatchStatus('« ' + (v.title || tr('captureUntitled')) + ' » (' + (done + 1) + '/' + list.length + ') — ' + m);
+          const label = (m) => setBatchStatus('« ' + (verName(v)) + ' » (' + (done + 1) + '/' + list.length + ') — ' + m);
           const { events } = await versionResult(v.substitutions, v.events);
           const blob = await ctx.exportEvents(events, mode, label, v.laneOverrides);
           const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
@@ -451,7 +454,7 @@
     const reviewVersionTitle = key => {
       if (key === 'original') return tr('versioningReviewOriginal');
       const v = versions.find(x => x.id === key);
-      return v ? (v.title || tr('captureUntitled')) : tr('captureUntitled');
+      return v ? (verName(v)) : tr('captureUntitled');
     };
     // Les remarques du client deviennent des drapeaux sur la frise de l'atelier (ctx.onReviewComments, s'il est fourni).
     function publishReviewMarks() {
@@ -492,6 +495,7 @@
       else html += `<div class="vcv-row"><input type="text" readonly class="vcv-link-input" data-role="rvUrl" value="${esc(reviewAddress(L.slug))}" ${on ? '' : 'disabled'}>
         <button type="button" class="video-capture-download-btn" data-act="rvCopy" ${on ? '' : 'disabled'}>${esc(tr('versioningReviewCopy'))}</button></div>`;
       html += `<div class="vcv-hint">${esc(tr(L.mode === 'password' ? 'versioningReviewPasswordMode' : 'versioningReviewMagicMode'))}</div>
+        <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvSendClient" ${on ? '' : 'disabled'} title="${esc(tr('versioningSendClientHelp'))}">${esc(tr('versioningSendClientBtn'))}</button></div>
         <div class="vcv-row"><button type="button" class="video-capture-download-btn" data-act="rvToggle">${esc(tr(on ? 'versioningReviewDisable' : 'versioningReviewEnable'))}</button>
         <button type="button" class="video-capture-download-btn" data-act="rvRename">${esc(tr('versioningReviewRename'))}</button>
         ${L.mode === 'password'
@@ -529,6 +533,40 @@
       try { await fn(); await refreshReview(); render(); }
       catch (e) { if (e && e.handled) return; console.error(e); const el = statusEl || host.querySelector('[data-role="rvStatus"]'); if (el) el.textContent = tr('versioningReviewFailed').replace('{error}', e.message); }
     }
+    // « Envoyer au client » (10/11) : on coche les versions alternatives à montrer ; la version n° 1 (le montage) est toujours envoyée. Cocher = « envoyée »
+    // (une révision #n.m est figée), décocher = « brouillon » (le client ne la voit plus). Une version déjà approuvée reste approuvée.
+    function openSendDialog() {
+      const statusEl = host.querySelector('[data-role="rvStatus"]');
+      const dlg = host.ownerDocument.createElement('dialog');
+      dlg.className = 'video-test-dialog';
+      const row = (id, label, checked, disabled) => `<label class="atelier-export-opt"><input type="checkbox" data-send="${esc(id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}> ${esc(label)}</label>`;
+      dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('versioningSendClientTitle'))}</div>`
+        + row('', tr('altOriginal'), true, true)
+        + versions.map((v, i) => row(v.id, v.title || tr('altDefaultName').replace('{n}', String(i + 2)), statusOf(v) !== 'draft', false)).join('')
+        + `<div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button><button type="submit" class="video-test-btn-primary" value="go">${esc(tr('versioningSendClientGo'))}</button></div></form>`;
+      host.appendChild(dlg);
+      dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close('cancel'));
+      dlg.addEventListener('close', async () => {
+        const go = dlg.returnValue === 'go';
+        const ticked = new Set([...dlg.querySelectorAll('[data-send]')].filter(c => c.checked && c.dataset.send).map(c => c.dataset.send));
+        dlg.remove();
+        if (!go) return;
+        busy = true; render();
+        try {
+          if (ctx.publishMontage) await ctx.publishMontage(); // ce que le client verra est ce qui est publié
+          if (canPublish()) await publishPending();
+          for (const v of versions) {
+            const cur = statusOf(v);
+            const target = ticked.has(v.id) ? (cur === 'approved' ? cur : 'sent') : 'draft';
+            if (target !== cur || target === 'sent') { await store.setStatus(v.id, target); v.status = target; v.statusAt = new Date().toISOString(); }
+          }
+          if (!ticked.size) await api.freezeOriginal(ctx.getCaptureId());
+          setBatchStatus(tr('versioningSendClientDone'));
+        } catch (e) { console.error(e); setBatchStatus(tr('versioningReviewFailed').replace('{error}', e.message)); }
+        busy = false; render();
+      });
+      dlg.showModal();
+    }
     function bindReview() {
       const captureId = ctx.getCaptureId();
       const on = (sel, fn) => host.querySelectorAll(sel).forEach(b => b.addEventListener('click', e => fn(e, b)));
@@ -550,6 +588,7 @@
         if (after) after();
       });
       on('[data-act="rvCreate"]', () => send(() => api.setLink(captureId, { enabled: true, slug: review.form.slug, mode: review.form.mode, password: review.form.password })));
+      on('[data-act="rvSendClient"]', () => openSendDialog());
       on('[data-act="rvToggle"]', () => reviewAction(() => api.setLink(captureId, { enabled: !review.link.enabled })));
       on('[data-act="rvRename"]', () => { review.form.slug = review.link.slug; review.editing = review.editing === 'rename' ? null : 'rename'; render(); });
       on('[data-act="rvPassword"]', () => { review.form.mode = 'password'; review.form.password = ''; review.editing = review.editing === 'password' ? null : 'password'; render(); });
@@ -599,7 +638,7 @@
       busy = true; render();
       try {
         for (const v of todo) {
-          if (ctx.onProgress) ctx.onProgress(tr('versioningPublishing').replace('{name}', v.title || tr('captureUntitled')).replace('{i}', n + 1).replace('{n}', todo.length));
+          if (ctx.onProgress) ctx.onProgress(tr('versioningPublishing').replace('{name}', verName(v)).replace('{i}', n + 1).replace('{n}', todo.length));
           const key = keyOf(v);
           const { events } = await versionResult(v.substitutions, v.events);
           const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
@@ -634,7 +673,7 @@
         const key = 'v:' + v.id;
         html += `<div class="vcv-version" data-id="${esc(v.id)}">
           <input type="checkbox" data-role="pick" ${busy ? 'disabled' : ''} title="${esc(tr('versioningPickHelp'))}">
-          <span class="vcv-name">${esc(v.title || tr('captureUntitled'))}</span>
+          <span class="vcv-name">${esc(verName(v))}</span>
           <select data-role="reviewStatus" class="vcv-review vcv-review-${statusOf(v)}" ${busy ? 'disabled' : ''} title="${esc(v.statusAt ? tr('versioningStatusSince').replace('{date}', new Date(v.statusAt).toLocaleDateString()) : tr('versioningStatusHelp'))}">${STATUSES.map(st => `<option value="${st}" ${statusOf(v) === st ? 'selected' : ''}>${esc(tr('versioningStatus_' + st))}</option>`).join('')}</select>
           ${v.statusBy ? `<span class="vcv-by">${esc(tr('versioningStatusBy').replace('{name}', v.statusBy))}</span>` : ''}
           <span class="vcv-summary">${esc(summaryOf(v.substitutions))}${v.lastExportVideoId ? ' · ' + esc(tr('versioningInLibrary')) : ''}</span>
@@ -856,7 +895,7 @@
           }
           // Sinon : on démarre sur cette version ; la musique d'origine et toutes les autres versions sont dans le menu du dock.
           const list = [{ id: '', label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }]
-            .concat(versions.map(x => ({ id: x.id, label: x.title || tr('captureUntitled'), subs: x.substitutions, own: x.events })));
+            .concat(versions.map(x => ({ id: x.id, label: verName(x), subs: x.substitutions, own: x.events })));
           listenAB(list, status, 1 + versions.indexOf(v));
         });
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), own: v.events || null, isNew: false, titleTouched: true }; render(); });

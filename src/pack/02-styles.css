@@ -327,6 +327,8 @@
   .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
   /* Arrêt d'un morceau (05/11) : trait net, ou pente qui descend sur la durée du fondu */
   .vct-block.vct-stop { background: #6b7684; min-width: 6px; cursor: pointer; }
+  .vct-fade-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; background: rgba(47,128,192,0.55); border-radius: 2px; }
+  .vct-fade-handle:hover { background: #2f80c0; }
   .vct-block.vct-stop.vct-stop-fade { background: linear-gradient(to bottom right, #6b7684 49%, transparent 51%); }
   .vct-track-group-head { border-left-color: #3d8a6e; }
   .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
