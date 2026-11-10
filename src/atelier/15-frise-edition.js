@@ -151,7 +151,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     (capturePackLibrary().sfxLibrary || []).forEach(s => { if (!sfxGroups[s.id]) sfxGroups[s.id] = { 0: [] }; });
   }
   let lanesHtml = '';
-  Object.keys(sfxGroups).forEach(sid => {
+  // Même ordre fixe pour les Sfx : celui de la bibliothèque du pack, qu'ils soient joués ou non.
+  const sfxOrder = (capturePackLibrary().sfxLibrary || []).map(x => x.id);
+  const sfxRank = id => { const i = sfxOrder.indexOf(id); return i < 0 ? 1e6 : i; };
+  Object.keys(sfxGroups).sort((x, y) => sfxRank(x) - sfxRank(y)).forEach(sid => {
     const sfx = findCaptureSfx(sid);
     let groupLanesHtml = '';
     Object.keys(sfxGroups[sid]).map(Number).sort((a, b) => a - b).forEach(vi => {
@@ -179,6 +182,12 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
   });
   handTrackIds.forEach(id => { if (musicTrackIds.indexOf(id) === -1) musicTrackIds.push(id); });
+  // Ordre FIXE (10/11, retour de Jules-Antoine : « les pistes jouées remontent dans la frise, on ne distingue plus les différences à l'œil ») :
+  // les morceaux gardent l'ordre du pack (celui de la colonne de droite), jouée ou pas, d'une version alternative à l'autre ; ceux qui n'y
+  // figurent pas restent à la fin, dans leur ordre d'apparition.
+  { const packOrder = (capturePackLibrary().library || []).map(t => t.id);
+    const rank = id => { const i = packOrder.indexOf(id); return i < 0 ? 1e6 : i; };
+    musicTrackIds.sort((x, y) => rank(x) - rank(y)); } // tri stable : à rang égal, l'ordre d'apparition est conservé
   musicTrackIds.forEach(trackId => {
     const track = findCaptureTrack(trackId);
     if (!track) return;
