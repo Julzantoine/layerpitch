@@ -935,6 +935,9 @@ function openCapturePanel(file, opts) {
       console.error('Échec de la liste des prises sauvegardées', e);
     }
   }
+  // « Charger une prise » (le menu + « Charger ») ouvrait un AUTRE montage : c'est exactement ce que fait la colonne « Projets » du Backstage.
+  // Dans le Backstage il est donc masqué (11/11, retour de Jules-Antoine : « je n'ai toujours pas compris à quoi ça sert »). Il reste pour l'atelier seul.
+  if (typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio) { loadSelect.hidden = true; loadBtn.hidden = true; }
   // Hors Boss : pas d'enregistrement de montage (barre masquée, explication à la place).
   if (!captureCanSave) {
     [loadSelect, loadBtn, titleInput].forEach(el => { el.hidden = true; });
