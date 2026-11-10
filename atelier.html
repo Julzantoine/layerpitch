@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794344919323">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794344919323">
+<link rel="stylesheet" href="player.css?v=1794345527512">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794345527512">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -581,16 +581,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794344919323"></script>
-<script src="layerpitch-notify.js?v=1794344919323"></script>
-<script src="public-page.js?v=1794344919323"></script>
-<script src="player.js?v=1794344919323"></script>
-<script src="capture-plan.js?v=1794344919323"></script>
-<script src="capture-render.js?v=1794344919323"></script>
-<script src="capture-retarget.js?v=1794344919323"></script>
-<script src="capture-versioning.js?v=1794344919323"></script>
-<script src="layerpitch-guide.js?v=1794344919323"></script>
-<script src="atelier-lecons.js?v=1794344919323"></script>
+<script src="layerpitch-i18n.js?v=1794345527512"></script>
+<script src="layerpitch-notify.js?v=1794345527512"></script>
+<script src="public-page.js?v=1794345527512"></script>
+<script src="player.js?v=1794345527512"></script>
+<script src="capture-plan.js?v=1794345527512"></script>
+<script src="capture-render.js?v=1794345527512"></script>
+<script src="capture-retarget.js?v=1794345527512"></script>
+<script src="capture-versioning.js?v=1794345527512"></script>
+<script src="layerpitch-guide.js?v=1794345527512"></script>
+<script src="atelier-lecons.js?v=1794345527512"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -3373,6 +3373,8 @@ function openCapturePanel(file, opts) {
       setExportButtonsDisabled(lastEvents.length === 0);
     }
   };
+  window.__lpAtelierBusy = () => !!videoCaptureState; // prise en cours : l'atelier ne se recharge pas
+  window.__lpFlushAutosave = async () => { clearTimeout(autosaveTimer); await saveCaptureNow(); }; // avant un rechargement (pack republié)
   window.__lpDisposeMontage = () => { clearTimeout(autosaveTimer); window.__lpFinishMontage = null; window.__lpDisposeMontage = null; };
   // Prise chargée (depuis la liste, ou montage « détaché » d'une version vidéo) : elle devient la prise en cours.
   function applyLoadedCapture(capture) {
@@ -3914,6 +3916,17 @@ window.addEventListener('message', async e => {
     const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
     if (!client) return;
     atelierFillPackSelect(document.getElementById('atelierPackSelect'), await atelierPackChoices(client), packId);
+    // Pack publié entre-temps (11/11, retour de Jules-Antoine : « j'ai ajouté un morceau au pack, il n'apparaît pas ») : les morceaux étaient lus
+    // une seule fois à l'ouverture. Si le pack a été republié, l'atelier se recharge sur le même projet, après avoir enregistré ce qui était en
+    // cours ; jamais pendant une prise.
+    if (lastResolvedOwnerId && window.__lpPackPublishedAt) {
+      const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+      if (fresh && fresh.publishedAt && fresh.publishedAt !== window.__lpPackPublishedAt) {
+        if (window.__lpAtelierBusy && window.__lpAtelierBusy()) return; // prise en cours : on ne touche à rien, la page se rechargera au prochain passage
+        try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { return; } // l'enregistrement a échoué : on ne recharge pas, rien ne doit se perdre
+        location.reload();
+      }
+    }
   } catch (err) {
     console.error('LayerPitch — atelier vidéo, mise à jour des packs :', err);
   } finally {
@@ -3987,6 +4000,7 @@ async function init() {
     if (!owner) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     lastResolvedOwnerId = owner.owner_id;
     const data = await window.LayerPitchSiteData.loadSiteDataFromPostgres(owner.owner_id);
+    window.__lpPackPublishedAt = data.publishedAt || null;
     const pack = (data.packs || []).find(p => p.id === packId);
     if (!pack) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     // Référence pour la capture (trackId/sfxId -> fichier réel, voir exportCaptureVideo) ; composerName : crédit compositeur de l'export.

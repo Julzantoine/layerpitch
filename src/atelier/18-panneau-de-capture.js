@@ -871,6 +871,8 @@ function openCapturePanel(file, opts) {
       setExportButtonsDisabled(lastEvents.length === 0);
     }
   };
+  window.__lpAtelierBusy = () => !!videoCaptureState; // prise en cours : l'atelier ne se recharge pas
+  window.__lpFlushAutosave = async () => { clearTimeout(autosaveTimer); await saveCaptureNow(); }; // avant un rechargement (pack republié)
   window.__lpDisposeMontage = () => { clearTimeout(autosaveTimer); window.__lpFinishMontage = null; window.__lpDisposeMontage = null; };
   // Prise chargée (depuis la liste, ou montage « détaché » d'une version vidéo) : elle devient la prise en cours.
   function applyLoadedCapture(capture) {

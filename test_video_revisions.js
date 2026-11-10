@@ -33,4 +33,6 @@ check('migration 3 : fonction réservée aux connectés, mêmes barrières que l
 check('frise : ordre fixe des morceaux et des Sfx (celui du pack), plus de pistes qui remontent', /musicTrackIds\.sort\(\(x, y\) => rank\(x\) - rank\(y\)\)/.test(frise) && /Object\.keys\(sfxGroups\)\.sort\(\(x, y\) => sfxRank\(x\) - sfxRank\(y\)\)/.test(frise));
 const atel = fs.readFileSync(path.join(__dirname, 'src/atelier/18-panneau-de-capture.js'), 'utf8');
 check('marqueurs de référence : choix de la version source, ajouter (sans doublon par identifiant) ou remplacer, annulable', /async function referenceMarkers/.test(atel) && /if \(!have\.has\(m\.id\)\) timelineMarkers\.push\(m\)/.test(atel) && /if \(mode === 'replace'\) timelineMarkers = copy/.test(atel) && !/takeOriginalMarkers/.test(atel));
+const demarrage = fs.readFileSync(path.join(__dirname, 'src/atelier/20-demarrage-atelier.js'), 'utf8');
+check('pack republié : l’atelier se recharge (après enregistrement, jamais pendant une prise)', /fresh\.publishedAt !== window\.__lpPackPublishedAt/.test(demarrage) && /__lpAtelierBusy/.test(demarrage) && /__lpFlushAutosave/.test(demarrage) && /window\.__lpFlushAutosave = async/.test(atel) && /window\.__lpAtelierBusy = \(\) => !!videoCaptureState/.test(atel));
 console.log(failures ? failures + ' échec(s)' : 'Tout est OK'); process.exit(failures ? 1 : 0);

@@ -62,6 +62,17 @@ window.addEventListener('message', async e => {
     const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
     if (!client) return;
     atelierFillPackSelect(document.getElementById('atelierPackSelect'), await atelierPackChoices(client), packId);
+    // Pack publié entre-temps (11/11, retour de Jules-Antoine : « j'ai ajouté un morceau au pack, il n'apparaît pas ») : les morceaux étaient lus
+    // une seule fois à l'ouverture. Si le pack a été republié, l'atelier se recharge sur le même projet, après avoir enregistré ce qui était en
+    // cours ; jamais pendant une prise.
+    if (lastResolvedOwnerId && window.__lpPackPublishedAt) {
+      const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+      if (fresh && fresh.publishedAt && fresh.publishedAt !== window.__lpPackPublishedAt) {
+        if (window.__lpAtelierBusy && window.__lpAtelierBusy()) return; // prise en cours : on ne touche à rien, la page se rechargera au prochain passage
+        try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { return; } // l'enregistrement a échoué : on ne recharge pas, rien ne doit se perdre
+        location.reload();
+      }
+    }
   } catch (err) {
     console.error('LayerPitch — atelier vidéo, mise à jour des packs :', err);
   } finally {
@@ -135,6 +146,7 @@ async function init() {
     if (!owner) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     lastResolvedOwnerId = owner.owner_id;
     const data = await window.LayerPitchSiteData.loadSiteDataFromPostgres(owner.owner_id);
+    window.__lpPackPublishedAt = data.publishedAt || null;
     const pack = (data.packs || []).find(p => p.id === packId);
     if (!pack) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     // Référence pour la capture (trackId/sfxId -> fichier réel, voir exportCaptureVideo) ; composerName : crédit compositeur de l'export.
