@@ -181,8 +181,6 @@ function openCapturePanel(file, opts) {
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
-      <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <label class="video-capture-export-opt" id="videoAltPropagateLabel" hidden title="${tr('altPropagateHelp')}"><input type="checkbox" id="videoAltPropagate"> ${tr('altPropagateLabel')}</label>
       <div class="video-test-panel-actions">
         <span class="atelier-zones">
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
@@ -200,6 +198,8 @@ function openCapturePanel(file, opts) {
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
+      <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}">&#8644; ${tr('altPropagateShort')}</button>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -333,10 +333,11 @@ function openCapturePanel(file, opts) {
   const memoMarkers = () => { markerMemo = new Map(timelineMarkers.map(m => [m.id, m.t])); };
   function markersMoved() {
     const box = document.getElementById('videoAltPropagate');
+    const linked = !!box && box.getAttribute('aria-pressed') === 'true';
     const deltas = new Map();
     timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
     memoMarkers();
-    if (!deltas.size || !box || !box.checked || !versioning || !versioning.alternatives || historyRestoring) return;
+    if (!deltas.size || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
     const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
     const alts = versioning.alternatives;
     alts.list().forEach(v => {
@@ -994,7 +995,7 @@ function openCapturePanel(file, opts) {
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
       + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__markers">${esc(tr('altTakeMarkers'))}</option><option value="__delete">${esc(tr('altDelete'))}</option>` : '');
-    const pl = document.getElementById('videoAltPropagateLabel'); if (pl) pl.hidden = altList().length === 0;
+    const pl = document.getElementById('videoAltPropagate'); if (pl) pl.hidden = altList().length === 0;
     altSelect.value = activeAltId || '';
     altSelect.disabled = !!videoCaptureState;
   }
@@ -1080,6 +1081,8 @@ function openCapturePanel(file, opts) {
     else await switchAlt(val);
     renderAltSelect();
   });
+  const propBtn = document.getElementById('videoAltPropagate');
+  propBtn.addEventListener('click', () => { const on = propBtn.getAttribute('aria-pressed') !== 'true'; propBtn.setAttribute('aria-pressed', on ? 'true' : 'false'); });
   renderAltSelect();
   // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
   // Frise prête dès l'ouverture (montage à la souris, 05/11) : les morceaux du pack et leurs couches vides, à remplir au double-clic.
