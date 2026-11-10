@@ -31,4 +31,6 @@ check('plus de « Sans titre » pour une version : « Version alternative #n »'
 const sql3 = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261110030000_video_review_send_original.sql'), 'utf8');
 check('migration 3 : fonction réservée aux connectés, mêmes barrières que les autres', /grant execute on function public\.freeze_video_review_original\(text, boolean\) to authenticated/.test(sql3) && /video_can_version\(p_studio\)/.test(sql3) && /video_owned/.test(sql3));
 check('frise : ordre fixe des morceaux et des Sfx (celui du pack), plus de pistes qui remontent', /musicTrackIds\.sort\(\(x, y\) => rank\(x\) - rank\(y\)\)/.test(frise) && /Object\.keys\(sfxGroups\)\.sort\(\(x, y\) => sfxRank\(x\) - sfxRank\(y\)\)/.test(frise));
+const atel = fs.readFileSync(path.join(__dirname, 'src/atelier/18-panneau-de-capture.js'), 'utf8');
+check('marqueurs de référence : choix de la version source, ajouter (sans doublon par identifiant) ou remplacer, annulable', /async function referenceMarkers/.test(atel) && /if \(!have\.has\(m\.id\)\) timelineMarkers\.push\(m\)/.test(atel) && /if \(mode === 'replace'\) timelineMarkers = copy/.test(atel) && !/takeOriginalMarkers/.test(atel));
 console.log(failures ? failures + ' échec(s)' : 'Tout est OK'); process.exit(failures ? 1 : 0);

@@ -200,6 +200,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
       <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}">&#8644; ${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr('altRefBtn')}</button>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -997,8 +998,9 @@ function openCapturePanel(file, opts) {
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
-      + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__markers">${esc(tr('altTakeMarkers'))}</option><option value="__delete">${esc(tr('altDelete'))}</option>` : '');
+      + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__delete">${esc(tr('altDelete'))}</option>` : '');
     const pl = document.getElementById('videoAltPropagate'); if (pl) pl.hidden = altList().length === 0;
+    const rb = document.getElementById('videoAltRefBtn'); if (rb) rb.hidden = altList().length === 0;
     altSelect.value = activeAltId || '';
     altSelect.disabled = !!videoCaptureState;
   }
@@ -1059,14 +1061,41 @@ function openCapturePanel(file, opts) {
     try { await versioning.alternatives.rename(activeAltId, name.trim()); } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); }
     renderAltSelect();
   }
-  async function takeOriginalMarkers() {
-    if (!activeAltId || !baseSnap) return;
-    if (!await window.LayerPitchNotify.confirm(tr('altTakeMarkersConfirm'), { okLabel: tr('altTakeMarkers') })) return;
-    timelineMarkers = JSON.parse(JSON.stringify(baseSnap.markers));
-    memoMarkers();
-    renderEditableTimeline();
-    refreshActionButtons(); // enregistre aussi, et entre dans l'historique (annulable)
+  // Marqueurs de référence (11/11, idée de Jules-Antoine) : on choisit la version dont on reprend les marqueurs, et si on les AJOUTE à ceux de la version
+  // affichée (ceux qu'elle n'a pas déjà, retrouvés par identifiant) ou si on les REMPLACE. Annulable (Cmd/Ctrl + Z).
+  async function referenceMarkers() {
+    if (!versioning || videoCaptureState) return;
+    const alts = altList();
+    const sources = [];
+    if (activeAltId) sources.push({ id: '', label: tr('altOriginal') });
+    alts.forEach((v, i) => { if (v.id !== activeAltId) sources.push({ id: v.id, label: altName(v, i) }); });
+    if (!sources.length) return;
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'video-test-dialog';
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('altRefTitle'))}</div>
+      <select id="altRefSource" class="video-capture-load-select">${sources.map(o => `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('')}</select>
+      <label class="atelier-export-opt"><input type="radio" name="altRefMode" value="add" checked> ${esc(tr('altRefAdd'))}</label>
+      <label class="atelier-export-opt"><input type="radio" name="altRefMode" value="replace"> ${esc(tr('altRefReplace'))}</label>
+      <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button><button type="submit" class="video-test-btn-primary" value="go">${esc(tr('altRefGo'))}</button></div></form>`;
+    panel.appendChild(dlg);
+    dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close('cancel'));
+    dlg.addEventListener('close', () => {
+      const go = dlg.returnValue === 'go', src = dlg.querySelector('#altRefSource').value, mode = dlg.querySelector('input[name="altRefMode"]:checked').value;
+      dlg.remove();
+      if (!go) return;
+      const v = src ? alts.find(x => x.id === src) : null;
+      const from = !src ? (baseSnap || workState()).markers : (v && v.events ? (v.markers || []) : (baseSnap || workState()).markers); // une version à l'ancienne a les marqueurs du montage
+      const copy = JSON.parse(JSON.stringify(from));
+      if (mode === 'replace') timelineMarkers = copy;
+      else { const have = new Set(timelineMarkers.map(m => m.id)); copy.forEach(m => { if (!have.has(m.id)) timelineMarkers.push(m); }); timelineMarkers.sort((a, b) => a.t - b.t); }
+      memoMarkers();
+      renderEditableTimeline();
+      refreshActionButtons(); // enregistre aussi, et entre dans l'historique (annulable)
+    });
+    dlg.showModal();
   }
+  document.getElementById('videoAltRefBtn').addEventListener('click', referenceMarkers);
   async function deleteAlt() {
     if (!activeAltId) return;
     const id = activeAltId, v = altList().find(x => x.id === id);
@@ -1080,7 +1109,6 @@ function openCapturePanel(file, opts) {
     if (val === '__new') await newAlt();
     else if (val === '__rename') await renameAlt();
     else if (val === '__delete') await deleteAlt();
-    else if (val === '__markers') await takeOriginalMarkers();
     else await switchAlt(val);
     renderAltSelect();
   });
