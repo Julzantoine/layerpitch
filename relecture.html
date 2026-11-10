@@ -55,9 +55,9 @@
 <body>
 <div class="page" id="page"><div class="empty">…</div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794314589881"></script>
-<script src="api/supabase-client.js?v=1794314589881"></script>
-<script src="layerpitch-video-versions.js?v=1794314589881"></script>
+<script src="layerpitch-i18n.js?v=1794314792670"></script>
+<script src="api/supabase-client.js?v=1794314792670"></script>
+<script src="layerpitch-video-versions.js?v=1794314792670"></script>
 <script>
 // relecture.html — page de relecture d'un montage vidéo pour un CLIENT, sans compte (9/11/2026, idée Pibox ; décisions de Jules-Antoine :
 // un lien par montage, tout porteur du lien peut commenter en donnant un prénom, le client peut valider ou demander des modifs).
@@ -96,11 +96,27 @@ const setName = n => { try { localStorage.setItem(NAME_KEY, n); } catch (e) { /*
 
 const root = document.getElementById('page');
 let data = null, video = null, wrap = null, mounted = null, selectedId = null, busy = false;
-const versionKey = () => (mounted && mounted.current() ? mounted.current().key : 'original');
+// Une ancienne révision (« key@rang ») s'écoute comme une version, mais remarques et décisions vont à sa version (le serveur ne connaît que celle-là).
+const baseKey = k => String(k || 'original').split('@')[0];
+const versionKey = () => baseKey(mounted && mounted.current() ? mounted.current().key : 'original');
 const versionInfo = key => (data.versions || []).find(v => v.key === key) || {};
 const statusLabel = st => tr('reviewStatus_' + st);
 
-async function load() { return rpc('get_video_review', { p_slug: SLUG, p_secret: SECRET }); }
+// Révisions (10/11) : chaque envoi au client est figé (#2.1, #2.2…). Le client voit la dernière ; les précédentes sont des entrées en plus du menu.
+function withRevisions(d) {
+  if (!d || !Array.isArray(d.versions)) return d;
+  const out = [];
+  d.versions.forEach(v => {
+    const revs = v.revisions || [];
+    const main = Object.assign({}, v);
+    if (v.key !== 'original' && v.seq) main.title = (v.title || tr('reviewAltName', { n: v.n })) + ' · #' + v.n + '.' + v.seq;
+    out.push(main);
+    revs.filter(r => r.seq !== v.seq).forEach(r => out.push({ key: v.key + '@' + r.seq, title: (v.key === 'original' ? tr('reviewAltName', { n: 1 }) : (v.title || tr('reviewAltName', { n: v.n }))) + ' · #' + v.n + '.' + r.seq + ' (' + tr('reviewOlderRevision') + ')',
+      url: r.url, kind: r.kind, cues: r.cues, status: null, statusBy: null, n: v.n, seq: r.seq }));
+  });
+  return Object.assign({}, d, { versions: out });
+}
+async function load() { return withRevisions(await rpc('get_video_review', { p_slug: SLUG, p_secret: SECRET })); }
 
 // Lien protégé par mot de passe : un petit formulaire, le mot de passe n'est gardé qu'en mémoire (jamais dans l'adresse).
 function askPassword(msg) {
