@@ -597,7 +597,7 @@ function openCapturePanel(file, opts) {
   // Tête de lecture en continu pendant que la vidéo avance -- repositionne juste la ligne (pas de
   // ré-affichage complet de la frise, trop coûteux à chaque frame).
   videoEl.addEventListener('timeupdate', () => positionCapturePlayhead(timelineEl, videoEl));
-  async function runExport(mode) {
+  async function runExport(mode, keys) {
     if (mode === 'video' && fullExportLocked) return; // garde-fou : même si le bouton était réactivé à la main
     // Nom du fichier (09/11, demande de Jules-Antoine : « export-nombre » à chaque fois) : demandé AVANT l'export (il peut durer longtemps),
     // proposé d'après le nom du montage. Annuler = pas d'export. Le même nom sert de proposition si on ajoute ensuite l'export à la bibliothèque.
@@ -613,15 +613,24 @@ function openCapturePanel(file, opts) {
       // dans exportCaptureVideo reste intacte, juste plus exposée en UI : figé sur 'boss' (aucun
       // filigrane) en attendant un vrai palier compositeur à brancher ici, invisible pour l'instant.
       const exportOptions = { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode };
-      const blob = await exportCaptureVideo(lastEvents, file, (msg) => { exportStatus.textContent = msg; }, laneOverrides, exportOptions);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileBase}.${mode === 'audio' ? 'wav' : 'mp4'}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      // Versions alternatives (10/11) : on peut cocher plusieurs versions ; chacune donne son fichier (nom + « - nom de la version » si plusieurs).
+      const targets = (keys && keys.length) ? keys : [activeAltId || ''];
+      let blob = null;
+      for (let ti = 0; ti < targets.length; ti++) {
+        const st = await altExportState(targets[ti]);
+        if (!st) continue;
+        const prefix = targets.length > 1 ? (ti + 1) + '/' + targets.length + ' — ' : '';
+        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, exportOptions);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileBase}${targets.length > 1 ? ' - ' + st.name.replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-') : ''}.${mode === 'audio' ? 'wav' : 'mp4'}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+      if (!blob) return;
       exportStatus.textContent = tr(mode === 'audio' ? 'captureAudioDone' : 'captureExportDone');
       // Garde le Blob pour un envoi optionnel vers la bibliothèque vidéo (voir addToLibraryBtn ci-dessous) -- distinct du téléchargement
       // local ci-dessus, jamais automatique (2026-09-16). Un export audio seul n'est pas une vidéo : rien à envoyer à la bibliothèque.
@@ -652,17 +661,38 @@ function openCapturePanel(file, opts) {
       </div>
     </form>`;
   panel.appendChild(exportDialog);
+  // Quelles versions alternatives exporter (10/11) : rempli à l'ouverture du dialogue, masqué s'il n'y a qu'une version.
+  const exportAltBox = document.createElement('div');
+  exportAltBox.className = 'atelier-export-alts'; exportAltBox.hidden = true;
+  exportDialog.querySelector('.video-test-dialog-actions').before(exportAltBox);
+  async function altExportState(key) {
+    if (!key || key === '') {
+      const b = baseState();
+      return { events: b.events, laneOverrides: b.laneOverrides, name: tr('altOriginal') };
+    }
+    if (key === activeAltId) return { events: lastEvents, laneOverrides, name: (altList().find(v => v.id === key) || {}).title || key };
+    const v = altList().find(x => x.id === key);
+    if (!v) return null;
+    const mat = await versioning.alternatives.materialize(v);
+    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, name: v.title || key };
+  }
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {
     exportDialog.querySelector('#atelierExportCredit').checked = creditCheckbox.checked;
     exportDialog.querySelector('#atelierExportKeepOld').checked = keepOldCheckbox.checked;
+    const alts = altList();
+    exportAltBox.hidden = alts.length === 0;
+    exportAltBox.innerHTML = alts.length ? `<div class="video-test-dialog-title">${esc(tr('altExportWhich'))}</div>`
+      + [{ id: '', label: tr('altOriginal') }].concat(alts.map((v, i) => ({ id: v.id, label: altName(v, i) })))
+          .map(o => `<label class="atelier-export-opt"><input type="checkbox" data-alt-export="${esc(o.id)}" ${o.id === (activeAltId || '') ? 'checked' : ''}> ${esc(o.label)}</label>`).join('') : '';
     exportDialog.showModal();
   });
   exportDialog.addEventListener('close', () => {
     if (exportDialog.returnValue !== 'go') return;
     creditCheckbox.checked = exportDialog.querySelector('#atelierExportCredit').checked;
     keepOldCheckbox.checked = exportDialog.querySelector('#atelierExportKeepOld').checked;
-    runExport(exportDialog.querySelector('input[name="atelierExportMode"]:checked').value);
+    const keys = [...exportAltBox.querySelectorAll('[data-alt-export]')].filter(c => c.checked).map(c => c.dataset.altExport);
+    runExport(exportDialog.querySelector('input[name="atelierExportMode"]:checked').value, keys.length ? keys : null);
   });
   // Dépose l'export dans la bibliothèque vidéo du compositeur (2026-09-16, voir composer_videos) --
   // action séparée et volontaire, jamais automatique après un export (un compositeur peut vouloir
