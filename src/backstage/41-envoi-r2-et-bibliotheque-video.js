@@ -848,11 +848,10 @@ async function refreshVideoProjects() {
     [1, 2, 3].forEach(n => set(zoneBtns[n - 1], shown[n]()));
     set(zoneBtns[3], !atelierZones().right);
     // Le bouton des sections n'a de sens qu'avec un projet ouvert (sinon la colonne n'existe pas) ; celui du panneau de droite, que
-    // quand l'atelier est affiché (pas en Bibliothèque ni en Réglages).
+    // toujours affiché.
     const navOn = !!(document.getElementById('videoColNav') && !document.getElementById('videoColNav').hidden);
     zoneBtns[2].hidden = !navOn;
-    const atelierOn = !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') && videoView !== 'settings';
-    zoneBtns[3].hidden = !atelierOn;
+    zoneBtns[3].hidden = false; // toujours visible (11/11, retour de Jules-Antoine : « il manque la barre bleue à droite ») : le réglage est retenu même hors atelier
   };
   const applyFolds = () => {
     colsEl.classList.toggle('video-fold-list', !!foldState.list);
