@@ -14,6 +14,7 @@ const make = () => {
   const undoBtn = { disabled: true }, redoBtn = { disabled: true };
   const fn = new Function('env', 'undoBtn', 'redoBtn', `
     let lastEvents = env.lastEvents, laneOverrides = env.laneOverrides, collapsedGroups = env.collapsedGroups, timelineMarkers = env.timelineMarkers;
+    const normLayout = l => ({ hidden: (l && l.hidden) || [], extra: (l && l.extra) || [] }); let laneLayout = normLayout(null);
     const countEl = { textContent: '' }; const captureCountText = () => '';
     let videoCaptureState = null; const renderEditableTimeline = () => { env.renders++; };
     function refreshActionButtons() { historyPush(); syncHistoryButtons(); env.refreshes++; }

@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794345527512">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794345527512">
+<link rel="stylesheet" href="player.css?v=1794346340772">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794346340772">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -341,6 +341,15 @@
   .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
   /* Arrêt d'un morceau (05/11) : trait net, ou pente qui descend sur la durée du fondu */
   .vct-block.vct-stop { background: #6b7684; min-width: 6px; cursor: pointer; }
+  .vct-track-remove { margin-left: 6px; padding: 0 4px; border: 0; background: transparent; color: #777; cursor: pointer; font-size: 11px; line-height: 1; opacity: 0; }
+  .vct-lane-label:hover .vct-track-remove, .vct-track-remove:focus { opacity: 1; }
+  .vct-track-remove:hover { color: #e57373; }
+  .vct-add-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
+  .vct-add-group { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; margin: 8px 0 2px; }
+  .vct-add-item { display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 6px 8px; border: 1px solid #333; border-radius: 4px; background: #1d1d1d; color: #ddd; cursor: pointer; font: inherit; font-size: 12px; }
+  .vct-add-item:hover { border-color: #2f80c0; }
+  .vct-add-item small { color: #888; }
+  .vct-add-none { color: #888; font-size: 12px; padding: 8px 0; }
   .vct-fade-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; background: rgba(47,128,192,0.55); border-radius: 2px; }
   .vct-fade-handle:hover { background: #2f80c0; }
   .vct-block.vct-stop.vct-stop-fade { background: linear-gradient(to bottom right, #6b7684 49%, transparent 51%); }
@@ -581,16 +590,16 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794345527512"></script>
-<script src="layerpitch-notify.js?v=1794345527512"></script>
-<script src="public-page.js?v=1794345527512"></script>
-<script src="player.js?v=1794345527512"></script>
-<script src="capture-plan.js?v=1794345527512"></script>
-<script src="capture-render.js?v=1794345527512"></script>
-<script src="capture-retarget.js?v=1794345527512"></script>
-<script src="capture-versioning.js?v=1794345527512"></script>
-<script src="layerpitch-guide.js?v=1794345527512"></script>
-<script src="atelier-lecons.js?v=1794345527512"></script>
+<script src="layerpitch-i18n.js?v=1794346340772"></script>
+<script src="layerpitch-notify.js?v=1794346340772"></script>
+<script src="public-page.js?v=1794346340772"></script>
+<script src="player.js?v=1794346340772"></script>
+<script src="capture-plan.js?v=1794346340772"></script>
+<script src="capture-render.js?v=1794346340772"></script>
+<script src="capture-retarget.js?v=1794346340772"></script>
+<script src="capture-versioning.js?v=1794346340772"></script>
+<script src="layerpitch-guide.js?v=1794346340772"></script>
+<script src="atelier-lecons.js?v=1794346340772"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1105,19 +1114,24 @@ function positionCapturePlayhead(container, videoEl) {
   }
 }
 
-function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
+function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout) {
   laneOverrides = laneOverrides || {};
   markers = markers || [];
+  laneLayout = laneLayout || { hidden: [], extra: [] }; // pistes masquées / ajoutées de cette version (migration 20261110040000), modifié sur place comme `markers`
+  laneLayout.hidden = laneLayout.hidden || []; laneLayout.extra = laneLayout.extra || [];
   collapsedGroups = collapsedGroups || {};
   // Montage à la souris (05/11, demande de Jules-Antoine) : sans prise, la frise propose déjà chaque morceau en couches ou statique
   // du pack, ses couches en pistes vides : un double-clic sur une couche la fait démarrer là (jusqu'à la fin de la vidéo), on n'est plus
   // obligé de capturer d'abord. Les autres modes (séquentiel, embranchement…) passent toujours par une prise.
-  const handTrackIds = editable ? (capturePackLibrary().library || []).filter(t => t.mode === 'vertical' || t.mode === 'static').map(t => t.id) : [];
+  // Pistes proposées à la main : les morceaux du pack (sauf ceux que cette version a masqués) + ceux qu'elle a ajoutés depuis la bibliothèque.
+  const handMode = t => t && (t.mode === 'vertical' || t.mode === 'static');
+  const handTrackIds = editable ? (capturePackLibrary().library || []).filter(t => handMode(t) && laneLayout.hidden.indexOf(t.id) === -1).map(t => t.id)
+    .concat(laneLayout.extra.filter(id => handMode(findCaptureTrack(id)))) : [];
   if (!events.length && !handTrackIds.length) {
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
-  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers);
+  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
   // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
   // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
   if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
@@ -1176,11 +1190,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // que .vct-lane-label des autres pistes (96px), le bloc-résumé la même colonne que .vct-lane-track --
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
+  // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
+  const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
+    ? `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
     if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
-      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>`);
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
       return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
     }
     const collapsed = !!collapsedGroups[key];
@@ -1195,7 +1212,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
-      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
       `<div class="vct-lane-track">${blockHtml}</div></div>`;
     return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
@@ -1471,12 +1488,16 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       <button type="button" class="vct-zoom-btn" data-zoom="in" title="${tr('captureZoomIn')}" aria-label="${tr('captureZoomIn')}">+</button>
       <span class="vct-zoom-val"></span>
       <button type="button" class="vct-zoom-btn vct-zoom-fit" data-zoom="fit" title="${tr('captureZoomFit')}">${tr('captureZoomFit')}</button>
+      <button type="button" class="vct-zoom-btn vct-add-track" data-add-track title="${tr('captureTrackAddTitle')}">${tr('captureTrackAddBtn')}</button>
     </div>`;
     zoomBar = container.querySelector(':scope > .vct-zoombar');
-    zoomBar.querySelectorAll('.vct-zoom-btn').forEach(btn => btn.addEventListener('click', () => container.__vctZoomCmd && container.__vctZoomCmd(btn.dataset.zoom)));
+    zoomBar.querySelectorAll('.vct-zoom-btn[data-zoom]').forEach(btn => btn.addEventListener('click', () => container.__vctZoomCmd && container.__vctZoomCmd(btn.dataset.zoom)));
+    zoomBar.querySelector('[data-add-track]').addEventListener('click', () => container.__vctAddTrack && container.__vctAddTrack());
     zoomBar.querySelector('.vct-zoom-slider').addEventListener('input', ev => container.__vctZoomCmd && container.__vctZoomCmd('slider', Number(ev.target.value)));
   }
   zoomBar.querySelector('.vct-zoom-val').textContent = zoomLabel;
+  zoomBar.querySelector('[data-add-track]').hidden = !editable; // seulement hors prise en direct
+  container.__vctAddTrack = () => openAddTrackDialog();
   zoomBar.querySelector('.vct-zoom-slider').value = maxZoom > 1 ? Math.round(Math.log(zoom) / Math.log(maxZoom) * 200) / 2 : 0;
   [...container.children].forEach(c => { if (c !== zoomBar) c.remove(); });
   container.insertAdjacentHTML('beforeend', `
@@ -1515,6 +1536,68 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else if (k === 'slider') setZoom(Math.pow(maxZoom, v / 100));
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
+  // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
+  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', async ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    if (videoCaptureState) return;
+    const id = btn.dataset.removeTrack;
+    const mine = events.filter(e => e.detail && e.detail.trackId === id);
+    if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
+    mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
+    const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
+    if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
+    rerender();
+    onChange && onChange();
+  }));
+  // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
+  function openAddTrackDialog() {
+    if (!editable || videoCaptureState) return;
+    const L = window.__lpCaptureLibrary || {};
+    const shown = new Set(handTrackIds.concat(events.map(e => e.detail && e.detail.trackId).filter(Boolean)));
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const all = (L.library || []).filter(t => handMode(t) && !shown.has(t.id));
+    const inPack = new Set(L.packTrackIds || []);
+    const groups = [{ label: tr('captureTrackAddPack'), tracks: all.filter(t => inPack.has(t.id)) }];
+    const used = new Set(groups[0].tracks.map(t => t.id));
+    (L.otherPacks || []).forEach(pk => {
+      const ids = new Set(pk.trackIds || []);
+      const tracks = all.filter(t => ids.has(t.id) && !used.has(t.id));
+      tracks.forEach(t => used.add(t.id));
+      if (tracks.length) groups.push({ label: pk.title, tracks });
+    });
+    const rest = all.filter(t => !used.has(t.id));
+    if (rest.length) groups.push({ label: tr('captureTrackAddLibrary'), tracks: rest });
+    const dlg = document.createElement('dialog');
+    dlg.className = 'video-test-dialog';
+    const body = () => {
+      const q = (dlg.querySelector('#vctAddQuery') || { value: '' }).value.trim().toLowerCase();
+      const html = groups.map(g => {
+        const list = g.tracks.filter(t => !q || String(t.title || t.id).toLowerCase().indexOf(q) >= 0);
+        return list.length ? `<div class="vct-add-group">${esc(g.label)}</div>` + list.map(t => `<button type="button" class="vct-add-item" data-add-id="${esc(t.id)}">${esc(t.title || t.id)}<small>${esc(t.mode)}</small></button>`).join('') : '';
+      }).join('');
+      dlg.querySelector('#vctAddList').innerHTML = html || `<div class="vct-add-none">${esc(tr('captureTrackAddNone'))}</div>`;
+    };
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackAddTitle'))}</div>
+      <input type="search" id="vctAddQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
+      <div id="vctAddList" class="vct-add-list"></div>
+      <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
+    (container.closest('#videoTestPanel') || document.body).appendChild(dlg);
+    body();
+    dlg.querySelector('#vctAddQuery').addEventListener('input', body);
+    dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', ev => {
+      const it = ev.target.closest && ev.target.closest('[data-add-id]');
+      if (!it) return;
+      const id = it.dataset.addId;
+      const h = laneLayout.hidden.indexOf(id); if (h >= 0) laneLayout.hidden.splice(h, 1);
+      else if (laneLayout.extra.indexOf(id) === -1) laneLayout.extra.push(id);
+      dlg.close();
+      rerender();
+      onChange && onChange();
+    });
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
+  }
   scroller.addEventListener('wheel', ev => {
     if (!ev.ctrlKey && !ev.metaKey) return;
     ev.preventDefault();
@@ -2128,12 +2211,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
 // aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
 const videoAsStudio = () => !!window.__lpStudioBuyer;
 const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
-async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers) {
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers, laneLayout) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const { data, error } = await client.rpc('save_video_capture', withStudio({
     p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
     p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
     p_markers: markers || [], // marqueurs de la frise (05/11, migration 20261105010000)
+    p_lane_layout: laneLayout || null, // pistes masquées / ajoutées (10/11, migration 20261110040000) ; null = on garde celles de la base
   }));
   if (error) throw error;
   return data;
@@ -2826,10 +2910,13 @@ function openCapturePanel(file, opts) {
   // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
+  // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
   let activeAltId = null, baseSnap = null;
-  const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, title: titleInput.value });
+  const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, laneLayout, title: titleInput.value });
   // « Bouger aussi les marqueurs des autres versions » (10/11) : un marqueur déplacé ici est décalé du même écart dans les autres versions
   // (retrouvé par son identifiant, copié avec la frise) ; leurs retouches individuelles sont donc gardées. Seuls les déplacements se propagent.
   let markerMemo = new Map();
@@ -2846,10 +2933,10 @@ function openCapturePanel(file, opts) {
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
       const mk = JSON.parse(JSON.stringify(v.markers || []));
-      if (shift(mk)) alts.saveAlt(v.id, { events: v.events, laneOverrides: v.laneOverrides || {}, collapsedGroups: v.collapsedGroups || {}, markers: mk }).catch(e => console.error(e));
+      if (shift(mk)) alts.saveAlt(v.id, { events: v.events, laneOverrides: v.laneOverrides || {}, collapsedGroups: v.collapsedGroups || {}, markers: mk, laneLayout: v.laneLayout || null }).catch(e => console.error(e));
     });
     if (activeAltId && baseSnap && shift(baseSnap.markers)) {
-      saveVideoCapture(packId, currentCaptureId, baseSnap.title, file.name, baseSnap.events, baseSnap.laneOverrides, baseSnap.collapsedGroups, baseSnap.markers).catch(e => console.error(e));
+      saveVideoCapture(packId, currentCaptureId, baseSnap.title, file.name, baseSnap.events, baseSnap.laneOverrides, baseSnap.collapsedGroups, baseSnap.markers, baseSnap.laneLayout).catch(e => console.error(e));
     }
   }
   const baseState = () => (activeAltId && baseSnap) ? baseSnap : workState(); // ce qui est publié et versionné reste toujours le montage
@@ -2864,7 +2951,7 @@ function openCapturePanel(file, opts) {
   // Les actions qui sortent de l'atelier (export, envoi au client) ne s'annulent pas. L'historique repart de zéro à chaque chargement de montage.
   const HISTORY_MAX = 100;
   let historyStack = [], historyIdx = -1, historyRestoring = false;
-  const historySnapshot = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers });
+  const historySnapshot = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, y: laneLayout });
   const undoBtn = document.getElementById('videoCaptureUndoBtn');
   const redoBtn = document.getElementById('videoCaptureRedoBtn');
   function syncHistoryButtons() {
@@ -2889,7 +2976,7 @@ function openCapturePanel(file, opts) {
     const snap = JSON.parse(historyStack[historyIdx]);
     historyRestoring = true;
     try {
-      lastEvents = snap.e; laneOverrides = snap.l; collapsedGroups = snap.g; timelineMarkers = snap.m;
+      lastEvents = snap.e; laneOverrides = snap.l; collapsedGroups = snap.g; timelineMarkers = snap.m; laneLayout = normLayout(snap.y);
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
       renderEditableTimeline();
@@ -3044,7 +3131,7 @@ function openCapturePanel(file, opts) {
       renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
     } else {
       // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
@@ -3094,7 +3181,7 @@ function openCapturePanel(file, opts) {
         // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
         const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
         countEl.textContent = captureCountText(liveEvents);
-        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
       }, 500);
     }
   });
@@ -3255,7 +3342,7 @@ function openCapturePanel(file, opts) {
   // retouche annulée). Boss seulement (captureCanSave) : le serveur refuse l'enregistrement des autres paliers.
   // Publication : « tout enregistrer » du Backstage demande à l'atelier de terminer le montage (message finishMontage, voir
   // 20-demarrage-atelier.js) ; dans le studio (pas de bouton global), « Publier le montage » fait la même chose à la main.
-  const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
+  const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, y: laneLayout, t: titleInput.value });
   const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
   const soundKey = () => JSON.stringify({ e: baseState().events, l: baseState().laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
   const montageNeedsPublish = () => captureCanSave && !!packId && ((baseState().events.length > 0 && soundKey() !== lastPublishedKey) || !!(versioning && versioning.hasPending && versioning.hasPending()));
@@ -3277,7 +3364,7 @@ function openCapturePanel(file, opts) {
         if (activeAltId && versioning) {
           // Sur une version alternative : l'enregistrement va dans la ligne de cette version (frise complète), pas dans le montage.
           const altId = activeAltId;
-          await versioning.alternatives.saveAlt(altId, { events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers });
+          await versioning.alternatives.saveAlt(altId, { events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, laneLayout });
           if (altId === activeAltId) lastSavedKey = key;
           setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
           return;
@@ -3285,7 +3372,7 @@ function openCapturePanel(file, opts) {
         if (!currentCaptureId) {
           currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
         }
-        await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers);
+        await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers, laneLayout);
         lastSavedKey = key;
         setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
         refreshLoadOptions();
@@ -3386,6 +3473,7 @@ function openCapturePanel(file, opts) {
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
     timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
+    laneLayout = normLayout(capture.laneLayout);
     titleInput.value = capture.title || defaultMontageName;
     // Prise tout juste chargée : rien à enregistrer. Déjà publiée (elle a une image de montage) : rien à publier tant qu'on ne la retouche pas.
     lastSavedKey = captureStateKey();
@@ -3401,7 +3489,7 @@ function openCapturePanel(file, opts) {
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
-    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
     // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
     // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
     saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
@@ -3479,8 +3567,8 @@ function openCapturePanel(file, opts) {
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers);
-        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)) });
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers, laneLayout);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)), laneLayout: normLayout(laneLayout) });
         saveStatus.textContent = tr('versioningDetachedLoaded');
         refreshLoadOptions();
       },
@@ -3525,12 +3613,13 @@ function openCapturePanel(file, opts) {
       const from = baseSnap || workState();
       const own = !!v.events;
       next = { events: mat.events,
+        laneLayout: normLayout(own ? v.laneLayout : from.laneLayout),
         laneOverrides: JSON.parse(JSON.stringify(own ? (v.laneOverrides || {}) : from.laneOverrides)),
         collapsedGroups: JSON.parse(JSON.stringify(own ? (v.collapsedGroups || {}) : from.collapsedGroups)),
         markers: JSON.parse(JSON.stringify(own ? (v.markers || []) : from.markers)) };
       if (!baseSnap) baseSnap = workState();
     } else { next = baseSnap; baseSnap = null; }
-    lastEvents = next.events; laneOverrides = next.laneOverrides; collapsedGroups = next.collapsedGroups; timelineMarkers = next.markers;
+    lastEvents = next.events; laneOverrides = next.laneOverrides; collapsedGroups = next.collapsedGroups; timelineMarkers = next.markers; laneLayout = normLayout(next.laneLayout);
     if (!id && next.title != null) titleInput.value = next.title;
     activeAltId = id;
     titleInput.disabled = !!id;
@@ -3553,7 +3642,7 @@ function openCapturePanel(file, opts) {
     const copy = o => JSON.parse(JSON.stringify(o));
     const id = alts.newId();
     try {
-      await alts.createAlt(id, title, { events: copy(lastEvents), laneOverrides: copy(laneOverrides), collapsedGroups: copy(collapsedGroups), markers: copy(timelineMarkers) });
+      await alts.createAlt(id, title, { events: copy(lastEvents), laneOverrides: copy(laneOverrides), collapsedGroups: copy(collapsedGroups), markers: copy(timelineMarkers), laneLayout: copy(laneLayout) });
     } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); renderAltSelect(); return; }
     await switchAlt(id);
   }
@@ -3625,7 +3714,7 @@ function openCapturePanel(file, opts) {
   const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
   renderEditableTimeline();
   historyReset();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });

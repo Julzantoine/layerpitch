@@ -16,12 +16,13 @@
 // aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
 const videoAsStudio = () => !!window.__lpStudioBuyer;
 const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
-async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers) {
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers, laneLayout) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const { data, error } = await client.rpc('save_video_capture', withStudio({
     p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
     p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
     p_markers: markers || [], // marqueurs de la frise (05/11, migration 20261105010000)
+    p_lane_layout: laneLayout || null, // pistes masquées / ajoutées (10/11, migration 20261110040000) ; null = on garde celles de la base
   }));
   if (error) throw error;
   return data;

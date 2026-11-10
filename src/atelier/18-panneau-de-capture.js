@@ -324,10 +324,13 @@ function openCapturePanel(file, opts) {
   // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
+  // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
   let activeAltId = null, baseSnap = null;
-  const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, title: titleInput.value });
+  const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, laneLayout, title: titleInput.value });
   // « Bouger aussi les marqueurs des autres versions » (10/11) : un marqueur déplacé ici est décalé du même écart dans les autres versions
   // (retrouvé par son identifiant, copié avec la frise) ; leurs retouches individuelles sont donc gardées. Seuls les déplacements se propagent.
   let markerMemo = new Map();
@@ -344,10 +347,10 @@ function openCapturePanel(file, opts) {
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
       const mk = JSON.parse(JSON.stringify(v.markers || []));
-      if (shift(mk)) alts.saveAlt(v.id, { events: v.events, laneOverrides: v.laneOverrides || {}, collapsedGroups: v.collapsedGroups || {}, markers: mk }).catch(e => console.error(e));
+      if (shift(mk)) alts.saveAlt(v.id, { events: v.events, laneOverrides: v.laneOverrides || {}, collapsedGroups: v.collapsedGroups || {}, markers: mk, laneLayout: v.laneLayout || null }).catch(e => console.error(e));
     });
     if (activeAltId && baseSnap && shift(baseSnap.markers)) {
-      saveVideoCapture(packId, currentCaptureId, baseSnap.title, file.name, baseSnap.events, baseSnap.laneOverrides, baseSnap.collapsedGroups, baseSnap.markers).catch(e => console.error(e));
+      saveVideoCapture(packId, currentCaptureId, baseSnap.title, file.name, baseSnap.events, baseSnap.laneOverrides, baseSnap.collapsedGroups, baseSnap.markers, baseSnap.laneLayout).catch(e => console.error(e));
     }
   }
   const baseState = () => (activeAltId && baseSnap) ? baseSnap : workState(); // ce qui est publié et versionné reste toujours le montage
@@ -362,7 +365,7 @@ function openCapturePanel(file, opts) {
   // Les actions qui sortent de l'atelier (export, envoi au client) ne s'annulent pas. L'historique repart de zéro à chaque chargement de montage.
   const HISTORY_MAX = 100;
   let historyStack = [], historyIdx = -1, historyRestoring = false;
-  const historySnapshot = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers });
+  const historySnapshot = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, y: laneLayout });
   const undoBtn = document.getElementById('videoCaptureUndoBtn');
   const redoBtn = document.getElementById('videoCaptureRedoBtn');
   function syncHistoryButtons() {
@@ -387,7 +390,7 @@ function openCapturePanel(file, opts) {
     const snap = JSON.parse(historyStack[historyIdx]);
     historyRestoring = true;
     try {
-      lastEvents = snap.e; laneOverrides = snap.l; collapsedGroups = snap.g; timelineMarkers = snap.m;
+      lastEvents = snap.e; laneOverrides = snap.l; collapsedGroups = snap.g; timelineMarkers = snap.m; laneLayout = normLayout(snap.y);
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
       renderEditableTimeline();
@@ -542,7 +545,7 @@ function openCapturePanel(file, opts) {
       renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
         countEl.textContent = captureCountText(lastEvents);
         refreshActionButtons();
-      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+      }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
     } else {
       // Écraser ou passe additive : décidé ICI, au démarrage -- la case reste figée pendant tout
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
@@ -592,7 +595,7 @@ function openCapturePanel(file, opts) {
         // matérialisée à l'arrêt (le résultat final, lui, est toujours correct).
         const liveEvents = pendingBaseEvents.concat(videoCaptureState.events);
         countEl.textContent = captureCountText(liveEvents);
-        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+        renderCaptureTimeline(timelineEl, liveEvents, false, null, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
       }, 500);
     }
   });
@@ -753,7 +756,7 @@ function openCapturePanel(file, opts) {
   // retouche annulée). Boss seulement (captureCanSave) : le serveur refuse l'enregistrement des autres paliers.
   // Publication : « tout enregistrer » du Backstage demande à l'atelier de terminer le montage (message finishMontage, voir
   // 20-demarrage-atelier.js) ; dans le studio (pas de bouton global), « Publier le montage » fait la même chose à la main.
-  const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
+  const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, y: laneLayout, t: titleInput.value });
   const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
   const soundKey = () => JSON.stringify({ e: baseState().events, l: baseState().laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
   const montageNeedsPublish = () => captureCanSave && !!packId && ((baseState().events.length > 0 && soundKey() !== lastPublishedKey) || !!(versioning && versioning.hasPending && versioning.hasPending()));
@@ -775,7 +778,7 @@ function openCapturePanel(file, opts) {
         if (activeAltId && versioning) {
           // Sur une version alternative : l'enregistrement va dans la ligne de cette version (frise complète), pas dans le montage.
           const altId = activeAltId;
-          await versioning.alternatives.saveAlt(altId, { events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers });
+          await versioning.alternatives.saveAlt(altId, { events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, laneLayout });
           if (altId === activeAltId) lastSavedKey = key;
           setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
           return;
@@ -783,7 +786,7 @@ function openCapturePanel(file, opts) {
         if (!currentCaptureId) {
           currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
         }
-        await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers);
+        await saveVideoCapture(packId, currentCaptureId, titleInput.value, file.name, lastEvents, laneOverrides, collapsedGroups, timelineMarkers, laneLayout);
         lastSavedKey = key;
         setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
         refreshLoadOptions();
@@ -884,6 +887,7 @@ function openCapturePanel(file, opts) {
     laneOverrides = capture.laneOverrides || {};
     collapsedGroups = capture.collapsedGroups || {};
     timelineMarkers = Array.isArray(capture.markers) ? capture.markers.map(m => Object.assign({}, m)) : []; // copie : la frise les modifie sur place
+    laneLayout = normLayout(capture.laneLayout);
     titleInput.value = capture.title || defaultMontageName;
     // Prise tout juste chargée : rien à enregistrer. Déjà publiée (elle a une image de montage) : rien à publier tant qu'on ne la retouche pas.
     lastSavedKey = captureStateKey();
@@ -899,7 +903,7 @@ function openCapturePanel(file, opts) {
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
-    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+    }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
     // La vidéo elle-même n'est jamais sauvegardée (voir la migration) -- seul son nom d'origine permet
     // de vérifier qu'on a bien réimporté le bon fichier avant de faire confiance aux horaires chargés.
     saveStatus.textContent = capture.videoFilename && capture.videoFilename !== file.name
@@ -977,8 +981,8 @@ function openCapturePanel(file, opts) {
       // « Détacher » : la version devient un montage indépendant (sauvegardé tout de suite), ouvert à la place de celui-ci.
       detach: async (events, title) => {
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers);
-        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)) });
+        await saveVideoCapture(packId, id, title, file.name, events, {}, collapsedGroups, timelineMarkers, laneLayout);
+        applyLoadedCapture({ id, title, videoFilename: file.name, events, laneOverrides: {}, collapsedGroups, markers: timelineMarkers.map(m => Object.assign({}, m)), laneLayout: normLayout(laneLayout) });
         saveStatus.textContent = tr('versioningDetachedLoaded');
         refreshLoadOptions();
       },
@@ -1023,12 +1027,13 @@ function openCapturePanel(file, opts) {
       const from = baseSnap || workState();
       const own = !!v.events;
       next = { events: mat.events,
+        laneLayout: normLayout(own ? v.laneLayout : from.laneLayout),
         laneOverrides: JSON.parse(JSON.stringify(own ? (v.laneOverrides || {}) : from.laneOverrides)),
         collapsedGroups: JSON.parse(JSON.stringify(own ? (v.collapsedGroups || {}) : from.collapsedGroups)),
         markers: JSON.parse(JSON.stringify(own ? (v.markers || []) : from.markers)) };
       if (!baseSnap) baseSnap = workState();
     } else { next = baseSnap; baseSnap = null; }
-    lastEvents = next.events; laneOverrides = next.laneOverrides; collapsedGroups = next.collapsedGroups; timelineMarkers = next.markers;
+    lastEvents = next.events; laneOverrides = next.laneOverrides; collapsedGroups = next.collapsedGroups; timelineMarkers = next.markers; laneLayout = normLayout(next.laneLayout);
     if (!id && next.title != null) titleInput.value = next.title;
     activeAltId = id;
     titleInput.disabled = !!id;
@@ -1051,7 +1056,7 @@ function openCapturePanel(file, opts) {
     const copy = o => JSON.parse(JSON.stringify(o));
     const id = alts.newId();
     try {
-      await alts.createAlt(id, title, { events: copy(lastEvents), laneOverrides: copy(laneOverrides), collapsedGroups: copy(collapsedGroups), markers: copy(timelineMarkers) });
+      await alts.createAlt(id, title, { events: copy(lastEvents), laneOverrides: copy(laneOverrides), collapsedGroups: copy(collapsedGroups), markers: copy(timelineMarkers), laneLayout: copy(laneLayout) });
     } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); renderAltSelect(); return; }
     await switchAlt(id);
   }
@@ -1123,7 +1128,7 @@ function openCapturePanel(file, opts) {
   const renderEditableTimeline = () => renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
-  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
+  }, laneOverrides, collapsedGroups, videoEl, timelineMarkers, laneLayout);
   renderEditableTimeline();
   historyReset();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });

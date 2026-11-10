@@ -35,19 +35,24 @@ function positionCapturePlayhead(container, videoEl) {
   }
 }
 
-function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers) {
+function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout) {
   laneOverrides = laneOverrides || {};
   markers = markers || [];
+  laneLayout = laneLayout || { hidden: [], extra: [] }; // pistes masquées / ajoutées de cette version (migration 20261110040000), modifié sur place comme `markers`
+  laneLayout.hidden = laneLayout.hidden || []; laneLayout.extra = laneLayout.extra || [];
   collapsedGroups = collapsedGroups || {};
   // Montage à la souris (05/11, demande de Jules-Antoine) : sans prise, la frise propose déjà chaque morceau en couches ou statique
   // du pack, ses couches en pistes vides : un double-clic sur une couche la fait démarrer là (jusqu'à la fin de la vidéo), on n'est plus
   // obligé de capturer d'abord. Les autres modes (séquentiel, embranchement…) passent toujours par une prise.
-  const handTrackIds = editable ? (capturePackLibrary().library || []).filter(t => t.mode === 'vertical' || t.mode === 'static').map(t => t.id) : [];
+  // Pistes proposées à la main : les morceaux du pack (sauf ceux que cette version a masqués) + ceux qu'elle a ajoutés depuis la bibliothèque.
+  const handMode = t => t && (t.mode === 'vertical' || t.mode === 'static');
+  const handTrackIds = editable ? (capturePackLibrary().library || []).filter(t => handMode(t) && laneLayout.hidden.indexOf(t.id) === -1).map(t => t.id)
+    .concat(laneLayout.extra.filter(id => handMode(findCaptureTrack(id)))) : [];
   if (!events.length && !handTrackIds.length) {
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
-  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers);
+  const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
   // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
   // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
   if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
@@ -106,11 +111,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // que .vct-lane-label des autres pistes (96px), le bloc-résumé la même colonne que .vct-lane-track --
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
+  // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
+  const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
+    ? `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
     if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
-      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>`);
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
       return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
     }
     const collapsed = !!collapsedGroups[key];
@@ -125,7 +133,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
-      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}</div>` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
       `<div class="vct-lane-track">${blockHtml}</div></div>`;
     return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
@@ -401,12 +409,16 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       <button type="button" class="vct-zoom-btn" data-zoom="in" title="${tr('captureZoomIn')}" aria-label="${tr('captureZoomIn')}">+</button>
       <span class="vct-zoom-val"></span>
       <button type="button" class="vct-zoom-btn vct-zoom-fit" data-zoom="fit" title="${tr('captureZoomFit')}">${tr('captureZoomFit')}</button>
+      <button type="button" class="vct-zoom-btn vct-add-track" data-add-track title="${tr('captureTrackAddTitle')}">${tr('captureTrackAddBtn')}</button>
     </div>`;
     zoomBar = container.querySelector(':scope > .vct-zoombar');
-    zoomBar.querySelectorAll('.vct-zoom-btn').forEach(btn => btn.addEventListener('click', () => container.__vctZoomCmd && container.__vctZoomCmd(btn.dataset.zoom)));
+    zoomBar.querySelectorAll('.vct-zoom-btn[data-zoom]').forEach(btn => btn.addEventListener('click', () => container.__vctZoomCmd && container.__vctZoomCmd(btn.dataset.zoom)));
+    zoomBar.querySelector('[data-add-track]').addEventListener('click', () => container.__vctAddTrack && container.__vctAddTrack());
     zoomBar.querySelector('.vct-zoom-slider').addEventListener('input', ev => container.__vctZoomCmd && container.__vctZoomCmd('slider', Number(ev.target.value)));
   }
   zoomBar.querySelector('.vct-zoom-val').textContent = zoomLabel;
+  zoomBar.querySelector('[data-add-track]').hidden = !editable; // seulement hors prise en direct
+  container.__vctAddTrack = () => openAddTrackDialog();
   zoomBar.querySelector('.vct-zoom-slider').value = maxZoom > 1 ? Math.round(Math.log(zoom) / Math.log(maxZoom) * 200) / 2 : 0;
   [...container.children].forEach(c => { if (c !== zoomBar) c.remove(); });
   container.insertAdjacentHTML('beforeend', `
@@ -445,6 +457,68 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else if (k === 'slider') setZoom(Math.pow(maxZoom, v / 100));
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
+  // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
+  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', async ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    if (videoCaptureState) return;
+    const id = btn.dataset.removeTrack;
+    const mine = events.filter(e => e.detail && e.detail.trackId === id);
+    if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
+    mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
+    const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
+    if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
+    rerender();
+    onChange && onChange();
+  }));
+  // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
+  function openAddTrackDialog() {
+    if (!editable || videoCaptureState) return;
+    const L = window.__lpCaptureLibrary || {};
+    const shown = new Set(handTrackIds.concat(events.map(e => e.detail && e.detail.trackId).filter(Boolean)));
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const all = (L.library || []).filter(t => handMode(t) && !shown.has(t.id));
+    const inPack = new Set(L.packTrackIds || []);
+    const groups = [{ label: tr('captureTrackAddPack'), tracks: all.filter(t => inPack.has(t.id)) }];
+    const used = new Set(groups[0].tracks.map(t => t.id));
+    (L.otherPacks || []).forEach(pk => {
+      const ids = new Set(pk.trackIds || []);
+      const tracks = all.filter(t => ids.has(t.id) && !used.has(t.id));
+      tracks.forEach(t => used.add(t.id));
+      if (tracks.length) groups.push({ label: pk.title, tracks });
+    });
+    const rest = all.filter(t => !used.has(t.id));
+    if (rest.length) groups.push({ label: tr('captureTrackAddLibrary'), tracks: rest });
+    const dlg = document.createElement('dialog');
+    dlg.className = 'video-test-dialog';
+    const body = () => {
+      const q = (dlg.querySelector('#vctAddQuery') || { value: '' }).value.trim().toLowerCase();
+      const html = groups.map(g => {
+        const list = g.tracks.filter(t => !q || String(t.title || t.id).toLowerCase().indexOf(q) >= 0);
+        return list.length ? `<div class="vct-add-group">${esc(g.label)}</div>` + list.map(t => `<button type="button" class="vct-add-item" data-add-id="${esc(t.id)}">${esc(t.title || t.id)}<small>${esc(t.mode)}</small></button>`).join('') : '';
+      }).join('');
+      dlg.querySelector('#vctAddList').innerHTML = html || `<div class="vct-add-none">${esc(tr('captureTrackAddNone'))}</div>`;
+    };
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackAddTitle'))}</div>
+      <input type="search" id="vctAddQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
+      <div id="vctAddList" class="vct-add-list"></div>
+      <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
+    (container.closest('#videoTestPanel') || document.body).appendChild(dlg);
+    body();
+    dlg.querySelector('#vctAddQuery').addEventListener('input', body);
+    dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', ev => {
+      const it = ev.target.closest && ev.target.closest('[data-add-id]');
+      if (!it) return;
+      const id = it.dataset.addId;
+      const h = laneLayout.hidden.indexOf(id); if (h >= 0) laneLayout.hidden.splice(h, 1);
+      else if (laneLayout.extra.indexOf(id) === -1) laneLayout.extra.push(id);
+      dlg.close();
+      rerender();
+      onChange && onChange();
+    });
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
+  }
   scroller.addEventListener('wheel', ev => {
     if (!ev.ctrlKey && !ev.metaKey) return;
     ev.preventDefault();

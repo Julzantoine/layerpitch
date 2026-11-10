@@ -43,7 +43,7 @@ const fs = require('fs');
   check('frise : double-clic (hors pistes à blocs) et clic droit posent un marqueur', /addEventListener\('dblclick'[\s\S]{0,300}addMarker\(/.test(frise) && /addEventListener\('contextmenu'[\s\S]{0,600}addMarker\(/.test(frise));
   check('frise : double-clic, clic droit ou Suppr sur un marqueur l\'efface', /flagEl\.addEventListener\('dblclick'[^\n]*removeMarker\(m\)/.test(frise) && /if \(flag\)[^\n]*removeMarker\(m\)/.test(frise) && /ev\.key !== 'Delete' && ev\.key !== 'Backspace'/.test(frise));
   check('frise : marqueurs à part des événements (pas de push dans events)', !/events\.push\(\{[^}]*marker/i.test(frise));
-  check('panneau : marqueurs envoyés à la sauvegarde et repris au chargement', /saveVideoCapture\([^)]*timelineMarkers\)/.test(panneau) && /timelineMarkers = Array\.isArray\(capture\.markers\)/.test(panneau) && /p_markers: markers/.test(envois));
+  check('panneau : marqueurs envoyés à la sauvegarde et repris au chargement', /saveVideoCapture\([^)]*timelineMarkers[^)]*\)/.test(panneau) && /timelineMarkers = Array\.isArray\(capture\.markers\)/.test(panneau) && /p_markers: markers/.test(envois));
   check('textes des marqueurs en FR et EN', ['captureMarkerDefault', 'captureMarkerLabel', 'captureMarkerNameTitle', 'captureMarkerDelete', 'captureMarkerFlagHint'].every(k => (i18n.match(new RegExp('\\b' + k + ':', 'g')) || []).length === 2));
 
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');

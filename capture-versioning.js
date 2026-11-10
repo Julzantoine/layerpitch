@@ -37,7 +37,7 @@
     list: captureId => rpc('list_video_capture_versions', { p_capture_id: captureId }),
     // alt (10/11, migration 20261110010000) : frise propre à la version { events, laneOverrides, collapsedGroups, markers } ; absent = on garde ce qui est en base.
     save: (id, captureId, title, subs, alt) => rpc('save_video_capture_version', Object.assign({ p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs },
-      alt ? { p_events: alt.events || null, p_lane_overrides: alt.laneOverrides || null, p_collapsed_groups: alt.collapsedGroups || null, p_markers: alt.markers || null } : {})),
+      alt ? { p_events: alt.events || null, p_lane_overrides: alt.laneOverrides || null, p_collapsed_groups: alt.collapsedGroups || null, p_markers: alt.markers || null, p_lane_layout: alt.laneLayout || null } : {})),
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
     setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
@@ -64,8 +64,8 @@
       list: async () => [...rows.values()].sort((a, b) => a.createdAt - b.createdAt).map(clone),
       save: async (id, captureId, title, subs, alt) => {
         const prev = rows.get(id);
-        const a = alt ? { events: alt.events || null, laneOverrides: alt.laneOverrides || null, collapsedGroups: alt.collapsedGroups || null, markers: alt.markers || null } : { events: prev ? prev.events : null, laneOverrides: prev ? prev.laneOverrides : null, collapsedGroups: prev ? prev.collapsedGroups : null, markers: prev ? prev.markers : null };
-        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), events: clone2(a.events), laneOverrides: clone2(a.laneOverrides), collapsedGroups: clone2(a.collapsedGroups), markers: clone2(a.markers), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now(), status: prev ? prev.status : 'draft', statusAt: prev ? prev.statusAt : null });
+        const a = alt ? { events: alt.events || null, laneOverrides: alt.laneOverrides || null, collapsedGroups: alt.collapsedGroups || null, markers: alt.markers || null, laneLayout: alt.laneLayout || null } : { events: prev ? prev.events : null, laneOverrides: prev ? prev.laneOverrides : null, collapsedGroups: prev ? prev.collapsedGroups : null, markers: prev ? prev.markers : null, laneLayout: prev ? prev.laneLayout : null };
+        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), events: clone2(a.events), laneOverrides: clone2(a.laneOverrides), collapsedGroups: clone2(a.collapsedGroups), markers: clone2(a.markers), laneLayout: clone2(a.laneLayout), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now(), status: prev ? prev.status : 'draft', statusAt: prev ? prev.statusAt : null });
       },
       setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; }, // (session : pas d'étiquettes rangées)
       remove: async id => { rows.delete(id); },
@@ -899,7 +899,7 @@
           listenAB(list, status, 1 + versions.indexOf(v));
         });
         row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), own: v.events || null, isNew: false, titleTouched: true }; render(); });
-        row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), own: v.events || null, alt: v.events ? { events: clone2(v.events), laneOverrides: clone2(v.laneOverrides), collapsedGroups: clone2(v.collapsedGroups), markers: clone2(v.markers) } : null, isNew: true, titleTouched: true }; render(); });
+        row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), own: v.events || null, alt: v.events ? { events: clone2(v.events), laneOverrides: clone2(v.laneOverrides), collapsedGroups: clone2(v.collapsedGroups), markers: clone2(v.markers), laneLayout: clone2(v.laneLayout) } : null, isNew: true, titleTouched: true }; render(); });
         row.querySelector('[data-role="pick"]').addEventListener('change', e => {
           if (e.target.checked) pickedIds.add(v.id); else pickedIds.delete(v.id);
           const bar = host.querySelector('[data-role="pickedBar"]');
@@ -965,7 +965,7 @@
       createAlt: async (id, title, alt) => {
         const subs = { tracks: {}, sfx: {} };
         await store.save(id, ctx.getCaptureId(), title, subs, alt);
-        versions.push({ id, captureId: ctx.getCaptureId(), title, substitutions: subs, events: alt.events, laneOverrides: alt.laneOverrides, collapsedGroups: alt.collapsedGroups, markers: alt.markers, lastExportVideoId: null, status: 'draft', statusAt: null });
+        versions.push({ id, captureId: ctx.getCaptureId(), title, substitutions: subs, events: alt.events, laneOverrides: alt.laneOverrides, collapsedGroups: alt.collapsedGroups, markers: alt.markers, laneLayout: alt.laneLayout, lastExportVideoId: null, status: 'draft', statusAt: null });
         render(); if (ctx.onVersionsChanged) ctx.onVersionsChanged();
       },
       // Retouche de la frise d'une alternative : les remplacements de morceaux sont déjà intégrés à sa frise (vidés), le nom ne change pas.
@@ -973,7 +973,7 @@
         const v = versions.find(x => x.id === id); if (!v) return;
         const subs = { tracks: {}, sfx: {} };
         await store.save(id, ctx.getCaptureId(), v.title, subs, alt);
-        Object.assign(v, { substitutions: subs, events: clone2(alt.events), laneOverrides: clone2(alt.laneOverrides), collapsedGroups: clone2(alt.collapsedGroups), markers: clone2(alt.markers) });
+        Object.assign(v, { substitutions: subs, events: clone2(alt.events), laneOverrides: clone2(alt.laneOverrides), collapsedGroups: clone2(alt.collapsedGroups), markers: clone2(alt.markers), laneLayout: clone2(alt.laneLayout) });
       },
       rename: async (id, title) => {
         const v = versions.find(x => x.id === id); if (!v) return;
