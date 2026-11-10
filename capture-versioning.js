@@ -25,6 +25,7 @@
   const esc = s => C().escapeHtml(String(s == null ? '' : s));
   const newId = () => ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
   const clone = o => JSON.parse(JSON.stringify(o || {}));
+  const clone2 = o => (o == null ? null : JSON.parse(JSON.stringify(o))); // comme clone, mais garde « absent » (null)
 
   // Compte studio (21/10) : versions enregistrées au nom du studio (p_studio), comme ses montages.
   const rpc = async (name, args) => {
@@ -34,7 +35,9 @@
   };
   const api = {
     list: captureId => rpc('list_video_capture_versions', { p_capture_id: captureId }),
-    save: (id, captureId, title, subs) => rpc('save_video_capture_version', { p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs }),
+    // alt (10/11, migration 20261110010000) : frise propre à la version { events, laneOverrides, collapsedGroups, markers } ; absent = on garde ce qui est en base.
+    save: (id, captureId, title, subs, alt) => rpc('save_video_capture_version', Object.assign({ p_id: id, p_capture_id: captureId, p_title: title || '', p_substitutions: subs },
+      alt ? { p_events: alt.events || null, p_lane_overrides: alt.laneOverrides || null, p_collapsed_groups: alt.collapsedGroups || null, p_markers: alt.markers || null } : {})),
     setExport: (id, videoId, cues, keepOld) => rpc('set_video_capture_version_export', { p_id: id, p_video_id: videoId, p_cues: cues || null, p_keep_old: keepOld !== false }),
     remove: id => rpc('delete_video_capture_version', { p_id: id }),
     setStatus: (id, status) => rpc('set_video_capture_version_status', { p_id: id, p_status: status }),
@@ -58,9 +61,10 @@
     const rows = new Map(); // id -> version
     return {
       list: async () => [...rows.values()].sort((a, b) => a.createdAt - b.createdAt).map(clone),
-      save: async (id, captureId, title, subs) => {
+      save: async (id, captureId, title, subs, alt) => {
         const prev = rows.get(id);
-        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now(), status: prev ? prev.status : 'draft', statusAt: prev ? prev.statusAt : null });
+        const a = alt ? { events: alt.events || null, laneOverrides: alt.laneOverrides || null, collapsedGroups: alt.collapsedGroups || null, markers: alt.markers || null } : { events: prev ? prev.events : null, laneOverrides: prev ? prev.laneOverrides : null, collapsedGroups: prev ? prev.collapsedGroups : null, markers: prev ? prev.markers : null };
+        rows.set(id, { id, captureId, title: title || '', substitutions: clone(subs), events: clone2(a.events), laneOverrides: clone2(a.laneOverrides), collapsedGroups: clone2(a.collapsedGroups), markers: clone2(a.markers), lastExportVideoId: prev ? prev.lastExportVideoId : null, createdAt: prev ? prev.createdAt : Date.now(), status: prev ? prev.status : 'draft', statusAt: prev ? prev.statusAt : null });
       },
       setExport: async (id, videoId) => { const v = rows.get(id); if (v) v.lastExportVideoId = videoId; }, // (session : pas d'étiquettes rangées)
       remove: async id => { rows.delete(id); },
@@ -88,7 +92,8 @@
     // (la retouche du montage change toutes ses versions, Q5) ; published = clé au moment où la version a été publiée ou vue pour la première fois.
     const published = new Map();
     const baseKey = () => (ctx.getSoundKey ? ctx.getSoundKey() : '');
-    const keyOf = v => JSON.stringify({ s: v.substitutions, b: baseKey() });
+    const keyOf = v => JSON.stringify({ s: v.substitutions, b: baseKey(), o: v.events ? [v.events, v.laneOverrides] : null }); // frise propre (alternative) : elle seule compte, le montage n'y change rien
+    // Version avec sa propre frise (alternative retouchée) : elle ne dépend plus du montage.
     const needsPublish = v => !v.lastExportVideoId || (published.has(v.id) && published.get(v.id) !== keyOf(v));
     const canPublish = () => !ctx.sessionOnly && !!ctx.publishVersion && ctx.getCaptureId() && ctx.getCaptureId() !== 'session';
 
@@ -137,9 +142,9 @@
         } catch (e) { durationCache.set(key, null); }
       }));
     }
-    async function versionResult(subs) {
+    async function versionResult(subs, own) {
       await ensureDurations(subs);
-      return RT().retarget(ctx.getEvents() || [], subs || {}, {
+      return RT().retarget(own || ctx.getEvents() || [], subs || {}, {
         findTrack: ctx.findTrack, findSfx: ctx.findSfx,
         fileDuration: (owner, file) => { const v = durationCache.get(owner.id + '|' + file); return v == null ? null : v; },
       });
@@ -234,12 +239,12 @@
       try { l.stop(); } catch (e) {}
       render();
     }
-    async function listen(key, subs, statusEl) {
+    async function listen(key, subs, statusEl, own) {
       if (listening && listening.key === key) { stopListening(); return; }
       stopListening();
       statusEl.textContent = tr('versioningPreparingListen');
       try {
-        const { events } = await versionResult(subs);
+        const { events } = await versionResult(subs, own);
         const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
         const buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (i, n) => { statusEl.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
         await C().resumeAudio();
@@ -279,7 +284,7 @@
       let stopped = false;
       try {
         const renderOne = async (i, progress) => {
-          const { events } = await versionResult(list[i].subs);
+          const { events } = await versionResult(list[i].subs, list[i].own);
           const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
           return window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => progress(list[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot)) });
         };
@@ -386,8 +391,8 @@
       try {
         for (const v of list) {
           const label = (m) => setBatchStatus('« ' + (v.title || tr('captureUntitled')) + ' » (' + (done + 1) + '/' + list.length + ') — ' + m);
-          const { events } = await versionResult(v.substitutions);
-          const blob = await ctx.exportEvents(events, mode, label);
+          const { events } = await versionResult(v.substitutions, v.events);
+          const blob = await ctx.exportEvents(events, mode, label, v.laneOverrides);
           const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
           const a = document.createElement('a');
           const url = URL.createObjectURL(blob);
@@ -399,7 +404,7 @@
             // Pages LayerPitch : la version publiée n'est qu'un son, joué sur la vidéo muette du montage (21/10) ; sans cette fonction (ancien
             // appelant), la vidéo complète comme avant.
             const videoId = ctx.publishVersion && ctx.getCaptureId() !== 'session' ? await ctx.publishVersion(events, title) : await ctx.saveToLibrary(blob, title);
-            const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
+            const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events, v.laneOverrides) : null, ctx.keepOld ? ctx.keepOld() : true); // vidéo + étiquettes : tous les endroits qui montrent ce montage suivent
             if (ctx.afterExport) ctx.afterExport(res && res.data); // historique (3 derniers) et fichiers à effacer
             v.lastExportVideoId = videoId; published.set(v.id, keyOf(v));
           }
@@ -427,6 +432,7 @@
       }
       await refreshReview();
       render();
+      if (ctx.onVersionsChanged) ctx.onVersionsChanged();
     }
     // Lien et remarques : lus avec les versions ; la migration absente masque simplement ce panneau.
     async function refreshReview() {
@@ -595,10 +601,10 @@
         for (const v of todo) {
           if (ctx.onProgress) ctx.onProgress(tr('versioningPublishing').replace('{name}', v.title || tr('captureUntitled')).replace('{i}', n + 1).replace('{n}', todo.length));
           const key = keyOf(v);
-          const { events } = await versionResult(v.substitutions);
+          const { events } = await versionResult(v.substitutions, v.events);
           const title = (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || '');
           const videoId = await ctx.publishVersion(events, title); // un son sur la vidéo muette du montage
-          const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events) : null, ctx.keepOld ? ctx.keepOld() : true);
+          const res = await store.setExport(v.id, videoId, ctx.cuesOf ? ctx.cuesOf(events, v.laneOverrides) : null, ctx.keepOld ? ctx.keepOld() : true);
           if (ctx.afterExport) ctx.afterExport(res && res.data);
           v.lastExportVideoId = videoId; published.set(v.id, key); n++;
         }
@@ -755,7 +761,7 @@
       if (!el || !editing) return;
       const seq = ++notesSeq;
       try {
-        const { notes } = await versionResult(editing.subs);
+        const { notes } = await versionResult(editing.subs, editing.own);
         if (seq !== notesSeq) return;
         el.innerHTML = notes.length
           ? notes.map(n => `<div class="vcv-note vcv-note-${esc(n.severity)}">${esc(noteText(n))}</div>`).join('')
@@ -815,14 +821,14 @@
         folderSel.value = '';
         changed();
       });
-      q('[data-act="listenDraft"]').addEventListener('click', () => listen('draft', editing.subs, q('[data-role="draftStatus"]')));
+      q('[data-act="listenDraft"]').addEventListener('click', () => listen('draft', editing.subs, q('[data-role="draftStatus"]'), editing.own));
       q('[data-act="cancelDraft"]').addEventListener('click', () => { stopListening(); editing = null; render(); });
       q('[data-act="saveDraft"]').addEventListener('click', async () => {
         const status = q('[data-role="draftStatus"]');
         status.textContent = tr('captureSaving');
         try {
           const title = (editing.title || '').trim() || autoTitle(editing.subs);
-          await store.save(editing.id, ctx.getCaptureId(), title, editing.subs);
+          await store.save(editing.id, ctx.getCaptureId(), title, editing.subs, editing.alt || null);
           editing = null;
           await refresh();
         } catch (e) {
@@ -850,11 +856,11 @@
           }
           // Sinon : on démarre sur cette version ; la musique d'origine et toutes les autres versions sont dans le menu du dock.
           const list = [{ id: '', label: tr('versioningABOriginal'), subs: { tracks: {}, sfx: {} } }]
-            .concat(versions.map(x => ({ id: x.id, label: x.title || tr('captureUntitled'), subs: x.substitutions })));
+            .concat(versions.map(x => ({ id: x.id, label: x.title || tr('captureUntitled'), subs: x.substitutions, own: x.events })));
           listenAB(list, status, 1 + versions.indexOf(v));
         });
-        row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), isNew: false, titleTouched: true }; render(); });
-        row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), isNew: true, titleTouched: true }; render(); });
+        row.querySelector('[data-act="edit"]').addEventListener('click', () => { stopListening(); editing = { id: v.id, captureId: ctx.getCaptureId(), title: v.title, subs: clone(v.substitutions), own: v.events || null, isNew: false, titleTouched: true }; render(); });
+        row.querySelector('[data-act="duplicate"]').addEventListener('click', () => { stopListening(); editing = { id: newId(), captureId: ctx.getCaptureId(), title: tr('versioningCopyOf').replace('{name}', v.title || ''), subs: clone(v.substitutions), own: v.events || null, alt: v.events ? { events: clone2(v.events), laneOverrides: clone2(v.laneOverrides), collapsedGroups: clone2(v.collapsedGroups), markers: clone2(v.markers) } : null, isNew: true, titleTouched: true }; render(); });
         row.querySelector('[data-role="pick"]').addEventListener('change', e => {
           if (e.target.checked) pickedIds.add(v.id); else pickedIds.delete(v.id);
           const bar = host.querySelector('[data-role="pickedBar"]');
@@ -872,7 +878,7 @@
           if (!ok) return;
           status.textContent = tr('captureSaving');
           try {
-            const { events } = await versionResult(v.substitutions);
+            const { events } = await versionResult(v.substitutions, v.events);
             await ctx.detach(events, (ctx.getCaptureTitle() ? ctx.getCaptureTitle() + ' — ' : '') + (v.title || ''));
           } catch (e) { console.error(e); status.textContent = tr('captureSaveFailed').replace('{error}', e.message); }
         });
@@ -911,7 +917,35 @@
 
     host.ownerDocument.addEventListener('click', e => host.querySelectorAll('.vcv-more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
     refresh();
-    return { refresh, render, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
+    // Versions alternatives (10/11) : l'atelier lit et écrit les versions comme des montages complets (frise propre).
+    const alternatives = {
+      list: () => versions.slice(),
+      // Une version « à l'ancienne » (remplacements de morceaux) devient une frise complète : le montage + ses remplacements.
+      materialize: async v => (v.events ? { events: clone2(v.events) } : { events: clone2((await versionResult(v.substitutions)).events) }),
+      // Crée (ou met à jour) une alternative avec sa propre frise ; les remplacements sont déjà intégrés à la frise, donc vides.
+      createAlt: async (id, title, alt) => {
+        const subs = { tracks: {}, sfx: {} };
+        await store.save(id, ctx.getCaptureId(), title, subs, alt);
+        versions.push({ id, captureId: ctx.getCaptureId(), title, substitutions: subs, events: alt.events, laneOverrides: alt.laneOverrides, collapsedGroups: alt.collapsedGroups, markers: alt.markers, lastExportVideoId: null, status: 'draft', statusAt: null });
+        render(); if (ctx.onVersionsChanged) ctx.onVersionsChanged();
+      },
+      // Retouche de la frise d'une alternative : les remplacements de morceaux sont déjà intégrés à sa frise (vidés), le nom ne change pas.
+      saveAlt: async (id, alt) => {
+        const v = versions.find(x => x.id === id); if (!v) return;
+        const subs = { tracks: {}, sfx: {} };
+        await store.save(id, ctx.getCaptureId(), v.title, subs, alt);
+        Object.assign(v, { substitutions: subs, events: clone2(alt.events), laneOverrides: clone2(alt.laneOverrides), collapsedGroups: clone2(alt.collapsedGroups), markers: clone2(alt.markers) });
+      },
+      rename: async (id, title) => {
+        const v = versions.find(x => x.id === id); if (!v) return;
+        await store.save(id, ctx.getCaptureId(), title, v.substitutions, null);
+        v.title = title; render();
+      },
+      remove: async id => { await store.remove(id); versions = versions.filter(x => x.id !== id); published.delete(id); render(); if (ctx.onVersionsChanged) ctx.onVersionsChanged(); },
+      reload: refresh,
+      newId,
+    };
+    return { alternatives, refresh, render, stop: stopListening, isListening: () => !!listening, publishPending, hasPending: () => !!canPublish() && !loadError && versions.some(needsPublish) };
   }
 
   window.LayerCaptureVersioning = { mount };

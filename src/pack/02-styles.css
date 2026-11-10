@@ -191,6 +191,7 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .video-capture-title-input { width: 200px; }
+  .video-alt-select { max-width: 280px; border-color: #2f80c0; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
   .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
   /* Versioning (26/09, capture-versioning.js) : versions vidéo d'un montage sauvegardé -- admin seulement pour l'instant. */

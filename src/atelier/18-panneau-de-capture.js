@@ -181,6 +181,7 @@ function openCapturePanel(file, opts) {
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
       <input type="text" class="video-capture-title-input video-capture-name-field" id="videoCaptureTitleInput" placeholder="${tr('captureTitleInputPlaceholder')}" title="${tr('captureTitleInputPlaceholder')}" aria-label="${tr('captureTitleInputPlaceholder')}">
+      <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
       <div class="video-test-panel-actions">
         <span class="atelier-zones">
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
@@ -321,6 +322,11 @@ function openCapturePanel(file, opts) {
   // Marqueurs de la frise (05/11) : { id, t, label }, enregistrés avec le montage -- voir renderCaptureTimeline. Gardés d'une prise
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
+  // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
+  // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
+  let activeAltId = null, baseSnap = null;
+  const workState = () => ({ events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers, title: titleInput.value });
+  const baseState = () => (activeAltId && baseSnap) ? baseSnap : workState(); // ce qui est publié et versionné reste toujours le montage
   // Écraser ou passe additive (2026-09-16, demande explicite de Jules-Antoine : "la possibilité d'écraser
   // ou de faire des passes additives") -- pendingBaseEvents porte les événements de la prise précédente à
   // fusionner au prochain arrêt de capture, vide = la prochaine capture remplace tout (comportement
@@ -694,8 +700,8 @@ function openCapturePanel(file, opts) {
   // 20-demarrage-atelier.js) ; dans le studio (pas de bouton global), « Publier le montage » fait la même chose à la main.
   const captureStateKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers, t: titleInput.value });
   const creditNameForCues = () => (creditCheckbox.checked && window.__lpCaptureLibrary && window.__lpCaptureLibrary.composerName) || '';
-  const soundKey = () => JSON.stringify({ e: lastEvents, l: laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
-  const montageNeedsPublish = () => captureCanSave && !!packId && ((lastEvents.length > 0 && soundKey() !== lastPublishedKey) || !!(versioning && versioning.hasPending && versioning.hasPending()));
+  const soundKey = () => JSON.stringify({ e: baseState().events, l: baseState().laneOverrides, c: creditNameForCues() }); // ce qui change le son et les étiquettes publiés
+  const montageNeedsPublish = () => captureCanSave && !!packId && ((baseState().events.length > 0 && soundKey() !== lastPublishedKey) || !!(versioning && versioning.hasPending && versioning.hasPending()));
   const hostPublishes = typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio; // composeur dans le Backstage : son bouton global publie
   const setSaveState = (state, text) => { saveStatus.dataset.state = state; saveStatus.textContent = text; };
   function scheduleAutosave() {
@@ -711,6 +717,14 @@ function openCapturePanel(file, opts) {
     autosaveRunning = (async () => {
       setSaveState('saving', tr('captureSaving'));
       try {
+        if (activeAltId && versioning) {
+          // Sur une version alternative : l'enregistrement va dans la ligne de cette version (frise complète), pas dans le montage.
+          const altId = activeAltId;
+          await versioning.alternatives.saveAlt(altId, { events: lastEvents, laneOverrides, collapsedGroups, markers: timelineMarkers });
+          if (altId === activeAltId) lastSavedKey = key;
+          setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
+          return;
+        }
         if (!currentCaptureId) {
           currentCaptureId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
         }
@@ -750,11 +764,11 @@ function openCapturePanel(file, opts) {
     clearTimeout(autosaveTimer);
     publishRunning = (async () => {
       await saveCaptureNow(); // ce qui est publié est toujours ce qui est enregistré
-      if (!savedCaptureId || !lastEvents.length) return 'none';
+      if (!savedCaptureId || !baseState().events.length) return 'none';
       const key = soundKey();
       if (!opts.force && key === lastPublishedKey) return 'none';
-      const videoId = await publishMontageSound(lastEvents, titleInput.value);
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(lastEvents, laneOverrides, creditNameForCues()), p_keep_old: keepOldCheckbox.checked }));
+      const videoId = await publishMontageSound(baseState().events, baseState().title);
+      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_export', withStudio({ p_capture_id: savedCaptureId, p_video_id: videoId, p_cues: buildCaptureCues(baseState().events, baseState().laneOverrides, creditNameForCues()), p_keep_old: keepOldCheckbox.checked }));
       if (error) throw error;
       await r2DeleteRemovedVideos(data && data.removed); // exports trop anciens (au-delà de 3) ou ancienne vidéo non gardée
       lastPublishedKey = key;
@@ -805,6 +819,7 @@ function openCapturePanel(file, opts) {
   window.__lpDisposeMontage = () => { clearTimeout(autosaveTimer); window.__lpFinishMontage = null; window.__lpDisposeMontage = null; };
   // Prise chargée (depuis la liste, ou montage « détaché » d'une version vidéo) : elle devient la prise en cours.
   function applyLoadedCapture(capture) {
+    activeAltId = null; baseSnap = null; titleInput.disabled = false; // un autre montage : on repart de sa version n° 1
     currentCaptureId = capture.id;
     savedCaptureId = capture.id;
     setTimeout(renderExportHistory, 0); // historique des exports de ce montage
@@ -889,10 +904,10 @@ function openCapturePanel(file, opts) {
       // Remarques du client (9/11) : drapeaux bleus sur la frise de l'atelier, mis à jour avec le panneau Versioning.
       onReviewComments: marks => { timelineEl.__vctReviewMarks = marks; try { renderEditableTimeline(); } catch (e) { /* frise pas encore prête */ } },
       findTrack: findCaptureTrack, findSfx: findCaptureSfx,
-      getEvents: () => lastEvents, getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
-      exportEvents: (events, mode, onProgress) => exportCaptureVideo(events, file, onProgress, laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
+      getEvents: () => baseState().events, onVersionsChanged: () => renderAltSelect(), getCaptureId: () => (versioningLevel === 'saved' ? savedCaptureId : 'session'), getCaptureTitle: () => titleInput.value,
+      exportEvents: (events, mode, onProgress, lane) => exportCaptureVideo(events, file, onProgress, lane || baseState().laneOverrides, { tier: window.__lpNoWatermark ? 'boss' : 'warrior', showComposerCredit: creditCheckbox.checked, mode }),
       saveToLibrary: (blob, title) => saveExportToVideoLibrary(blob, packId, title, videoEl.duration || null),
-      cuesOf: (events) => buildCaptureCues(events, laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
+      cuesOf: (events, lane) => buildCaptureCues(events, lane || baseState().laneOverrides, creditNameForCues()), // étiquettes rangées avec la vidéo d'une version (21/10)
       getSoundKey: soundKey, onProgress: (msg) => { exportStatus.textContent = msg; }, // publication automatique des versions (09/11)
       keepOld: () => keepOldCheckbox.checked, // garder ou non l'ancienne vidéo d'une version dans l'historique
       publishVersion: (events, title) => publishMontageSound(events, title), // une version publiée = un son, joué sur la vidéo muette
@@ -912,6 +927,94 @@ function openCapturePanel(file, opts) {
     // version, l'écouter…) arrête d'abord l'écoute du montage.
     versioningHost.addEventListener('click', e => { if (montageListen && e.target.closest && e.target.closest('[data-act]')) stopMontageListen(); }, true);
   }
+  // ---- Versions alternatives (10/11) : menu déroulant dans l'en-tête, comme les prises d'une région dans Logic, mais pour tout le montage ----
+  const altSelect = document.getElementById('videoAltSelect');
+  const altList = () => (versioning && versioning.alternatives ? versioning.alternatives.list() : []);
+  const altName = (v, i) => v.title || tr('altDefaultName').replace('{n}', String(i + 2));
+  function renderAltSelect() {
+    if (!altSelect) return;
+    const on = !!(versioning && versioningLevel === 'saved' && savedCaptureId && captureCanSave);
+    altSelect.hidden = !on;
+    if (!on) return;
+    const esc = window.LayerPlayerCore.escapeHtml;
+    altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
+      + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__delete">${esc(tr('altDelete'))}</option>` : '');
+    altSelect.value = activeAltId || '';
+    altSelect.disabled = !!videoCaptureState;
+  }
+  async function switchAlt(id) {
+    id = id || null;
+    if (id === activeAltId || videoCaptureState) return;
+    if (montageListen) stopMontageListen();
+    if (versioning && versioning.stop) versioning.stop();
+    clearTimeout(autosaveTimer);
+    try { await saveCaptureNow(); } catch (e) { renderAltSelect(); return; } // la retouche en cours est enregistrée avant de changer de version
+    const alts = versioning.alternatives;
+    let next;
+    if (id) {
+      const v = alts.list().find(x => x.id === id);
+      if (!v) { renderAltSelect(); return; }
+      saveStatus.textContent = tr('captureLoading');
+      const mat = await alts.materialize(v);
+      const from = baseSnap || workState();
+      const own = !!v.events;
+      next = { events: mat.events,
+        laneOverrides: JSON.parse(JSON.stringify(own ? (v.laneOverrides || {}) : from.laneOverrides)),
+        collapsedGroups: JSON.parse(JSON.stringify(own ? (v.collapsedGroups || {}) : from.collapsedGroups)),
+        markers: JSON.parse(JSON.stringify(own ? (v.markers || []) : from.markers)) };
+      if (!baseSnap) baseSnap = workState();
+    } else { next = baseSnap; baseSnap = null; }
+    lastEvents = next.events; laneOverrides = next.laneOverrides; collapsedGroups = next.collapsedGroups; timelineMarkers = next.markers;
+    if (!id && next.title != null) titleInput.value = next.title;
+    activeAltId = id;
+    titleInput.disabled = !!id;
+    lastSavedKey = captureStateKey();
+    setSaveState('', '');
+    countEl.textContent = captureCountText(lastEvents);
+    refreshActionButtons();
+    historyReset();
+    renderEditableTimeline();
+    renderAltSelect();
+  }
+  async function newAlt() {
+    if (!savedCaptureId) return;
+    try { await saveCaptureNow(); } catch (e) { return; }
+    const alts = versioning.alternatives;
+    let n = alts.list().length + 2, title;
+    const names = new Set(alts.list().map(v => v.title));
+    do { title = tr('altDefaultName').replace('{n}', String(n++)); } while (names.has(title));
+    const copy = o => JSON.parse(JSON.stringify(o));
+    const id = alts.newId();
+    try {
+      await alts.createAlt(id, title, { events: copy(lastEvents), laneOverrides: copy(laneOverrides), collapsedGroups: copy(collapsedGroups), markers: copy(timelineMarkers) });
+    } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); renderAltSelect(); return; }
+    await switchAlt(id);
+  }
+  async function renameAlt() {
+    if (!activeAltId) { titleInput.focus(); titleInput.select(); return; } // la version n° 1 porte le nom du montage
+    const v = altList().find(x => x.id === activeAltId);
+    const name = await window.LayerPitchNotify.prompt(tr('altRenamePrompt'), { inputValue: v ? v.title : '' });
+    if (!name || !name.trim()) return;
+    try { await versioning.alternatives.rename(activeAltId, name.trim()); } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); }
+    renderAltSelect();
+  }
+  async function deleteAlt() {
+    if (!activeAltId) return;
+    const id = activeAltId, v = altList().find(x => x.id === id);
+    if (!await window.LayerPitchNotify.confirm(tr('altDeleteConfirm').replace('{name}', v ? v.title : ''), { okLabel: tr('altDelete'), danger: true })) return;
+    await switchAlt(null);
+    try { await versioning.alternatives.remove(id); } catch (e) { console.error(e); saveStatus.textContent = tr('captureSaveFailed').replace('{error}', e.message); }
+    renderAltSelect();
+  }
+  altSelect.addEventListener('change', async () => {
+    const val = altSelect.value;
+    if (val === '__new') await newAlt();
+    else if (val === '__rename') await renameAlt();
+    else if (val === '__delete') await deleteAlt();
+    else await switchAlt(val);
+    renderAltSelect();
+  });
+  renderAltSelect();
   // Montage demandé à l'ouverture (lien du Backstage) : chargé tout de suite, puis la section Versioning est amenée à l'écran.
   // Frise prête dès l'ouverture (montage à la souris, 05/11) : les morceaux du pack et leurs couches vides, à remplir au double-clic.
   // Redessinée quand la vidéo connaît sa durée (la frise couvre toute la vidéo).
