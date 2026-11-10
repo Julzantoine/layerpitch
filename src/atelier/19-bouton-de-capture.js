@@ -145,9 +145,26 @@ let openVideoCaptureDialog = () => {};
     libBtn.disabled = true;
     libStatus.textContent = tr('captureLibraryDownloading');
     try {
-      const res = await fetch(v.base + encodeURIComponent(v.file));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const blob = await res.blob();
+      // Lecture par morceaux : on affiche l'avancement (une grosse vidéo ressemblait à un blocage), et en cas d'interruption on réessaie
+      // une fois avant d'afficher l'erreur (nom + octets reçus, pour comprendre ce qui coupe).
+      let blob = null, got = 0, lastErr = null;
+      for (let attempt = 0; attempt < 2 && !blob; attempt++) {
+        try {
+          got = 0;
+          const res = await fetch(v.base + encodeURIComponent(v.file));
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const total = Number(res.headers.get('content-length')) || 0;
+          const parts = [], reader = res.body.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parts.push(value); got += value.length;
+            libStatus.textContent = tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo');
+          }
+          blob = new Blob(parts, { type: res.headers.get('content-type') || '' });
+        } catch (e) { lastErr = e; console.error(e); }
+      }
+      if (!blob) throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
       // Le type enregistré peut être générique (application/octet-stream) : on retombe sur le type d'après l'extension, sinon mp4.
