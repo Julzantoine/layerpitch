@@ -205,6 +205,8 @@ function openCapturePanel(file, opts) {
         ${tr('captureStopFadeLabel')} <input type="number" id="videoCaptureStopFade" min="0" max="10" step="0.5"> s
       </label>
       <span class="video-capture-count" id="videoCaptureCount"></span>
+      <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureUndoBtn" disabled title="${tr('captureUndoTitle')}" aria-label="${tr('captureUndoTitle')}">&#8630;</button>
+      <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureRedoBtn" disabled title="${tr('captureRedoTitle')}" aria-label="${tr('captureRedoTitle')}">&#8631;</button>
     </div>
     </div>
     <div class="video-capture-bar">
@@ -325,7 +327,58 @@ function openCapturePanel(file, opts) {
   // d'origine). Réglé au moment où l'enregistrement DÉMARRE (voir recordBtn ci-dessous), pas à l'arrêt --
   // la case à cocher ne doit plus pouvoir changer d'avis une fois l'enregistrement en cours.
   let pendingBaseEvents = [];
+  // Annuler / rétablir (10/11, demande de Jules-Antoine : Cmd+Z) : un instantané de l'état de la frise (événements, noms de pistes, groupes repliés,
+  // marqueurs) est gardé à chaque retouche ; annuler ou rétablir en rejoue un. Une prise enregistrée en direct est une retouche comme une autre.
+  // Les actions qui sortent de l'atelier (export, envoi au client) ne s'annulent pas. L'historique repart de zéro à chaque chargement de montage.
+  const HISTORY_MAX = 100;
+  let historyStack = [], historyIdx = -1, historyRestoring = false;
+  const historySnapshot = () => JSON.stringify({ e: lastEvents, l: laneOverrides, g: collapsedGroups, m: timelineMarkers });
+  const undoBtn = document.getElementById('videoCaptureUndoBtn');
+  const redoBtn = document.getElementById('videoCaptureRedoBtn');
+  function syncHistoryButtons() {
+    undoBtn.disabled = historyIdx <= 0 || !!videoCaptureState;
+    redoBtn.disabled = historyIdx >= historyStack.length - 1 || !!videoCaptureState;
+  }
+  function historyReset() { historyStack = [historySnapshot()]; historyIdx = 0; syncHistoryButtons(); }
+  function historyPush() {
+    if (historyRestoring) return;
+    const snap = historySnapshot();
+    if (historyStack[historyIdx] === snap) return;
+    historyStack = historyStack.slice(0, historyIdx + 1); // une retouche après un « annuler » efface ce qu'on aurait pu rétablir
+    historyStack.push(snap);
+    if (historyStack.length > HISTORY_MAX) historyStack.shift();
+    historyIdx = historyStack.length - 1;
+    syncHistoryButtons();
+  }
+  function historyGo(delta) {
+    const target = historyIdx + delta;
+    if (videoCaptureState || target < 0 || target >= historyStack.length) return;
+    historyIdx = target;
+    const snap = JSON.parse(historyStack[historyIdx]);
+    historyRestoring = true;
+    try {
+      lastEvents = snap.e; laneOverrides = snap.l; collapsedGroups = snap.g; timelineMarkers = snap.m;
+      countEl.textContent = captureCountText(lastEvents);
+      refreshActionButtons();
+      renderEditableTimeline();
+    } finally { historyRestoring = false; }
+    syncHistoryButtons();
+  }
+  undoBtn.addEventListener('click', () => historyGo(-1));
+  redoBtn.addEventListener('click', () => historyGo(1));
+  if (window.__lpHistoryKeyHandler) document.removeEventListener('keydown', window.__lpHistoryKeyHandler);
+  window.__lpHistoryKeyHandler = (e) => {
+    if (!document.getElementById('videoCaptureEl')) { document.removeEventListener('keydown', window.__lpHistoryKeyHandler); return; } // panneau fermé
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || String(e.key).toLowerCase() !== 'z') return;
+    const t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return; // dans un champ de texte, Cmd+Z reste celui du champ
+    e.preventDefault();
+    historyGo(e.shiftKey ? 1 : -1);
+  };
+  document.addEventListener('keydown', window.__lpHistoryKeyHandler);
   function refreshActionButtons() {
+    historyPush();
+    syncHistoryButtons();
     setExportButtonsDisabled(lastEvents.length === 0);
     montageBuffer = null; montageGen++; // la frise a changé : la musique calculée n'est plus à jour
     if (montageListen) stopMontageListen(); // ... ni l'écoute en cours
@@ -769,6 +822,7 @@ function openCapturePanel(file, opts) {
     setSaveState('', '');
     countEl.textContent = captureCountText(lastEvents);
     refreshActionButtons();
+    historyReset();
     renderCaptureTimeline(timelineEl, lastEvents, captureCanEdit, () => {
       countEl.textContent = captureCountText(lastEvents);
       refreshActionButtons();
@@ -866,6 +920,7 @@ function openCapturePanel(file, opts) {
     refreshActionButtons();
   }, laneOverrides, collapsedGroups, videoEl, timelineMarkers);
   renderEditableTimeline();
+  historyReset();
   videoEl.addEventListener('loadedmetadata', () => { if (!videoCaptureState) renderEditableTimeline(); });
   if (opts.montageId) {
     saveStatus.textContent = tr('captureLoading');
