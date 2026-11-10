@@ -673,6 +673,7 @@ function syncVideoCols() {
   el.nav.hidden = !(capture && projMode && cur);
   el.solo.hidden = projMode && (videoProjects.length > 0 || !videoProjectsListLoaded); // pas de bouton « Atelier » de secours tant que la liste charge
   el.newBtn.hidden = !projMode;
+  { const hint = document.querySelector('[data-video-subpanel="capture"] > .sub'); if (hint) hint.style.display = projMode ? 'none' : ''; } // la bande d'explication parasitait l'espace (11/11, retour de Jules-Antoine)
   el.solo.classList.toggle('active', capture && !el.solo.hidden);
   if (el.navTitle) el.navTitle.textContent = cur ? videoProjectTitle(cur) : '';
   el.list.querySelectorAll('[data-project-id]').forEach(b => b.classList.toggle('active', capture && b.dataset.projectId === videoProjectSelectedId));
