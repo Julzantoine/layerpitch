@@ -322,6 +322,19 @@
   .video-project-bar label { font-size: 12px; color: var(--text-dim); }
   .video-project-bar select { min-width: 220px; max-width: 100%; }
   .video-project-meta { margin-top: 8px; }
+  /* Fenêtres du panneau Vidéo (10/11) : le Backstage n'a pas les styles .video-test-dialog de la page du pack, la fenêtre « Nouveau projet vidéo »
+     s'affichait en haut à gauche avec l'apparence brute du navigateur. Même style que celles de l'atelier, centrée. */
+  .video-test-dialog { margin: auto; border: 1px solid var(--border); border-radius: 10px; padding: 0; width: min(440px, calc(100% - 40px)); background: var(--bg); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+  .video-test-dialog::backdrop { background: rgba(0,0,0,0.4); }
+  .video-test-form { padding: 24px; display: flex; flex-direction: column; }
+  .video-test-dialog-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .video-test-form label { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .video-test-form input[type="text"], .video-test-form select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; }
+  .video-test-dialog-error { font-size: 12px; color: #c0392b; min-height: 16px; margin-top: 8px; }
+  .video-test-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .video-test-btn-primary, .video-test-btn-secondary { padding: 8px 16px; border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .video-test-btn-primary { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .video-test-btn-primary:disabled { opacity: 0.5; cursor: default; }
   #videoProjectDialog .video-test-form { display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
   .video-atelier-frame { display: block; width: 100%; height: calc(100vh - 210px); min-height: 640px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-top: 10px; }
   .video-capture-pack-row-title { font-size: 13.5px; font-weight: 600; color: var(--text); }

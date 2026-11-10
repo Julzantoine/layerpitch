@@ -71,8 +71,10 @@
   /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
   body.video-panel-active .atelier-fullscreen-btn { display: none; }
   body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  /* Les consignes de départ (étapes) et le bouton « Choisir la vidéo » n'ont plus lieu d'être une fois la vidéo chargée (10/11, demande de Jules-Antoine) :
+     le panneau de droite commence directement par le pack, la musique et les Sfx. Fermer le panneau (✕) les ramène pour changer de vidéo. */
+  body.video-panel-active .atelier-steps, body.video-panel-active .video-capture-trigger-btn { display: none; }
   body.video-panel-active.atelier-hide-right .page { display: none; }
-  body.video-panel-active.atelier-hide-bottom #videoCaptureTimeline, body.video-panel-active.atelier-hide-bottom #videoCaptureVersioning { display: none; }
   .atelier-zones { display: inline-flex; margin-right: 6px; border-radius: 6px; overflow: hidden; }
   .atelier-zones .atelier-zone-btn { border-radius: 0; margin: 0; border-right-width: 0; color: #888; }
   .atelier-zones .atelier-zone-btn:last-child { border-right-width: 1px; }
@@ -86,10 +88,12 @@
   body.video-panel-active .atelier-pack-name { font-size: 15px; }
   body.video-panel-active .atelier-steps { font-size: 12px; line-height: 1.5; }
   body.video-panel-active #content .video-capture-trigger-btn { margin-bottom: 16px; }
-  @media (min-width: 960px) {
+  /* Le panneau de droite reste à droite tant que la fenêtre n'est pas vraiment étroite (10/11, retour de Jules-Antoine : pour jouer en direct, morceaux
+     et frise doivent rester côte à côte) ; il se rétrécit avant de passer dessous (seuil 720 px, à ajuster à l'usage). */
+  @media (min-width: 720px) {
     body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: flex-start; margin: 0; gap: 20px; }
     body.video-panel-active .video-test-panel { order: 1; flex: 1 1 auto; min-width: 0; width: auto; position: static; }
-    body.video-panel-active .page { order: 2; flex: 0 0 300px; width: 300px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 4px; }
+    body.video-panel-active .page { order: 2; flex: 0 0 clamp(230px, 24vw, 300px); width: clamp(230px, 24vw, 300px); position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 4px; }
   }
   /* Image masquée pendant l'incrustation (05/11, voir wireCaptureImageHiding) : la vidéo garde sa place dans le DOM, hauteur nulle. */
   .video-capture-image-hidden-note { display: none; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: #bbb; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; }

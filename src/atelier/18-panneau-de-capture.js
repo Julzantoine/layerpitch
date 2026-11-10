@@ -184,7 +184,6 @@ function openCapturePanel(file, opts) {
       <div class="video-test-panel-actions">
         <span class="atelier-zones">
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
-          <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneBottom" title="${tr('atelierZoneBottom')}" aria-label="${tr('atelierZoneBottom')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="9.1" width="11.8" height="3.8" fill="currentColor"/></svg></button>
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneRight" title="${tr('atelierZoneRight')}" aria-label="${tr('atelierZoneRight')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="10.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
         </span>
         <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
@@ -800,8 +799,10 @@ function openCapturePanel(file, opts) {
     try {
       const captures = await listVideoCaptures(packId);
       const current = loadSelect.value;
+      // Un montage sans nom : « Montage N », N = rang de création (jamais « Sans titre »).
+      const untitledRank = c => captures.filter(q => !q.title && (q.createdAt || q.updatedAt) <= (c.createdAt || c.updatedAt)).length;
       loadSelect.innerHTML = `<option value="">${tr('captureLoadOptionDefault')}</option>` + captures.map(c =>
-        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || tr('captureUntitled'))} — ${new Date(c.updatedAt).toLocaleString()}</option>`
+        `<option value="${c.id}">${window.LayerPlayerCore.escapeHtml(c.title || tr('captureDefaultName').replace('{n}', String(Math.max(1, untitledRank(c)))))} — ${new Date(c.updatedAt).toLocaleString()}</option>`
       ).join('');
       loadSelect.value = captures.some(c => c.id === current) ? current : '';
       loadSelect.disabled = captures.length === 0;
@@ -887,15 +888,15 @@ function openCapturePanel(file, opts) {
   });
   // Trois zones à afficher ou non (09/11), comme les trois boutons de Guitar Pro : gauche = menu du Backstage (si l'atelier y est ouvert),
   // bas = frise + Versioning, droite = colonne (pack, étapes, morceaux). Bleu = zone affichée. Droite et bas sont retenus sur cet appareil.
-  const zoneBtn = { left: document.getElementById('atelierZoneLeft'), bottom: document.getElementById('atelierZoneBottom'), right: document.getElementById('atelierZoneRight') };
+  const zoneBtn = { left: document.getElementById('atelierZoneLeft'), right: document.getElementById('atelierZoneRight') };
   let zonesHidden = {};
   try { zonesHidden = JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) {}
   const setZoneBtn = (k, shown) => { zoneBtn[k].classList.toggle('active', shown); zoneBtn[k].setAttribute('aria-pressed', shown ? 'true' : 'false'); };
   const applyZones = () => {
-    ['bottom', 'right'].forEach(k => { document.body.classList.toggle('atelier-hide-' + k, !!zonesHidden[k]); setZoneBtn(k, !zonesHidden[k]); });
+    ['right'].forEach(k => { document.body.classList.toggle('atelier-hide-' + k, !!zonesHidden[k]); setZoneBtn(k, !zonesHidden[k]); });
     try { localStorage.setItem('lpAtelierZonesHidden', JSON.stringify(zonesHidden)); } catch (e) {}
   };
-  ['bottom', 'right'].forEach(k => zoneBtn[k].addEventListener('click', () => { zonesHidden[k] = !zonesHidden[k]; applyZones(); }));
+  ['right'].forEach(k => zoneBtn[k].addEventListener('click', () => { zonesHidden[k] = !zonesHidden[k]; applyZones(); }));
   applyZones();
   window.__lpReloadZones = () => { try { zonesHidden = JSON.parse(localStorage.getItem('lpAtelierZonesHidden') || '{}') || {}; } catch (e) {} applyZones(); };
   // Gauche : le menu du Backstage est dans la page qui contient ce cadre (même site) ; seul dans son onglet, l'atelier n'en a pas.

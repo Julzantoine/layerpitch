@@ -235,8 +235,15 @@ async function preloadVideoProjectList() {
     if (!videoProjectsMode()) { syncVideoCols(); return; }
     await fetchVideoProjects();
     await renderVideoProjectBar();
+    // Ouverture directe (10/11) : sur la page Vidéo, on arrive sur le dernier projet utilisé plutôt que sur la Bibliothèque (qui reste dans la colonne 1).
+    if (videoProjects.length && !videoAutoOpened && !document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active')) {
+      videoAutoOpened = true;
+      switchVideoSubtab('capture');
+    }
   } catch (e) { console.error('LayerPitch — liste des projets vidéo :', e); }
+  syncVideoCols();
 }
+var videoAutoOpened = false;
 async function renderVideoLibrary() {
   preloadVideoProjectList();
   const listEl = document.getElementById('videoLibraryList');
@@ -664,7 +671,7 @@ function syncVideoCols() {
   const projMode = videoProjectsMode();
   const cur = videoProjects.find(p => p.id === videoProjectSelectedId);
   el.nav.hidden = !(capture && projMode && cur);
-  el.solo.hidden = projMode && videoProjects.length > 0;
+  el.solo.hidden = projMode && (videoProjects.length > 0 || !videoProjectsListLoaded); // pas de bouton « Atelier » de secours tant que la liste charge
   el.newBtn.hidden = !projMode;
   el.solo.classList.toggle('active', capture && !el.solo.hidden);
   if (el.navTitle) el.navTitle.textContent = cur ? videoProjectTitle(cur) : '';
@@ -688,11 +695,20 @@ function setVideoView(view) {
   pushVideoView();
 }
 let videoProjects = [];
-let videoProjectSelectedId = null;
+let videoProjectsListLoaded = false; // la liste est arrivée du serveur (avant : on ne sait pas si le compte a des projets)
+const VIDEO_LAST_PROJECT_KEY = 'lpVideoLastProject';
+let videoProjectSelectedId = (() => { try { return localStorage.getItem(VIDEO_LAST_PROJECT_KEY) || null; } catch (e) { return null; } })(); // dernier projet utilisé
 let videoProjectsLoadedFor = null; // montage affiché dans le cadre (évite de le recharger quand on réaffiche l'onglet)
 function videoProjectsMode() { return entitlementLevel('versioning') === 'saved' && !isTutoMode(); } // tutoriel : l'atelier garde son parcours guidé (choix du pack dans l'atelier)
 function videoProjectFrameUrl(p) { return videoAtelierUrl({ packId: p.packId, montageId: p.id }); }
-function videoProjectTitle(p) { return p.title || (p.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'); }
+// Un montage sans nom prend le nom de sa vidéo, sinon « Montage N » (N = rang de création, il ne change pas quand on en ajoute : comme les prises de Logic).
+function videoProjectTitle(p) {
+  if (p.title) return p.title;
+  const base = (p.videoFilename || '').replace(/\.[^.]+$/, '');
+  if (base) return base;
+  const rank = videoProjects.filter(q => !q.title && !q.videoFilename && (q.createdAt || q.updatedAt) <= (p.createdAt || p.updatedAt)).length;
+  return tr('videoProjectDefaultName').replace('{n}', String(Math.max(1, rank)));
+}
 function videoProjectEls() {
   const g = id => document.getElementById(id);
   return { bar: g('videoProjectBar'), select: g('videoProjectSelect'), meta: g('videoProjectMeta'), empty: g('videoProjectEmpty'), frame: g('videoAtelierFrame'), hint: document.querySelector('[data-video-subpanel="capture"] > .sub') };
@@ -701,12 +717,14 @@ async function fetchVideoProjects() {
   const res = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_video_captures', { p_pack_id: null });
   if (res.error) throw res.error;
   videoProjects = res.data || [];
+  videoProjectsListLoaded = true;
 }
 // Remplit le sélecteur et la ligne d'infos (pack, vidéo, versions) du projet choisi. Ne touche pas au cadre.
 async function renderVideoProjectBar() {
   const el = videoProjectEls();
   if (!el.select) return;
   if (!videoProjects.some(p => p.id === videoProjectSelectedId)) videoProjectSelectedId = videoProjects.length ? videoProjects[0].id : null;
+  try { if (videoProjectSelectedId) localStorage.setItem(VIDEO_LAST_PROJECT_KEY, videoProjectSelectedId); } catch (e) {}
   el.select.innerHTML = videoProjects.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === videoProjectSelectedId ? 'selected' : ''}>${escapeHtml(videoProjectTitle(p))}</option>`).join('');
   el.empty.hidden = videoProjects.length > 0;
   const colEl = videoColsEls();
@@ -795,6 +813,7 @@ async function refreshVideoProjects() {
     sel.value = b.dataset.projectId;
     sel.dispatchEvent(new Event('change'));
     switchVideoSubtab('capture');
+    if (window.foldVideoColsForAtelier) window.foldVideoColsForAtelier();
   });
   // Colonne 2 : la section du projet.
   document.querySelectorAll('#videoColNav [data-video-view]').forEach(b => b.addEventListener('click', () => setVideoView(b.dataset.videoView)));
@@ -818,7 +837,7 @@ async function refreshVideoProjects() {
   // Groupe d'icônes unique au-dessus du contenu (09/11, demande de Jules-Antoine) : 1 = menu du Backstage, 2 = liste (colonne 1), 3 = sections (colonne 2),
   // puis 4 = frise + Versioning et 5 = panneau de droite de l'atelier (ces deux-là seulement quand l'atelier est affiché). Bleu = zone affichée.
   // Un clic sur 1, 2 ou 3 masque cette zone et celles à sa gauche ; sur une zone masquée, il la réaffiche.
-  const zoneBtns = [1, 2, 3, 4, 5].map(n => document.getElementById('videoZone' + n));
+  const zoneBtns = [1, 2, 3, 5].map(n => document.getElementById('videoZone' + n)); // 1 menu, 2 liste, 3 sections, 5 panneau de droite
   const hostToggle = () => document.querySelector('.lp-collapse-btn-own');
   const menuShown = () => !document.documentElement.classList.contains('lp-sidebar-collapsed');
   const shown = [null, menuShown, () => !foldState.list, () => !foldState.nav];
@@ -827,11 +846,13 @@ async function refreshVideoProjects() {
   const syncZoneBtns = () => {
     const set = (btn, on) => { if (btn) btn.setAttribute('aria-pressed', on ? 'true' : 'false'); };
     [1, 2, 3].forEach(n => set(zoneBtns[n - 1], shown[n]()));
-    const z = atelierZones();
-    set(zoneBtns[3], !z.bottom); set(zoneBtns[4], !z.right);
-    // 4 et 5 : seulement quand l'atelier est ouvert et visible (pas en Bibliothèque ni en Réglages).
+    set(zoneBtns[3], !atelierZones().right);
+    // Le bouton des sections n'a de sens qu'avec un projet ouvert (sinon la colonne n'existe pas) ; celui du panneau de droite, que
+    // quand l'atelier est affiché (pas en Bibliothèque ni en Réglages).
+    const navOn = !!(document.getElementById('videoColNav') && !document.getElementById('videoColNav').hidden);
+    zoneBtns[2].hidden = !navOn;
     const atelierOn = !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') && videoView !== 'settings';
-    zoneBtns[3].hidden = zoneBtns[4].hidden = !atelierOn;
+    zoneBtns[3].hidden = !atelierOn;
   };
   const applyFolds = () => {
     colsEl.classList.toggle('video-fold-list', !!foldState.list);
@@ -839,13 +860,16 @@ async function refreshVideoProjects() {
     try { localStorage.setItem('lpVideoColsFolded', JSON.stringify(foldState)); } catch (e) {}
     syncZoneBtns();
   };
+  // À l'ouverture d'un projet, les colonnes 1 et 2 se replient d'elles-mêmes pour laisser la place à l'atelier (10/11, demande de Jules-Antoine) ;
+  // les icônes de zones les rouvrent.
+  window.foldVideoColsForAtelier = () => { foldState.list = true; foldState.nav = true; applyFolds(); };
   window.syncVideoZoneBtns = syncZoneBtns;
   if (colsEl) {
     [1, 2, 3].forEach(n => zoneBtns[n - 1].addEventListener('click', () => {
       if (shown[n]()) { for (let k = 1; k <= n; k++) setShown(k, false); } else setShown(n, true);
       applyFolds();
     }));
-    ['bottom', 'right'].forEach((k, i) => zoneBtns[3 + i].addEventListener('click', () => {
+    ['right'].forEach(k => zoneBtns[3].addEventListener('click', () => {
       const z = atelierZones(); z[k] = !z[k];
       try { localStorage.setItem('lpAtelierZonesHidden', JSON.stringify(z)); } catch (e) {}
       const fr = document.getElementById('videoAtelierFrame');
