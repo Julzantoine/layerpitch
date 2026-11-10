@@ -93,6 +93,7 @@ let openVideoCaptureDialog = () => {};
   function handleFile(file) {
     if (!file || !file.type.startsWith('video/')) {
       errorEl.textContent = tr('captureChooseVideoError');
+      libStatus.textContent = '';
       return;
     }
     errorEl.textContent = '';
@@ -149,7 +150,11 @@ let openVideoCaptureDialog = () => {};
       const blob = await res.blob();
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
-      handleFile(new File([blob], name, { type: v.mimeType || blob.type || 'video/mp4' }));
+      // Le type enregistré peut être générique (application/octet-stream) : on retombe sur le type d'après l'extension, sinon mp4.
+      const guess = /\.webm$/i.test(name) ? 'video/webm' : /\.mov$/i.test(name) ? 'video/quicktime' : 'video/mp4';
+      const type = [v.mimeType, blob.type].find(t => t && t.startsWith('video/')) || guess;
+      libStatus.textContent = '';
+      handleFile(new File([blob], name, { type }));
     } catch (e) {
       console.error(e);
       libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
