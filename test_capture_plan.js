@@ -206,6 +206,22 @@ const path = require('path');
   check('envAt : rampe linéaire depuis la valeur du moment', near(CP.envAt(1, [{ t: 1, target: 0, ramp: 2 }], 2), 0.5));
   check('envAt : saut immédiat', CP.envAt(1, [{ t: 1, target: 0.3, ramp: 0 }], 1) === 0.3);
 
+  // ---- Premier bloc de calque déplacé : l'écoute enregistrée (démarrage, générations, arrêt) le suit ----
+  {
+    const ev = CP.materialize([
+      { t: 0.5, name: 'track_play', detail: { trackId: 'v' } },
+      { t: 0.5, name: 'layer_run', detail: { trackId: 'v', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 10, name: 'voices_stop', detail: { trackId: 'v' } },
+    ], findTrack);
+    const seg = ev.find(e => e.name === 'layer_segment');
+    const linked = CP.linkedMarks(ev, seg);
+    check('bloc déplacé : démarrage, écoute et arrêt de fin suivent', linked.length === 3);
+    const dt = 1.5; seg.t += dt; linked.forEach(m => { m.t += dt; });
+    const vs = plan(ev).voices.filter(v => v.track.id === 'v');
+    check('bloc déplacé : plus de voix calée sur l\'ancien départ', vs.every(v => v.start >= 2 - 1e-9));
+    check('bloc déplacé : la musique entre au début du fichier', vs.some(v => near(v.start, 2) && v.offset === 0));
+  }
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
   process.exit(failures ? 1 : 0);
 })();

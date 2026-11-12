@@ -26,7 +26,7 @@
       + '.lp-video-cue{padding:4px 9px;border-radius:6px;background:rgba(0,0,0,.62);color:#fff;font-size:13px;line-height:1.35;text-align:right}'
       + '.lp-video-cue small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;line-height:1.2}'
       + '.lp-video-cue-flash{color:#ffbd7a;font-weight:600}.lp-video-cue-credit{position:absolute;right:12px;top:12px;font-size:12px}.lp-video-cue[hidden]{display:none}'
-      + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}';
+      + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}.lp-video-ab{font:inherit;padding:4px 10px;border-radius:6px;cursor:pointer}.lp-video-ab:disabled{opacity:.45;cursor:default}';
     document.head.appendChild(st);
   }
   async function client() {
@@ -54,10 +54,14 @@
     // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
     const base = montage.baseUrl || null;
     const isSound = v => v.kind === 'audio' && !!base;
-    const audio = document.createElement('audio');
+    // Deux pistes son : l'active, et une de rechange déjà chargée avec « l'autre » version (bascule A/B instantanée, sans attente de chargement).
+    let audio = document.createElement('audio');
     audio.preload = 'auto';
+    let spare = document.createElement('audio');
+    spare.preload = 'auto';
     const safePlay = el => { const p = el.play(); if (p && p.catch) p.catch(() => {}); };
     let current = versions.find(v => v.key === opts.defaultKey) || versions[0];
+    let previous = null; // la version écoutée juste avant : l'autre moitié de la bascule A/B
     const srcFor = v => (isSound(v) ? base : v.url);
     if (video.getAttribute('src') !== srcFor(current)) video.src = srcFor(current);
     if (isSound(current)) audio.src = current.url;
@@ -100,7 +104,40 @@
     video.addEventListener('timeupdate', refresh);
     video.addEventListener('seeked', refresh);
 
-    let select = null;
+    let select = null, abBtn = null;
+    // Change de version : même instant, la lecture continue si elle était en cours. Renvoie false si la version est inconnue ou déjà active.
+    function switchTo(key) {
+      const next = versions.find(v => v.key === key);
+      if (!next || next === current) return false;
+      const t = video.currentTime || 0, playing = !video.paused;
+      previous = current; current = next;
+      if (select) select.value = next.key;
+      const target0 = t;
+      const finish = () => {
+        const d = video.duration;
+        const target = isFinite(d) && d > 0 ? Math.min(target0, d - 0.05) : target0; // durée inconnue : on garde l'instant tel quel
+        if (Math.abs((video.currentTime || 0) - target) > 0.01) { try { video.currentTime = target; } catch (e) { /* ancien navigateur */ } }
+        if (isSound(next)) audio.currentTime = target;
+        if (playing) { safePlay(video); if (isSound(next)) safePlay(audio); }
+        refresh();
+      };
+      if (isSound(next) && spare.getAttribute('src') === next.url) {
+        // La piste de rechange est déjà chargée avec cette version : on l'échange avec l'active, sans attente.
+        const old = audio; old.pause(); audio = spare; spare = old;
+        spare.removeAttribute('src');
+        audio.playbackRate = video.playbackRate; audio.volume = video.volume; audio.muted = video.muted;
+      } else if (isSound(next)) { audio.src = next.url; }
+      else { audio.pause(); audio.removeAttribute('src'); }
+      // Même image (deux sons sur la vidéo muette) : seul le son change, sans recharger la vidéo.
+      if (video.getAttribute('src') === srcFor(next)) finish();
+      else { video.src = srcFor(next); video.addEventListener('loadedmetadata', finish, { once: true }); }
+      // On arme tout de suite la piste de rechange avec la version quittée : revenir en arrière (A/B) est alors immédiat.
+      if (isSound(previous)) { spare.src = previous.url; try { spare.load(); } catch (e) { /* tant pis */ } }
+      if (abBtn) abBtn.disabled = false;
+      if (typeof opts.onVersionChange === 'function') { try { opts.onVersionChange(next, previous); } catch (e) { /* le rappel ne casse pas le lecteur */ } }
+      return true;
+    }
+    const toggleAB = () => { if (previous) switchTo(previous.key); };
     if (versions.length > 1) {
       const bar = document.createElement('label');
       bar.className = 'lp-video-versions';
@@ -113,29 +150,19 @@
         if (v === current) o.selected = true;
         select.appendChild(o);
       });
-      // Changer de version : même instant, et la lecture continue si elle était en cours.
-      select.addEventListener('change', () => {
-        const next = versions.find(v => v.key === select.value);
-        if (!next || next === current) return;
-        const t = video.currentTime || 0, playing = !video.paused;
-        current = next;
-        if (isSound(next)) audio.src = next.url; else { audio.pause(); audio.removeAttribute('src'); }
-        const resume = () => {
-          const d = video.duration;
-          const target = isFinite(d) && d > 0 ? Math.min(t, d - 0.05) : t; // durée inconnue : on garde l'instant tel quel
-          if (Math.abs((video.currentTime || 0) - target) > 0.01) { try { video.currentTime = target; } catch (e) { /* ancien navigateur */ } }
-          if (isSound(next)) audio.currentTime = target;
-          if (playing) { safePlay(video); if (isSound(next)) safePlay(audio); }
-          refresh();
-        };
-        // Même image (deux sons sur la vidéo muette) : seul le son change, sans recharger la vidéo.
-        if (video.getAttribute('src') === srcFor(next)) resume();
-        else { video.src = srcFor(next); video.addEventListener('loadedmetadata', resume, { once: true }); }
-      });
+      select.addEventListener('change', () => switchTo(select.value));
+      if (opts.ab === true) { // bascule A/B : seulement là où la page la demande (page de relecture) — pas sur les AdReels publics
+        abBtn = document.createElement('button');
+        abBtn.type = 'button'; abBtn.className = 'lp-video-ab'; abBtn.disabled = true;
+        abBtn.textContent = '\u21C4 A/B';
+        abBtn.title = tr('videoVersionABHint') === 'videoVersionABHint' ? 'Switch between the last two versions you listened to (key: B)' : tr('videoVersionABHint');
+        abBtn.addEventListener('click', toggleAB);
+        bar.appendChild(abBtn);
+      }
       wrap.parentNode.insertBefore(bar, wrap.nextSibling);
     }
     refresh();
-    return { versions, select, refresh, audio, current: () => current };
+    return { versions, select, refresh, get audio() { return audio; }, current: () => current, switchTo, toggleAB, previous: () => previous };
   }
 
   window.LayerPitchVideoVersions = { cueTextAt, mount, loadMontage };

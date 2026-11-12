@@ -272,7 +272,21 @@
 
   // Repères liés à une bascule d'embranchement (sa clé k et, de proche en proche, les bascules qu'elle a armées) : ils
   // suivent le bloc quand on le déplace, et disparaissent avec lui.
+  // Bloc de calque (vertical / statique) qui est le PREMIER départ de son morceau : les repères de l'écoute enregistrée
+  // (démarrage, générations, arrêt de fin) le suivent. Sinon la musique reste calée sur l'ancien départ -- elle entre
+  // alors au milieu du fichier au nouvel endroit, et le bloc déplacé est « couvert » par l'ancienne écoute (07/11).
+  function linkedSegmentMarks(events, e) {
+    const trackId = e.detail && e.detail.trackId;
+    const EPS = 0.05;
+    const segs = events.filter(o => o.name === 'layer_segment' && o.detail.trackId === trackId);
+    if (segs.some(o => o !== e && o.t <= e.t + EPS)) return []; // un autre calque joue déjà (ou démarre en même temps) : l'écoute reste son repère
+    const end = e.t + (e.detail.duration || 0);
+    return events.filter(o => o !== e && o.detail && o.detail.trackId === trackId && (
+      ((o.name === 'layer_run' || o.name === 'layer_gen' || o.name === 'track_play') && o.t >= e.t - EPS && o.t < end - EPS) ||
+      (o.name === 'voices_stop' && !o.detail.scope && Math.abs(o.t - end) <= EPS)));
+  }
   function linkedMarks(events, e) {
+    if (e && e.name === 'layer_segment') return linkedSegmentMarks(events, e);
     if (!e || e.name !== 'embr_loop_select' || !e.detail.k) return [];
     const keys = new Set([e.detail.k]);
     let grew = true;

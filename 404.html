@@ -51,6 +51,14 @@
     location.replace('/annuaire.html?' + p.toString());
     return;
   }
+  // /relecture/<nom> (9/11, lien de relecture client) : « relecture » est un nom réservé. La clé magique (#k=...) survit à la redirection.
+  if (handle === 'relecture' && segments.length === 2 && !segments[1].includes('.')) {
+    const p = new URLSearchParams(location.search);
+    p.set('s', decodeURIComponent(segments[1]));
+    p.set('__pretty', path + location.search);
+    location.replace('/relecture.html?' + p.toString() + (location.hash || ''));
+    return;
+  }
   // /album/<id> (29/09, page publique d'un album en vente) : « album » est un nom réservé.
   if (handle === 'album' && segments.length === 2 && !segments[1].includes('.')) {
     const p = new URLSearchParams(location.search);

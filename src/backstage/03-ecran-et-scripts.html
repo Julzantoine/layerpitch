@@ -142,6 +142,11 @@
           <a class="account-menu-item" href="mailto:contact@layerpitch.com">
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg><span data-i18n="accountMenuContact">Nous contacter</span></span>
           </a>
+          <!-- Crédits et licences (09/11) : logiciels libres utilisés (Mediabunny MPL-2.0, ffmpeg.wasm GPL...). Visible de tous (obligation
+               de mention, pas une fonctionnalité) -- le contenu est dans #creditsModalOverlay, voir 47-credits-licences.js. -->
+          <button class="account-menu-item" id="btnAccountCredits" type="button">
+            <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M14.5 3.5V8H19"/><path d="M9 12.5h6M9 16h6"/></svg><span data-i18n="accountMenuCredits">Crédits et licences</span></span>
+          </button>
           <div class="account-menu-sep"></div>
           <button class="account-menu-item account-menu-signout" id="btnAccountSignOut" type="button" hidden>
             <span class="account-menu-item-label"><svg class="account-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/></svg><span data-i18n="accountMenuSignOut">Se déconnecter</span></span>
@@ -367,11 +372,47 @@
         <h2 data-i18n="navVideoLibrary">Vidéo</h2>
         <div class="sub" data-i18n="videoLibraryPanelSub">Tes vidéos importées et les exports du moteur de capture vivent ici, indépendamment des AdReels et des Packs. Compressées automatiquement à l'import pour ne pas exploser le stockage.</div>
 
-        <div class="content-appearance-toggle">
-          <button class="nav-item active" data-video-subtab="library" type="button"><span data-i18n="videoSubtabLibrary">Bibliothèque</span></button>
-          <button class="nav-item" data-video-subtab="capture" type="button"><span data-i18n="videoSubtabCapture">Atelier</span></button>
-          <button class="nav-item" data-video-subtab="versioning" type="button"><span data-i18n="videoSubtabVersioning">Versioning</span></button>
-        </div>
+        <!-- Trois colonnes, de gauche à droite (09/11, demande de Jules-Antoine : même hiérarchie que la Bibliothèque) :
+             1 = les projets vidéo (et la Bibliothèque des vidéos importées), 2 = les sections du projet choisi, 3 = le contenu. -->
+        <div class="video-cols" id="videoCols">
+          <aside class="video-col video-col-list" id="videoColList">
+            <!-- Deux sections repliables (09/11, demande de Jules-Antoine) : 1 · Bibliothèque, 2 · Projets. -->
+            <div class="video-col-section" data-fold-key="library">
+              <button type="button" class="video-col-sechead" aria-expanded="true"><span class="video-col-chev" aria-hidden="true"></span><span data-i18n="videoSecLibrary">1 · Bibliothèque</span></button>
+              <div class="video-col-secbody">
+                <button class="video-col-item active" data-video-subtab="library" type="button"><span data-i18n="videoLibraryItem">+ Importer une vidéo</span></button>
+                <!-- Les vidéos importées elles-mêmes, avec leur vignette (09/11, demande de Jules-Antoine : déplier le 1 montre les vidéos, pas un libellé). -->
+                <div id="videoLibraryList" class="video-library-list"></div>
+              </div>
+            </div>
+            <div class="video-col-section" data-fold-key="projects">
+              <button type="button" class="video-col-sechead" aria-expanded="true"><span class="video-col-chev" aria-hidden="true"></span><span data-i18n="videoSecProjects">2 · Projets</span></button>
+              <div class="video-col-secbody">
+                <div id="videoProjectList"></div>
+                <!-- Sans projets (palier qui ne les enregistre pas, tutoriel) : l'atelier s'ouvre seul, comme avant. -->
+                <button class="video-col-item" id="videoAtelierSoloItem" data-video-subtab="capture" type="button" hidden><span data-i18n="videoViewAtelier">Atelier</span></button>
+                <button class="btn video-col-new" id="videoProjectNewBtn" type="button" data-i18n="addNew">+ Nouveau</button>
+              </div>
+            </div>
+          </aside>
+          <nav class="video-col video-col-nav" id="videoColNav" hidden>
+            <div class="video-col-head" id="videoColNavTitle"></div>
+            <button class="video-col-item active" data-video-subtab="capture" data-video-view="atelier" type="button"><span data-i18n="videoViewAtelier">Atelier</span></button>
+            <button class="video-col-item" data-video-view="versioning" type="button"><span data-i18n="videoViewVersioning">Versioning</span></button>
+            <button class="video-col-item" data-video-view="review" type="button"><span data-i18n="videoViewReview">Relecture client</span></button>
+            <button class="video-col-item" data-video-view="settings" type="button"><span data-i18n="videoViewSettings">Réglages</span></button>
+          </nav>
+          <div class="video-col-main">
+            <div class="video-col-toolbar">
+              <div class="video-zones" id="videoZones">
+              <button class="btn btn-small video-fold-btn" id="videoZone1" type="button" data-i18n-title="videoZoneMenu" title="Afficher / masquer le menu du Backstage" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3.0" y="4" width="1.6" height="8" fill="currentColor"/></svg></button>
+              <button class="btn btn-small video-fold-btn" id="videoZone2" type="button" data-i18n-title="videoZoneCol1" title="Afficher / masquer la liste (Bibliothèque / Projets)" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3.0" y="4" width="1.6" height="8" fill="currentColor"/><rect x="5.6" y="4" width="1.6" height="8" fill="currentColor"/></svg></button>
+              <button class="btn btn-small video-fold-btn" id="videoZone3" type="button" data-i18n-title="videoZoneCol2" title="Afficher / masquer les sections du projet" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3.0" y="4" width="1.6" height="8" fill="currentColor"/><rect x="5.6" y="4" width="1.6" height="8" fill="currentColor"/><rect x="8.2" y="4" width="1.6" height="8" fill="currentColor"/></svg></button>
+              <button class="btn btn-small video-fold-btn" id="videoZone5" type="button" data-i18n-title="videoZoneRight" title="Afficher / masquer le panneau de droite de l’atelier" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="11.4" y="4" width="1.6" height="8" fill="currentColor"/></svg></button>
+              <!-- 05/11 : plein écran (le cadre couvre toute la fenêtre ; Échap ou le même bouton pour revenir). Depuis le 12/11, il rejoint les boutons d'affichage. -->
+              <button class="btn btn-small video-fold-btn" id="videoAtelierFullBtn" type="button" data-i18n-title="videoAtelierFull" title="⤢ Plein écran"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            </div>
 
         <div class="video-subpanel active" data-video-subpanel="library">
           <div class="video-library-dropzone" id="videoLibraryDropzone" data-i18n="videoLibraryDropHint">Glisse un fichier vidéo ici, ou clique pour en choisir un</div>
@@ -380,27 +421,50 @@
           <div class="video-library-quota" id="videoLibraryQuota"></div>
           <!-- Historique des exports de montages (21/10) : place prise et bouton de nettoyage, surtout utile quand le quota est atteint. -->
           <div class="video-library-quota" id="videoLibraryHistory" hidden></div>
-          <div id="videoLibraryList" class="video-library-list"></div>
         </div>
 
-        <!-- Sous-onglet Atelier (21/10, décidé par Jules-Antoine ; « Capture » depuis le 16/09) : l'atelier vidéo (atelier.html, outil de
-             capture et de Versioning sorti de la page publique du pack) dans un cadre. Le choix du pack se fait dans l'atelier. Ouvert
-             aussi par « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc vidéo d'un AdReel) : openVideoAtelier(). -->
+        <!-- Sous-onglet « Projets vidéo » (09/11, demande de Jules-Antoine : « même logique qu'un AdReel »). Un projet vidéo = un montage
+             sauvegardé (video_captures : nom, pack, vidéo d'origine) et ses versions vidéo (video_capture_versions) : on le crée, on le choisit
+             dans la liste, et l'atelier (atelier.html, dans un cadre) s'ouvre dessus (&montage=<id>). Remplace les anciens sous-onglets
+             « Atelier » (on partait du pack) et « Versioning » (liste de montages) : les versions vivent dans le projet. Palier qui enregistre
+             les montages seulement ; sinon l'atelier s'ouvre comme avant, sans projet. Ouvert aussi par « Créer une version vidéo » (bloc
+             vidéo d'un AdReel) : openVideoAtelier(). -->
         <div class="video-subpanel" data-video-subpanel="capture">
-          <div class="sub" data-i18n="videoCaptureSubtabHint">Choisis un pack, puis une vidéo, et joue sa musique adaptative sur l'image : retouche la prise, enregistre le montage, fais-en des versions avec d'autres musiques, et mets la vidéo à jour partout où elle est montrée.</div>
+          <div class="sub" data-i18n="videoCaptureSubtabHint">Un projet vidéo, c'est une vidéo et un pack : tu y joues la musique adaptative sur l'image, tu enregistres le montage, tu en fais des versions avec d'autres musiques, et tu mets la vidéo à jour partout où elle est montrée.</div>
+          <div class="video-project-bar" id="videoProjectBar" hidden>
+            <select id="videoProjectSelect" aria-hidden="true" tabindex="-1"></select>
+          </div>
+          <!-- Réglages du projet (colonne du milieu → « Réglages ») : pack, vidéo, versions, et suppression. -->
+          <div class="video-project-settings" id="videoProjectSettings" hidden>
+            <div class="video-project-meta" id="videoProjectMeta" hidden></div>
+            <div class="video-project-actions">
+              <button class="btn" id="videoProjectPackBtn" type="button" data-i18n="videoProjectChangePack">Changer de pack</button>
+              <button class="btn btn-danger" id="videoProjectDeleteBtn" type="button" data-i18n="deleteShort">Suppr.</button>
+            </div>
+          </div>
+          <div class="video-library-empty" id="videoProjectEmpty" hidden>
+            <span data-i18n="videoProjectEmpty">Aucun projet vidéo pour l'instant. Crée le premier : un nom, un pack, puis tu choisis ta vidéo.</span>
+          </div>
+          <!-- Nouveau projet : un nom et un pack (la vidéo se choisit ensuite, dans l'atelier). -->
+          <dialog id="videoProjectDialog" class="video-test-dialog">
+            <form method="dialog" class="video-test-form" id="videoProjectForm">
+              <div class="video-test-dialog-title" id="videoProjectNewTitle" data-i18n="videoProjectNewTitle">Nouveau projet vidéo</div>
+              <label for="videoProjectName" id="videoProjectNameRow" data-i18n="videoProjectNameLabel">Nom du projet</label>
+              <input type="text" id="videoProjectName" maxlength="120" data-i18n-placeholder="videoProjectNamePlaceholder" placeholder="ex. Joris">
+              <label for="videoProjectPack" data-i18n="videoProjectPackLabel">Pack</label>
+              <select id="videoProjectPack"></select>
+              <div class="video-test-dialog-error" id="videoProjectError"></div>
+              <div class="video-test-dialog-actions">
+                <button type="button" class="video-test-btn-secondary" id="videoProjectCancelBtn" data-i18n="cancel">Annuler</button>
+                <button type="submit" class="video-test-btn-primary" id="videoProjectCreateBtn" data-i18n="videoProjectCreateBtn">Créer</button>
+              </div>
+            </form>
+          </dialog>
           <!-- 04/11 : changements pas encore sauvegardés (un pack tout juste créé…) : l'atelier ne lit que ce qui est en base. -->
           <div id="videoAtelierUnsavedNote" class="video-atelier-unsaved-note" hidden data-i18n="videoAtelierUnsavedNote">Tu as des changements pas encore sauvegardés : un pack que tu viens de créer ou de modifier apparaîtra ici après « Sauvegarder / publier ».</div>
-          <!-- 05/11 : plein écran (le cadre couvre toute la fenêtre ; Échap ou le même bouton pour revenir). -->
-          <div class="video-atelier-bar"><button type="button" class="btn btn-small" id="videoAtelierFullBtn" data-i18n="videoAtelierFull">⤢ Plein écran</button></div>
           <iframe id="videoAtelierFrame" class="video-atelier-frame" title="Atelier vidéo" allow="autoplay; fullscreen"></iframe>
         </div>
-
-        <!-- Sous-onglet Versioning (26/09) : tous les montages sauvegardés (video_captures), tous packs confondus, avec
-             leurs versions vidéo (video_capture_versions). « Ouvrir » ouvre le montage dans l'atelier vidéo (sous-onglet Atelier,
-             atelier.html?...&montage=<id>). Réservé au palier qui enregistre les versions (les fonctions serveur le vérifient aussi). -->
-        <div class="video-subpanel" data-video-subpanel="versioning">
-          <div class="sub" data-i18n="videoVersioningSubtabHint">Tes montages vidéo sauvegardés et leurs versions (le même montage rejoué avec d'autres morceaux ou d'autres Sfx). Ouvre un montage pour créer, écouter ou rendre ses versions, dans un nouvel onglet.</div>
-          <div id="videoVersioningList" class="video-library-list"></div>
+          </div>
         </div>
       </div>
 
@@ -919,6 +983,35 @@
   </div>
 </div>
 
+<div id="videoPlayerOverlay">
+  <div id="videoPlayerModal" role="dialog" aria-modal="true" aria-labelledby="videoPlayerTitle">
+    <h3 id="videoPlayerTitle"></h3>
+    <video id="videoPlayerEl" controls playsinline></video>
+    <div class="actions">
+      <button class="btn btn-small btn-primary" id="videoPlayerClose" type="button" data-i18n="videoLibraryPlayerClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div id="creditsModalOverlay">
+  <div id="creditsModal" role="dialog" aria-modal="true" aria-labelledby="creditsModalTitle">
+    <h3 id="creditsModalTitle" data-i18n="creditsModalTitle">Crédits et licences</h3>
+    <div class="sub" data-i18n="creditsModalIntro">LayerPitch s'appuie sur des logiciels libres. Merci à leurs auteurs. Les noms de licences et les liens ci-dessous sont ceux publiés par les projets.</div>
+    <ul class="credits-list">
+      <li><a href="https://mediabunny.dev" target="_blank" rel="noopener">Mediabunny</a> — <span data-i18n="creditsMediabunny">compression et conversion des vidéos dans ton navigateur</span> <span class="credits-lic">MPL-2.0</span></li>
+      <li><a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">ffmpeg.wasm</a> / <a href="https://ffmpeg.org" target="_blank" rel="noopener">FFmpeg</a> — <span data-i18n="creditsFfmpeg">montage et compression de secours des vidéos (le moteur « core » est publié sous GPL-2.0 ou ultérieure, code source sur le dépôt ffmpeg.wasm)</span> <span class="credits-lic">MIT / GPL-2.0+</span></li>
+      <li><a href="https://github.com/supabase/supabase-js" target="_blank" rel="noopener">Supabase JS</a> — <span data-i18n="creditsSupabase">connexion et base de données</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/eshaz/wasm-audio-decoders" target="_blank" rel="noopener">wasm-audio-decoders (ogg-vorbis)</a> — <span data-i18n="creditsOgg">lecture des fichiers audio Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://github.com/arseneyr/wasm-media-encoders" target="_blank" rel="noopener">wasm-media-encoders</a> — <span data-i18n="creditsEncoders">encodage audio MP3 et Ogg Vorbis</span> <span class="credits-lic">MIT</span></li>
+      <li><a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a> — <span data-i18n="creditsJszip">création des archives ZIP</span> <span class="credits-lic">MIT ou GPL-3.0+</span></li>
+      <li>Space Grotesk, Inter, JetBrains Mono — <span data-i18n="creditsFonts">polices de caractères</span> <span class="credits-lic">SIL OFL 1.1</span></li>
+    </ul>
+    <div class="actions">
+      <button class="btn btn-small btn-primary" id="creditsClose" type="button" data-i18n="creditsClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div id="implSheetModalOverlay">
   <div id="implSheetModal">
     <h3 data-i18n="implSheetModalTitle">Fiche d'implémentation</h3>
@@ -958,17 +1051,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794229278680"></script>
-<script src="layerpitch-i18n.js?v=1794229278680"></script>
-<script src="layerpitch-import-engine.js?v=1794229278680"></script>
-<script src="layerpitch-appearance.js?v=1794229278680"></script>
-<script src="layerpitch-album-shared.js?v=1794229278680"></script>
-<script src="layerpitch-album-editor.js?v=1794229278680"></script>
-<script src="layerpitch-shell.js?v=1794229278680"></script>
-<script src="layerpitch-social-icons.js?v=1794229278680"></script>
-<script src="layerpitch-notify.js?v=1794229278680"></script>
-<script src="layerpitch-guide.js?v=1794229278680"></script>
-<script src="layerpitch-lesson-previews.js?v=1794229278680"></script>
-<script src="layerpitch-help.js?v=1794229278680"></script>
-<script src="player.js?v=1794229278680"></script>
+<script src="layerpitch-tuto.js?v=1794512239931"></script>
+<script src="layerpitch-i18n.js?v=1794512239931"></script>
+<script src="layerpitch-import-engine.js?v=1794512239931"></script>
+<script src="layerpitch-appearance.js?v=1794512239931"></script>
+<script src="layerpitch-album-shared.js?v=1794512239931"></script>
+<script src="layerpitch-album-editor.js?v=1794512239931"></script>
+<script src="layerpitch-shell.js?v=1794512239931"></script>
+<script src="layerpitch-social-icons.js?v=1794512239931"></script>
+<script src="layerpitch-notify.js?v=1794512239931"></script>
+<script src="layerpitch-guide.js?v=1794512239931"></script>
+<script src="layerpitch-lesson-previews.js?v=1794512239931"></script>
+<script src="layerpitch-help.js?v=1794512239931"></script>
+<script src="player.js?v=1794512239931"></script>
 <script>

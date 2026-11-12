@@ -19,19 +19,20 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('atelier : choix du pack, outil, dialogue de la vidéo, leçon', /id="atelierPackSelect"/.test(atelier) && /async function setupCaptureTrigger\(pack, container, opts\)/.test(atelier)
     && /id="videoCaptureDialog"/.test(atelier) && /function openCapturePanel/.test(atelier) && /atelier-lecons\.js/.test(atelier) && /capture-versioning\.js/.test(atelier));
   // 04/11 : ces trois fonctions s'étaient perdues au déplacement (21/10), l'atelier ne pouvait plus rien enregistrer.
-  check('atelier : la capture démarre, s’arrête et montre la piste armée', ['startCapture', 'stopCapture', 'updateArmedStatusDisplay'].every(f => new RegExp('function ' + f + '\\(').test(atelier)));
-  check('atelier : arrêter la capture arrête aussi les morceaux lancés pendant la prise', /new Set\(\[armedTrackId\]\.concat\(newPassEvents\.map/.test(atelier));
+  check('atelier : la capture démarre et s’arrête', ['startCapture', 'stopCapture'].every(f => new RegExp('function ' + f + '\\(').test(atelier)));
+  check('atelier : plus d’armement : ni bouton ⏺ ni piste armée', !/armedTrackId|video-capture-arm-track-btn/.test(atelier));
+  check('atelier : arrêter la capture arrête aussi les morceaux lancés pendant la prise', /new Set\(newPassEvents\.map/.test(atelier));
   check('atelier : studio = packs achetés par l’équipe, compositeur = ses packs', /client\.rpc\('my_team_purchases'\)/.test(atelier) && /\.eq\('owner_id', composerId\)/.test(atelier));
   check('atelier : plus besoin du réglage « Tester en jeu » du pack', !/if \(!pack\.videoTestModeEnabled\) return/.test(atelier));
   check('atelier : données publiées du compositeur du pack (le sien ou le vendeur)', /lastResolvedOwnerId = owner\.owner_id/.test(atelier) && /loadSiteDataFromPostgres\(owner\.owner_id\)/.test(atelier));
   check('atelier : prévient la page qui l’accueille (même origine)', /postMessage\(Object\.assign\(\{ source: 'lp-atelier', type \}/.test(atelier) && /location\.origin\)/.test(atelier));
 
-  // Backstage : sous-onglet Atelier (cadre), Versioning et bloc vidéo l'ouvrent.
+  // Backstage : sous-onglet Projets vidéo (cadre) et bloc vidéo l'ouvrent.
   const bs = read('layerpitch-backstage.html');
   check('Backstage : sous-onglet Atelier = cadre atelier.html', /<iframe id="videoAtelierFrame"/.test(bs) && /return '\.\/atelier\.html\?' \+/.test(bs));
   check('Backstage : plus de lien vers l’outil de la page pack', !/pack\.html\?[^`'"]*capture=1/.test(bs) && !/capture=1&montage/.test(bs));
-  check('Backstage : « Ouvrir » (Versioning) et « Créer une version vidéo » (bloc) ouvrent l’atelier sur le montage',
-    /openVideoAtelier\(\{ packId: b\.dataset\.atelierPack, montageId: b\.dataset\.atelierMontage \}\)/.test(bs) && /openVideoAtelier\(\{ packId: newVersion\.dataset\.pack, montageId: newVersion\.dataset\.montage \}\)/.test(bs));
+  check('Backstage : projet vidéo choisi (et « Créer une version vidéo » du bloc) ouvrent l’atelier sur le montage',
+    /function videoProjectFrameUrl\(p\) \{ return videoAtelierUrl\(\{ packId: p\.packId, montageId: p\.id \}\); \}/.test(bs) && /openVideoAtelier\(\{ packId: newVersion\.dataset\.pack, montageId: newVersion\.dataset\.montage \}\)/.test(bs));
   check('Backstage : bloc vidéo → « Faire une vidéo avec un pack (atelier) »', /data-role="openAtelier"/.test(bs) && /atelierBtn\.addEventListener\('click', \(\) => openVideoAtelier\(\)\)/.test(bs));
   check('Backstage : messages de l’atelier acceptés de la même origine seulement', /if \(e\.origin !== location\.origin \|\| !e\.data \|\| e\.data\.source !== 'lp-atelier'\) return;/.test(bs));
   const studio = read('studio.html');
@@ -99,7 +100,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('une seule bulle à la fois : le Backstage cache la sienne pendant celles de l’atelier ; leçon lancée aussi sans pack', /lp-atelier-lesson-open \.tour-root-lesson \{ display: none; \}/.test(read('layerpitch-backstage.html')) && /type === 'lessonOpen'/.test(read('layerpitch-backstage.html')) && /atelierTell\('lessonOpen'\)/.test(read('atelier.html')) && /atelierPickPackHint'\)\)\); startAtelierLessonIfAsked\(\); return;/.test(read('atelier.html')));
   check('plein écran de l’atelier (bouton, étape de la leçon) ; une seule écoute à la fois', /id="videoAtelierFullBtn"/.test(read('layerpitch-backstage.html')) && /lvFullTitle/.test(src43pre) && /if \(versioning\) versioning\.stop\(\)/.test(read('atelier.html')) && /if \(montageListen && e\.target\.closest/.test(read('atelier.html')));
   check('lire l’image joue aussi le montage (admins), musique gardée tant que la frise ne change pas, resynchro au saut', /videoEl\.addEventListener\('play'/.test(read('atelier.html')) && /__lpCaptureIsAdmin\) return;/.test(read('atelier.html')) && /montageBuffer = null; montageGen\+\+/.test(read('atelier.html')) && /addEventListener\('seeked', onSeeked\)/.test(read('atelier.html')) && /isListening: \(\) => !!listening/.test(read('capture-versioning.js')));
-  check('atelier : la vidéo reste accrochée en haut quand on fait défiler', /function pinCaptureVideo/.test(read('atelier.html')) && /video-capture-pinned \{ position: fixed; top: 0/.test(read('atelier.html')));
+  check('atelier : la vidéo reste accrochée en haut quand on fait défiler (sticky, sans saut de mise en page)', /function pinCaptureVideo/.test(read('atelier.html')) && /\.video-capture-dock \{ position: sticky; top: 0/.test(read('atelier.html')) && !/video-capture-pinned \{ position: fixed/.test(read('atelier.html')));
   const src43 = src43pre;
   const lv = src43.slice(src43.indexOf("{ id: 'versioning'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning'")));
   check('leçon (Backstage) : onglet Vidéo → Atelier, sans page pack ; s’arrête à la sortie de l’atelier', /data-tab="videoLibrary"/.test(lv) && /data-video-subtab="capture"/.test(lv) && /#videoAtelierFrame/.test(lv)
@@ -124,7 +125,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon « Annoter » : onglet Vidéos, version, instant, note adressée', /data-tab="videos"/.test(ann) && /lp-video-versions select/.test(ann) && /noteHere/.test(ann) && /noteTo/.test(ann) && /noteAdd/.test(ann));
   const akeys = [...ann.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]).concat(['plAnnTitle', 'plAnnDesc']);
   check('leçon « Annoter » : ' + akeys.length + ' textes présents en FR et EN', akeys.every(has));
-  check('leçon « Annoter » : ouverte au menu du Backstage (Préproduction), chaque geste exigé', /\{ id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', titleKey/.test(src43) && !/id: 'pj-annotate'[^\n]*soon: true/.test(pl) && /v\.paused && v\.currentTime >= 7/.test(ann) && /joshua/.test(ann));
+  check('leçon « Annoter » : fermée (admin seulement, 12/11, le temps de la refaire) au menu du Backstage (Préproduction), chaque geste exigé', /\{ id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey/.test(src43) && !/id: 'pj-annotate'[^\n]*soon: true/.test(pl) && /v\.paused && v\.currentTime >= 7/.test(ann) && /joshua/.test(ann));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();

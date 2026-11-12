@@ -70,28 +70,6 @@ async function setupCaptureTrigger(pack, container, opts) {
   const montageParam = new URLSearchParams(location.search).get('montage');
   if (montageParam) openVideoCaptureDialog(montageParam);
 
-  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
-  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
-  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
-  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
-  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
-  document.querySelectorAll('[data-track-id]').forEach(row => {
-    const playBtn = row.querySelector('[data-role="playBtn"]');
-    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
-    const armBtn = document.createElement('button');
-    armBtn.type = 'button';
-    armBtn.className = 'video-capture-arm-track-btn';
-    armBtn.textContent = '⏺';
-    armBtn.title = tr('captureArmBtnTitle');
-    armBtn.addEventListener('click', () => {
-      const trackId = row.dataset.trackId;
-      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
-      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
-      if (armedTrackId === trackId) armBtn.classList.add('armed');
-      updateArmedStatusDisplay();
-    });
-    playBtn.insertAdjacentElement('afterend', armBtn);
-  });
   return true;
 }
 
@@ -115,6 +93,7 @@ let openVideoCaptureDialog = () => {};
   function handleFile(file) {
     if (!file || !file.type.startsWith('video/')) {
       errorEl.textContent = tr('captureChooseVideoError');
+      libStatus.textContent = '';
       return;
     }
     errorEl.textContent = '';
@@ -166,12 +145,33 @@ let openVideoCaptureDialog = () => {};
     libBtn.disabled = true;
     libStatus.textContent = tr('captureLibraryDownloading');
     try {
-      const res = await fetch(v.base + encodeURIComponent(v.file));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const blob = await res.blob();
+      // Lecture par morceaux : on affiche l'avancement (une grosse vidéo ressemblait à un blocage), et en cas d'interruption on réessaie
+      // une fois avant d'afficher l'erreur (nom + octets reçus, pour comprendre ce qui coupe).
+      let blob = null, got = 0, lastErr = null;
+      for (let attempt = 0; attempt < 2 && !blob; attempt++) {
+        try {
+          got = 0;
+          const res = await fetch(v.base + encodeURIComponent(v.file));
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const total = Number(res.headers.get('content-length')) || 0;
+          const parts = [], reader = res.body.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parts.push(value); got += value.length;
+            libStatus.textContent = tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo');
+          }
+          blob = new Blob(parts, { type: res.headers.get('content-type') || '' });
+        } catch (e) { lastErr = e; console.error(e); }
+      }
+      if (!blob) throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
-      handleFile(new File([blob], name, { type: v.mimeType || blob.type || 'video/mp4' }));
+      // Le type enregistré peut être générique (application/octet-stream) : on retombe sur le type d'après l'extension, sinon mp4.
+      const guess = /\.webm$/i.test(name) ? 'video/webm' : /\.mov$/i.test(name) ? 'video/quicktime' : 'video/mp4';
+      const type = [v.mimeType, blob.type].find(t => t && t.startsWith('video/')) || guess;
+      libStatus.textContent = '';
+      handleFile(new File([blob], name, { type }));
     } catch (e) {
       console.error(e);
       libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
