@@ -53,6 +53,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     return;
   }
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
+  // Toute retouche passe par ici : la frise est redessinée PUIS l'atelier est prévenu (enregistrement automatique, annuler / rétablir,
+  // musique à recalculer). Avant le 12/11, les marqueurs (pose, glisser, nom, instant, effacement) et les noms de pistes ne prévenaient
+  // pas l'atelier : rien n'était enregistré tant qu'une autre retouche ne passait pas derrière -- d'où des marqueurs « perdus » au hasard.
+  // kind 'view' : simple affichage (groupe replié / déplié) -- enregistré avec le montage, mais pas une étape d'annulation.
+  const changed = kind => { rerender(); if (onChange) onChange(kind); };
+  // Fenêtre de la frise (elle peut être déplacée dans la fenêtre détachée, voir detachCapturePanel) : écouteurs et images y sont posés.
+  const ownerDoc = container.ownerDocument || document;
+  const ownerWin = ownerDoc.defaultView || window;
   // Calques d'un morceau dont l'intensité suit un curseur (26/09) : recalculés à partir des points du curseur à chaque
   // affichage -- donc après chaque retouche d'un point (glisser, valeur, ajout, suppression).
   if (editable) window.LayerCapturePlan.syncSliderIntensityLayers(events, findCaptureTrack);
@@ -479,8 +487,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
     const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
-    rerender();
-    onChange && onChange();
+    changed();
   }));
   // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
   function openAddTrackDialog() {
@@ -525,8 +532,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const h = laneLayout.hidden.indexOf(id); if (h >= 0) laneLayout.hidden.splice(h, 1);
       else if (laneLayout.extra.indexOf(id) === -1) laneLayout.extra.push(id);
       dlg.close();
-      rerender();
-      onChange && onChange();
+      changed();
     });
     dlg.addEventListener('close', () => dlg.remove());
     dlg.showModal();
@@ -587,11 +593,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     `;
     const nameInput = detailEl.querySelector('.video-capture-marker-name');
     nameInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); nameInput.blur(); } });
-    nameInput.addEventListener('change', () => { m.label = nameInput.value.trim() || m.label; rerender(); });
+    nameInput.addEventListener('change', () => { m.label = nameInput.value.trim() || m.label; changed(); });
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', ev => {
       const v = parseFloat(ev.target.value);
       if (!isNaN(v)) { m.t = Math.max(0, v); markers.sort((a, b) => a.t - b.t); }
-      rerender();
+      changed();
     });
     detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => removeMarker(m));
   }
@@ -601,7 +607,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const i = markers.indexOf(m);
     if (i !== -1) markers.splice(i, 1);
     container.__vctSelectedMarker = null;
-    rerender();
+    changed();
   }
   function addMarker(t) {
     if (t == null) return;
@@ -612,7 +618,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     markers.push(m);
     markers.sort((a, b) => a.t - b.t);
     container.__vctSelectedMarker = m.id;
-    rerender(); // rouvre le détail du marqueur sélectionné (voir plus bas) : on peut taper son nom tout de suite
+    container.__vctSelectedEvent = null;
+    changed(); // rouvre le détail du marqueur sélectionné (voir plus bas) : on peut taper son nom tout de suite
     const nameInput = container.querySelector('.video-capture-marker-name');
     if (nameInput) { nameInput.focus(); nameInput.select(); }
   }
@@ -652,14 +659,16 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       };
       const onUp = () => {
         clearSnapGuide();
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
+        ownerDoc.removeEventListener('pointermove', onMove);
+        ownerDoc.removeEventListener('pointerup', onUp);
+        ownerDoc.removeEventListener('pointercancel', onUp);
         container.__vctSelectedMarker = m.id;
-        if (moved) { markers.sort((a, b) => a.t - b.t); rerender(); }
+        if (moved) { markers.sort((a, b) => a.t - b.t); changed(); }
         else { seekTo(m.t); selectMarker(m); }
       };
-      document.addEventListener('pointermove', onMove);
-      document.addEventListener('pointerup', onUp);
+      ownerDoc.addEventListener('pointermove', onMove);
+      ownerDoc.addEventListener('pointerup', onUp);
+      ownerDoc.addEventListener('pointercancel', onUp);
     });
     if (editable) flagEl.addEventListener('dblclick', ev => { ev.preventDefault(); ev.stopPropagation(); if (!videoCaptureState) removeMarker(m); });
   });
@@ -671,11 +680,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     removeMarker(m);
     return true;
   } : null;
-  if (!container.__vctMarkerKeys) {
-    container.__vctMarkerKeys = true;
-    document.addEventListener('keydown', ev => {
+  if (container.__vctMarkerKeys !== ownerDoc) {
+    container.__vctMarkerKeys = ownerDoc;
+    const keyDoc = ownerDoc;
+    keyDoc.addEventListener('keydown', function onDel(ev) {
+      if (!container.isConnected || container.ownerDocument !== keyDoc) { keyDoc.removeEventListener('keydown', onDel); if (container.__vctMarkerKeys === keyDoc) container.__vctMarkerKeys = null; return; }
       if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
-      const a = document.activeElement;
+      const a = keyDoc.activeElement;
       if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
       if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
     });
@@ -708,7 +719,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     headerEl.addEventListener('click', () => {
       const key = headerEl.dataset.groupKey;
       collapsedGroups[key] = !collapsedGroups[key];
-      rerender();
+      changed('view');
     });
   });
   if (!editable) return;
@@ -774,6 +785,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.__vctSelectedMarker = null;
     container.querySelectorAll('.vct-marker').forEach(m => m.classList.remove('vct-marker-selected'));
     const e = events[idx];
+    container.__vctSelectedEvent = e; // retrouvé après chaque nouvel affichage (voir la fin de renderCaptureTimeline)
     const detailEl0 = container.querySelector('#vctDetail');
     if (e.name === 'voices_stop') {
       // Arrêt (05/11) : seule la durée du fondu se règle ici (0 = arrêt net).
@@ -784,8 +796,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       detailEl0.querySelector('.video-capture-event-stopfade').addEventListener('change', ev => {
         const v = parseFloat(ev.target.value);
         if (!(v > 0)) delete e.detail.fadeSec; else e.detail.fadeSec = Math.min(10, v);
-        rerender();
-        onChange && onChange();
+        changed();
       });
       return;
     }
@@ -813,16 +824,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       e.t = isNaN(v) ? e.t : Math.max(0, v);
       linkedByTime.forEach(m => { m.t = Math.max(0, m.t + (e.t - oldT)); });
       events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après une retouche manuelle
-      rerender();
-      onChange && onChange();
+      changed();
     });
     const durationInput = detailEl.querySelector('.video-capture-event-duration');
     if (durationInput) {
       durationInput.addEventListener('change', (ev) => {
         const v = parseFloat(ev.target.value);
         setEventDuration(e, isNaN(v) ? null : v);
-        rerender();
-        onChange && onChange();
+        changed();
       });
     }
     const sliderValInput = detailEl.querySelector('.video-capture-event-slidervalue');
@@ -830,8 +839,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       sliderValInput.addEventListener('change', (ev) => {
         const v = parseFloat(ev.target.value);
         if (!isNaN(v)) e.detail.value = Math.max(0, Math.min(1, v / 100));
-        rerender();
-        onChange && onChange();
+        changed();
       });
     }
     const yawInput = detailEl.querySelector('.video-capture-event-yaw');
@@ -839,23 +847,22 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       yawInput.addEventListener('change', (ev) => {
         const v = parseFloat(ev.target.value);
         if (!isNaN(v)) e.detail.yaw = Math.max(-180, Math.min(180, v));
-        rerender();
-        onChange && onChange();
+        changed();
       });
     }
     const duckInput = detailEl.querySelector('.video-capture-event-duck');
     if (duckInput) {
       duckInput.addEventListener('change', (ev) => {
         e.detail.duck = ev.target.checked;
-        onChange && onChange();
+        if (onChange) onChange();
       });
     }
     detailEl.querySelector('.video-capture-event-del').addEventListener('click', () => {
       // Supprimer une bascule supprime aussi ce qu'elle a déclenché.
       window.LayerCapturePlan.linkedMarks(events, e).forEach(m => { const j = events.indexOf(m); if (j >= 0) events.splice(j, 1); });
       events.splice(events.indexOf(e), 1);
-      rerender();
-      onChange && onChange();
+      container.__vctSelectedEvent = null;
+      changed();
     });
   }
 
@@ -884,6 +891,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     // une autre fenêtre via appendChild, ses éléments changent réellement d'ownerDocument, mais les
     // mouvements de souris dans CETTE fenêtre-là ne sont jamais reçus par l'ancien document.
     const doc = pointerDownEvent.currentTarget.ownerDocument || document;
+    const frame = dragFrame(doc);
     const e = events[idx];
     const startT = e.t;
     const startDuration = hasIndependentDuration(e) ? getEventDuration(e) : 1;
@@ -931,11 +939,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         dt += snapDelta([endT], snapTargets([e], null), ev, trackRect.width);
         setEventDuration(e, startDuration + dt);
       }
-      rerender();
+      frame.schedule();
     }
     function onUp() {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointercancel', onUp);
+      frame.cancel();
       clearSnapGuide();
       if (!moved) {
         // Un frémissement de souris (moins de 3 px) ne change rien : on remet le bloc exactement où il était (sinon la frise et
@@ -947,11 +957,11 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         return;
       }
       if (kind === 'move') events.sort((a, b) => a.t - b.t); // garde l'ordre chronologique après le glisser
-      rerender();
-      onChange && onChange();
+      changed();
     }
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointercancel', onUp);
   }
   container.querySelectorAll('.vct-block:not(.vct-block-group)').forEach(el => {
     const idx = parseInt(el.dataset.idx, 10);
@@ -972,13 +982,14 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
           el.classList.toggle('vct-stop-fade', sec > 0);
         };
         const onUp = () => {
-          document.removeEventListener('pointermove', onMove);
-          document.removeEventListener('pointerup', onUp);
-          rerender();
-          onChange && onChange();
+          ownerDoc.removeEventListener('pointermove', onMove);
+          ownerDoc.removeEventListener('pointerup', onUp);
+          ownerDoc.removeEventListener('pointercancel', onUp);
+          changed();
         };
-        document.addEventListener('pointermove', onMove);
-        document.addEventListener('pointerup', onUp);
+        ownerDoc.addEventListener('pointermove', onMove);
+        ownerDoc.addEventListener('pointerup', onUp);
+        ownerDoc.addEventListener('pointercancel', onUp);
       });
       return;
     }
@@ -997,6 +1008,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const trackRect = pointerDownEvent.currentTarget.closest('.vct-lane-track').getBoundingClientRect();
     const startX = pointerDownEvent.clientX;
     const doc = pointerDownEvent.currentTarget.ownerDocument || document; // voir startDrag ci-dessus
+    const frame = dragFrame(doc);
     const members = groupMembers(key);
     if (!members.length) return;
     const startTs = members.map(m => m.t);
@@ -1009,19 +1021,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       dt += snapDelta([minStartT + dt], snapTargets(members, null), ev, trackRect.width);
       dt = Math.max(dt, -minStartT); // n'autorise jamais un membre à passer sous 0
       members.forEach((m, i) => { m.t = startTs[i] + dt; });
-      rerender();
+      frame.schedule();
     }
     function onUp() {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointercancel', onUp);
+      frame.cancel();
       clearSnapGuide();
-      if (!moved) return;
+      if (!moved) { members.forEach((m, i) => { m.t = startTs[i]; }); rerender(); return; } // frémissement < 3 px : rien n'a bougé
       events.sort((a, b) => a.t - b.t);
-      rerender();
-      onChange && onChange();
+      changed();
     }
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onUp);
+    doc.addEventListener('pointercancel', onUp);
   }
   container.querySelectorAll('.vct-block-group').forEach(el => {
     el.addEventListener('pointerdown', (ev) => startGroupDrag(ev, el.dataset.groupKey));
@@ -1081,8 +1095,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         return;
       }
       events.sort((a, b) => a.t - b.t);
-      rerender();
-      onChange && onChange();
+      changed();
     });
   });
 
@@ -1112,18 +1125,43 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       labelEl.replaceWith(input);
       input.focus();
       input.select();
+      let done = false;
       function commit() {
+        if (done) return;
+        done = true;
         const v = input.value.trim();
+        const before = laneOverrides[key];
         if (v && v !== realDefault) laneOverrides[key] = v;
         else delete laneOverrides[key];
-        rerender();
+        if (laneOverrides[key] !== before) changed(); else rerender();
       }
       input.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-        if (ev.key === 'Escape') { ev.preventDefault(); rerender(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); done = true; rerender(); } // annuler : le « blur » qui suit ne valide rien
       });
       input.addEventListener('blur', commit);
     });
   });
+
+  // Bloc sélectionné avant ce nouvel affichage : son détail reste ouvert (avant le 12/11, il se refermait dès que la frise se redessinait
+  // d'elle-même -- enregistrement automatique, remarques client -- et l'on perdait la retouche en cours de saisie).
+  const selEvent = container.__vctSelectedEvent;
+  if (selEvent && !container.__vctSelectedMarker) {
+    const selIdx = events.indexOf(selEvent);
+    const selEl = selIdx >= 0 ? container.querySelector(`.vct-block[data-idx="${selIdx}"]`) : null;
+    if (selEl) selectBlock(selIdx, selEl);
+    else if (selIdx < 0) container.__vctSelectedEvent = null;
+  }
+
+  // Glisser : au plus un réaffichage complet par image de l'écran (le navigateur envoie souvent plusieurs mouvements de souris par image ;
+  // chacun redessinait toute la frise). cancel() au relâché : le dernier affichage est fait tout de suite, sans attendre l'image suivante.
+  function dragFrame(doc) {
+    const win = doc.defaultView || ownerWin;
+    let id = 0;
+    return {
+      schedule() { if (!id) id = win.requestAnimationFrame(() => { id = 0; rerender(); }); },
+      cancel() { if (id) { win.cancelAnimationFrame(id); id = 0; } },
+    };
+  }
 }
 
