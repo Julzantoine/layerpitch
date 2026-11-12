@@ -33,6 +33,12 @@ function positionCapturePlayhead(container, videoEl) {
     const sr = scroller.getBoundingClientRect(), pr = ph.getBoundingClientRect();
     if (pr.left > sr.right - 20 || pr.left < sr.left + 96) scroller.scrollLeft += pr.left - (sr.left + 120);
   }
+  // Défilée sous la colonne des noms de pistes (collée à gauche, 96 px) : la tête n'y serait visible que par
+  // petits tirets rouges dans les interstices entre pistes -> on la cache tant qu'elle est sous cette colonne.
+  if (scroller) {
+    const sr2 = scroller.getBoundingClientRect(), pr2 = ph.getBoundingClientRect();
+    ph.style.display = (pr2.left < sr2.left + 95 || pr2.left > sr2.right) ? 'none' : '';
+  }
 }
 
 function renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout) {
@@ -449,6 +455,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const scroller = container.querySelector('.vct-scroll');
   scroller.scrollLeft = keepScroll;
   positionCapturePlayhead(container, videoEl);
+  scroller.addEventListener('scroll', () => positionCapturePlayhead(container, videoEl), { passive: true }); // cache/montre la tête quand on défile
   drawSnapGuide();
   // Zoom : boutons, Ctrl/Cmd + molette (et pincement du pavé tactile), ancré sous le curseur.
   const setZoom = (z, anchorX) => {
