@@ -310,6 +310,9 @@
   .video-zones .video-fold-btn:last-of-type { border-right-width: 1px; }
   .video-zones .video-fold-btn[hidden] { display: none; }
   .video-zones .video-fold-btn svg { display: block; }
+  /* Le plein écran n'a de sens que quand l'atelier est affiché (12/11). */
+  .video-col-main:not(:has(.video-subpanel.active[data-video-subpanel="capture"]:not(.view-settings))) #videoAtelierFullBtn { display: none; }
+  .video-zones .video-fold-btn[aria-pressed="true"]#videoAtelierFullBtn { color: #2f80c0; }
   .video-fold-btn[aria-pressed="true"] { border-color: #2f80c0; color: #2f80c0; }
   .video-project-bar { display: none !important; }
   .video-project-settings[hidden] { display: none; }

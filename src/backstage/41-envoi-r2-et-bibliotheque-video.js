@@ -546,7 +546,7 @@ function notifyAtelierPacksChanged() {
 function setVideoAtelierFull(on) {
   document.body.classList.toggle('video-atelier-full', on);
   const btn = document.getElementById('videoAtelierFullBtn');
-  if (btn) btn.textContent = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull');
+  if (btn) { const label = tr(on ? 'videoAtelierFullExit' : 'videoAtelierFull'); btn.title = label; btn.setAttribute('aria-label', label); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
   const frame = document.getElementById('videoAtelierFrame');
   try { if (frame && frame.contentWindow) frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'fullState', on: !!on }, location.origin); } catch (e) { /* cadre pas prêt */ }
 }

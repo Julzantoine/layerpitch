@@ -40,6 +40,8 @@ function pinCaptureVideo(panel) {
     if (!mark.isConnected) { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); root.style.scrollPaddingTop = ''; return; }
     const pinned = dock.ownerDocument === document && panel.classList.contains('active') && !panel.classList.contains('video-capture-image-hidden') && mark.getBoundingClientRect().top < 0;
     dock.classList.toggle('video-capture-pinned', pinned);
+    // La barre de zoom de la frise (sticky en CSS) se cale juste sous le dock.
+    root.style.setProperty('--atelier-dock-h', (panel.classList.contains('video-capture-image-hidden') ? 0 : dock.offsetHeight) + 'px');
     root.style.scrollPaddingTop = pinned ? (dock.offsetHeight + 12) + 'px' : '';
   };
   window.addEventListener('scroll', update, { passive: true });
