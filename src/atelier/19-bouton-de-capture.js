@@ -97,7 +97,7 @@ let openVideoCaptureDialog = () => {};
       return;
     }
     errorEl.textContent = '';
-    dialog.close();
+    if (dialog.open) dialog.close();
     const montageId = pendingMontageId;
     pendingMontageId = null;
     openCapturePanel(file, { montageId });
@@ -111,7 +111,9 @@ let openVideoCaptureDialog = () => {};
     montageNote.hidden = true;
     libPick.hidden = true;
     libStatus.textContent = '';
-    dialog.showModal();
+    // Montage déjà commencé (12/11, retour de Jules-Antoine : la fenêtre s'ouvrait pour rien) : on prépare tout AVANT d'ouvrir le dialogue,
+    // et s'il retrouve la vidéo d'origine dans la bibliothèque il ne s'ouvre pas du tout -- un petit bandeau d'avancement suffit.
+    let loadErr = '';
     if (pendingMontageId) {
       try {
         pendingMontage = await loadVideoCapture(pendingMontageId);
@@ -121,63 +123,107 @@ let openVideoCaptureDialog = () => {};
       } catch (e) {
         console.error(e);
         pendingMontageId = null;
-        errorEl.textContent = tr('captureLoadFailed').replace('{error}', e.message);
+        loadErr = tr('captureLoadFailed').replace('{error}', e.message);
       }
     }
-    if (!window.__lpCaptureIsAdmin) return; // nouveauté réservée à l'admin jusqu'au feu vert
-    try {
-      const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos', window.__lpStudioBuyer ? { p_studio: true } : {});
-      if (error) throw error;
-      libraryVideos = (data && data.videos) || [];
-    } catch (e) { console.error(e); libraryVideos = []; }
-    if (!libraryVideos.length) return;
+    libraryVideos = [];
+    if (window.__lpCaptureIsAdmin) { // nouveauté réservée à l'admin jusqu'au feu vert
+      try {
+        const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_my_videos', window.__lpStudioBuyer ? { p_studio: true } : {});
+        if (error) throw error;
+        libraryVideos = (data && data.videos) || [];
+      } catch (e) { console.error(e); libraryVideos = []; }
+    }
     const wanted = pendingMontage && pendingMontage.videoFilename;
     const match = wanted ? libraryVideos.find(v => v.originalName === wanted || v.title === wanted || v.file === wanted) : null;
-    libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
-    libPick.hidden = false;
-    if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
-    // Montage à rouvrir dont la vidéo d'origine est dans la bibliothèque : on la charge directement, sans redemander (06/11).
-    if (match && dialog.open) libBtn.click();
+    if (libraryVideos.length) {
+      libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
+      libPick.hidden = false;
+      if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+    }
+    if (match && !loadErr) { downloadAndOpen(match, true); return; }
+    errorEl.textContent = loadErr;
+    dialog.showModal();
   };
-  libBtn.addEventListener('click', async () => {
-    const v = libraryVideos.find(x => x.id === libSelect.value);
-    if (!v) return;
-    libBtn.disabled = true;
-    libStatus.textContent = tr('captureLibraryDownloading');
-    try {
-      // Lecture par morceaux : on affiche l'avancement (une grosse vidéo ressemblait à un blocage), et en cas d'interruption on réessaie
-      // une fois avant d'afficher l'erreur (nom + octets reçus, pour comprendre ce qui coupe).
-      let blob = null, got = 0, lastErr = null;
-      for (let attempt = 0; attempt < 2 && !blob; attempt++) {
-        try {
-          got = 0;
-          const res = await fetch(v.base + encodeURIComponent(v.file));
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const total = Number(res.headers.get('content-length')) || 0;
-          const parts = [], reader = res.body.getReader();
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            parts.push(value); got += value.length;
-            libStatus.textContent = tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo');
-          }
-          blob = new Blob(parts, { type: res.headers.get('content-type') || '' });
-        } catch (e) { lastErr = e; console.error(e); }
+  // Bandeau d'avancement quand le dialogue est fermé (montage rouvert sans rien demander).
+  let toastEl = null;
+  function showToast(text, isError) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;max-width:90vw;padding:10px 16px;border-radius:8px;background:#1f2a37;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = text;
+    toastEl.style.background = isError ? '#9b2c2c' : '#1f2a37';
+    toastEl.hidden = false;
+  }
+  function hideToast() { if (toastEl) toastEl.hidden = true; }
+  // Téléchargement par morceaux, avec reprise : si plus aucun octet n'arrive pendant 15 s (le blocage à 28 %), on coupe et on reprend là où
+  // on s'était arrêté (en-tête Range), jusqu'à 6 fois. Une vidéo déjà téléchargée reste dans le cache du navigateur : réouverture instantanée.
+  async function fetchLibraryVideo(url, onProgress) {
+    let cache = null;
+    try { cache = window.caches ? await caches.open('lp-atelier-videos') : null; } catch (e) { cache = null; }
+    if (cache) {
+      try { const hit = await cache.match(url); if (hit) return await hit.blob(); } catch (e) { /* pas de cache : on télécharge */ }
+    }
+    const parts = []; let got = 0, total = 0, type = '', lastErr = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const ctrl = new AbortController();
+      let timer = null;
+      const arm = () => { clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), 15000); };
+      try {
+        arm();
+        const res = await fetch(url, { signal: ctrl.signal, headers: got ? { Range: 'bytes=' + got + '-' } : {} });
+        if (got && res.status !== 206) { parts.length = 0; got = 0; throw new Error('reprise refusée (HTTP ' + res.status + '), on repart du début'); }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!got) { total = Number(res.headers.get('content-length')) || 0; type = res.headers.get('content-type') || ''; }
+        const reader = res.body.getReader();
+        for (;;) {
+          arm();
+          const { done, value } = await reader.read();
+          if (done) break;
+          parts.push(value); got += value.length;
+          onProgress(got, total);
+        }
+        clearTimeout(timer);
+        const blob = new Blob(parts, { type });
+        if (cache) { try { await cache.put(url, new Response(blob, { headers: { 'content-type': type } })); } catch (e) { /* quota : tant pis */ } }
+        return blob;
+      } catch (e) {
+        clearTimeout(timer);
+        lastErr = e; console.error(e);
       }
-      if (!blob) throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
+    }
+    throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
+  }
+  async function downloadAndOpen(v, quiet) {
+    libBtn.disabled = true;
+    const say = t => { libStatus.textContent = t; if (quiet && !dialog.open) showToast(t); };
+    say(tr('captureLibraryDownloading'));
+    try {
+      const blob = await fetchLibraryVideo(v.base + encodeURIComponent(v.file), (got, total) =>
+        say(tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo')));
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
       // Le type enregistré peut être générique (application/octet-stream) : on retombe sur le type d'après l'extension, sinon mp4.
       const guess = /\.webm$/i.test(name) ? 'video/webm' : /\.mov$/i.test(name) ? 'video/quicktime' : 'video/mp4';
       const type = [v.mimeType, blob.type].find(t => t && t.startsWith('video/')) || guess;
       libStatus.textContent = '';
+      hideToast();
       handleFile(new File([blob], name, { type }));
     } catch (e) {
       console.error(e);
-      libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
+      const msg = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
+      libStatus.textContent = msg;
+      hideToast();
+      if (!dialog.open) dialog.showModal(); // l'échec s'affiche dans le dialogue, avec « Utiliser » pour réessayer
     } finally {
       libBtn.disabled = false;
     }
+  }
+  libBtn.addEventListener('click', () => {
+    const v = libraryVideos.find(x => x.id === libSelect.value);
+    if (v) downloadAndOpen(v, false);
   });
   dropzone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
