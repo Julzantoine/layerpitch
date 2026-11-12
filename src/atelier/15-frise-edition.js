@@ -124,12 +124,24 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const collapsed = !!collapsedGroups[key];
     const members = groupMembers(key);
     let blockHtml = '';
-    if (editable && members.length) {
-      const isMusic = key.indexOf('track:') === 0;
-      const start = isMusic ? 0 : Math.min(...members.map(m => m.t));
-      const end = isMusic ? total : Math.max(...members.map(m => m.t + (m.name === 'head_turn' ? 0.5 : (m.detail.durationOverride || 1))));
+    // 12/11 (demande de Jules-Antoine) : dépliée, la ligne de titre n'affiche rien (elle ressemblait à une piste où déposer de la musique) ;
+    // repliée, elle montre une barre qui reprend les placements des couches (lus dans les blocs des pistes enfants, à l'identique).
+    if (editable && members.length && collapsed) {
+      const segs = [];
+      (nestedLanesHtml.match(/<div class="vct-block[^>]*>/g) || []).forEach(tag => {
+        const l = /left:([\d.]+)%/.exec(tag), w = /width:([\d.]+)%/.exec(tag);
+        if (l && w) segs.push([parseFloat(l[1]), parseFloat(w[1])]);
+      });
+      let start = Math.min(...members.map(m => m.t)), end = Math.max(...members.map(m => m.t + (m.name === 'head_turn' ? 0.5 : (m.detail.durationOverride || 1))));
+      let left = pct(start), width = pct(end) - pct(start);
+      let inner = '';
+      if (segs.length) {
+        left = Math.min(...segs.map(g => g[0]));
+        width = Math.max(...segs.map(g => g[0] + g[1])) - left;
+        inner = segs.map(g => `<span class="vct-group-seg" style="left:${width > 0 ? ((g[0] - left) / width * 100) : 0}%;width:${width > 0 ? (g[1] / width * 100) : 100}%"></span>`).join('');
+      }
       blockHtml = `<div class="vct-block vct-block-group" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}" ` +
-        `title="${tr('captureGroupDragHint')}" style="left:${pct(start)}%;width:${pct(end) - pct(start)}%"></div>`;
+        `title="${tr('captureGroupDragHint')}" style="left:${left}%;width:${width}%">${inner}</div>`;
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
@@ -670,12 +682,13 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   }
   if (editable) {
     // Pose d'un marqueur : double-clic sur la règle des temps (et partout où le double-clic n'ajoute pas déjà un bloc : interlignes,
-    // lignes de titre des morceaux -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
+    // lignes de titre des morceaux (retiré le 12/11 : elles ressemblent à une piste de musique) -- la règle seule, 16 px de haut, se ratait facilement), ou clic droit n'importe où dans la frise
     // (règle ou pistes), à l'endroit cliqué. Double-clic ou clic droit sur un fanion = l'effacer (voir removeMarker).
     const bodyEl = container.querySelector('.vct-body');
+    // 12/11 : pas de marqueur sur la ligne de titre d'un morceau (.vct-group-summary) : elle ressemblait à une piste où déposer de la musique.
     bodyEl.addEventListener('dblclick', ev => {
       if (videoCaptureState || !ev.target.closest) return;
-      if (ev.target.closest('.vct-lane-track[data-addable], .vct-block, .vct-lane-label, .vct-marker-flag, input')) return;
+      if (ev.target.closest('.vct-lane-track[data-addable], .vct-block, .vct-lane-label, .vct-marker-flag, .vct-group-summary, input')) return;
       addMarker(timeAtX(ev.clientX));
     });
     bodyEl.addEventListener('contextmenu', ev => {
