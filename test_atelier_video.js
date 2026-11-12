@@ -125,7 +125,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon « Annoter » : onglet Vidéos, version, instant, note adressée', /data-tab="videos"/.test(ann) && /lp-video-versions select/.test(ann) && /noteHere/.test(ann) && /noteTo/.test(ann) && /noteAdd/.test(ann));
   const akeys = [...ann.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]).concat(['plAnnTitle', 'plAnnDesc']);
   check('leçon « Annoter » : ' + akeys.length + ' textes présents en FR et EN', akeys.every(has));
-  check('leçon « Annoter » : ouverte au menu du Backstage (Préproduction), chaque geste exigé', /\{ id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', titleKey/.test(src43) && !/id: 'pj-annotate'[^\n]*soon: true/.test(pl) && /v\.paused && v\.currentTime >= 7/.test(ann) && /joshua/.test(ann));
+  check('leçon « Annoter » : fermée (admin seulement, 12/11, le temps de la refaire) au menu du Backstage (Préproduction), chaque geste exigé', /\{ id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey/.test(src43) && !/id: 'pj-annotate'[^\n]*soon: true/.test(pl) && /v\.paused && v\.currentTime >= 7/.test(ann) && /joshua/.test(ann));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');
   process.exit(failures ? 1 : 0);
 })();
