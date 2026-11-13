@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794608057688">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794608057688">
+<link rel="stylesheet" href="player.css?v=1794608695497">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794608695497">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -641,17 +641,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794608057688"></script>
-<script src="layerpitch-notify.js?v=1794608057688"></script>
-<script src="public-page.js?v=1794608057688"></script>
-<script src="player.js?v=1794608057688"></script>
-<script src="capture-plan.js?v=1794608057688"></script>
-<script src="capture-render.js?v=1794608057688"></script>
-<script src="capture-retarget.js?v=1794608057688"></script>
-<script src="layerpitch-av-sync.js?v=1794608057688"></script>
-<script src="capture-versioning.js?v=1794608057688"></script>
-<script src="layerpitch-guide.js?v=1794608057688"></script>
-<script src="atelier-lecons.js?v=1794608057688"></script>
+<script src="layerpitch-i18n.js?v=1794608695497"></script>
+<script src="layerpitch-notify.js?v=1794608695497"></script>
+<script src="public-page.js?v=1794608695497"></script>
+<script src="player.js?v=1794608695497"></script>
+<script src="capture-plan.js?v=1794608695497"></script>
+<script src="capture-render.js?v=1794608695497"></script>
+<script src="capture-retarget.js?v=1794608695497"></script>
+<script src="layerpitch-av-sync.js?v=1794608695497"></script>
+<script src="capture-versioning.js?v=1794608695497"></script>
+<script src="layerpitch-guide.js?v=1794608695497"></script>
+<script src="atelier-lecons.js?v=1794608695497"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2730,7 +2730,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });

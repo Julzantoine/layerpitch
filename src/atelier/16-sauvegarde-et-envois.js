@@ -201,7 +201,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });
