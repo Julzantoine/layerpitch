@@ -56,6 +56,7 @@ async function saveMyOnboardingProfile(answers) {
   myOnboardingProfile = data || answers;
   trackBackstageEvent(answers.skipped ? 'profile_quiz_skip' : 'profile_quiz_done', answers.skipped ? {} : { role: answers.role });
   renderTutorialMenu();
+  if (typeof renderHome === 'function') renderHome(); // l'Accueil : le rappel disparaît, les essentiels apparaissent
   return myOnboardingProfile;
 }
 
@@ -145,6 +146,7 @@ function openLessonFromMenu(id) {
 // Dernière étape de la visite : les questions si jamais proposées ; les essentiels si déjà répondues ; sinon (passées, ou
 // fonction fermée) l'ancien double choix.
 function tourFinalStep() {
+  if (homeOpen() && !onboardingAnswered(myOnboardingProfile)) return tourChoiceStep(); // Accueil ouvert : le questionnaire est rappelé sur l'Accueil, pas en fin de visite
   if (profileQuizOpen() && myOnboardingProfile === null) return profileQuizStep();
   if (profileQuizOpen() && onboardingAnswered(myOnboardingProfile)) {
     profileQuiz = { answers: {}, done: true, saved: true };

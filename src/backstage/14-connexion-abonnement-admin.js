@@ -415,6 +415,7 @@ function initInboxBellUi() {
   });
   bellBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    if (typeof homeBellIntercept === 'function' && homeBellIntercept()) return; // Accueil ouvert : la cloche mène à la boîte aux lettres de l'Accueil (48-accueil.js)
     const willOpen = dropdown.hidden;
     if (!willOpen) { closeMenu(); return; }
     dropdown.hidden = false;

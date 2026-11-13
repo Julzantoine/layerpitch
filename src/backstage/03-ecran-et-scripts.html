@@ -160,6 +160,13 @@
   <button class="btn phone-menu-fab" id="phoneMenuBtn" type="button" data-i18n="phoneMenuBtn">☰ Menu</button>
   <div class="backstage-layout">
     <nav class="backstage-sidebar">
+      <!-- Accueil (13/11, feu vert home_dashboard) : page d'arrivée du Backstage ; caché tant que le feu vert est fermé (48-accueil.js). -->
+      <button class="nav-item nav-home-btn" data-tab="home" type="button" id="navItemHome" hidden>
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h4v-6h4v6h4V10"/></svg>
+          <span data-i18n="navHome">Accueil</span>
+        </span>
+      </button>
       <div class="sidebar-adreel-group">
         <div class="nav-section-label" data-i18n="navSite">AdReel en édition</div>
         <div class="sidebar-adreel-selector">
@@ -304,6 +311,10 @@
         </div>
         <button class="btn btn-primary" id="btnWelcomeTuto" type="button" data-i18n="welcomeTutoStart">Lancer le tutoriel</button>
         <button class="btn" id="btnWelcomeDismiss" type="button" data-i18n="welcomeTutoDismiss">Plus tard</button>
+      </div>
+
+      <div class="backstage-panel" data-panel="home" id="homePanel">
+        <div id="homeRoot"></div>
       </div>
 
       <div class="backstage-panel" data-panel="library">
@@ -1051,17 +1062,17 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794564339842"></script>
-<script src="layerpitch-i18n.js?v=1794564339842"></script>
-<script src="layerpitch-import-engine.js?v=1794564339842"></script>
-<script src="layerpitch-appearance.js?v=1794564339842"></script>
-<script src="layerpitch-album-shared.js?v=1794564339842"></script>
-<script src="layerpitch-album-editor.js?v=1794564339842"></script>
-<script src="layerpitch-shell.js?v=1794564339842"></script>
-<script src="layerpitch-social-icons.js?v=1794564339842"></script>
-<script src="layerpitch-notify.js?v=1794564339842"></script>
-<script src="layerpitch-guide.js?v=1794564339842"></script>
-<script src="layerpitch-lesson-previews.js?v=1794564339842"></script>
-<script src="layerpitch-help.js?v=1794564339842"></script>
-<script src="player.js?v=1794564339842"></script>
+<script src="layerpitch-tuto.js?v=1794595690070"></script>
+<script src="layerpitch-i18n.js?v=1794595690070"></script>
+<script src="layerpitch-import-engine.js?v=1794595690070"></script>
+<script src="layerpitch-appearance.js?v=1794595690070"></script>
+<script src="layerpitch-album-shared.js?v=1794595690070"></script>
+<script src="layerpitch-album-editor.js?v=1794595690070"></script>
+<script src="layerpitch-shell.js?v=1794595690070"></script>
+<script src="layerpitch-social-icons.js?v=1794595690070"></script>
+<script src="layerpitch-notify.js?v=1794595690070"></script>
+<script src="layerpitch-guide.js?v=1794595690070"></script>
+<script src="layerpitch-lesson-previews.js?v=1794595690070"></script>
+<script src="layerpitch-help.js?v=1794595690070"></script>
+<script src="player.js?v=1794595690070"></script>
 <script>

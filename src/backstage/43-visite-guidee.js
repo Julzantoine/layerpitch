@@ -1275,7 +1275,7 @@ LESSONS.forEach(l => { if (l.steps && !l.page && window.LayerPitchLessonPreviews
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
 // d'exemple, la flèche de la timeline et la mémorisation de ce qui a été fait.
 function tourTargetVisible(el) { return window.LayerPitchGuide.targetVisible(el); }
-function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } }
+function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } if (typeof homeTourDone === 'function') homeTourDone(); /* sur le compte aussi (Accueil, 48-accueil.js) */ }
 function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE) === '1'; } catch (e) { return false; } }
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
 // Leçons à faire (23/10) : celles ouvertes à tous, disponibles, pas encore terminées dans ce navigateur. Tant qu'il en reste, la pastille
@@ -1554,9 +1554,12 @@ function syncBackstageTour() {
   // Mode tutoriel sans leçon demandée (adresse publique layerpitch-backstage.html?tuto, 27/10) : la visite guidée part directement, à chaque
   // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
   if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
-  if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
+  // Accueil ouvert (13/11) : plus de fenêtre ni de bulle à l'arrivée ; la visite et le profil sont rappelés, discrètement, sur l'Accueil (48-accueil.js).
+  if (homeOpen()) { /* rappels de l'Accueil */ }
+  else if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
   else offerProfileQuizIfNeeded(); // comptes déjà inscrits : les questions de profil seules, une fois (46-questions-de-profil.js)
   if (profileQuizOpen() && myOnboardingProfile === undefined) loadMyOnboardingProfile().then(() => { if (lessonsOpen) renderTutorialMenu(); });
+  syncHome();
 }
 // Accueil tant que la bibliothèque est vide (30/10, retours de bêta : tuto interactif pas vu, pas de morceau prêt pour essayer). Attend un
 // chargement réussi pour ne pas clignoter à l'ouverture, jamais en mode tutoriel. « Plus tard » vaut pour ce navigateur.
