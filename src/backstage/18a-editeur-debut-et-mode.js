@@ -19,7 +19,7 @@ function renderLibrary() {
     packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}`
+    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}${t.protected ? `<span class="badge" title="${escapeAttr(tr('trackLockedTip'))}" style="margin-left:6px">🔒</span>` : ''}`
   });
   wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
