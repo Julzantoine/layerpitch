@@ -121,7 +121,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
   const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
-    ? `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
+    ? (window.__lpCaptureIsAdmin && window.LayerCaptureRetarget ? `<button type="button" class="vct-track-remove vct-track-replace" data-replace-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}">⇄</button>` : '') + `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
@@ -488,6 +488,98 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
     changed();
+  }));
+  // « ⇄ » sur un morceau (13/11, admin seulement) : le remplace par un autre en REJOUANT ses blocs sur le nouveau morceau (même moteur que le
+  // Versioning : capture-retarget.js -- les gestes restent, ils suivent les règles du nouveau morceau). Refusé si la structure diffère.
+  const replaceDurations = window.__lpReplaceDurations = window.__lpReplaceDurations || new Map();
+  async function replaceEnsureDurations(dst) {
+    if (!dst || dst.mode !== 'embranchement-vertical') return;
+    await Promise.all((dst.loops || []).map(async l => {
+      if (!(l.transition && l.transition.file && !l.transition.durationUnit)) return;
+      const key = dst.id + '|' + l.transition.file;
+      if (replaceDurations.has(key)) return;
+      try {
+        const bytes = await fetchAsUint8Array(dst.base + encodeURIComponent(l.transition.file) + (dst.publishedAt ? '?v=' + encodeURIComponent(dst.publishedAt) : ''));
+        const buf = await window.LayerPlayerCore.decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        replaceDurations.set(key, buf.duration);
+      } catch (e) { replaceDurations.set(key, null); }
+    }));
+  }
+  const replaceNoteText = n => {
+    const name = id => { const t = findCaptureTrack(id); return t ? (t.title || id) : String(id || ''); };
+    const key = 'versioningNote_' + n.code;
+    let txt = tr(key); if (txt === key) txt = tr('versioningNote_generic').replace('{code}', n.code);
+    txt = txt.replace('{track}', name(n.trackId)).replace('{to}', name(n.to)).replace('{t}', n.t != null ? n.t.toFixed(1) : '')
+      .replace('{by}', n.by != null ? (n.by > 0 ? '+' : '') + n.by.toFixed(2) : '').replace('{pos}', n.pos != null ? String(n.pos + 1) : '')
+      .replace('{a}', n.a != null ? String(n.a) : '').replace('{b}', n.b != null ? String(n.b) : '');
+    if (n.count > 1) txt += ' ' + tr('versioningNoteCount').replace('{n}', n.count);
+    return txt;
+  };
+  async function replaceTrack(srcId, dstId) {
+    const RT = window.LayerCaptureRetarget;
+    const dst = findCaptureTrack(dstId);
+    await replaceEnsureDurations(dst);
+    const res = RT.retarget(events, { tracks: { [srcId]: { to: dstId } }, sfx: {} }, {
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      fileDuration: (owner, file) => { const v = replaceDurations.get(owner.id + '|' + file); return v == null ? null : v; },
+    });
+    const blocking = res.notes.filter(n => n.severity === 'block');
+    if (blocking.length) { window.LayerPitchNotify.error(blocking.map(replaceNoteText).join(' · ')); return; }
+    events.splice(0, events.length, ...res.events);
+    // Les pistes : l'ancien morceau disparaît de la frise, le nouveau s'affiche (même logique que « ✕ » et « + Piste »).
+    const x = laneLayout.extra.indexOf(srcId); if (x >= 0) laneLayout.extra.splice(x, 1);
+    if (laneLayout.hidden.indexOf(srcId) === -1 && (capturePackLibrary().library || []).some(t => t.id === srcId)) laneLayout.hidden.push(srcId);
+    const h = laneLayout.hidden.indexOf(dstId);
+    if (h >= 0) laneLayout.hidden.splice(h, 1);
+    else if (laneLayout.extra.indexOf(dstId) === -1 && handTrackIds.indexOf(dstId) === -1) laneLayout.extra.push(dstId);
+    changed();
+    window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureTrack(srcId) || {}).title || srcId).replace('{to}', (dst || {}).title || dstId)
+      + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
+  }
+  function openReplaceDialog(srcId) {
+    if (!editable || videoCaptureState || !window.LayerCaptureRetarget) return;
+    const src = findCaptureTrack(srcId);
+    const L = window.__lpCaptureLibrary || {};
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const used = new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean));
+    const rows = (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
+      const cmp = window.LayerCaptureRetarget.compareTracks(src, t);
+      return { t, ok: cmp.compatible, why: cmp.issues.filter(i => i.severity === 'block').map(i => tr('versioningIssue_' + i.code)).join(', ') };
+    });
+    const dlg = document.createElement('dialog');
+    dlg.className = 'video-test-dialog';
+    const body = () => {
+      const q = (dlg.querySelector('#vctRepQuery') || { value: '' }).value.trim().toLowerCase();
+      const match = r => !q || String(r.t.title || r.t.id).toLowerCase().indexOf(q) >= 0;
+      const item = r => r.ok
+        ? `<button type="button" class="vct-add-item" data-rep-id="${esc(r.t.id)}">${esc(r.t.title || r.t.id)}<small>${esc(r.t.mode)}</small></button>`
+        : `<div class="vct-add-item vct-add-item-off" style="opacity:.5;cursor:not-allowed">${esc(r.t.title || r.t.id)}<small>${esc(r.why)}</small></div>`;
+      const ok = rows.filter(r => r.ok && match(r)), off = rows.filter(r => !r.ok && match(r));
+      dlg.querySelector('#vctRepList').innerHTML =
+        (ok.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOk'))}</div>` + ok.map(item).join('') : `<div class="vct-add-none">${esc(tr('captureTrackReplaceNone'))}</div>`)
+        + (off.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOff'))}</div>` + off.map(item).join('') : '');
+    };
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId))}</div>
+      <input type="search" id="vctRepQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
+      <div id="vctRepList" class="vct-add-list"></div>
+      <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
+    (container.closest('#videoTestPanel') || document.body).appendChild(dlg);
+    body();
+    dlg.querySelector('#vctRepQuery').addEventListener('input', body);
+    dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', ev => {
+      const it = ev.target.closest && ev.target.closest('[data-rep-id]');
+      if (!it) return;
+      const id = it.dataset.repId;
+      dlg.close();
+      replaceTrack(srcId, id);
+    });
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
+  }
+  container.querySelectorAll('[data-replace-track]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    openReplaceDialog(btn.dataset.replaceTrack);
   }));
   // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
   function openAddTrackDialog() {

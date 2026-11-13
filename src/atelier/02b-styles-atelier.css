@@ -139,3 +139,7 @@
   body.atelier-view-versioning .vcv-review-fold { display: none; }
   body.atelier-view-review .vcv-version, body.atelier-view-review .vcv-picked-bar, body.atelier-view-review .vcv-diff,
   body.atelier-view-review #videoCaptureVersioning > .vcv-head, body.atelier-view-review .vcv-review-fold > summary { display: none; }
+
+  /* Remplacer un morceau sur la frise (13/11, admin) : même discrétion que la croix, bleu au survol. */
+  .vct-track-replace { margin-left: 4px; font-size: 12px; }
+  .vct-track-replace:hover { color: #2f80c0; }

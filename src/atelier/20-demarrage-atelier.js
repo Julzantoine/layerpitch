@@ -80,6 +80,30 @@ window.addEventListener('message', async e => {
   }
 });
 
+// « ↻ » dans l'en-tête du panneau (13/11, admin) : relire le pack publié sans attendre un message du Backstage (retour de Jules-Antoine : un
+// morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
+// que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
+let atelierRefreshing = false;
+document.addEventListener('click', async ev => {
+  const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
+  if (!btn || atelierRefreshing) return;
+  atelierRefreshing = true; btn.disabled = true;
+  const N = window.LayerPitchNotify;
+  try {
+    if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
+    if (!lastResolvedOwnerId) { location.reload(); return; }
+    const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+    if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
+    try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
+    location.reload();
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, actualisation :', err);
+    N.error(tr('loadError'));
+  } finally {
+    atelierRefreshing = false; btn.disabled = false;
+  }
+});
+
 // « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
 // (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis
 // quand c'est fini (finishMontageResult : none = rien à publier, done = publié, error = échec + raison). Pas de panneau ouvert : none.
