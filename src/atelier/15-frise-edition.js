@@ -680,6 +680,15 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     removeMarker(m);
     return true;
   } : null;
+  // Suppr sur un BLOC sélectionné (13/11, accepté par Jules-Antoine ; admin seulement jusqu'au feu vert) : même effet que le bouton « Supprimer »
+  // de la ligne de détail (bascules liées retirées avec, annulable), qu'on déclenche tel quel plutôt que de copier sa logique. Jamais pendant une prise.
+  container.__vctDeleteSelectedBlock = editable ? () => {
+    if (!window.__lpCaptureIsAdmin || videoCaptureState || !container.isConnected || !container.__vctSelectedEvent) return false;
+    const del = container.querySelector('#vctDetail .video-capture-event-del');
+    if (!del) return false; // un bloc « arrêt » n'a pas de bouton Supprimer : rien à faire
+    del.click();
+    return true;
+  } : null;
   if (container.__vctMarkerKeys !== ownerDoc) {
     container.__vctMarkerKeys = ownerDoc;
     const keyDoc = ownerDoc;
@@ -689,6 +698,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       const a = keyDoc.activeElement;
       if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
       if (container.__vctDeleteSelectedMarker && container.__vctDeleteSelectedMarker()) ev.preventDefault();
+      else if (container.__vctDeleteSelectedBlock && container.__vctDeleteSelectedBlock()) ev.preventDefault();
     });
   }
   if (editable) {
