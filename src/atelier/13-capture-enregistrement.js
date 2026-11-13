@@ -6,7 +6,7 @@
 // interaction transite : trackPublicEvent() y appelle systématiquement window.umami.track(name, detail)
 // (voir player.js). On substitue temporairement window.umami par un objet qui journalise avant de
 // relayer au vrai umami s'il existe déjà -- aucune modification de player.js nécessaire.
-let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler }
+let videoCaptureState = null; // { events, videoEl, markHandler, headHandler, sliderHandler, reanchor, stamp }
 
 // Plus d'armement (06/11, retour de Jules-Antoine : « à partir du moment où on fait une capture, tout ce sur quoi on clique est
 // enregistré ») : « Démarrer la capture » lance la vidéo, puis chaque morceau, Sfx, calque, curseur... déclenché pendant la prise
@@ -20,8 +20,15 @@ function startCapture(videoEl) {
   // Horloge : celle du son (at, heure exacte du contexte audio), replacée sur la vidéo par un seul décalage relevé au
   // démarrage -- tous les sons restent calés entre eux à l'échantillon près.
   const P = window.LayerPlayerCore;
-  const audio0 = P.audioNow(), video0 = videoEl.currentTime;
-  const stamp = at => Math.max(0, video0 + (at - audio0));
+  // Recalage de l'horloge (12/11) : le relevé « son ↔ image » était fait au clic, alors que la vidéo met de 0 à 300 ms à vraiment repartir
+  // (décodeur, position) -- chaque prise était donc décalée d'un écart différent, au hasard. Il est refait à chaque fois que l'image joue
+  // vraiment (« playing » : au départ, puis après une attente de données ou un saut), et tient compte de la latence de sortie du son
+  // (casque Bluetooth…) : un geste est daté à l'image que l'on VOYAIT quand son son est arrivé aux oreilles.
+  let audio0 = P.audioNow(), video0 = videoEl.currentTime;
+  const reanchor = () => { audio0 = P.audioNow(); video0 = videoEl.currentTime; };
+  videoEl.addEventListener('playing', reanchor);
+  const latency = () => (window.LayerPitchAVSync ? window.LayerPitchAVSync.outputLatency(P.audioContext()) : 0);
+  const stamp = at => Math.max(0, video0 + (at - audio0) + latency());
   const markHandler = (e) => {
     const d = e.detail || {};
     const detail = Object.assign({}, d.detail || {});
@@ -41,7 +48,7 @@ function startCapture(videoEl) {
   // remet les curseurs à leur position de départ SANS émettre : l'état initial d'une prise est la valeur par défaut.
   const sliderHandler = (e) => events.push({ t: stamp(P.audioNow()), name: 'fx_slider', detail: { trackId: e.detail.trackId, sliderId: e.detail.sliderId, value: e.detail.value } });
   document.addEventListener('layerpitch-fx-slider', sliderHandler);
-  videoCaptureState = { events, videoEl, markHandler, headHandler, sliderHandler, stamp };
+  videoCaptureState = { events, videoEl, markHandler, headHandler, sliderHandler, reanchor, stamp };
 }
 
 function stopCapture() {
@@ -56,6 +63,7 @@ function stopCapture() {
   document.removeEventListener('layerpitch-capture-mark', videoCaptureState.markHandler);
   document.removeEventListener('layerpitch-head-yaw', videoCaptureState.headHandler);
   document.removeEventListener('layerpitch-fx-slider', videoCaptureState.sliderHandler);
+  videoCaptureState.videoEl.removeEventListener('playing', videoCaptureState.reanchor);
   const events = videoCaptureState.events;
   videoCaptureState = null;
   return events;

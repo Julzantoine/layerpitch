@@ -63,7 +63,7 @@ async function setupCaptureTrigger(pack, container, opts) {
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
   captureBtn.textContent = tr('atelierChooseVideoBtn');
-  captureBtn.addEventListener('click', () => openVideoCaptureDialog());
+  captureBtn.addEventListener('click', () => { if (!videoCaptureState) openVideoCaptureDialog(); }); // pas pendant une prise : elle se perdrait
   container.insertBefore(captureBtn, container.firstChild);
   // &montage=<id> (Backstage → Vidéo → Versioning, bloc vidéo d'un AdReel, espace studio) : ce montage sauvegardé s'ouvre dès que
   // la vidéo est choisie -- le dialogue s'ouvre tout de suite.
@@ -90,8 +90,10 @@ let openVideoCaptureDialog = () => {};
   const libStatus = document.getElementById('videoCaptureLibraryStatus');
   if (!dialog) return;
   let libraryVideos = [];
+  // Vidéo reconnue à son type, ou à défaut à son extension (12/11 : un .mov / .mkv / .m4v arrive parfois sans type, selon le système).
+  const looksLikeVideo = f => !!f && (/^video\//.test(f.type || '') || (!f.type && /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name || '')));
   function handleFile(file) {
-    if (!file || !file.type.startsWith('video/')) {
+    if (!looksLikeVideo(file)) {
       errorEl.textContent = tr('captureChooseVideoError');
       libStatus.textContent = '';
       return;
@@ -111,7 +113,7 @@ let openVideoCaptureDialog = () => {};
     montageNote.hidden = true;
     libPick.hidden = true;
     libStatus.textContent = '';
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal(); // déjà ouvert (pack republié pendant le choix) : showModal() lèverait une erreur
     if (pendingMontageId) {
       try {
         pendingMontage = await loadVideoCapture(pendingMontageId);

@@ -23,4 +23,6 @@ Les morceaux des deux dossiers sont triés ENSEMBLE par leur nom (une seule port
 | 20-demarrage-atelier.js | démarrage : compte, choix du pack, morceaux, leçon du tutoriel |
 | 90-fin.html | fermeture du script et de la page |
 
+Calage du son sur l'image (12/11) : `layerpitch-av-sync.js` (racine), le SEUL moteur des écoutes de l'atelier (« Écouter le montage », écoutes du Versioning). Ne jamais relancer un son « à la main » sur la vidéo : passer par `LayerPitchAVSync.follow(video, { buffers })`. Toute retouche de la frise passe par `changed()` (15) puis `refreshActionButtons(kind)` (18) : c'est ce qui enregistre et rend annulable.
+
 Leçon du tutoriel : `atelier-lecons.js` (racine). Après modification : `npm run build` (et `npm run bump-version` si un `.js` servi aux navigateurs a changé).

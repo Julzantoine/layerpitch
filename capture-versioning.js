@@ -235,41 +235,60 @@
     }
 
     // ---- Écoute en direct sur la vidéo : rendu du son (quelques secondes), puis lecture calée sur l'image ----
+    // Le calage lui-même (départ quand l'image joue vraiment, recalage après un saut, une attente, un changement de vitesse ou une
+    // dérive, latence de sortie) est celui de layerpitch-av-sync.js, commun à toutes les écoutes de l'atelier (12/11).
+    // listenSeq : chaque nouvelle écoute (ou arrêt) périme celle qui se préparait encore -- deux clics rapprochés ne superposent plus
+    // deux musiques, et une écoute arrêtée pendant son calcul ne repart pas toute seule à la fin du calcul.
+    let listenSeq = 0;
     function stopListening() {
+      listenSeq++;
+      if (abPending) { abPending = ''; renderAbDock(); }
       if (!listening) return;
       const l = listening;
       listening = null;
-      try { l.stop(); } catch (e) {}
+      try { l.stop(); } catch (e) { console.error(e); }
       render();
+    }
+    async function renderSound(subs, own, onProgress) {
+      const { events } = await versionResult(subs, own);
+      const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
+      return window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress });
+    }
+    // L'image d'abord (le son la suit dès qu'elle joue vraiment). Renvoie false si l'écoute est périmée ou si le navigateur refuse.
+    async function startVideo(seq) {
+      const video = ctx.videoEl;
+      video.muted = true;
+      await video.play().catch(() => {});
+      return seq === listenSeq && !video.paused;
+    }
+    // État d'une écoute : le son suit la vidéo ; une pause de la vidéo (ou sa fin) termine l'écoute.
+    function followVideo(key, buffers, active) {
+      const video = ctx.videoEl;
+      const state = { key };
+      const end = () => { if (listening === state) stopListening(); };
+      const sync = window.LayerPitchAVSync.follow(video, { buffers, active, onEnded: end });
+      video.addEventListener('pause', end);
+      state.sync = sync;
+      state.stop = () => { video.removeEventListener('pause', end); sync.stop(); if (!video.paused) video.pause(); };
+      return state;
     }
     async function listen(key, subs, statusEl, own) {
       if (listening && listening.key === key) { stopListening(); return; }
       stopListening();
+      const seq = ++listenSeq;
+      C().resumeAudio(); // pendant le geste : Safari refuse de réveiller le son plus tard
       statusEl.textContent = tr('versioningPreparingListen');
       try {
-        const { events } = await versionResult(subs, own);
-        const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
-        const buffer = await window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (i, n) => { statusEl.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
+        const buffer = await renderSound(subs, own, (i, n) => { if (seq === listenSeq) statusEl.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); });
+        if (seq !== listenSeq) return;
         await C().resumeAudio();
-        const ac = C().audioContext();
-        const video = ctx.videoEl;
-        const from = video.currentTime || 0;
-        const src = ac.createBufferSource();
-        src.buffer = buffer;
-        src.connect(ac.destination);
-        const startAt = ac.currentTime + 0.05;
-        src.start(startAt, Math.min(from, buffer.duration));
-        video.muted = true;
-        video.play().catch(() => {});
-        const onPause = () => stopListening();
-        video.addEventListener('pause', onPause);
-        listening = { key, stop() { video.removeEventListener('pause', onPause); try { src.stop(); } catch (e) {} if (!video.paused) video.pause(); } };
-        src.onended = () => { if (listening && listening.key === key) stopListening(); };
+        if (!await startVideo(seq)) { if (seq === listenSeq) statusEl.textContent = ''; return; }
+        listening = followVideo(key, [buffer], 0);
         statusEl.textContent = '';
         render();
       } catch (e) {
         console.error(e);
-        statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
+        if (seq === listenSeq) statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
       }
     }
 
@@ -281,66 +300,52 @@
     async function listenAB(list, statusEl, startIdx) {
       if (listening && listening.key === 'ab') { stopListening(); return; }
       stopListening();
+      const seq = ++listenSeq;
+      C().resumeAudio();
       startIdx = Math.min(Math.max(startIdx || 0, 0), list.length - 1);
       statusEl.textContent = tr('versioningPreparingListen');
       abPending = tr('versioningLoadingFirst'); renderAbDock();
-      let stopped = false;
+      const live = () => seq === listenSeq;
+      const renderOne = (i, progress) => renderSound(list[i].subs, list[i].own, (n, tot) => progress(list[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot)));
       try {
-        const renderOne = async (i, progress) => {
-          const { events } = await versionResult(list[i].subs, list[i].own);
-          const plan = P().buildPlan(events, { findTrack: ctx.findTrack, findSfx: ctx.findSfx }).plan;
-          return window.LayerCaptureRender.render(plan, { fetchBytes: ctx.fetchBytes, onProgress: (n, tot) => progress(list[i].label + ' — ' + tr('captureEngineProgress').replace('{i}', n).replace('{n}', tot)) });
-        };
-        const first = await renderOne(startIdx, m => { statusEl.textContent = m; abPending = tr('versioningLoadingFirst') + ' ' + m; renderAbDock(); });
+        const first = await renderOne(startIdx, m => { if (!live()) return; statusEl.textContent = m; abPending = tr('versioningLoadingFirst') + ' ' + m; renderAbDock(); });
+        if (!live()) return;
         await C().resumeAudio();
-        const ac = C().audioContext();
-        const video = ctx.videoEl;
-        const nodes = new Array(list.length).fill(null);
-        const startNode = (i, buffer, offset, at, gain) => {
-          const src = ac.createBufferSource(); src.buffer = buffer;
-          const g = ac.createGain(); g.gain.value = gain;
-          src.connect(g); g.connect(ac.destination);
-          src.start(at, Math.min(offset, buffer.duration));
-          nodes[i] = { src, g };
-          return src;
-        };
-        const from = video.currentTime || 0;
-        const startAt = ac.currentTime + 0.05;
-        const firstSrc = startNode(startIdx, first, from, startAt, 1);
-        video.muted = true;
-        video.play().catch(() => {});
-        const onPause = () => stopListening();
-        video.addEventListener('pause', onPause);
-        const state = { key: 'ab', ab: { id: ++abSeq, labels: list.map(x => x.label), ids: list.map(x => x.id || ''), active: startIdx, ready: list.map((x, i) => i === startIdx), failed: list.map(() => false), note: '' } };
+        if (!await startVideo(seq)) { if (live()) { statusEl.textContent = ''; abPending = ''; renderAbDock(); } return; }
+        const state = followVideo('ab', list.map((x, i) => (i === startIdx ? first : null)), startIdx);
+        state.ab = { id: ++abSeq, labels: list.map(x => x.label), ids: list.map(x => x.id || ''), active: startIdx, ready: list.map((x, i) => i === startIdx), failed: list.map(() => false), note: '' };
+        state.setActive = i => { if (state.sync.setActive(i)) { state.ab.active = i; render(); } };
         // Touches 1, 2, 3… : bascule au clavier, sans quitter la vidéo (pas dans un champ de saisie).
+        const doc = ctx.videoEl.ownerDocument || document;
         const onKey = ev => {
           if (ev.metaKey || ev.ctrlKey || ev.altKey || !/^[1-9]$/.test(ev.key)) return;
           if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
           const i = Number(ev.key) - 1;
-          if (nodes[i]) { ev.preventDefault(); state.setActive(i); }
+          if (state.ab.ready[i]) { ev.preventDefault(); state.setActive(i); }
         };
-        document.addEventListener('keydown', onKey);
-        state.setActive = i => { if (!nodes[i]) return; state.ab.active = i; nodes.forEach((n, j) => { if (n) n.g.gain.value = j === i ? 1 : 0; }); render(); };
-        state.stop = () => { stopped = true; video.removeEventListener('pause', onPause); document.removeEventListener('keydown', onKey); nodes.forEach(n => { if (n) { try { n.src.stop(); } catch (e) {} } }); if (!video.paused) video.pause(); };
-        firstSrc.onended = () => { if (listening && listening.key === 'ab') stopListening(); };
+        doc.addEventListener('keydown', onKey);
+        const stopFollow = state.stop;
+        state.stop = () => { doc.removeEventListener('keydown', onKey); stopFollow(); };
         listening = state;
         abPending = '';
         statusEl.textContent = '';
         render();
-        // Les autres versions : préparées l'une après l'autre pendant que la première joue, puis calées sur la position de la vidéo.
-        for (let i = 0; i < list.length && !stopped; i++) {
+        // Les autres versions : préparées l'une après l'autre pendant que la première joue ; chacune rejoint la lecture en cours.
+        for (let i = 0; i < list.length && live(); i++) {
           if (i === startIdx) continue;
           try {
-            const buf = await renderOne(i, m => { state.ab.note = m; renderAbDock(); });
-            if (stopped) break;
-            startNode(i, buf, video.currentTime || 0, ac.currentTime + 0.02, 0);
+            const buf = await renderOne(i, m => { if (!live()) return; state.ab.note = m; renderAbDock(); });
+            if (!live()) break;
+            state.sync.setBuffer(i, buf);
             state.ab.ready[i] = true;
           } catch (e) { console.error(e); state.ab.failed[i] = true; }
+          if (!live()) break;
           state.ab.note = '';
           renderAbDock();
         }
       } catch (e) {
         console.error(e);
+        if (!live()) return;
         abPending = ''; renderAbDock();
         statusEl.textContent = tr('versioningListenFailed').replace('{error}', e.message);
       }
@@ -423,17 +428,26 @@
     }
 
     // ---- Chargement ----
-    async function refresh() {
+    // Plusieurs rechargements peuvent se croiser (enregistrement automatique, montage ouvert, publication) : seul le DERNIER compte. Avant le
+    // 12/11, une réponse lente d'un ancien montage pouvait arriver après celle du nouveau et l'écraser (versions d'un autre montage affichées).
+    // La liste n'est plus vidée pendant le chargement d'un même montage : une version alternative en cours d'enregistrement y reste trouvable.
+    let refreshSeq = 0, refreshing = null, versionsOf = null;
+    function refresh() { const p = doRefresh(++refreshSeq); refreshing = p; return p; }
+    async function doRefresh(seq) {
       stopListening();
       const captureId = ctx.getCaptureId();
-      versions = []; loadError = null;
       if (editing && editing.captureId !== captureId) editing = null;
+      if (versionsOf !== captureId) { versions = []; versionsOf = captureId; }
+      let next = [], err = null;
       if (captureId) {
-        try { versions = await store.list(captureId); }
-        catch (e) { console.error(e); loadError = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
-        versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
+        try { next = (await store.list(captureId)) || []; }
+        catch (e) { console.error(e); err = isMissingBackend(e) ? tr('versioningNotReady') : tr('versioningLoadFailed').replace('{error}', e.message); }
       }
+      if (seq !== refreshSeq) return refreshing; // un rechargement plus récent a pris le relais : on attend le sien
+      versions = next; loadError = err;
+      versions.forEach(v => { if (v.lastExportVideoId && !published.has(v.id)) published.set(v.id, keyOf(v)); }); // déjà publiée : rien à refaire tant qu'on n'y touche pas
       await refreshReview();
+      if (seq !== refreshSeq) return refreshing;
       render();
       if (ctx.onVersionsChanged) ctx.onVersionsChanged();
     }
@@ -954,7 +968,13 @@
       }
     }
 
-    host.ownerDocument.addEventListener('click', e => host.querySelectorAll('.vcv-more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
+    // Menus « ⋯ » : un clic ailleurs les referme. Écouteur retiré avec le panneau (sinon il s'en empilait un par ouverture de vidéo).
+    const menuDoc = host.ownerDocument;
+    const closeMenus = e => {
+      if (!host.isConnected) { menuDoc.removeEventListener('click', closeMenus); return; }
+      host.querySelectorAll('.vcv-more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; });
+    };
+    menuDoc.addEventListener('click', closeMenus);
     refresh();
     // Versions alternatives (10/11) : l'atelier lit et écrit les versions comme des montages complets (frise propre).
     const alternatives = {
@@ -970,7 +990,8 @@
       },
       // Retouche de la frise d'une alternative : les remplacements de morceaux sont déjà intégrés à sa frise (vidés), le nom ne change pas.
       saveAlt: async (id, alt) => {
-        const v = versions.find(x => x.id === id); if (!v) return;
+        const v = versions.find(x => x.id === id);
+        if (!v) throw new Error(tr('versioningLoadFailed').replace('{error}', id)); // jamais « enregistré » en silence (l'atelier croirait la frise à l'abri)
         const subs = { tracks: {}, sfx: {} };
         await store.save(id, ctx.getCaptureId(), v.title, subs, alt);
         Object.assign(v, { substitutions: subs, events: clone2(alt.events), laneOverrides: clone2(alt.laneOverrides), collapsedGroups: clone2(alt.collapsedGroups), markers: clone2(alt.markers), laneLayout: clone2(alt.laneLayout) });

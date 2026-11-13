@@ -319,6 +319,11 @@
     color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
   }
   .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
+  /* Ligne de titre d'un morceau (12/11) : rien à y déposer, donc elle ne ressemble plus à une piste vide. */
+  .vct-group-summary .vct-lane-track { background: transparent; border-color: transparent; }
+  /* Barre repliée : un cadre léger qui réunit les placements des couches (segments pleins). */
+  .vct-block-group { background: transparent; border: 1px solid #3d6a99; overflow: hidden; }
+  .vct-block-group .vct-group-seg { position: absolute; top: 2px; bottom: 2px; background: #3d6a99; border-radius: 2px; pointer-events: none; }
   .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
   .vct-block.vct-layer { background: #2f5d8a; }
   .vct-block.vct-sfx { background: #8a5a2f; }

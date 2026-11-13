@@ -25,6 +25,8 @@
   body.video-panel-active .video-test-panel { overflow: clip; }
   .video-capture-dock { position: sticky; top: 0; z-index: 40; background: #111; }
   .video-capture-image-hidden .video-capture-dock { position: static; }
+  /* Barre de zoom de la frise (12/11) : reste accrochée sous le dock (commandes de lecture) quand on fait défiler, comme elles. */
+  body.video-panel-active .vct-zoombar { position: sticky; top: var(--atelier-dock-h, 0px); z-index: 39; background: #111; padding: 6px 0; margin-bottom: 0; }
   .video-capture-dock.video-capture-pinned { border-radius: 0 0 8px 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
   .vct-lane-nested .vct-lane-label.vct-lane-label-solo { padding-left: 6px; font-weight: 600; color: #7fb0e8; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
   /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */

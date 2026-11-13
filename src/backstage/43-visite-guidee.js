@@ -1230,7 +1230,7 @@ const LESSONS = [
   // (la rue de Jazz City, puis le club), poser la musique 1 dans la frise, enregistrer le montage, version musique 2, écoute en direct. La partie
   // « bloc vidéo d'un AdReel » est devenue sa propre leçon le 05/11 (versioning-adreel, juste après). Suite : annoter le montage (espace Projet).
   // Ouverte le 04/11 : la vidéo muette (music-city-gameplay-muette.mp4, KIT d'atelier-lecons.js) est en ligne.
-  { id: 'versioning', theme: 'preprod', public: true, reload: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
+  { id: 'versioning', theme: 'preprod', public: true, adminOnly: true, reload: true, titleKey: 'lvTitle', descKey: 'lvDesc', steps: [
     { titleKey: 'lvWelcomeTitle', textKey: 'lvWelcomeText' },
     { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
       done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
@@ -1245,7 +1245,7 @@ const LESSONS = [
   // Leçon « Montrer les versions dans un AdReel » (05/11, détachée de « Versioning vidéo » à la demande de Jules-Antoine) : le bloc vidéo d'un AdReel,
   // la vidéo du montage d'exemple « Music City » (déjà prêt, deux musiques, préparé par le faux serveur), la version montrée d'abord, le menu des
   // versions, « Créer une version vidéo ». Se suit sans avoir fait la leçon précédente.
-  { id: 'versioning-adreel', theme: 'preprod', public: true, reload: true, titleKey: 'lvaTitle', descKey: 'lvaDesc', steps: [
+  { id: 'versioning-adreel', theme: 'preprod', public: true, adminOnly: true, reload: true, titleKey: 'lvaTitle', descKey: 'lvaDesc', steps: [
     { titleKey: 'lvaWelcomeTitle', textKey: 'lvaWelcomeText' },
     { selector: '.nav-item[data-tab="content"]', titleKey: 'lvAdreelTitle', textKey: 'lvAdreelText', done: () => !!document.querySelector('.nav-item[data-tab="content"].active') },
     { selector: '#btnAddVideoBlock', titleKey: 'laAddVideoTitle', textKey: 'laAddVideoText', clickDone: true, done: () => blocks.some(b => b.type === 'video') },
@@ -1261,7 +1261,7 @@ const LESSONS = [
     { titleKey: 'lvaEndTitle', textKey: 'lvaEndText', final: true },
   ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
-  { id: 'pj-annotate', theme: 'preprod', public: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
+  { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
   // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
   // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
   { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },

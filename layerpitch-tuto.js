@@ -49,7 +49,7 @@
   // `opts.adminOnly` : page réservée aux admins même quand le tutoriel public est ouvert (leçons « Préproduction » pas encore vérifiées, 26/10).
   // Leçons jouées hors du Backstage et réservées aux admins jusqu'à leur feu vert, quelle que soit la page qui les accueille (05/11 :
   // « Jouer en direct sur une vidéo », sur la page du pack). À retirer de cette liste à l'ouverture de la leçon.
-  const ADMIN_ONLY_LESSONS = ['live-play'];
+  const ADMIN_ONLY_LESSONS = ['live-play', 'versioning', 'versioning-adreel', 'pj-annotate']; // 12/11 : leçons Versioning vidéo refermées le temps de les refaire
   const lessonAdminOnly = () => ADMIN_ONLY_LESSONS.includes(new URLSearchParams(window.location.search).get('lesson'));
   async function enter(leaveTo, opts) {
     if (!isOn()) return false;
