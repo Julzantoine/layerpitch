@@ -210,9 +210,12 @@ function openCapturePanel(file, opts) {
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
+      <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
+      ${window.__lpCaptureIsAdmin ? `<span class="video-alt-group-label">${tr('altGroupLabel')}</span>` : ''}
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}">&#8644; ${tr('altPropagateShort')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr('altRefBtn')}</button>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
+      </span>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -1031,6 +1034,7 @@ function openCapturePanel(file, opts) {
     if (!altSelect) return;
     const on = !!(versioning && versioningLevel === 'saved' && savedCaptureId && captureCanSave);
     altSelect.hidden = !on;
+    const grp = document.getElementById('videoAltGroup'); if (grp) grp.hidden = !on; // le groupe (cadre + libellé) n'apparaît qu'avec le menu des versions
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')

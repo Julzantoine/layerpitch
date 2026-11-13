@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794515797768">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794515797768">
+<link rel="stylesheet" href="player.css?v=1794517511607">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794517511607">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -544,6 +544,17 @@
 
   /* Sections du projet (09/11, voir setAtelierView) : le Backstage montre l'atelier, le Versioning ou la relecture client, un seul à la fois. */
   body.atelier-view-atelier #videoCaptureVersioning { display: none; }
+  /* Groupe « Versions » (12/11) : menu des versions + marqueurs liés + reprise des marqueurs, réunis ; admin seulement (classe -v2),
+     les autres gardent la barre d'avant (le groupe est alors transparent : display: contents). */
+  .video-alt-group { display: contents; }
+  .video-alt-group[hidden] { display: none; }
+  .video-alt-group-v2 { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid #2a3a48; border-radius: 8px; background: #151a1f; flex-wrap: wrap; }
+  .video-alt-group-label { font-size: 10px; color: #7d8a96; text-transform: none; }
+  .video-alt-switch { display: none; }
+  .video-alt-group-v2 .video-alt-switch { display: inline-block; width: 22px; height: 12px; border-radius: 6px; background: #3a3a3a; position: relative; vertical-align: -2px; margin-right: 6px; }
+  .video-alt-group-v2 .video-alt-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: left .12s; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch { background: #fff; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch::after { left: 12px; background: #2f80c0; }
   body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
   body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
   body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
@@ -597,17 +608,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794515797768"></script>
-<script src="layerpitch-notify.js?v=1794515797768"></script>
-<script src="public-page.js?v=1794515797768"></script>
-<script src="player.js?v=1794515797768"></script>
-<script src="capture-plan.js?v=1794515797768"></script>
-<script src="capture-render.js?v=1794515797768"></script>
-<script src="capture-retarget.js?v=1794515797768"></script>
-<script src="layerpitch-av-sync.js?v=1794515797768"></script>
-<script src="capture-versioning.js?v=1794515797768"></script>
-<script src="layerpitch-guide.js?v=1794515797768"></script>
-<script src="atelier-lecons.js?v=1794515797768"></script>
+<script src="layerpitch-i18n.js?v=1794517511607"></script>
+<script src="layerpitch-notify.js?v=1794517511607"></script>
+<script src="public-page.js?v=1794517511607"></script>
+<script src="player.js?v=1794517511607"></script>
+<script src="capture-plan.js?v=1794517511607"></script>
+<script src="capture-render.js?v=1794517511607"></script>
+<script src="capture-retarget.js?v=1794517511607"></script>
+<script src="layerpitch-av-sync.js?v=1794517511607"></script>
+<script src="capture-versioning.js?v=1794517511607"></script>
+<script src="layerpitch-guide.js?v=1794517511607"></script>
+<script src="atelier-lecons.js?v=1794517511607"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2894,9 +2905,12 @@ function openCapturePanel(file, opts) {
     <div class="video-capture-bar">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
+      <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
+      ${window.__lpCaptureIsAdmin ? `<span class="video-alt-group-label">${tr('altGroupLabel')}</span>` : ''}
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}">&#8644; ${tr('altPropagateShort')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr('altRefBtn')}</button>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
+      </span>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -3715,6 +3729,7 @@ function openCapturePanel(file, opts) {
     if (!altSelect) return;
     const on = !!(versioning && versioningLevel === 'saved' && savedCaptureId && captureCanSave);
     altSelect.hidden = !on;
+    const grp = document.getElementById('videoAltGroup'); if (grp) grp.hidden = !on; // le groupe (cadre + libellé) n'apparaît qu'avec le menu des versions
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
