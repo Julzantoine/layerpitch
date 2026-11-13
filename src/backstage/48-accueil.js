@@ -43,6 +43,7 @@ let homeInboxItems = null;
 let homeInboxWired = false;
 let homeMailAll = false;
 let homeLearnOpen = false;
+let homeSellOpen = false;
 let homeActivity = { state: 'idle', overview: null, at: 0 };
 let homeArrivalDone = false;
 let homeAppearanceHost = null;
@@ -150,15 +151,18 @@ function homeCard(cls, title, body, extra) {
 }
 function homeRemindersHtml() {
   const rows = [];
-  if (homeTourReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="tour"><span>${escapeHtml(tr('homeTourReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="tour-start">${escapeHtml(tr('homeTourStart'))}</button><button class="home-x" type="button" data-home-act="tour-dismiss" title="${escapeAttr(tr('homeTourDismiss'))}" aria-label="${escapeAttr(tr('homeTourDismiss'))}">×</button></div>`);
-  if (homeProfileReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="profile"><span>${escapeHtml(tr('homeProfileReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="profile-start">${escapeHtml(tr('homeProfileStart'))}</button></div>`);
+  if (homeTourReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="tour"><span class="home-reminder-ico" aria-hidden="true">◎</span><span class="home-reminder-text">${escapeHtml(tr('homeTourReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="tour-start">${escapeHtml(tr('homeTourStart'))}</button><button class="home-x" type="button" data-home-act="tour-dismiss" title="${escapeAttr(tr('homeTourDismiss'))}" aria-label="${escapeAttr(tr('homeTourDismiss'))}">×</button></div>`);
+  if (homeProfileReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="profile"><span class="home-reminder-ico" aria-hidden="true">☺</span><span class="home-reminder-text">${escapeHtml(tr('homeProfileReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="profile-start">${escapeHtml(tr('homeProfileStart'))}</button></div>`);
   return rows.length ? `<div class="home-reminders">${rows.join('')}</div>` : '';
 }
 function homeQuestionHtml() {
   const learnOk = HOME_NEEDS.some(n => homeNeedLessons(n).length);
   const btn = (act, key) => `<button class="btn" type="button" data-home-do="${act}">${escapeHtml(tr(key))}</button>`;
   const learn = learnOk ? `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="learn" aria-haspopup="true" aria-expanded="${homeLearnOpen}">${escapeHtml(tr('homeDoLearn'))}</button>${homeLearnOpen ? homeLearnHtml() : ''}</span>` : '';
-  return `<section class="home-question"><h2>${escapeHtml(tr('homeQuestion'))}</h2><div class="home-choices">${btn('import', 'homeDoImport')}${btn('tune', 'homeDoTune')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${learn}</div></section>`;
+  const albumsOk = !!document.getElementById('navItemAlbums') && !document.getElementById('navItemAlbums').hidden;
+  const sellPop = `<div class="home-learn-pop home-sell-pop" role="dialog" aria-label="${escapeAttr(tr('homeSellTitle'))}"><div class="home-learn-head"><strong>${escapeHtml(tr('homeSellTitle'))}</strong><button class="home-x" type="button" data-home-do="learn-close" aria-label="${escapeAttr(tr('homeLearnClose'))}">×</button></div><button type="button" class="home-sell-opt" data-home-do="sell-packs"><b>${escapeHtml(tr('homeSellPacks'))}</b><small>${escapeHtml(tr('homeSellPacksHint'))}</small></button>${albumsOk ? `<button type="button" class="home-sell-opt" data-home-do="sell-albums"><b>${escapeHtml(tr('homeSellAlbums'))}</b><small>${escapeHtml(tr('homeSellAlbumsHint'))}</small></button>` : ''}</div>`;
+  const sell = `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="sell" aria-haspopup="true" aria-expanded="${homeSellOpen}">${escapeHtml(tr('homeDoSell'))}</button>${homeSellOpen ? sellPop : ''}</span>`;
+  return `<section class="home-question"><h2>${escapeHtml(tr('homeQuestion'))}</h2><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></section>`;
 }
 function homeLearnHtml() {
   const done = lessonsDone();
@@ -266,7 +270,7 @@ function renderHome() {
 
 // ---- Actions ----
 function homeStartProfileQuiz() { if (!guide && profileQuizOpen()) openGuide('tour', [profileQuizStep({ alone: true })]); }
-function homeCloseLearn() { if (!homeLearnOpen) return; homeLearnOpen = false; renderHome(); }
+function homeCloseLearn() { if (!homeLearnOpen && !homeSellOpen) return; homeLearnOpen = false; homeSellOpen = false; renderHome(); }
 function homeFocusMailbox() {
   openTab('home');
   homeMailAll = true;
@@ -282,11 +286,16 @@ function homeBellIntercept() {
 }
 function homeDo(act) {
   switch (act) {
-    case 'import': case 'tune': openTab('library'); break;
+    case 'import': openTab('library'); break;
+    case 'sfx': openTab('sfxLibrary'); break;
+    case 'tour': startBackstageTour(); break;
+    case 'sell-packs': homeSellOpen = false; openTab('packs'); break;
+    case 'sell-albums': homeSellOpen = false; openTab('albums'); break;
     case 'video': openTab('videoLibrary'); break;
     case 'share': openTab('content'); break;
     case 'team': { const a = document.getElementById('navLinkProjects'); if (a && a.href) window.location.href = a.getAttribute('href'); break; }
-    case 'learn': homeLearnOpen = !homeLearnOpen; renderHome(); return;
+    case 'learn': homeLearnOpen = !homeLearnOpen; homeSellOpen = false; renderHome(); return;
+    case 'sell': homeSellOpen = !homeSellOpen; homeLearnOpen = false; renderHome(); return;
     case 'learn-close': homeCloseLearn(); return;
     case 'analytics': openTab('analytics'); break;
     case 'all-tutorials': { const b = document.getElementById('btnTutorialMenu'); if (b) b.click(); break; }
@@ -338,7 +347,7 @@ function homeDo(act) {
     if (e.target.id === 'homeHelpToggle') { homeSavePrefs({ help_off: !e.target.checked }); applyHomeHelp(); }
   });
   // Une bulle « J'ai besoin de comprendre » se referme d'un clic ailleurs ou d'Échap.
-  document.addEventListener('click', e => { if (homeLearnOpen && !e.target.closest('.home-learn-wrap')) homeCloseLearn(); });
+  document.addEventListener('click', e => { if ((homeLearnOpen || homeSellOpen) && !e.target.closest('.home-learn-wrap')) homeCloseLearn(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') homeCloseLearn(); });
   // Réglages d'apparence changés ailleurs (autre onglet, autre panneau) : les boutons Jour/Nuit suivent.
   document.addEventListener('lp-appearance-change', () => renderHome());
