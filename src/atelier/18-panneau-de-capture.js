@@ -383,10 +383,22 @@ function openCapturePanel(file, opts) {
     const box = document.getElementById('videoAltPropagate');
     const linked = !!box && box.getAttribute('aria-pressed') === 'true';
     const deltas = new Map();
-    timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    const added = [], removedIds = new Set();
+    const nowIds = new Set(timelineMarkers.map(m => m.id));
+    timelineMarkers.forEach(m => { if (!markerMemo.has(m.id)) added.push(m); else if (markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    markerMemo.forEach((t, id) => { if (!nowIds.has(id)) removedIds.add(id); });
     memoMarkers();
-    if (!deltas.size || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
-    const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
+    if (!(deltas.size || added.length || removedIds.size) || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
+    // Marqueurs liés : un marqueur posé ou effacé ici l'est aussi dans les autres versions (11/11, retour de Jules-Antoine : posé sur une version, il n'apparaissait pas sur l'autre) ;
+    // un marqueur déplacé est décalé du même écart. Ce qui existe déjà (même identifiant) n'est jamais dupliqué.
+    const shift = list => {
+      let ch = false;
+      if (removedIds.size) { const n = list.length; for (let i = list.length - 1; i >= 0; i--) if (removedIds.has(list[i].id)) list.splice(i, 1); if (list.length !== n) ch = true; }
+      list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } });
+      added.forEach(m => { if (!list.some(x => x.id === m.id)) { list.push(Object.assign({}, m)); ch = true; } });
+      if (ch) list.sort((a, b) => a.t - b.t);
+      return ch;
+    };
     const alts = versioning.alternatives;
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle

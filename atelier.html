@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794606989056">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794606989056">
+<link rel="stylesheet" href="player.css?v=1794609164179">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794609164179">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -430,7 +430,8 @@
   /* Historique des exports d'un montage (21/10) */
   .video-capture-history { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .video-capture-history[hidden] { display: none; }
-  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #ccc; }
+  .video-capture-history .video-capture-count { color: #999; }
   /* Atelier vidéo (21/10) : en-tête « choisir le pack », ouvert dans un cadre du Backstage (onglet Vidéo) ou de l'espace studio. */
   .atelier-head { margin-bottom: 28px; }
   .atelier-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; margin: 0 0 6px; }
@@ -640,17 +641,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794606989056"></script>
-<script src="layerpitch-notify.js?v=1794606989056"></script>
-<script src="public-page.js?v=1794606989056"></script>
-<script src="player.js?v=1794606989056"></script>
-<script src="capture-plan.js?v=1794606989056"></script>
-<script src="capture-render.js?v=1794606989056"></script>
-<script src="capture-retarget.js?v=1794606989056"></script>
-<script src="layerpitch-av-sync.js?v=1794606989056"></script>
-<script src="capture-versioning.js?v=1794606989056"></script>
-<script src="layerpitch-guide.js?v=1794606989056"></script>
-<script src="atelier-lecons.js?v=1794606989056"></script>
+<script src="layerpitch-i18n.js?v=1794609164179"></script>
+<script src="layerpitch-notify.js?v=1794609164179"></script>
+<script src="public-page.js?v=1794609164179"></script>
+<script src="player.js?v=1794609164179"></script>
+<script src="capture-plan.js?v=1794609164179"></script>
+<script src="capture-render.js?v=1794609164179"></script>
+<script src="capture-retarget.js?v=1794609164179"></script>
+<script src="layerpitch-av-sync.js?v=1794609164179"></script>
+<script src="capture-versioning.js?v=1794609164179"></script>
+<script src="layerpitch-guide.js?v=1794609164179"></script>
+<script src="atelier-lecons.js?v=1794609164179"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2729,7 +2730,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });
@@ -3333,10 +3334,22 @@ function openCapturePanel(file, opts) {
     const box = document.getElementById('videoAltPropagate');
     const linked = !!box && box.getAttribute('aria-pressed') === 'true';
     const deltas = new Map();
-    timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    const added = [], removedIds = new Set();
+    const nowIds = new Set(timelineMarkers.map(m => m.id));
+    timelineMarkers.forEach(m => { if (!markerMemo.has(m.id)) added.push(m); else if (markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    markerMemo.forEach((t, id) => { if (!nowIds.has(id)) removedIds.add(id); });
     memoMarkers();
-    if (!deltas.size || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
-    const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
+    if (!(deltas.size || added.length || removedIds.size) || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
+    // Marqueurs liés : un marqueur posé ou effacé ici l'est aussi dans les autres versions (11/11, retour de Jules-Antoine : posé sur une version, il n'apparaissait pas sur l'autre) ;
+    // un marqueur déplacé est décalé du même écart. Ce qui existe déjà (même identifiant) n'est jamais dupliqué.
+    const shift = list => {
+      let ch = false;
+      if (removedIds.size) { const n = list.length; for (let i = list.length - 1; i >= 0; i--) if (removedIds.has(list[i].id)) list.splice(i, 1); if (list.length !== n) ch = true; }
+      list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } });
+      added.forEach(m => { if (!list.some(x => x.id === m.id)) { list.push(Object.assign({}, m)); ch = true; } });
+      if (ch) list.sort((a, b) => a.t - b.t);
+      return ch;
+    };
     const alts = versioning.alternatives;
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
