@@ -555,7 +555,30 @@ function openCapturePanel(file, opts) {
   // Fin de la vidéo pendant une prise (05/11, retour de Jules-Antoine) : la capture s'arrête toute seule, comme au clic sur « Arrêter
   // la capture » (la musique s'arrête aussi) -- sinon la musique continuait et la frise s'allongeait bien au-delà de l'image.
   videoEl.addEventListener('ended', () => { if (videoCaptureState) recordBtn.click(); });
-  recordBtn.addEventListener('click', () => {
+  // Choix « Fusionner / Remplacer » (13/11, remplace la case « Passe additive » pour l'admin) : demandé au clic sur Enregistrer, seulement
+  // s'il y a déjà une prise sur la frise. Renvoie 'merge', 'replace', ou null (annulé).
+  let takeModeAsking = false;
+  const askTakeMode = () => new Promise(resolve => {
+    const doc = recordBtn.ownerDocument;
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const d = doc.createElement('dialog');
+    d.className = 'video-test-dialog';
+    d.innerHTML = `<div class="video-test-form">
+      <div class="video-test-dialog-title">${esc(tr('takeModeTitle'))}</div>
+      <p class="video-test-dialog-hint">${esc(tr('takeModeHint'))}</p>
+      <div class="video-test-dialog-actions">
+        <button type="button" class="video-test-btn-secondary" data-v="">${esc(tr('cancel'))}</button>
+        <button type="button" class="video-test-btn-secondary" data-v="replace">${esc(tr('takeModeReplace'))}</button>
+        <button type="button" class="video-test-btn-primary" data-v="merge">${esc(tr('takeModeMerge'))}</button>
+      </div></div>`;
+    let done = false;
+    const finish = v => { if (done) return; done = true; if (d.open) d.close(); d.remove(); resolve(v || null); };
+    d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button[data-v]'); if (b) finish(b.dataset.v); });
+    d.addEventListener('cancel', e => { e.preventDefault(); finish(null); }); // Échap = annuler
+    doc.body.appendChild(d);
+    d.showModal();
+  });
+  recordBtn.addEventListener('click', async () => {
     if (videoCaptureState) {
       // Fusionne avec la prise précédente (passe additive) si demandé à l'armement de CET enregistrement
       // -- voir la branche "else" ci-dessous. materializeLayerSegments accepte sans problème un mélange
@@ -587,7 +610,19 @@ function openCapturePanel(file, opts) {
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
       // de route. Décochée ou rien à préserver (lastEvents vide) : comportement d'origine, la nouvelle
       // capture remplacera tout à l'arrêt.
-      const additive = additiveCheckbox.checked && lastEvents.length > 0;
+      let additive = additiveCheckbox.checked && lastEvents.length > 0;
+      if (stepsV2) {
+        // Barre d'étapes (admin) : plus de case ; une prise existe déjà → on demande, sinon l'enregistrement démarre directement.
+        additive = false;
+        if (lastEvents.length > 0) {
+          if (takeModeAsking) return;
+          takeModeAsking = true;
+          let choice = null;
+          try { choice = await askTakeMode(); } finally { takeModeAsking = false; }
+          if (!choice || videoCaptureState) return; // annulé (ou une prise a démarré entre-temps)
+          additive = choice === 'merge';
+        }
+      }
       pendingBaseEvents = additive ? lastEvents.slice() : [];
       // Une passe additive DOIT repartir du tout début de la vidéo (2026-09-16, Jules-Antoine) : les
       // horaires de la passe précédente (pendingBaseEvents) sont comptés depuis t=0 -- si la nouvelle

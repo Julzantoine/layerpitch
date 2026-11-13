@@ -130,6 +130,7 @@
   .atelier-stepbar-btn.on { background: #17324a; border-color: #2f80c0; color: #dbe9f5; }
   .atelier-stepbar-btn.on .n { background: #2f80c0; color: #fff; }
   .atelier-step-next { margin-left: auto; background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .video-test-panel.atelier-v2 #videoCaptureAdditiveLabel { display: none !important; } /* remplacée par le choix Fusionner / Remplacer au clic sur Enregistrer */
   .video-test-panel.atelier-v2[data-step="montage"] .video-step-publier { display: none; }
   .video-test-panel.atelier-v2[data-step="publier"] .video-step-montage { display: none; }
   body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
