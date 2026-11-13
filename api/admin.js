@@ -37,6 +37,13 @@
     return { growth: data, error: null };
   }
 
+  // Tableau « Tutoriel » (13/11, admin_tutorial_stats) : entonnoir par leçon + courbe par jour. p_days : 7, 30 ou 0 (tout).
+  async function getTutorialStats(days) {
+    const { data, error } = await getClient().rpc('admin_tutorial_stats', { p_days: days == null ? 30 : days });
+    if (error) return { stats: null, error: error.message };
+    return { stats: data, error: null };
+  }
+
   async function listAccounts(search) {
     const { data, error } = await getClient().rpc('admin_list_accounts', { p_search: search || null });
     if (error) return { accounts: null, error: error.message };
@@ -150,5 +157,5 @@
     return { report: data || [], error: null };
   }
 
-  window.LayerPitchAdmin = { getAdReelsReport, getStats, getOnboardingProfileStats, getGrowthSeries, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage, updateAdminMessage, listNativeMessages, updateNativeMessage, deleteNativeMessage };
+  window.LayerPitchAdmin = { getAdReelsReport, getStats, getOnboardingProfileStats, getGrowthSeries, getTutorialStats, listAccounts, listAdminMessages, sendAdminMessage, deleteAdminMessage, updateAdminMessage, listNativeMessages, updateNativeMessage, deleteNativeMessage };
 })();

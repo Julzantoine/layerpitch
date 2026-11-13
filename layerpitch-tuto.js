@@ -69,8 +69,33 @@
   let umami = null;
   const queue = [];
   function sendNow(name, detail) { umami.track('tuto_' + name, detail || {}); }
+  // Copie dans notre base (13/11) pour le tableau « Tutoriel » de l'admin : fetch direct avec la clé publique (comme la lecture du feu vert
+  // plus haut), car après switchToDemo() le client Supabase de la page est le faux serveur. Identifiant de visite aléatoire, gardé le temps
+  // de l'onglet : ni cookie ni lien avec un compte. Marche même si Umami est bloqué par un bloqueur de pub. Jamais bloquant.
+  const LOG_URL = 'https://ypygllyjfynrnvapufow.supabase.co/rest/v1/rpc/log_tutorial_event';
+  let visitId = null;
+  function getVisitId() {
+    if (visitId) return visitId;
+    try { visitId = window.sessionStorage.getItem('lp_tuto_visit'); } catch (e) { /* stockage indisponible */ }
+    if (!visitId) {
+      visitId = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      try { window.sessionStorage.setItem('lp_tuto_visit', visitId); } catch (e) { /* idem : l'identifiant vit alors le temps de la page */ }
+    }
+    return visitId;
+  }
+  function logToBase(name, detail) {
+    if (typeof fetch !== 'function') return;
+    try {
+      fetch(LOG_URL, {
+        method: 'POST', keepalive: true,
+        headers: { apikey: FLAG_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_session_id: getVisitId(), p_event_name: name, p_detail: detail || {} }),
+      }).catch(() => {});
+    } catch (e) { /* jamais bloquant */ }
+  }
   function track(name, detail) {
     if (!isOn()) return;
+    logToBase(name, detail);
     try {
       if (umami && typeof umami.track === 'function') sendNow(name, detail);
       else if (queue.length < 200) queue.push([name, detail]); // script pas encore chargé : on garde les premiers événements

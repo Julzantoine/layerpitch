@@ -118,6 +118,7 @@
         <button type="button" data-section="access">Accès et invitations</button>
         <button type="button" data-section="accounts">Comptes</button>
         <button type="button" data-section="announce">Annonces</button>
+        <button type="button" data-section="tutorial">Tutoriel</button>
         <button type="button" data-section="flags">Feux verts</button>
         <button type="button" data-section="tools">Outils</button>
       </nav>
@@ -301,6 +302,23 @@
          Liste seulement : ajouter un site = décision manuelle (Edge Function link-preview + project_link_has_preview). -->
         </section>
 
+        <section data-section="tutorial" hidden>
+          <div class="card" id="panelTutorialStats">
+            <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span>Tutoriel interactif</span>
+              <select id="tutorialPeriod" style="font-size:12px;padding:4px 6px;">
+                <option value="7">7 derniers jours</option>
+                <option value="30" selected>30 derniers jours</option>
+                <option value="0">Depuis le début</option>
+              </select>
+            </h2>
+            <p class="subtitle" style="margin:0 0 12px;font-size:12px;">Chaque chiffre compte des visites (un identifiant tiré au hasard pour la durée d'un onglet), pas des personnes : quelqu'un qui revient le lendemain compte deux fois. Aucun lien avec un compte. Les événements sont aussi envoyés à Umami.</p>
+            <div id="tutorialLoading">Chargement…</div>
+            <div id="tutorialBody" style="display:none;"></div>
+            <div id="tutorialMsg" class="msg err"></div>
+          </div>
+        </section>
+
         <section data-section="flags" hidden>
           <div class="card" id="panelFeatureFlags">
             <h2>Feux verts</h2>
@@ -340,15 +358,15 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="api/supabase-client.js?v=1794515471694"></script>
-<script src="api/auth.js?v=1794515471694"></script>
-<script src="layerpitch-admin-report.js?v=1794515471694"></script>
-<script src="api/admin.js?v=1794515471694"></script>
-<script src="api/access-requests.js?v=1794515471694"></script>
-<script src="api/invites.js?v=1794515471694"></script>
-<script src="layerpitch-i18n.js?v=1794515471694"></script>
-<script src="layerpitch-notify.js?v=1794515471694"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
+<script src="api/supabase-client.js?v=1794589720372"></script>
+<script src="api/auth.js?v=1794589720372"></script>
+<script src="layerpitch-admin-report.js?v=1794589720372"></script>
+<script src="api/admin.js?v=1794589720372"></script>
+<script src="api/access-requests.js?v=1794589720372"></script>
+<script src="api/invites.js?v=1794589720372"></script>
+<script src="layerpitch-i18n.js?v=1794589720372"></script>
+<script src="layerpitch-notify.js?v=1794589720372"></script>
 <script>
 // i18n minimal (zone "admin" + repli "shared") — même patron que layerpitch-backstage.html.
 function currentLang() { return localStorage.getItem('layerpitch_lang') || 'fr'; }
@@ -401,6 +419,7 @@ async function render(session) {
   adminContent.style.display = 'block';
   loadStats();
   loadGrowthSeries();
+  loadTutorialStats();
   loadAccounts();
   loadAdminMsgHistory();
   loadAdminNativeMsgs();
@@ -796,6 +815,44 @@ function buildGrowthChart(values, buckets) {
     </div>
   </div>`;
 }
+
+// ---- Tableau « Tutoriel » (13/11, migration 20261113010000) : entonnoir par leçon, courbe par jour, morceaux d'exemple ----
+const TUTORIAL_FUNNEL_STYLE = '<style>.tuto-lesson{margin:0 0 16px}.tuto-lesson h3{margin:0 0 4px;font-size:13px}.tuto-nums{font-size:12px;color:var(--text-dim);margin:0 0 6px}.tuto-funnel{display:flex;align-items:flex-end;gap:2px;height:64px}.tuto-bar{flex:1;min-width:3px;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}.tuto-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dimmer);margin-top:2px}</style>';
+function tutorialLessonHtml(l) {
+  const opened = l.opened || 0;
+  const pct = n => (opened ? Math.round((n / opened) * 100) : 0);
+  const reached = l.reached || [];
+  const top = Math.max(...reached, 1);
+  const bars = reached.map((n, i) => `<span class="tuto-bar" style="height:${Math.max(2, Math.round((n / top) * 100))}%" title="Étape ${i + 1} : ${n} visite(s)${opened ? ' (' + pct(n) + ' %)' : ''}"></span>`).join('');
+  // Étape où l'on décroche le plus : plus forte chute entre deux étapes consécutives.
+  let worst = -1, drop = 0;
+  for (let i = 1; i < reached.length; i++) { const d = reached[i - 1] - reached[i]; if (d > drop) { drop = d; worst = i; } }
+  const hint = worst > 0 && drop > 0 ? ` · plus forte chute : étape ${worst} → ${worst + 1} (−${drop})` : '';
+  return `<div class="tuto-lesson"><h3>${escapeHtml(l.lesson)}</h3>
+    <p class="tuto-nums">${opened} ouverture(s) · ${l.done || 0} terminée(s) (${pct(l.done || 0)} %) · ${l.quit || 0} abandon(s)${hint}</p>
+    <div class="tuto-funnel">${bars}</div>
+    <div class="tuto-axis"><span>étape 1</span><span>étape ${reached.length}</span></div></div>`;
+}
+async function loadTutorialStats() {
+  const loading = document.getElementById('tutorialLoading');
+  const body = document.getElementById('tutorialBody');
+  const msg = document.getElementById('tutorialMsg');
+  if (!loading) return;
+  loading.style.display = 'block'; body.style.display = 'none'; msg.textContent = '';
+  const { stats, error } = await window.LayerPitchAdmin.getTutorialStats(Number(document.getElementById('tutorialPeriod').value));
+  loading.style.display = 'none';
+  if (error || !stats) { msg.textContent = 'Erreur : ' + (error || ''); return; }
+  body.style.display = 'block';
+  const lessons = stats.lessons || [], series = stats.series || [], samples = stats.samples || [];
+  if (!lessons.length) { body.innerHTML = '<p class="subtitle">Aucune visite du tutoriel sur cette période.</p>'; return; }
+  const days = series.map(d => d.day);
+  const tile = (label, key) => renderGrowthTile(label, series.map(d => d[key] || 0), days);
+  body.innerHTML = TUTORIAL_FUNNEL_STYLE
+    + '<div class="growth-grid" style="margin-bottom:16px">' + tile('Ouvertures', 'opened') + tile('Leçons terminées', 'done') + tile('Abandons', 'quit') + '</div>'
+    + '<h3 style="font-size:13px;margin:0 0 8px">Par leçon : où les visites s\'arrêtent</h3>' + lessons.map(tutorialLessonHtml).join('')
+    + (samples.length ? '<h3 style="font-size:13px;margin:16px 0 6px">Morceaux d\'exemple utilisés</h3><p class="tuto-nums">' + samples.map(s => `${escapeHtml(s.lesson)} : ${s.uses}`).join(' · ') + '</p>' : '');
+}
+document.getElementById('tutorialPeriod').addEventListener('change', loadTutorialStats);
 
 // ---- Comptes / suspension ----
 async function loadAccounts(search) {

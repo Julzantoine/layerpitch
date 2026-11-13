@@ -76,7 +76,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
   // libre, vendor/fonts/).
   onProgress(tr('captureFetchFont'));
-  await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
+  await ffmpeg.writeFile('font.ttf', (await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href)).slice()); // copie : writeFile transfère les octets (cache partagé)
   // Plafonné à 720p (16 septembre, retour direct : un export de 3 min prenait ~10 min -- cet export
   // encodait la vidéo source à sa résolution d'origine, souvent 1080p+, SANS le plafond déjà appliqué
   // côté bibliothèque vidéo -- voir compressVideoForLibrary dans layerpitch-backstage.html). Le

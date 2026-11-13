@@ -63,7 +63,7 @@ async function setupCaptureTrigger(pack, container, opts) {
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
   captureBtn.textContent = tr('atelierChooseVideoBtn');
-  captureBtn.addEventListener('click', () => openVideoCaptureDialog());
+  captureBtn.addEventListener('click', () => { if (!videoCaptureState) openVideoCaptureDialog(); }); // pas pendant une prise : elle se perdrait
   container.insertBefore(captureBtn, container.firstChild);
   // &montage=<id> (Backstage → Vidéo → Versioning, bloc vidéo d'un AdReel, espace studio) : ce montage sauvegardé s'ouvre dès que
   // la vidéo est choisie -- le dialogue s'ouvre tout de suite.
@@ -90,8 +90,10 @@ let openVideoCaptureDialog = () => {};
   const libStatus = document.getElementById('videoCaptureLibraryStatus');
   if (!dialog) return;
   let libraryVideos = [];
+  // Vidéo reconnue à son type, ou à défaut à son extension (12/11 : un .mov / .mkv / .m4v arrive parfois sans type, selon le système).
+  const looksLikeVideo = f => !!f && (/^video\//.test(f.type || '') || (!f.type && /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name || '')));
   function handleFile(file) {
-    if (!file || !file.type.startsWith('video/')) {
+    if (!looksLikeVideo(file)) {
       errorEl.textContent = tr('captureChooseVideoError');
       libStatus.textContent = '';
       return;
@@ -111,7 +113,7 @@ let openVideoCaptureDialog = () => {};
     montageNote.hidden = true;
     libPick.hidden = true;
     libStatus.textContent = '';
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal(); // déjà ouvert (pack republié pendant le choix) : showModal() lèverait une erreur
     if (pendingMontageId) {
       try {
         pendingMontage = await loadVideoCapture(pendingMontageId);
@@ -139,31 +141,65 @@ let openVideoCaptureDialog = () => {};
     // Montage à rouvrir dont la vidéo d'origine est dans la bibliothèque : on la charge directement, sans redemander (06/11).
     if (match && dialog.open) libBtn.click();
   };
+  let libAbort = null; // téléchargement de la bibliothèque en cours (arrêté par Annuler)
   libBtn.addEventListener('click', async () => {
     const v = libraryVideos.find(x => x.id === libSelect.value);
     if (!v) return;
     libBtn.disabled = true;
     libStatus.textContent = tr('captureLibraryDownloading');
     try {
-      // Lecture par morceaux : on affiche l'avancement (une grosse vidéo ressemblait à un blocage), et en cas d'interruption on réessaie
-      // une fois avant d'afficher l'erreur (nom + octets reçus, pour comprendre ce qui coupe).
-      let blob = null, got = 0, lastErr = null;
-      for (let attempt = 0; attempt < 2 && !blob; attempt++) {
+      // Lecture par morceaux, avec reprise (13/11, « vidéo bloquée à 47 % ») : un flux qui s'arrête sans erreur laissait l'attente infinie.
+      // Maintenant : si plus rien n'arrive pendant 15 s, la connexion est coupée et le téléchargement REPREND là où il s'était arrêté
+      // (en-tête Range ; si le serveur l'ignore, on repart du début), jusqu'à 5 essais. « Annuler » arrête aussi le téléchargement.
+      libAbort = new AbortController();
+      const url = v.base + encodeURIComponent(v.file);
+      const STALL_MS = 15000, MAX_TRIES = 5;
+      const parts = []; let got = 0, total = 0, blob = null, lastErr = null, ctype = '';
+      for (let attempt = 0; attempt < MAX_TRIES && !blob; attempt++) {
+        if (libAbort.signal.aborted) break;
+        const ctl = new AbortController();
+        const onAll = () => ctl.abort();
+        libAbort.signal.addEventListener('abort', onAll);
+        let timer = null, stalled = false;
+        const arm = () => { clearTimeout(timer); timer = setTimeout(() => { stalled = true; ctl.abort(); }, STALL_MS); };
         try {
-          got = 0;
-          const res = await fetch(v.base + encodeURIComponent(v.file));
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const total = Number(res.headers.get('content-length')) || 0;
-          const parts = [], reader = res.body.getReader();
+          arm();
+          const res = await fetch(url, { headers: got > 0 ? { Range: 'bytes=' + got + '-' } : {}, signal: ctl.signal });
+          if (res.status === 206) {
+            // Content-Range n'est lisible entre sites que si le serveur l'expose (CORS) ; sinon on fait confiance au 206 (la reprise
+            // demandée commence à `got`) et le total vaut ce qu'on a déjà + la longueur de cette réponse (Content-Length est toujours lisible).
+            const m = /bytes (\d+)-\d+\/(\d+|\*)/.exec(res.headers.get('content-range') || '');
+            if (m && Number(m[1]) !== got) { parts.length = 0; got = 0; throw new Error('Reprise décalée'); }
+            if (m && m[2] !== '*') total = Number(m[2]);
+            else if (!m) total = got + (Number(res.headers.get('content-length')) || 0);
+          } else if (res.ok) {
+            if (got > 0) { parts.length = 0; got = 0; } // le serveur a ignoré la reprise : on repart du début
+            total = Number(res.headers.get('content-length')) || 0;
+          } else throw new Error('HTTP ' + res.status);
+          ctype = res.headers.get('content-type') || ctype;
+          const reader = res.body.getReader();
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
-            parts.push(value); got += value.length;
+            arm(); parts.push(value); got += value.length;
             libStatus.textContent = tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo');
           }
-          blob = new Blob(parts, { type: res.headers.get('content-type') || '' });
-        } catch (e) { lastErr = e; console.error(e); }
+          if (total && got < total) throw new Error('Flux interrompu (' + Math.round(got / 1048576) + ' / ' + Math.round(total / 1048576) + ' Mo)');
+          blob = new Blob(parts, { type: ctype });
+        } catch (e) {
+          lastErr = stalled ? new Error('plus rien reçu depuis ' + (STALL_MS / 1000) + ' s') : e;
+          if (libAbort.signal.aborted) break;
+          console.warn('[atelier] téléchargement de la vidéo interrompu :', lastErr && lastErr.message, '| reçu', got, '/', total, 'octets | essai', attempt + 1, '/', MAX_TRIES, '| connexion', (navigator.connection && navigator.connection.effectiveType) || '?');
+          if (attempt < MAX_TRIES - 1) {
+            libStatus.textContent = tr('captureLibraryResuming').replace('{n}', String(attempt + 2)).replace('{max}', String(MAX_TRIES)).replace('{reason}', (lastErr && lastErr.message) || '?');
+            await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+          }
+        } finally {
+          clearTimeout(timer);
+          libAbort.signal.removeEventListener('abort', onAll);
+        }
       }
+      if (libAbort.signal.aborted) { libStatus.textContent = ''; return; } // annulé par l'utilisateur
       if (!blob) throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
@@ -188,7 +224,7 @@ let openVideoCaptureDialog = () => {};
     dropzone.classList.remove('dragover');
     handleFile(e.dataTransfer.files[0]);
   });
-  cancelBtn.addEventListener('click', () => { pendingMontageId = null; dialog.close(); });
+  cancelBtn.addEventListener('click', () => { pendingMontageId = null; if (libAbort) libAbort.abort(); dialog.close(); });
   dialog.addEventListener('close', () => { errorEl.textContent = ''; fileInput.value = ''; });
 })();
 

@@ -590,6 +590,27 @@ async function publishAll() {
     }
     log(`Écriture en base : ${data.library.length} morceau(x) OK.`, 'ok');
 
+    // Protection par défaut (retour bêta du 11/11, décision du 12/11) : un morceau publié POUR LA PREMIÈRE FOIS est protégé tout de
+    // suite (fichiers dans le stockage privé, liens temporaires, plus de téléchargement direct). Seulement les nouveaux : ceux qui
+    // étaient déjà en base gardent le choix du compositeur. Une panne ne bloque pas la publication : le morceau reste public et un
+    // avertissement le dit. Admin seulement jusqu'au feu vert 'protect_by_default'.
+    if (flagOpen('protect_by_default') && publishedCatalog) {
+      const fresh = data.library.filter(t => t.id && !publishedCatalog.tracks.has(t.id) && !isExample(t) && !t.protected);
+      for (const t of fresh) {
+        log(tr('protectingNewTrack', { title: t.title || t.id }));
+        let r;
+        try { r = await window.LayerPitchTracks.setTrackProtected(t.id, true); }
+        catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+        if (r.ok) {
+          const live = library.find(x => x.id === t.id);
+          if (live) live.protected = true;
+          log(tr('protectedNewTrack', { title: t.title || t.id }), 'ok');
+        } else {
+          log(tr('protectNewTrackFailed', { title: t.title || t.id, error: r.error }), 'warn');
+        }
+      }
+    }
+
     log('Écriture en base : packs...');
     const pgPackErrors = [];
     for (const pack of data.packs) {

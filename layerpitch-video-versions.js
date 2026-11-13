@@ -63,17 +63,37 @@
     let current = versions.find(v => v.key === opts.defaultKey) || versions[0];
     let previous = null; // la version écoutée juste avant : l'autre moitié de la bascule A/B
     const srcFor = v => (isSound(v) ? base : v.url);
+    // La piste son reprend toujours le volume, la sourdine et la vitesse de l'image (12/11 : au départ, une vidéo muette en lecture
+    // automatique laissait son son... audible ; une piste de rechange échangée gardait l'ancienne vitesse).
+    const matchVideo = el => { el.volume = video.volume; el.muted = video.muted; el.playbackRate = video.playbackRate || 1; };
+    matchVideo(audio); matchVideo(spare);
     if (video.getAttribute('src') !== srcFor(current)) video.src = srcFor(current);
     if (isSound(current)) audio.src = current.url;
-    // Le son suit l'image : lecture, pause, déplacement, vitesse, volume ; petit recalage si l'écart dépasse un dixième de seconde.
+    // Le son suit l'image : lecture, pause, déplacement, vitesse, volume.
     const follow = () => isSound(current);
-    video.addEventListener('play', () => { if (follow()) { audio.currentTime = video.currentTime; safePlay(audio); } });
-    video.addEventListener('playing', () => { if (follow() && audio.paused) { audio.currentTime = video.currentTime; safePlay(audio); } });
-    ['pause', 'waiting', 'ended'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
-    video.addEventListener('seeking', () => { if (follow()) audio.currentTime = video.currentTime; });
-    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; });
-    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; });
-    const resync = () => { if (follow() && !video.paused && Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime; };
+    const videoRolling = () => !video.paused && !video.ended && !video.seeking && video.readyState >= 3;
+    const startAudio = () => { if (follow() && videoRolling()) { audio.currentTime = video.currentTime; safePlay(audio); } };
+    video.addEventListener('playing', startAudio);
+    video.addEventListener('seeked', startAudio);
+    ['pause', 'waiting', 'ended', 'seeking'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
+    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate || 1; });
+    // Le son coupé puis remis pendant la lecture (lecture automatique muette, puis clic sur le haut-parleur) : la piste son, que le navigateur
+    // avait peut-être refusé de lancer sans geste, repart ici (12/11 : avant, elle restait muette jusqu'à la prochaine pause).
+    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; if (!video.muted && audio.paused) startAudio(); });
+    // Dérive son / image (deux horloges distinctes) : petit écart -> on presse ou on retient légèrement la piste son (vitesse ± 5 % au plus,
+    // hauteur préservée par le navigateur), sans coupure ; grand écart -> on la replace, puis on la laisse se stabiliser une seconde et demie
+    // (avant le 12/11 : replacée dès 120 ms d'écart, ce qui la faisait recharger, prendre du retard, être replacée… -- son haché).
+    let settleUntil = 0;
+    const resync = () => {
+      if (!follow() || !videoRolling() || audio.paused) return;
+      const rate = video.playbackRate || 1;
+      const now = performance.now();
+      if (now < settleUntil) return;
+      const d = (audio.currentTime || 0) - (video.currentTime || 0);
+      if (Math.abs(d) > 0.25) { audio.currentTime = video.currentTime; audio.playbackRate = rate; settleUntil = now + 1500; return; }
+      const want = Math.abs(d) > 0.04 ? rate * (1 - Math.max(-0.05, Math.min(0.05, d * 0.5))) : rate;
+      if (Math.abs(audio.playbackRate - want) > 0.001) audio.playbackRate = want;
+    };
 
     // Musique et Sfx au même endroit (bas à droite), chacun sous un petit libellé.
     const stack = document.createElement('div');
@@ -105,15 +125,18 @@
     video.addEventListener('seeked', refresh);
 
     let select = null, abBtn = null;
+    let switchSeq = 0; // deux changements rapprochés : seul le dernier termine (l'autre attendait encore sa vidéo)
     // Change de version : même instant, la lecture continue si elle était en cours. Renvoie false si la version est inconnue ou déjà active.
     function switchTo(key) {
       const next = versions.find(v => v.key === key);
       if (!next || next === current) return false;
+      const seq = ++switchSeq;
       const t = video.currentTime || 0, playing = !video.paused;
       previous = current; current = next;
       if (select) select.value = next.key;
       const target0 = t;
       const finish = () => {
+        if (seq !== switchSeq) return;
         const d = video.duration;
         const target = isFinite(d) && d > 0 ? Math.min(target0, d - 0.05) : target0; // durée inconnue : on garde l'instant tel quel
         if (Math.abs((video.currentTime || 0) - target) > 0.01) { try { video.currentTime = target; } catch (e) { /* ancien navigateur */ } }
@@ -125,9 +148,9 @@
         // La piste de rechange est déjà chargée avec cette version : on l'échange avec l'active, sans attente.
         const old = audio; old.pause(); audio = spare; spare = old;
         spare.removeAttribute('src');
-        audio.playbackRate = video.playbackRate; audio.volume = video.volume; audio.muted = video.muted;
-      } else if (isSound(next)) { audio.src = next.url; }
-      else { audio.pause(); audio.removeAttribute('src'); }
+        matchVideo(audio);
+      } else if (isSound(next)) { audio.pause(); audio.src = next.url; matchVideo(audio); }
+      else { audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) { /* rien à arrêter */ } }
       // Même image (deux sons sur la vidéo muette) : seul le son change, sans recharger la vidéo.
       if (video.getAttribute('src') === srcFor(next)) finish();
       else { video.src = srcFor(next); video.addEventListener('loadedmetadata', finish, { once: true }); }

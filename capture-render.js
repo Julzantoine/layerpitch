@@ -127,10 +127,14 @@
     const total = Math.max(0.5, plan.total);
     const oc = new OfflineAudioContext(2, Math.ceil(total * rate), rate);
     const bufCache = new Map();
+    // Décodage : le même relais que le lecteur (decodeAudioCompat : natif, puis décodeur Ogg Vorbis de secours -- Safari ne décode pas
+    // toujours l'Ogg nativement ; 12/11 : l'écoute et l'export de l'atelier échouaient donc sur Safari là où le lecteur jouait). Même
+    // fréquence que l'écoute en direct, comme ce contexte.
+    const decode = ab => (C.decodeAudioCompat ? C.decodeAudioCompat(ab) : oc.decodeAudioData(ab));
     const getBuf = url => {
       if (!bufCache.has(url)) bufCache.set(url, (async () => {
         const bytes = await opts.fetchBytes(url);
-        return await oc.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        return await decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
       })());
       return bufCache.get(url);
     };

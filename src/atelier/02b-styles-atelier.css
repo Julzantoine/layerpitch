@@ -111,6 +111,28 @@
 
   /* Sections du projet (09/11, voir setAtelierView) : le Backstage montre l'atelier, le Versioning ou la relecture client, un seul à la fois. */
   body.atelier-view-atelier #videoCaptureVersioning { display: none; }
+  /* Groupe « Versions » (12/11) : menu des versions + marqueurs liés + reprise des marqueurs, réunis ; admin seulement (classe -v2),
+     les autres gardent la barre d'avant (le groupe est alors transparent : display: contents). */
+  .video-alt-group { display: contents; }
+  .video-alt-group[hidden] { display: none; }
+  .video-alt-group-v2 { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid #2a3a48; border-radius: 8px; background: #151a1f; flex-wrap: wrap; }
+  .video-alt-group-label { font-size: 10px; color: #7d8a96; text-transform: none; }
+  .video-alt-switch { display: none; }
+  .video-alt-group-v2 .video-alt-switch { display: inline-block; width: 22px; height: 12px; border-radius: 6px; background: #3a3a3a; position: relative; vertical-align: -2px; margin-right: 6px; }
+  .video-alt-group-v2 .video-alt-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: left .12s; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch { background: #fff; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch::after { left: 12px; background: #2f80c0; }
+  /* Barre d'étapes Vidéo → Montage → Publier (13/11) : admin seulement (classe atelier-v2). Chaque étape ne montre que ses éléments. */
+  .atelier-stepbar { display: flex; gap: 6px; padding: 8px 10px; background: #141414; }
+  .atelier-stepbar-btn { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid #3a3a3a; background: #1c1c1c; color: #999; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .atelier-stepbar-btn .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: #2a2a2a; margin-right: 6px; font-size: 10px; }
+  .atelier-stepbar-btn.done { color: #ccc; }
+  .atelier-stepbar-btn.on { background: #17324a; border-color: #2f80c0; color: #dbe9f5; }
+  .atelier-stepbar-btn.on .n { background: #2f80c0; color: #fff; }
+  .atelier-step-next { margin-left: auto; background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .video-test-panel.atelier-v2 #videoCaptureAdditiveLabel { display: none !important; } /* remplacée par le choix Fusionner / Remplacer au clic sur Enregistrer */
+  .video-test-panel.atelier-v2[data-step="montage"] .video-step-publier { display: none; }
+  .video-test-panel.atelier-v2[data-step="publier"] .video-step-montage { display: none; }
   body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
   body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
   body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
