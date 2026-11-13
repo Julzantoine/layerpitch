@@ -189,6 +189,9 @@ function openCapturePanel(file, opts) {
   // Ce que ce panneau pose en dehors de lui-même (écouteurs de la page, observateurs, minuteries) : défait par __lpDisposeMontage.
   let disposed = false;
   const cleanups = [() => URL.revokeObjectURL(objectUrl)];
+  // Barre « Vidéo → Montage → Publier » (12-13/11, cadrage « atelier plus friendly ») : admin seulement, hors tutoriel (ses bulles visent
+  // des boutons qui changeraient d'étape). Les autres comptes gardent la page d'avant.
+  const stepsV2 = !!window.__lpCaptureIsAdmin && !(typeof atelierParams !== 'undefined' && atelierParams.has('tuto'));
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
@@ -204,15 +207,23 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    ${stepsV2 ? `<div class="atelier-stepbar" id="atelierStepBar" role="tablist">
+      <button type="button" class="atelier-stepbar-btn done" data-step="video" role="tab"><span class="n">1</span> ${tr('stepBarVideo')}</button>
+      <button type="button" class="atelier-stepbar-btn on" data-step="montage" role="tab" aria-selected="true"><span class="n">2</span> ${tr('stepBarMontage')}</button>
+      <button type="button" class="atelier-stepbar-btn" data-step="publier" role="tab"><span class="n">3</span> ${tr('stepBarPublish')}</button>
+    </div>` : ''}
     <div class="video-capture-dock">
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-montage">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
+      <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
+      ${window.__lpCaptureIsAdmin ? `<span class="video-alt-group-label">${tr('altGroupLabel')}</span>` : ''}
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}">&#8644; ${tr('altPropagateShort')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr('altRefBtn')}</button>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
+      </span>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
       </label>
@@ -222,9 +233,10 @@ function openCapturePanel(file, opts) {
       <span class="video-capture-count" id="videoCaptureCount"></span>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureUndoBtn" disabled title="${tr('captureUndoTitle')}" aria-label="${tr('captureUndoTitle')}">&#8630;</button>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureRedoBtn" disabled title="${tr('captureRedoTitle')}" aria-label="${tr('captureRedoTitle')}">&#8631;</button>
+      ${stepsV2 ? `<button type="button" class="video-capture-download-btn atelier-step-next" id="atelierStepNext">${tr('stepBarPublishBtn')}</button>` : ''}
     </div>
     </div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-publier">
       <input type="checkbox" id="videoCaptureCreditCheckbox" checked hidden>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
@@ -232,18 +244,37 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
-    <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
+    <div class="video-capture-bar video-step-montage">
       <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
       <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
     </div>
-    <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
-    <div class="video-capture-versioning" id="videoCaptureVersioning" hidden></div>
+    <div class="video-capture-timeline video-step-montage" id="videoCaptureTimeline"></div>
+    <div class="video-capture-versioning video-step-publier" id="videoCaptureVersioning" hidden></div>
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   pinCaptureVideo(panel);
+  panel.classList.toggle('atelier-v2', stepsV2);
+  panel.dataset.step = 'montage';
+  if (stepsV2) {
+    const stepBtns = Array.from(panel.querySelectorAll('.atelier-stepbar-btn'));
+    const goStep = (step) => {
+      if (step === 'video') { document.getElementById('videoCaptureCloseBtn').click(); return; } // revient au choix de la vidéo (confirme si rien n'est publié)
+      if (videoCaptureState) return; // pendant une prise, le bouton Arrêter doit rester sous la main
+      panel.dataset.step = step;
+      stepBtns.forEach(b => {
+        const on = b.dataset.step === step;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      window.dispatchEvent(new Event('resize')); // la hauteur du dock change : le calage de la frise suit
+    };
+    stepBtns.forEach(b => b.addEventListener('click', () => goStep(b.dataset.step)));
+    const nextBtn = document.getElementById('atelierStepNext');
+    if (nextBtn) nextBtn.addEventListener('click', () => goStep('publier'));
+  }
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
@@ -524,7 +555,30 @@ function openCapturePanel(file, opts) {
   // Fin de la vidéo pendant une prise (05/11, retour de Jules-Antoine) : la capture s'arrête toute seule, comme au clic sur « Arrêter
   // la capture » (la musique s'arrête aussi) -- sinon la musique continuait et la frise s'allongeait bien au-delà de l'image.
   videoEl.addEventListener('ended', () => { if (videoCaptureState) recordBtn.click(); });
-  recordBtn.addEventListener('click', () => {
+  // Choix « Fusionner / Remplacer » (13/11, remplace la case « Passe additive » pour l'admin) : demandé au clic sur Enregistrer, seulement
+  // s'il y a déjà une prise sur la frise. Renvoie 'merge', 'replace', ou null (annulé).
+  let takeModeAsking = false;
+  const askTakeMode = () => new Promise(resolve => {
+    const doc = recordBtn.ownerDocument;
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const d = doc.createElement('dialog');
+    d.className = 'video-test-dialog';
+    d.innerHTML = `<div class="video-test-form">
+      <div class="video-test-dialog-title">${esc(tr('takeModeTitle'))}</div>
+      <p class="video-test-dialog-hint">${esc(tr('takeModeHint'))}</p>
+      <div class="video-test-dialog-actions">
+        <button type="button" class="video-test-btn-secondary" data-v="">${esc(tr('cancel'))}</button>
+        <button type="button" class="video-test-btn-secondary" data-v="replace">${esc(tr('takeModeReplace'))}</button>
+        <button type="button" class="video-test-btn-primary" data-v="merge">${esc(tr('takeModeMerge'))}</button>
+      </div></div>`;
+    let done = false;
+    const finish = v => { if (done) return; done = true; if (d.open) d.close(); d.remove(); resolve(v || null); };
+    d.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button[data-v]'); if (b) finish(b.dataset.v); });
+    d.addEventListener('cancel', e => { e.preventDefault(); finish(null); }); // Échap = annuler
+    doc.body.appendChild(d);
+    d.showModal();
+  });
+  recordBtn.addEventListener('click', async () => {
     if (videoCaptureState) {
       // Fusionne avec la prise précédente (passe additive) si demandé à l'armement de CET enregistrement
       // -- voir la branche "else" ci-dessous. materializeLayerSegments accepte sans problème un mélange
@@ -556,7 +610,19 @@ function openCapturePanel(file, opts) {
       // l'enregistrement (voir additiveCheckbox.disabled ci-dessous), pas de changement d'avis en cours
       // de route. Décochée ou rien à préserver (lastEvents vide) : comportement d'origine, la nouvelle
       // capture remplacera tout à l'arrêt.
-      const additive = additiveCheckbox.checked && lastEvents.length > 0;
+      let additive = additiveCheckbox.checked && lastEvents.length > 0;
+      if (stepsV2) {
+        // Barre d'étapes (admin) : plus de case ; une prise existe déjà → on demande, sinon l'enregistrement démarre directement.
+        additive = false;
+        if (lastEvents.length > 0) {
+          if (takeModeAsking) return;
+          takeModeAsking = true;
+          let choice = null;
+          try { choice = await askTakeMode(); } finally { takeModeAsking = false; }
+          if (!choice || videoCaptureState) return; // annulé (ou une prise a démarré entre-temps)
+          additive = choice === 'merge';
+        }
+      }
       pendingBaseEvents = additive ? lastEvents.slice() : [];
       // Une passe additive DOIT repartir du tout début de la vidéo (2026-09-16, Jules-Antoine) : les
       // horaires de la passe précédente (pendingBaseEvents) sont comptés depuis t=0 -- si la nouvelle
@@ -1031,6 +1097,7 @@ function openCapturePanel(file, opts) {
     if (!altSelect) return;
     const on = !!(versioning && versioningLevel === 'saved' && savedCaptureId && captureCanSave);
     altSelect.hidden = !on;
+    const grp = document.getElementById('videoAltGroup'); if (grp) grp.hidden = !on; // le groupe (cadre + libellé) n'apparaît qu'avec le menu des versions
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
     altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
