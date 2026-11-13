@@ -1157,15 +1157,19 @@
   .home-greeting { margin-bottom: 16px; }
   .home-reminders { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .home-reminder { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text); padding: 9px 14px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; }
-  .home-reminder > span { flex: 1; min-width: 180px; }
+  .home-reminder > .home-reminder-text { flex: 1; min-width: 180px; }
   .home-x { background: none; border: none; color: var(--text-dimmer); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; }
   .home-x:hover { color: var(--text); }
-  .home-question { margin-bottom: 14px; padding: 16px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+  .home-question { margin-bottom: 18px; padding: 18px 20px; background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-question h2 { font-size: 16px; margin-bottom: 12px; }
   .home-choices { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
   .home-learn-wrap { position: relative; display: inline-block; }
   .home-learn-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; width: 380px; max-width: 92vw; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 12px; }
   .home-learn-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .home-sell-opt { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 9px 4px; border: none; border-top: 1px solid var(--border); background: none; color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
+  .home-sell-opt:first-of-type { border-top: none; }
+  .home-sell-opt small { color: var(--text-dimmer); font-size: 11px; }
+  .home-sell-opt:hover b { color: var(--accent); }
   .home-need { padding: 8px 0; border-top: 1px solid var(--border); }
   .home-need:first-of-type { border-top: none; }
   .home-need-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1176,16 +1180,17 @@
   .home-need-lesson { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); cursor: pointer; }
   .home-need-lesson:hover { border-color: var(--accent); color: var(--accent); }
   .home-need-lesson.is-done { color: var(--seq-map-success); }
-  .home-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .home-card { background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
   .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
   .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
   .home-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; font-family: inherit; }
   .home-link:hover { text-decoration: underline; }
-  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; align-items: start; }
+  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; align-items: start; }
   .home-empty { font-size: 12px; color: var(--text-dimmer); margin-bottom: 8px; }
   .home-mail { margin-bottom: 0; }
+  .home-reminder-ico { flex: none; opacity: .85; }
   .home-mail-item { display: flex; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--border); text-decoration: none; color: inherit; cursor: pointer; }
   .home-mail-item:first-of-type { border-top: none; }
   .home-mail-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex: none; background: transparent; }
