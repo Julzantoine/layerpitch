@@ -57,10 +57,9 @@ function cloneTrackWithRemap(track) {
 }
 // Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
 // Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
-// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+// l'original. Un morceau protégé est copiable (12/11) : la copie naît publique, puis la publication la protège si le feu vert est ouvert. Renvoie la copie, ou null.
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
-  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
   if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;

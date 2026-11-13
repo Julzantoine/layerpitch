@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794346757509">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794518357126">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2211,19 +2211,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794346757509"></script>
-<script src="layerpitch-i18n.js?v=1794346757509"></script>
-<script src="layerpitch-import-engine.js?v=1794346757509"></script>
-<script src="layerpitch-appearance.js?v=1794346757509"></script>
-<script src="layerpitch-album-shared.js?v=1794346757509"></script>
-<script src="layerpitch-album-editor.js?v=1794346757509"></script>
-<script src="layerpitch-shell.js?v=1794346757509"></script>
-<script src="layerpitch-social-icons.js?v=1794346757509"></script>
-<script src="layerpitch-notify.js?v=1794346757509"></script>
-<script src="layerpitch-guide.js?v=1794346757509"></script>
-<script src="layerpitch-lesson-previews.js?v=1794346757509"></script>
-<script src="layerpitch-help.js?v=1794346757509"></script>
-<script src="player.js?v=1794346757509"></script>
+<script src="layerpitch-tuto.js?v=1794518357126"></script>
+<script src="layerpitch-i18n.js?v=1794518357126"></script>
+<script src="layerpitch-import-engine.js?v=1794518357126"></script>
+<script src="layerpitch-appearance.js?v=1794518357126"></script>
+<script src="layerpitch-album-shared.js?v=1794518357126"></script>
+<script src="layerpitch-album-editor.js?v=1794518357126"></script>
+<script src="layerpitch-shell.js?v=1794518357126"></script>
+<script src="layerpitch-social-icons.js?v=1794518357126"></script>
+<script src="layerpitch-notify.js?v=1794518357126"></script>
+<script src="layerpitch-guide.js?v=1794518357126"></script>
+<script src="layerpitch-lesson-previews.js?v=1794518357126"></script>
+<script src="layerpitch-help.js?v=1794518357126"></script>
+<script src="player.js?v=1794518357126"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -4701,10 +4701,9 @@ function cloneTrackWithRemap(track) {
 }
 // Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
 // Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
-// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+// l'original. Un morceau protégé est copiable (12/11) : la copie naît publique, puis la publication la protège si le feu vert est ouvert. Renvoie la copie, ou null.
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
-  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
   if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;
@@ -7574,7 +7573,7 @@ function renderLibrary() {
     packFromFolderAction: 'pack-from-library-folder',
     folderFieldAttr: 'data-library-folder-field',
     folderFallbackKey: 'orgFolderFallback',
-    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}`
+    buildRowInner: t => `<span class="seq-master-item-label">${escapeAttr(t.title) || tr('trackFallback', { n: library.indexOf(t) + 1 })}</span>${isExample(t) ? exampleBadgeHtml() : ''}${t.protected ? `<span class="badge" title="${escapeAttr(tr('trackLockedTip'))}" style="margin-left:6px">🔒</span>` : ''}`
   });
   wireOrgDragDrop(masterHost, () => library, () => libraryFolders, renderLibrary, (src, place) => duplicateLibraryTrack(src, place)); // conteneur statique du HTML -- voir commentaire de wireOrgDragDrop
 
@@ -16898,6 +16897,27 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgErrors.length + ' morceau(x) — publication arrêtée :\n' + pgErrors.join('\n'));
     }
     log(`Écriture en base : ${data.library.length} morceau(x) OK.`, 'ok');
+
+    // Protection par défaut (retour bêta du 11/11, décision du 12/11) : un morceau publié POUR LA PREMIÈRE FOIS est protégé tout de
+    // suite (fichiers dans le stockage privé, liens temporaires, plus de téléchargement direct). Seulement les nouveaux : ceux qui
+    // étaient déjà en base gardent le choix du compositeur. Une panne ne bloque pas la publication : le morceau reste public et un
+    // avertissement le dit. Admin seulement jusqu'au feu vert 'protect_by_default'.
+    if (flagOpen('protect_by_default') && publishedCatalog) {
+      const fresh = data.library.filter(t => t.id && !publishedCatalog.tracks.has(t.id) && !isExample(t) && !t.protected);
+      for (const t of fresh) {
+        log(tr('protectingNewTrack', { title: t.title || t.id }));
+        let r;
+        try { r = await window.LayerPitchTracks.setTrackProtected(t.id, true); }
+        catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+        if (r.ok) {
+          const live = library.find(x => x.id === t.id);
+          if (live) live.protected = true;
+          log(tr('protectedNewTrack', { title: t.title || t.id }), 'ok');
+        } else {
+          log(tr('protectNewTrackFailed', { title: t.title || t.id, error: r.error }), 'warn');
+        }
+      }
+    }
 
     log('Écriture en base : packs...');
     const pgPackErrors = [];

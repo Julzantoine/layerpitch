@@ -68,7 +68,8 @@ const fs = require('fs');
   // --- protégé ---
   const nb = ev('library.length');
   const c3 = await ev('duplicateLibraryTrack(library.find(t => t.id === "tP"))');
-  check('morceau protégé : refusé, rien créé, message clair', c3 === null && ev('library.length') === nb && /prot/.test(w.__err || ''));
+  // 12/11 (protection par défaut) : un morceau protégé SE COPIE ; la copie naît publique (le serveur lit le seau privé, écrit dans le public).
+  check('morceau protégé : copié, la copie naît publique (non protégée)', !!c3 && ev('library.length') === nb + 1 && c3.protected === false);
 
   // --- échec serveur ---
   w.LayerPitchTracks.copyTrackFiles = async () => ({ ok: false, error: 'boom' });
@@ -95,8 +96,8 @@ const fs = require('fs');
 
   // --- Edge Function ---
   const fn = fs.readFileSync('supabase/functions/copy-track-files/index.ts', 'utf8');
-  check('Edge Function : refuse un morceau protégé et une destination existante, vérifie le propriétaire',
-    /source\.protected\) return json/.test(fn) && /existing\) return json/.test(fn) && /owner_id !== composerId/.test(fn));
+  check('Edge Function : lit le seau privé pour un morceau protégé, refuse une destination existante, vérifie le propriétaire',
+    /source\.protected \? Deno\.env\.get\('R2_PROJECTS_BUCKET'\)/.test(fn) && !/source\.protected\) return json/.test(fn) && /existing\) return json/.test(fn) && /owner_id !== composerId/.test(fn));
   check('Edge Function : copie dans le seau public sous le nouvel identifiant, ne supprime rien', /audio\/\$\{toTrackId\}\//.test(fn) && !/method: 'DELETE'/.test(fn));
 
   console.log('\n' + (failures ? failures + ' CHECK(S) FAILED' : 'ALL CHECKS PASSED'));

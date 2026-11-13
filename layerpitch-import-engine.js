@@ -6,8 +6,11 @@
    Extrait de src/backstage/16-bibliotheque-de-morceaux.js et 16a-import-de-dossier.js le 27/10 (phase 1 du MCP), sans changer le comportement. */
 (function (root) {
 'use strict';
+// Titre affiché d'un fichier déposé (retour bêta du 11/11 : « les _ remplacés par des espaces, c'est dérangeant ») : les « _ » du
+// nom du fichier sont GARDÉS tels quels ; seuls les tirets deviennent des espaces, comme avant. Les « _ » de début ou de fin
+// (reste d'un jeton retiré) sont enlevés.
 function titleFromFilename(filename) {
-  return filename.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  return filename.replace(/\.[^/.]+$/, '').replace(/-+/g, ' ').replace(/^_+|_+$/g, '').trim();
 }
 // Reconnaissance de bpm/nombre de mesures dans le nom d'un fichier déposé (demande du 13/08, nomenclature
 // de Jules-Antoine : "..._160bpm_40M.wav") — restaurée le 01/09 après une disparition accidentelle
@@ -28,13 +31,19 @@ function parseIntroBarsHint(filename) {
 }
 // Même principe que titleFromFilename() ci-dessus, mais retire d'abord les jetons bpm/mesures repérés par
 // parseAudioFilenameHints() — pour ne pas les laisser traîner dans le libellé affiché d'un emplacement.
-function titleFromFilenameStrippingHints(filename) {
+function withoutAudioHints(filename) {
   return filename.replace(/\.[^/.]+$/, '')
     .replace(/(?:^|[_\s-])(\d+)bpm(?=[_\s.-]|$)/i, '')
     .replace(/(?:^|[_\s-])(\d+)M(?=[_\s.-]|$)/, '')
-    .replace(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i, '')
-    .replace(/[_-]+/g, ' ')
-    .trim();
+    .replace(/(?:^|[_\s-])intro(\d+)M(?=[_\s.-]|$)/i, '');
+}
+function titleFromFilenameStrippingHints(filename) {
+  return withoutAudioHints(filename).replace(/-+/g, ' ').replace(/^_+|_+$/g, '').trim();
+}
+// Version « de regroupement » (comportement d'avant le 11/11, « _ » et « - » -> espace) : les règles de familles de noms
+// (stripVariantSuffix : « Alt Perc 1 », « Hit A »...) lisent des espaces, pas des « _ ». Usage interne seulement.
+function groupingTitleFromFilename(filename) {
+  return withoutAudioHints(filename).replace(/[_-]+/g, ' ').trim();
 }
 // Devine le rôle (intro/segment/outro) d'un fichier déposé en lot dans le mode séquentiel, à partir de
 // son nom. "Segment" par défaut si rien ne correspond — reste ajustable ensuite via le sélecteur "Rôle".
@@ -96,7 +105,7 @@ function groupFilesByNameFamily(files, detectIntroOutro) {
     if (!codeGroups.has(k)) codeGroups.set(k, { label: p, files: [] });
     codeGroups.get(k).files.unshift(rest.splice(i, 1)[0]);
   }
-  const strictLabel = f => stripVariantSuffix(titleFromFilenameStrippingHints(f.name));
+  const strictLabel = f => stripVariantSuffix(groupingTitleFromFilename(f.name));
   const looseCount = new Map();
   rest.forEach(f => { const k = nameFamilyKey(stripVariantSuffixLoose(strictLabel(f))); looseCount.set(k, (looseCount.get(k) || 0) + 1); });
   const groups = new Map();
@@ -197,7 +206,7 @@ function groupFilesBySequentialSlot(files) {
     const role = guessSequentialRole(f.name);
     if (role === 'intro' && !intro) { intro = f; return; }
     if (role === 'outro' && !outro) { outro = f; return; }
-    const base = titleFromFilenameStrippingHints(f.name);
+    const base = groupingTitleFromFilename(f.name);
     const m = base.match(/^(.*\d)\s*[.,]\s*\d+$/);
     const label = m ? m[1].trim() : base;
     const key = nameFamilyKey(label);
