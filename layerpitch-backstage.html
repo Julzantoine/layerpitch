@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794596221593">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794603393671">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1169,15 +1169,15 @@
 
   /* ---- Accueil (13/11, feu vert home_dashboard) : 48-accueil.js ---- */
   #homePanel { max-width: 1100px; }
-  .home-greeting h2 { margin-bottom: 2px; }
-  .home-greeting { margin-bottom: 14px; }
+  .home-greeting h2 { margin-bottom: 2px; font-size: 22px; }
+  .home-greeting { margin-bottom: 16px; }
   .home-reminders { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .home-reminder { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); padding: 6px 10px; background: var(--accent-soft); border-radius: 6px; }
+  .home-reminder { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text); padding: 9px 14px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; }
   .home-reminder > span { flex: 1; min-width: 180px; }
   .home-x { background: none; border: none; color: var(--text-dimmer); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px; }
   .home-x:hover { color: var(--text); }
-  .home-question { margin-bottom: 18px; }
-  .home-question h2 { font-size: 16px; margin-bottom: 8px; }
+  .home-question { margin-bottom: 14px; padding: 16px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+  .home-question h2 { font-size: 16px; margin-bottom: 12px; }
   .home-choices { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
   .home-learn-wrap { position: relative; display: inline-block; }
   .home-learn-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; width: 380px; max-width: 92vw; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 12px; }
@@ -1192,37 +1192,45 @@
   .home-need-lesson { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); cursor: pointer; }
   .home-need-lesson:hover { border-color: var(--accent); color: var(--accent); }
   .home-need-lesson.is-done { color: var(--seq-map-success); }
-  .home-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
-  .home-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-  .home-card-head h3 { font-size: 13px; font-weight: 600; }
+  .home-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
-  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; align-items: start; }
+  .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
+  .home-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; font-family: inherit; }
+  .home-link:hover { text-decoration: underline; }
+  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; align-items: start; }
   .home-empty { font-size: 12px; color: var(--text-dimmer); margin-bottom: 8px; }
   .home-mail { margin-bottom: 0; }
-  .home-mail-item { display: flex; gap: 10px; padding: 8px 4px; border-top: 1px solid var(--border); text-decoration: none; color: inherit; cursor: pointer; }
+  .home-mail-item { display: flex; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--border); text-decoration: none; color: inherit; cursor: pointer; }
   .home-mail-item:first-of-type { border-top: none; }
   .home-mail-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex: none; background: transparent; }
   .home-mail-item.unread .home-mail-dot { background: var(--accent); }
-  .home-mail-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .home-mail-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .home-mail-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .home-mail-title { font-size: 13px; font-weight: 600; }
-  .home-mail-text { font-size: 12px; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
-  .home-mail-item.expanded .home-mail-text { display: block; -webkit-line-clamp: unset; }
-  .home-mail-time { font-size: 10px; color: var(--text-dimmer); }
-  .home-mail .btn { margin-top: 8px; }
+  .home-mail-text { font-size: 12px; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+  .home-mail-item.expanded .home-mail-text { display: block; -webkit-line-clamp: unset; white-space: pre-wrap; }
+  .home-mail-time { font-size: 11px; color: var(--text-dimmer); white-space: nowrap; }
+  .home-mail > .home-link { margin-top: 8px; }
   .home-recent { display: flex; flex-direction: column; gap: 6px; }
-  .home-recent-item { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text); cursor: pointer; font-size: 12px; }
-  .home-recent-item small { color: var(--text-dimmer); font-size: 10px; }
-  .home-recent-item:hover { border-color: var(--accent); }
-  .home-progress { font-size: 11px; color: var(--text-dimmer); margin-bottom: 6px; }
-  .home-essential { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 5px 2px; background: none; border: none; color: var(--text); font-size: 12px; cursor: pointer; }
+  .home-recent-item { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 0; border: none; background: none; color: var(--text); cursor: pointer; font-size: 13px; font-family: inherit; }
+  .home-recent-ico { width: 18px; text-align: center; color: var(--text-dimmer); flex: none; }
+  .home-recent-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .home-recent-item small { color: var(--text-dimmer); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+  .home-recent-item:hover .home-recent-title { color: var(--accent); }
+  .home-bar { height: 4px; border-radius: 2px; background: var(--border); margin: 10px 0 6px; overflow: hidden; }
+  .home-bar i { display: block; height: 100%; background: var(--accent); }
+  .home-progress { font-size: 11px; color: var(--text-dimmer); }
+  .home-essential { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 5px 0; background: none; border: none; color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit; }
   .home-essential:hover:not(:disabled) { color: var(--accent); }
   .home-essential:disabled { color: var(--text-dimmer); cursor: default; }
-  .home-tick { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 50%; font-size: 9px; line-height: 12px; text-align: center; color: var(--seq-map-success); flex: none; }
+  .home-tick { width: 16px; height: 16px; border: 1px solid var(--border); border-radius: 50%; font-size: 10px; line-height: 14px; text-align: center; color: var(--seq-map-success); flex: none; }
   .home-essential.is-done .home-tick { border-color: var(--seq-map-success); }
   .home-essentials .btn, .home-activity .btn { margin-top: 8px; }
   .home-kpis { display: flex; gap: 20px; }
   .home-kpi { display: flex; flex-direction: column; }
-  .home-kpi b { font-size: 22px; font-weight: 600; }
+  .home-kpi b { font-size: 26px; font-weight: 600; }
   .home-kpi small { font-size: 11px; color: var(--text-dimmer); }
   .home-spark { height: 60px; margin-top: 8px; }
   .home-news-item { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 12px; }
@@ -2314,19 +2322,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794596221593"></script>
-<script src="layerpitch-i18n.js?v=1794596221593"></script>
-<script src="layerpitch-import-engine.js?v=1794596221593"></script>
-<script src="layerpitch-appearance.js?v=1794596221593"></script>
-<script src="layerpitch-album-shared.js?v=1794596221593"></script>
-<script src="layerpitch-album-editor.js?v=1794596221593"></script>
-<script src="layerpitch-shell.js?v=1794596221593"></script>
-<script src="layerpitch-social-icons.js?v=1794596221593"></script>
-<script src="layerpitch-notify.js?v=1794596221593"></script>
-<script src="layerpitch-guide.js?v=1794596221593"></script>
-<script src="layerpitch-lesson-previews.js?v=1794596221593"></script>
-<script src="layerpitch-help.js?v=1794596221593"></script>
-<script src="player.js?v=1794596221593"></script>
+<script src="layerpitch-tuto.js?v=1794603393671"></script>
+<script src="layerpitch-i18n.js?v=1794603393671"></script>
+<script src="layerpitch-import-engine.js?v=1794603393671"></script>
+<script src="layerpitch-appearance.js?v=1794603393671"></script>
+<script src="layerpitch-album-shared.js?v=1794603393671"></script>
+<script src="layerpitch-album-editor.js?v=1794603393671"></script>
+<script src="layerpitch-shell.js?v=1794603393671"></script>
+<script src="layerpitch-social-icons.js?v=1794603393671"></script>
+<script src="layerpitch-notify.js?v=1794603393671"></script>
+<script src="layerpitch-guide.js?v=1794603393671"></script>
+<script src="layerpitch-lesson-previews.js?v=1794603393671"></script>
+<script src="layerpitch-help.js?v=1794603393671"></script>
+<script src="player.js?v=1794603393671"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19428,16 +19436,16 @@ function homeMailHtml() {
   const head = unread ? `<span class="home-count">${escapeHtml(tr('homeMailUnread', { n: unread }))}</span>` : '';
   const rows = shown.map((it, i) => `<${it.href ? `a href="${escapeAttr(it.href)}"` : 'div'} class="home-mail-item${it.unread ? ' unread' : ''}" data-home-mail="${i}">
       <span class="home-mail-dot" aria-hidden="true"></span>
-      <span class="home-mail-body"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span>
+      <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
-  const more = items.length > 3 ? `<button class="btn btn-small" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
+  const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
   return `<section class="home-card home-mail" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div>${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
   const kindKey = { track: 'homeContinueTrack', adreel: 'homeContinueAdreel', pack: 'homeContinuePack' };
   const body = list.length
-    ? `<div class="home-recent">${list.map(r => `<button type="button" class="home-recent-item" data-home-recent="${escapeAttr(r.kind)}" data-id="${escapeAttr(r.id)}"><small>${escapeHtml(tr(kindKey[r.kind] || 'homeContinueTrack'))}</small><span>${escapeHtml(r.title || r.id)}</span></button>`).join('')}</div>`
+    ? `<div class="home-recent">${list.map(r => `<button type="button" class="home-recent-item" data-home-recent="${escapeAttr(r.kind)}" data-id="${escapeAttr(r.id)}"><span class="home-recent-ico" aria-hidden="true">${{ track: '♪', adreel: '▦', pack: '◈' }[r.kind] || '♪'}</span><span class="home-recent-title">${escapeHtml(r.title || r.id)}</span><small>${escapeHtml(tr(kindKey[r.kind] || 'homeContinueTrack'))}</small></button>`).join('')}</div>`
     : `<div class="home-empty">${escapeHtml(tr('homeContinueEmpty'))}</div>`;
   return homeCard('home-continue', tr('homeContinueTitle'), body);
 }
@@ -19454,7 +19462,7 @@ function homeEssentialsHtml() {
   const done = lessonsDone();
   const n = lessons.filter(l => done[l.id]).length;
   const rows = lessons.map(l => `<button type="button" class="home-essential${done[l.id] ? ' is-done' : ''}" data-home-lesson="${escapeAttr(l.id)}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}><span class="home-tick">${done[l.id] ? '✓' : ''}</span>${escapeHtml(tr(l.titleKey))}</button>`).join('');
-  return homeCard('home-essentials', tr('homeEssentialsTitle'), `<div class="home-progress">${escapeHtml(tr('homeEssentialsProgress', { done: n, total: lessons.length }))}</div>${rows}${all}`);
+  return homeCard('home-essentials', tr('homeEssentialsTitle'), `${rows}<div class="home-bar"><i style="width:${lessons.length ? Math.round(100 * n / lessons.length) : 0}%"></i></div><div class="home-progress">${escapeHtml(tr('homeEssentialsProgress', { done: n, total: lessons.length }))} · <button class="home-link" type="button" data-home-do="all-tutorials">${escapeHtml(tr('homeEssentialsAll'))}</button></div>`);
 }
 function homeActivityHtml() {
   const o = homeActivity.overview;
@@ -19484,7 +19492,7 @@ function homeNewsHtml() {
 function homeQuickHtml() {
   const dark = window.LayerPitchAppearance && window.LayerPitchAppearance.getTheme() === 'dark';
   const helpOn = !(homePrefs && homePrefs.help_off);
-  const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('appearanceLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('appearanceDark'))}</button></span></div>` : '';
+  const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('homeThemeLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('homeThemeDark'))}</button></span></div>` : '';
   const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${theme}
     <details class="home-menu"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
     <details class="home-more"><summary>${escapeHtml(tr('homeQuickMore'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMoreHint'))}</small><div id="homeMoreHost"></div></details>`;

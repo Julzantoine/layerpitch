@@ -157,16 +157,16 @@ function homeMailHtml() {
   const head = unread ? `<span class="home-count">${escapeHtml(tr('homeMailUnread', { n: unread }))}</span>` : '';
   const rows = shown.map((it, i) => `<${it.href ? `a href="${escapeAttr(it.href)}"` : 'div'} class="home-mail-item${it.unread ? ' unread' : ''}" data-home-mail="${i}">
       <span class="home-mail-dot" aria-hidden="true"></span>
-      <span class="home-mail-body"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span>
+      <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
-  const more = items.length > 3 ? `<button class="btn btn-small" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
+  const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
   return `<section class="home-card home-mail" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div>${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
   const kindKey = { track: 'homeContinueTrack', adreel: 'homeContinueAdreel', pack: 'homeContinuePack' };
   const body = list.length
-    ? `<div class="home-recent">${list.map(r => `<button type="button" class="home-recent-item" data-home-recent="${escapeAttr(r.kind)}" data-id="${escapeAttr(r.id)}"><small>${escapeHtml(tr(kindKey[r.kind] || 'homeContinueTrack'))}</small><span>${escapeHtml(r.title || r.id)}</span></button>`).join('')}</div>`
+    ? `<div class="home-recent">${list.map(r => `<button type="button" class="home-recent-item" data-home-recent="${escapeAttr(r.kind)}" data-id="${escapeAttr(r.id)}"><span class="home-recent-ico" aria-hidden="true">${{ track: '♪', adreel: '▦', pack: '◈' }[r.kind] || '♪'}</span><span class="home-recent-title">${escapeHtml(r.title || r.id)}</span><small>${escapeHtml(tr(kindKey[r.kind] || 'homeContinueTrack'))}</small></button>`).join('')}</div>`
     : `<div class="home-empty">${escapeHtml(tr('homeContinueEmpty'))}</div>`;
   return homeCard('home-continue', tr('homeContinueTitle'), body);
 }
@@ -183,7 +183,7 @@ function homeEssentialsHtml() {
   const done = lessonsDone();
   const n = lessons.filter(l => done[l.id]).length;
   const rows = lessons.map(l => `<button type="button" class="home-essential${done[l.id] ? ' is-done' : ''}" data-home-lesson="${escapeAttr(l.id)}" ${(l.soon || !lessonPlayable(l) || (l.needs && !flagOpen(l.needs))) ? 'disabled' : ''}><span class="home-tick">${done[l.id] ? '✓' : ''}</span>${escapeHtml(tr(l.titleKey))}</button>`).join('');
-  return homeCard('home-essentials', tr('homeEssentialsTitle'), `<div class="home-progress">${escapeHtml(tr('homeEssentialsProgress', { done: n, total: lessons.length }))}</div>${rows}${all}`);
+  return homeCard('home-essentials', tr('homeEssentialsTitle'), `${rows}<div class="home-bar"><i style="width:${lessons.length ? Math.round(100 * n / lessons.length) : 0}%"></i></div><div class="home-progress">${escapeHtml(tr('homeEssentialsProgress', { done: n, total: lessons.length }))} · <button class="home-link" type="button" data-home-do="all-tutorials">${escapeHtml(tr('homeEssentialsAll'))}</button></div>`);
 }
 function homeActivityHtml() {
   const o = homeActivity.overview;
@@ -213,7 +213,7 @@ function homeNewsHtml() {
 function homeQuickHtml() {
   const dark = window.LayerPitchAppearance && window.LayerPitchAppearance.getTheme() === 'dark';
   const helpOn = !(homePrefs && homePrefs.help_off);
-  const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('appearanceLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('appearanceDark'))}</button></span></div>` : '';
+  const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('homeThemeLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('homeThemeDark'))}</button></span></div>` : '';
   const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${theme}
     <details class="home-menu"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
     <details class="home-more"><summary>${escapeHtml(tr('homeQuickMore'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMoreHint'))}</small><div id="homeMoreHost"></div></details>`;
