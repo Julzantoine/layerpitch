@@ -31,7 +31,7 @@ function positionCapturePlayhead(container, videoEl) {
   const scroller = container.querySelector('.vct-scroll');
   if (scroller && !videoEl.paused) {
     const sr = scroller.getBoundingClientRect(), pr = ph.getBoundingClientRect();
-    if (pr.left > sr.right - 20 || pr.left < sr.left + 96) scroller.scrollLeft += pr.left - (sr.left + 120);
+    if (pr.left > sr.right - 20 || pr.left < sr.left + (container.__vctLabelW || 96)) scroller.scrollLeft += pr.left - (sr.left + (container.__vctLabelW || 96) + 24);
   }
 }
 
@@ -52,6 +52,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
+  // En-tête de piste à la Logic (13/11, admin) : colonne des noms redimensionnable (poignée au bord droit), commandes M / S / ⇄ / ✕ toujours visibles,
+  // volume facultatif, clic droit pour choisir les commandes. Largeur et choix gardés dans ce navigateur. Hors admin : colonne de 96 px comme avant.
+  const adminHdr = !!editable && !!window.__lpCaptureIsAdmin;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé : tant pis */ } } };
+  const labelW = adminHdr ? Math.min(420, Math.max(110, container.__vctLabelW || (container.__vctLabelW = store.get('lp.vct.labelW', 170)))) : 96;
+  container.__vctLabelW = labelW;
+  container.style.setProperty('--vct-label-w', labelW + 'px');
+  const comps = Object.assign({ m: true, s: true, replace: true, remove: true, vol: false }, store.get('lp.vct.comps', {}));
+  laneLayout.mix = laneLayout.mix || {};
+  const mixMap = laneLayout.mix;
+  const setMix = (id, patch) => {
+    const m = Object.assign({}, mixMap[id], patch);
+    if (!m.mute) delete m.mute; if (!m.solo) delete m.solo; if (m.vol == null || m.vol >= 1) delete m.vol;
+    if (Object.keys(m).length) mixMap[id] = m; else delete mixMap[id];
+  };
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
   // Toute retouche passe par ici : la frise est redessinée PUIS l'atelier est prévenu (enregistrement automatique, annuler / rétablir,
   // musique à recalculer). Avant le 12/11, les marqueurs (pose, glisser, nom, instant, effacement) et les noms de pistes ne prévenaient
@@ -76,10 +91,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), ...(container.__vctReviewMarks || []).map(r => Number(r.t) + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
   const fullW = Math.max(300, (container.clientWidth || 800) - 20);
-  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
+  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - labelW));
   const zoom = Math.min(maxZoom, Math.max(1, container.__vctZoom || 1));
   container.__vctZoom = zoom;
-  const pxPerSec = (fullW * zoom - 96) / total;
+  const pxPerSec = (fullW * zoom - labelW) / total;
   const TICK_STEPS = [1 / 30, 1 / 15, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120];
   const tickStep = TICK_STEPS.find(st => st * pxPerSec >= 60) || 120;
   const tickDec = tickStep >= 1 ? 0 : (tickStep < 0.05 ? 2 : (tickStep < 0.1 ? 2 : 1));
@@ -120,13 +135,27 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
-  const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
-    ? (window.__lpCaptureIsAdmin && window.LayerCaptureRetarget ? `<button type="button" class="vct-track-remove vct-track-replace" data-replace-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}">⇄</button>` : '') + `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
+  const escH = x => window.LayerPlayerCore.escapeHtml(x);
+  const removeTrackBtn = key => {
+    if (!(editable && key.indexOf('track:') === 0)) return '';
+    const id = key.slice(6);
+    if (!adminHdr) return `<button type="button" class="vct-track-remove" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>`;
+    const m = mixMap[id] || {};
+    const b = (cls, attr, label, title, on) => `<button type="button" class="vct-cbtn ${cls}${on ? ' on' : ''}" ${attr}="${escH(id)}" title="${escH(title)}" aria-label="${escH(title)}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
+    return `<span class="vct-ctl">`
+      + (comps.m ? b('vct-cm', 'data-mix-m', 'M', tr('captureMixMute'), !!m.mute) : '')
+      + (comps.s ? b('vct-cs', 'data-mix-s', 'S', tr('captureMixSolo'), !!m.solo) : '')
+      + (comps.vol ? `<input type="range" class="vct-vol" data-mix-v="${escH(id)}" min="0" max="100" value="${Math.round((m.vol == null ? 1 : m.vol) * 100)}" title="${escH(tr('captureMixVolume'))}" aria-label="${escH(tr('captureMixVolume'))}">` : '')
+      + (comps.replace && window.LayerCaptureRetarget ? `<button type="button" class="vct-cbtn" data-replace-track="${escH(id)}" title="${escH(tr('captureTrackReplaceTitle'))}" aria-label="${escH(tr('captureTrackReplaceTitle'))}">⇄</button>` : '')
+      + (comps.remove ? `<button type="button" class="vct-cbtn vct-cx" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>` : '')
+      + `</span>`;
+  };
+  const nameHtml = label => adminHdr ? `<span class="vct-lane-name">${escH(label)}</span>` : escH(label);
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
     if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
-      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" data-hdr-key="${escH(key)}" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
       return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
     }
     const collapsed = !!collapsedGroups[key];
@@ -153,7 +182,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
-      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
       `<div class="vct-lane-track">${blockHtml}</div></div>`;
     return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
@@ -462,7 +491,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const setZoom = (z, anchorX) => {
     const rr = container.querySelector('.vct-ruler').getBoundingClientRect();
     const sr = scroller.getBoundingClientRect();
-    const ax = anchorX == null ? sr.left + 96 + (sr.width - 96) / 2 : anchorX;
+    const ax = anchorX == null ? sr.left + labelW + (sr.width - labelW) / 2 : anchorX;
     const frac = (ax - rr.left) / rr.width;
     container.__vctZoom = Math.min(maxZoom, Math.max(1, z));
     rerender();
@@ -478,17 +507,34 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
   // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
-  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', async ev => {
-    ev.stopPropagation(); ev.preventDefault();
+  async function removeTrackById(id) {
     if (videoCaptureState) return;
-    const id = btn.dataset.removeTrack;
     const mine = events.filter(e => e.detail && e.detail.trackId === id);
     if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
     mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
     const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
+    delete mixMap[id];
     changed();
+  }
+  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    removeTrackById(btn.dataset.removeTrack);
   }));
+  // M / S / volume d'un morceau (13/11) : réglages du montage, rangés dans laneLayout.mix, joués à l'écoute et à l'export.
+  container.querySelectorAll('[data-mix-m]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixM; setMix(id, { mute: !(mixMap[id] && mixMap[id].mute) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-s]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixS; setMix(id, { solo: !(mixMap[id] && mixMap[id].solo) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-v]').forEach(inp => {
+    inp.addEventListener('click', ev => ev.stopPropagation());
+    inp.addEventListener('input', () => { setMix(inp.dataset.mixV, { vol: Number(inp.value) / 100 }); inp.title = tr('captureMixVolume') + ' : ' + inp.value + ' %'; });
+    inp.addEventListener('change', () => changed()); // pas de réaffichage pendant le glisser : le curseur serait perdu
+  });
   // « ⇄ » sur un morceau (13/11, admin seulement) : le remplace par un autre en REJOUANT ses blocs sur le nouveau morceau (même moteur que le
   // Versioning : capture-retarget.js -- les gestes restent, ils suivent les règles du nouveau morceau). Refusé si la structure diffère.
   const replaceDurations = window.__lpReplaceDurations = window.__lpReplaceDurations || new Map();
@@ -529,6 +575,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     // Les pistes : l'ancien morceau disparaît de la frise, le nouveau s'affiche (même logique que « ✕ » et « + Piste »).
     const x = laneLayout.extra.indexOf(srcId); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(srcId) === -1 && (capturePackLibrary().library || []).some(t => t.id === srcId)) laneLayout.hidden.push(srcId);
+    if (mixMap[srcId]) { mixMap[dstId] = mixMap[srcId]; delete mixMap[srcId]; } // M / S / volume suivent le nouveau morceau
     const h = laneLayout.hidden.indexOf(dstId);
     if (h >= 0) laneLayout.hidden.splice(h, 1);
     else if (laneLayout.extra.indexOf(dstId) === -1 && handTrackIds.indexOf(dstId) === -1) laneLayout.extra.push(dstId);
@@ -581,6 +628,73 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ev.stopPropagation(); ev.preventDefault();
     openReplaceDialog(btn.dataset.replaceTrack);
   }));
+  // Colonne des noms redimensionnable + menu clic droit (13/11, admin). Écouteurs posés UNE fois sur le conteneur (il survit aux réaffichages) :
+  // ils lisent l'état courant par container.__vctRerender / __vctCtx, remis à jour à chaque affichage.
+  container.__vctRerender = rerender;
+  container.__vctCtx = (ev, key) => {
+    const id = key.slice(6);
+    const doc = ownerDoc;
+    doc.querySelectorAll('.vct-ctx').forEach(m => m.remove());
+    const menu = doc.createElement('div');
+    menu.className = 'vct-ctx';
+    const item = (act, label, checked) => `<button type="button" class="vct-ctx-item" data-act="${act}">${checked == null ? '' : `<span class="vct-ctx-check">${checked ? '✓' : ''}</span>`}${escH(label)}</button>`;
+    menu.innerHTML = (window.LayerCaptureRetarget ? item('replace', tr('captureCtxReplace')) : '') + item('remove', tr('captureCtxRemove'))
+      + `<div class="vct-ctx-sep"></div><div class="vct-ctx-title">${escH(tr('captureCtxComponents'))}</div>`
+      + item('c:m', tr('captureMixMute') + ' (M)', comps.m) + item('c:s', tr('captureMixSolo') + ' (S)', comps.s)
+      + item('c:vol', tr('captureMixVolume'), comps.vol) + item('c:replace', tr('captureCtxReplaceBtn') + ' (⇄)', comps.replace) + item('c:remove', tr('captureCtxRemoveBtn') + ' (✕)', comps.remove);
+    menu.style.left = Math.min(ev.clientX, (ownerWin.innerWidth || 800) - 230) + 'px';
+    menu.style.top = Math.min(ev.clientY, (ownerWin.innerHeight || 600) - 260) + 'px';
+    const close = () => { menu.remove(); doc.removeEventListener('pointerdown', away, true); doc.removeEventListener('keydown', esc, true); };
+    const away = e => { if (!menu.contains(e.target)) close(); };
+    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    menu.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const act = b.dataset.act;
+      if (act.indexOf('c:') === 0) {
+        const k = act.slice(2); comps[k] = !comps[k]; store.set('lp.vct.comps', comps); close(); rerender(); return;
+      }
+      close();
+      if (act === 'replace') openReplaceDialog(id); else if (act === 'remove') removeTrackById(id);
+    });
+    doc.body.appendChild(menu);
+    doc.addEventListener('pointerdown', away, true);
+    doc.addEventListener('keydown', esc, true);
+  };
+  if (adminHdr && !container.__vctHdrBound) {
+    container.__vctHdrBound = true;
+    const onEdge = ev => {
+      const l = ev.target.closest && ev.target.closest('.vct-lane-label, .vct-ruler-corner');
+      if (!l) return false;
+      const r = l.getBoundingClientRect();
+      return ev.clientX >= r.right - 6 && ev.clientX <= r.right + 3;
+    };
+    container.addEventListener('pointermove', ev => { if (!container.__vctResizing) container.classList.toggle('vct-col-resize', onEdge(ev)); });
+    container.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0 || !onEdge(ev)) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, w0 = container.__vctLabelW || 170, d = container.ownerDocument || document;
+      container.__vctResizing = true;
+      const move = e => {
+        const w = Math.min(420, Math.max(110, Math.round(w0 + e.clientX - x0)));
+        container.__vctLabelW = w; container.style.setProperty('--vct-label-w', w + 'px');
+      };
+      const up = () => {
+        d.removeEventListener('pointermove', move); d.removeEventListener('pointerup', up);
+        container.__vctResizing = false;
+        store.set('lp.vct.labelW', container.__vctLabelW);
+        container.__vctRerender && container.__vctRerender(); // zoom et marqueurs recalculés sur la nouvelle largeur
+      };
+      d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
+    }, true);
+    container.addEventListener('contextmenu', ev => {
+      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"]');
+      if (!h || !container.__vctCtx) return;
+      const key = h.dataset.hdrKey || h.dataset.groupKey;
+      if (!key || key.indexOf('track:') !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      container.__vctCtx(ev, key);
+    });
+  }
   // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
   function openAddTrackDialog() {
     if (!editable || videoCaptureState) return;

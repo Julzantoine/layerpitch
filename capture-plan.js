@@ -370,6 +370,29 @@
     });
   }
 
+  // Mix PAR MORCEAU du montage (13/11, demande de Jules-Antoine : M / S / volume dans l'en-tête de piste de la frise, comme Logic).
+  // mix = { [idMorceau]: { mute?, solo?, vol? (0..1, 1 = inchangé) } }, rangé dans lane_layout.mix de la version. Dès qu'un morceau est
+  // en solo, tous ceux qui ne le sont pas se taisent ; sinon muet = 0. Les Sfx ne sont pas des morceaux : ils ne sont pas touchés.
+  // Le gain de chaque voix du morceau est multiplié (valeur initiale et chaque point d'automation : le mélange reste linéaire).
+  function trackMixFactor(mix, id) {
+    const ids = Object.keys(mix || {});
+    const m = (mix && mix[id]) || {};
+    const vol = m.vol == null ? 1 : Math.min(1, Math.max(0, Number(m.vol)));
+    if (ids.some(k => mix[k] && mix[k].solo)) return m.solo ? vol : 0;
+    return m.mute ? 0 : vol;
+  }
+  function applyTrackMix(voices, mix) {
+    if (!mix || !Object.keys(mix).length) return;
+    voices.forEach(v => {
+      const id = v.track && v.track.id;
+      if (!id) return;
+      const f = trackMixFactor(mix, id);
+      if (f === 1) return;
+      const g = v.gain || { init: 1, auto: [['set', v.start, 1]] };
+      v.gain = { init: g.init * f, auto: g.auto.map(a => [a[0], a[1], a[2] * f]) };
+    });
+  }
+
   // Mix du visiteur (muet / solo / volume par voix 'layer-i' / 'pool-i') au fil de la capture.
   function mixTimeline(events, trackId) {
     const st = { muted: new Set(), soloed: new Set(), volumes: {} };
@@ -659,6 +682,7 @@
     });
 
     applyStopFades(voices, events);
+    applyTrackMix(voices, opts.trackMix);
     const plan = {
       total, voices, sfxHits, duckHits: master,
       headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
@@ -682,6 +706,6 @@
     resolveSeqAlternative, resolveSeqTransition, resolveVRSection,
     buildSeqTimelineWindows, buildVRTimelineWindows, buildEmbrTimelineWindows,
     materializeLayerSegments, materializeEmbrSwitches, syncSliderIntensityLayers, intensitySliderOf, materializeCaptureExtras, materialize, decimateHeadTurns, decimateSliderKeys,
-    linkedMarks, captureTotal, envAt, automation, mixTimeline, buildPlan
+    linkedMarks, captureTotal, envAt, automation, mixTimeline, trackMixFactor, applyTrackMix, buildPlan
   };
 })();

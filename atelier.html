@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794589940412">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794589940412">
+<link rel="stylesheet" href="player.css?v=1794590675678">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794590675678">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -302,13 +302,13 @@
   .vct-zoom-val { min-width: 34px; text-align: center; color: #9ab; font-size: 10px; }
   .vct-scroll { overflow-x: auto; overflow-y: hidden; }
   .vct-body { position: relative; }
-  .vct-ruler-corner { position: sticky; left: 0; width: 96px; height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
+  .vct-ruler-corner { position: sticky; left: 0; width: var(--vct-label-w, 96px); height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
   .vct-lane-label, .vct-lane-rename-input { position: sticky; left: 0; z-index: 16; background: #1a1a1a; }
   .vct-playhead::before {
     content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
     border-top-color: #ff4444;
   }
-  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-ruler { position: relative; height: 16px; margin-left: var(--vct-label-w, 96px); }
   .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
   .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
   /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
@@ -324,11 +324,11 @@
   .vct-track-group-header:hover { color: #fff; }
   .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
   .vct-lane-nested .vct-lane-label { padding-left: 14px; }
-  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label { width: var(--vct-label-w, 96px); flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
   .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
   .vct-lane-rename-input {
-    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    width: var(--vct-label-w, 96px); flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
     color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
   }
   .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
@@ -467,7 +467,7 @@
   /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
      travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
   .vct-body { position: relative; }
-  .vct-markers { position: absolute; top: 0; bottom: 0; left: 96px; right: 0; pointer-events: none; z-index: 15; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: var(--vct-label-w, 96px); right: 0; pointer-events: none; z-index: 15; }
   .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
   .vct-marker-flag {
     position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
@@ -576,6 +576,23 @@
   /* Remplacer un morceau sur la frise (13/11, admin) : même discrétion que la croix, bleu au survol. */
   .vct-track-replace { margin-left: 4px; font-size: 12px; }
   .vct-track-replace:hover { color: #2f80c0; }
+
+  /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
+  .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-cbtn:hover { color: #fff; border-color: #666; }
+  .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
+  .vct-cx:hover { color: #e57373; }
+  .vct-vol { width: 44px; height: 10px; accent-color: #2f80c0; }
+  .vct-col-resize, .vct-col-resize * { cursor: col-resize !important; }
+  .vct-ctx { position: fixed; z-index: 100000; background: #262626; border: 1px solid #444; border-radius: 8px; padding: 4px 0; min-width: 210px; font-size: 12px; color: #ddd; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .vct-ctx-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; padding: 5px 12px; cursor: pointer; font: inherit; }
+  .vct-ctx-item:hover { background: #2f80c0; color: #fff; }
+  .vct-ctx-check { display: inline-block; width: 12px; }
+  .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
+  .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
 </style>
 </head>
 <body>
@@ -623,17 +640,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794589940412"></script>
-<script src="layerpitch-notify.js?v=1794589940412"></script>
-<script src="public-page.js?v=1794589940412"></script>
-<script src="player.js?v=1794589940412"></script>
-<script src="capture-plan.js?v=1794589940412"></script>
-<script src="capture-render.js?v=1794589940412"></script>
-<script src="capture-retarget.js?v=1794589940412"></script>
-<script src="layerpitch-av-sync.js?v=1794589940412"></script>
-<script src="capture-versioning.js?v=1794589940412"></script>
-<script src="layerpitch-guide.js?v=1794589940412"></script>
-<script src="atelier-lecons.js?v=1794589940412"></script>
+<script src="layerpitch-i18n.js?v=1794590675678"></script>
+<script src="layerpitch-notify.js?v=1794590675678"></script>
+<script src="public-page.js?v=1794590675678"></script>
+<script src="player.js?v=1794590675678"></script>
+<script src="capture-plan.js?v=1794590675678"></script>
+<script src="capture-render.js?v=1794590675678"></script>
+<script src="capture-retarget.js?v=1794590675678"></script>
+<script src="layerpitch-av-sync.js?v=1794590675678"></script>
+<script src="capture-versioning.js?v=1794590675678"></script>
+<script src="layerpitch-guide.js?v=1794590675678"></script>
+<script src="atelier-lecons.js?v=1794590675678"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1152,7 +1169,7 @@ function positionCapturePlayhead(container, videoEl) {
   const scroller = container.querySelector('.vct-scroll');
   if (scroller && !videoEl.paused) {
     const sr = scroller.getBoundingClientRect(), pr = ph.getBoundingClientRect();
-    if (pr.left > sr.right - 20 || pr.left < sr.left + 96) scroller.scrollLeft += pr.left - (sr.left + 120);
+    if (pr.left > sr.right - 20 || pr.left < sr.left + (container.__vctLabelW || 96)) scroller.scrollLeft += pr.left - (sr.left + (container.__vctLabelW || 96) + 24);
   }
 }
 
@@ -1173,6 +1190,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
+  // En-tête de piste à la Logic (13/11, admin) : colonne des noms redimensionnable (poignée au bord droit), commandes M / S / ⇄ / ✕ toujours visibles,
+  // volume facultatif, clic droit pour choisir les commandes. Largeur et choix gardés dans ce navigateur. Hors admin : colonne de 96 px comme avant.
+  const adminHdr = !!editable && !!window.__lpCaptureIsAdmin;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé : tant pis */ } } };
+  const labelW = adminHdr ? Math.min(420, Math.max(110, container.__vctLabelW || (container.__vctLabelW = store.get('lp.vct.labelW', 170)))) : 96;
+  container.__vctLabelW = labelW;
+  container.style.setProperty('--vct-label-w', labelW + 'px');
+  const comps = Object.assign({ m: true, s: true, replace: true, remove: true, vol: false }, store.get('lp.vct.comps', {}));
+  laneLayout.mix = laneLayout.mix || {};
+  const mixMap = laneLayout.mix;
+  const setMix = (id, patch) => {
+    const m = Object.assign({}, mixMap[id], patch);
+    if (!m.mute) delete m.mute; if (!m.solo) delete m.solo; if (m.vol == null || m.vol >= 1) delete m.vol;
+    if (Object.keys(m).length) mixMap[id] = m; else delete mixMap[id];
+  };
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
   // Toute retouche passe par ici : la frise est redessinée PUIS l'atelier est prévenu (enregistrement automatique, annuler / rétablir,
   // musique à recalculer). Avant le 12/11, les marqueurs (pose, glisser, nom, instant, effacement) et les noms de pistes ne prévenaient
@@ -1197,10 +1229,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), ...(container.__vctReviewMarks || []).map(r => Number(r.t) + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
   const fullW = Math.max(300, (container.clientWidth || 800) - 20);
-  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
+  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - labelW));
   const zoom = Math.min(maxZoom, Math.max(1, container.__vctZoom || 1));
   container.__vctZoom = zoom;
-  const pxPerSec = (fullW * zoom - 96) / total;
+  const pxPerSec = (fullW * zoom - labelW) / total;
   const TICK_STEPS = [1 / 30, 1 / 15, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120];
   const tickStep = TICK_STEPS.find(st => st * pxPerSec >= 60) || 120;
   const tickDec = tickStep >= 1 ? 0 : (tickStep < 0.05 ? 2 : (tickStep < 0.1 ? 2 : 1));
@@ -1241,13 +1273,27 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
-  const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
-    ? (window.__lpCaptureIsAdmin && window.LayerCaptureRetarget ? `<button type="button" class="vct-track-remove vct-track-replace" data-replace-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackReplaceTitle'))}">⇄</button>` : '') + `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
+  const escH = x => window.LayerPlayerCore.escapeHtml(x);
+  const removeTrackBtn = key => {
+    if (!(editable && key.indexOf('track:') === 0)) return '';
+    const id = key.slice(6);
+    if (!adminHdr) return `<button type="button" class="vct-track-remove" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>`;
+    const m = mixMap[id] || {};
+    const b = (cls, attr, label, title, on) => `<button type="button" class="vct-cbtn ${cls}${on ? ' on' : ''}" ${attr}="${escH(id)}" title="${escH(title)}" aria-label="${escH(title)}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
+    return `<span class="vct-ctl">`
+      + (comps.m ? b('vct-cm', 'data-mix-m', 'M', tr('captureMixMute'), !!m.mute) : '')
+      + (comps.s ? b('vct-cs', 'data-mix-s', 'S', tr('captureMixSolo'), !!m.solo) : '')
+      + (comps.vol ? `<input type="range" class="vct-vol" data-mix-v="${escH(id)}" min="0" max="100" value="${Math.round((m.vol == null ? 1 : m.vol) * 100)}" title="${escH(tr('captureMixVolume'))}" aria-label="${escH(tr('captureMixVolume'))}">` : '')
+      + (comps.replace && window.LayerCaptureRetarget ? `<button type="button" class="vct-cbtn" data-replace-track="${escH(id)}" title="${escH(tr('captureTrackReplaceTitle'))}" aria-label="${escH(tr('captureTrackReplaceTitle'))}">⇄</button>` : '')
+      + (comps.remove ? `<button type="button" class="vct-cbtn vct-cx" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>` : '')
+      + `</span>`;
+  };
+  const nameHtml = label => adminHdr ? `<span class="vct-lane-name">${escH(label)}</span>` : escH(label);
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
     if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
-      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" data-hdr-key="${escH(key)}" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
       return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
     }
     const collapsed = !!collapsedGroups[key];
@@ -1274,7 +1320,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
-      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
       `<div class="vct-lane-track">${blockHtml}</div></div>`;
     return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
@@ -1583,7 +1629,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const setZoom = (z, anchorX) => {
     const rr = container.querySelector('.vct-ruler').getBoundingClientRect();
     const sr = scroller.getBoundingClientRect();
-    const ax = anchorX == null ? sr.left + 96 + (sr.width - 96) / 2 : anchorX;
+    const ax = anchorX == null ? sr.left + labelW + (sr.width - labelW) / 2 : anchorX;
     const frac = (ax - rr.left) / rr.width;
     container.__vctZoom = Math.min(maxZoom, Math.max(1, z));
     rerender();
@@ -1599,17 +1645,34 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
   // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
-  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', async ev => {
-    ev.stopPropagation(); ev.preventDefault();
+  async function removeTrackById(id) {
     if (videoCaptureState) return;
-    const id = btn.dataset.removeTrack;
     const mine = events.filter(e => e.detail && e.detail.trackId === id);
     if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
     mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
     const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
+    delete mixMap[id];
     changed();
+  }
+  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    removeTrackById(btn.dataset.removeTrack);
   }));
+  // M / S / volume d'un morceau (13/11) : réglages du montage, rangés dans laneLayout.mix, joués à l'écoute et à l'export.
+  container.querySelectorAll('[data-mix-m]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixM; setMix(id, { mute: !(mixMap[id] && mixMap[id].mute) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-s]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixS; setMix(id, { solo: !(mixMap[id] && mixMap[id].solo) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-v]').forEach(inp => {
+    inp.addEventListener('click', ev => ev.stopPropagation());
+    inp.addEventListener('input', () => { setMix(inp.dataset.mixV, { vol: Number(inp.value) / 100 }); inp.title = tr('captureMixVolume') + ' : ' + inp.value + ' %'; });
+    inp.addEventListener('change', () => changed()); // pas de réaffichage pendant le glisser : le curseur serait perdu
+  });
   // « ⇄ » sur un morceau (13/11, admin seulement) : le remplace par un autre en REJOUANT ses blocs sur le nouveau morceau (même moteur que le
   // Versioning : capture-retarget.js -- les gestes restent, ils suivent les règles du nouveau morceau). Refusé si la structure diffère.
   const replaceDurations = window.__lpReplaceDurations = window.__lpReplaceDurations || new Map();
@@ -1650,6 +1713,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     // Les pistes : l'ancien morceau disparaît de la frise, le nouveau s'affiche (même logique que « ✕ » et « + Piste »).
     const x = laneLayout.extra.indexOf(srcId); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(srcId) === -1 && (capturePackLibrary().library || []).some(t => t.id === srcId)) laneLayout.hidden.push(srcId);
+    if (mixMap[srcId]) { mixMap[dstId] = mixMap[srcId]; delete mixMap[srcId]; } // M / S / volume suivent le nouveau morceau
     const h = laneLayout.hidden.indexOf(dstId);
     if (h >= 0) laneLayout.hidden.splice(h, 1);
     else if (laneLayout.extra.indexOf(dstId) === -1 && handTrackIds.indexOf(dstId) === -1) laneLayout.extra.push(dstId);
@@ -1702,6 +1766,73 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     ev.stopPropagation(); ev.preventDefault();
     openReplaceDialog(btn.dataset.replaceTrack);
   }));
+  // Colonne des noms redimensionnable + menu clic droit (13/11, admin). Écouteurs posés UNE fois sur le conteneur (il survit aux réaffichages) :
+  // ils lisent l'état courant par container.__vctRerender / __vctCtx, remis à jour à chaque affichage.
+  container.__vctRerender = rerender;
+  container.__vctCtx = (ev, key) => {
+    const id = key.slice(6);
+    const doc = ownerDoc;
+    doc.querySelectorAll('.vct-ctx').forEach(m => m.remove());
+    const menu = doc.createElement('div');
+    menu.className = 'vct-ctx';
+    const item = (act, label, checked) => `<button type="button" class="vct-ctx-item" data-act="${act}">${checked == null ? '' : `<span class="vct-ctx-check">${checked ? '✓' : ''}</span>`}${escH(label)}</button>`;
+    menu.innerHTML = (window.LayerCaptureRetarget ? item('replace', tr('captureCtxReplace')) : '') + item('remove', tr('captureCtxRemove'))
+      + `<div class="vct-ctx-sep"></div><div class="vct-ctx-title">${escH(tr('captureCtxComponents'))}</div>`
+      + item('c:m', tr('captureMixMute') + ' (M)', comps.m) + item('c:s', tr('captureMixSolo') + ' (S)', comps.s)
+      + item('c:vol', tr('captureMixVolume'), comps.vol) + item('c:replace', tr('captureCtxReplaceBtn') + ' (⇄)', comps.replace) + item('c:remove', tr('captureCtxRemoveBtn') + ' (✕)', comps.remove);
+    menu.style.left = Math.min(ev.clientX, (ownerWin.innerWidth || 800) - 230) + 'px';
+    menu.style.top = Math.min(ev.clientY, (ownerWin.innerHeight || 600) - 260) + 'px';
+    const close = () => { menu.remove(); doc.removeEventListener('pointerdown', away, true); doc.removeEventListener('keydown', esc, true); };
+    const away = e => { if (!menu.contains(e.target)) close(); };
+    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    menu.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const act = b.dataset.act;
+      if (act.indexOf('c:') === 0) {
+        const k = act.slice(2); comps[k] = !comps[k]; store.set('lp.vct.comps', comps); close(); rerender(); return;
+      }
+      close();
+      if (act === 'replace') openReplaceDialog(id); else if (act === 'remove') removeTrackById(id);
+    });
+    doc.body.appendChild(menu);
+    doc.addEventListener('pointerdown', away, true);
+    doc.addEventListener('keydown', esc, true);
+  };
+  if (adminHdr && !container.__vctHdrBound) {
+    container.__vctHdrBound = true;
+    const onEdge = ev => {
+      const l = ev.target.closest && ev.target.closest('.vct-lane-label, .vct-ruler-corner');
+      if (!l) return false;
+      const r = l.getBoundingClientRect();
+      return ev.clientX >= r.right - 6 && ev.clientX <= r.right + 3;
+    };
+    container.addEventListener('pointermove', ev => { if (!container.__vctResizing) container.classList.toggle('vct-col-resize', onEdge(ev)); });
+    container.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0 || !onEdge(ev)) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, w0 = container.__vctLabelW || 170, d = container.ownerDocument || document;
+      container.__vctResizing = true;
+      const move = e => {
+        const w = Math.min(420, Math.max(110, Math.round(w0 + e.clientX - x0)));
+        container.__vctLabelW = w; container.style.setProperty('--vct-label-w', w + 'px');
+      };
+      const up = () => {
+        d.removeEventListener('pointermove', move); d.removeEventListener('pointerup', up);
+        container.__vctResizing = false;
+        store.set('lp.vct.labelW', container.__vctLabelW);
+        container.__vctRerender && container.__vctRerender(); // zoom et marqueurs recalculés sur la nouvelle largeur
+      };
+      d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
+    }, true);
+    container.addEventListener('contextmenu', ev => {
+      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"]');
+      if (!h || !container.__vctCtx) return;
+      const key = h.dataset.hdrKey || h.dataset.groupKey;
+      if (!key || key.indexOf('track:') !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      container.__vctCtx(ev, key);
+    });
+  }
   // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
   function openAddTrackDialog() {
     if (!editable || videoCaptureState) return;
@@ -2668,7 +2799,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
   // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
   // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
-  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: exportOptions.trackMix });
   const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
   const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));
@@ -3181,7 +3312,7 @@ function openCapturePanel(file, opts) {
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
   // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
-  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [], mix: (o && o.mix && typeof o.mix === 'object' && !Array.isArray(o.mix)) ? JSON.parse(JSON.stringify(o.mix)) : {} });
   let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
@@ -3317,7 +3448,7 @@ function openCapturePanel(file, opts) {
       while (!buffer) {
         const gen = montageGen;
         const b = montageBuffer || await window.LayerCaptureRender.render(
-          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan,
+          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: laneLayout.mix }).plan,
           { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
         if (disposed) return;
         if (gen === montageGen) { montageBuffer = b; buffer = b; }
@@ -3522,7 +3653,7 @@ function openCapturePanel(file, opts) {
         const st = await altExportState(targets[ti]);
         if (!st) continue;
         const prefix = targets.length > 1 ? (ti + 1) + '/' + targets.length + ' — ' : '';
-        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, exportOptions);
+        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, Object.assign({}, exportOptions, { trackMix: st.laneLayout && st.laneLayout.mix }));
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -3570,13 +3701,13 @@ function openCapturePanel(file, opts) {
   async function altExportState(key) {
     if (!key || key === '') {
       const b = baseState();
-      return { events: b.events, laneOverrides: b.laneOverrides, name: tr('altOriginal') };
+      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: tr('altOriginal') };
     }
-    if (key === activeAltId) return { events: lastEvents, laneOverrides, name: (altList().find(v => v.id === key) || {}).title || key };
+    if (key === activeAltId) return { events: lastEvents, laneOverrides, laneLayout, name: (altList().find(v => v.id === key) || {}).title || key };
     const v = altList().find(x => x.id === key);
     if (!v) return null;
     const mat = await versioning.alternatives.materialize(v);
-    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, name: v.title || key };
+    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, laneLayout: v.events ? normLayout(v.laneLayout) : baseState().laneLayout, name: v.title || key };
   }
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {

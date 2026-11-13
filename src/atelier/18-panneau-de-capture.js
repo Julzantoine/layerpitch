@@ -369,7 +369,7 @@ function openCapturePanel(file, opts) {
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
   // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
-  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [], mix: (o && o.mix && typeof o.mix === 'object' && !Array.isArray(o.mix)) ? JSON.parse(JSON.stringify(o.mix)) : {} });
   let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
@@ -505,7 +505,7 @@ function openCapturePanel(file, opts) {
       while (!buffer) {
         const gen = montageGen;
         const b = montageBuffer || await window.LayerCaptureRender.render(
-          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan,
+          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: laneLayout.mix }).plan,
           { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
         if (disposed) return;
         if (gen === montageGen) { montageBuffer = b; buffer = b; }
@@ -710,7 +710,7 @@ function openCapturePanel(file, opts) {
         const st = await altExportState(targets[ti]);
         if (!st) continue;
         const prefix = targets.length > 1 ? (ti + 1) + '/' + targets.length + ' — ' : '';
-        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, exportOptions);
+        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, Object.assign({}, exportOptions, { trackMix: st.laneLayout && st.laneLayout.mix }));
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -758,13 +758,13 @@ function openCapturePanel(file, opts) {
   async function altExportState(key) {
     if (!key || key === '') {
       const b = baseState();
-      return { events: b.events, laneOverrides: b.laneOverrides, name: tr('altOriginal') };
+      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: tr('altOriginal') };
     }
-    if (key === activeAltId) return { events: lastEvents, laneOverrides, name: (altList().find(v => v.id === key) || {}).title || key };
+    if (key === activeAltId) return { events: lastEvents, laneOverrides, laneLayout, name: (altList().find(v => v.id === key) || {}).title || key };
     const v = altList().find(x => x.id === key);
     if (!v) return null;
     const mat = await versioning.alternatives.materialize(v);
-    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, name: v.title || key };
+    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, laneLayout: v.events ? normLayout(v.laneLayout) : baseState().laneLayout, name: v.title || key };
   }
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {

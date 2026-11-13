@@ -34,7 +34,7 @@
   /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
      travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
   .vct-body { position: relative; }
-  .vct-markers { position: absolute; top: 0; bottom: 0; left: 96px; right: 0; pointer-events: none; z-index: 15; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: var(--vct-label-w, 96px); right: 0; pointer-events: none; z-index: 15; }
   .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
   .vct-marker-flag {
     position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
@@ -143,3 +143,20 @@
   /* Remplacer un morceau sur la frise (13/11, admin) : même discrétion que la croix, bleu au survol. */
   .vct-track-replace { margin-left: 4px; font-size: 12px; }
   .vct-track-replace:hover { color: #2f80c0; }
+
+  /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
+  .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-cbtn:hover { color: #fff; border-color: #666; }
+  .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
+  .vct-cx:hover { color: #e57373; }
+  .vct-vol { width: 44px; height: 10px; accent-color: #2f80c0; }
+  .vct-col-resize, .vct-col-resize * { cursor: col-resize !important; }
+  .vct-ctx { position: fixed; z-index: 100000; background: #262626; border: 1px solid #444; border-radius: 8px; padding: 4px 0; min-width: 210px; font-size: 12px; color: #ddd; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .vct-ctx-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; padding: 5px 12px; cursor: pointer; font: inherit; }
+  .vct-ctx-item:hover { background: #2f80c0; color: #fff; }
+  .vct-ctx-check { display: inline-block; width: 12px; }
+  .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
+  .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
