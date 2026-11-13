@@ -146,8 +146,8 @@
 
   /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
   .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
-  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #444; background: #262626; color: #b5b5b5; border-radius: 4px; min-width: 22px; padding: 0 5px; font-size: 12px; line-height: 20px; cursor: pointer; text-transform: none; letter-spacing: 0; }
   .vct-cbtn:hover { color: #fff; border-color: #666; }
   .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
@@ -160,3 +160,7 @@
   .vct-ctx-check { display: inline-block; width: 12px; }
   .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
   .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
+
+  /* Poignée de la colonne des noms (13/11) : un petit trait toujours visible sur le coin de la règle, bleu quand on le survole. */
+  .vct-ruler-corner::after { content: ''; position: absolute; right: 1px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: #3a3a3a; }
+  .vct-col-resize .vct-ruler-corner::after { background: #2f80c0; }

@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1794597317250">
+<link rel="stylesheet" href="player.css?v=1794607240510">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -203,6 +203,7 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .video-capture-title-input { width: 200px; }
+  .video-alt-select:disabled { opacity: .45; cursor: not-allowed; }
   .video-alt-select { max-width: 200px; min-width: 120px; flex: 0 1 auto; border-color: #2f80c0; color: #dbe9f5; }
   .video-alt-link-btn[aria-pressed="true"] { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
@@ -532,11 +533,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794597317250"></script>
-<script src="layerpitch-notify.js?v=1794597317250"></script>
-<script src="public-page.js?v=1794597317250"></script>
-<script src="layerpitch-seller-contact.js?v=1794597317250"></script>
-<script src="player.js?v=1794597317250"></script>
+<script src="layerpitch-i18n.js?v=1794607240510"></script>
+<script src="layerpitch-notify.js?v=1794607240510"></script>
+<script src="public-page.js?v=1794607240510"></script>
+<script src="layerpitch-seller-contact.js?v=1794607240510"></script>
+<script src="player.js?v=1794607240510"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1289,6 +1290,6 @@ window.addEventListener('load', init);
   }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
 })();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794597317250"></script>
+<script src="layerpitch-preview-tuto.js?v=1794607240510"></script>
 </body>
 </html>

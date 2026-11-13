@@ -168,6 +168,10 @@ const path = require('path');
     const p = plan([{ t: 2, name: 'stinger_play', detail: { trackId: 'v', sfxId: 'x', variationIndex: 0, fileDuration: 1 } }]);
     check('Sfx : variationIndex compté parmi les variations qui ont un fichier (comme le lecteur)', p.sfxHits.length === 1 && p.sfxHits[0].url.indexOf('x1.ogg') >= 0);
     check('Sfx : baisse de la musique demandée', p.duckHits.length === 1 && p.duckHits[0].fileDuration === 1);
+    const sev = [{ t: 2, name: 'stinger_play', detail: { trackId: 'v', sfxId: 'x', variationIndex: 0, fileDuration: 1 } }];
+    const mixed = mix => { return CP.buildPlan(sev, { findTrack, findSfx, trackMix: mix }).plan; };
+    check('Sfx : muet dans le montage = ne joue pas et ne baisse pas la musique', (m => m.sfxHits.length === 0 && m.duckHits.length === 0)(mixed({ 'sfx:x': { mute: true } })));
+    check('Sfx : volume 50 % dans le montage', mixed({ 'sfx:x': { vol: 0.5 } }).sfxHits[0].gain === 0.5);
   }
 
   // ---- Capture d'avant les repères (sauvegardée avant le 25/09) : les boucles rebouclent quand même ----

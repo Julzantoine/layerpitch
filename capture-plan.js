@@ -372,7 +372,7 @@
 
   // Mix PAR MORCEAU du montage (13/11, demande de Jules-Antoine : M / S / volume dans l'en-tête de piste de la frise, comme Logic).
   // mix = { [idMorceau]: { mute?, solo?, vol? (0..1, 1 = inchangé) } }, rangé dans lane_layout.mix de la version. Dès qu'un morceau est
-  // en solo, tous ceux qui ne le sont pas se taisent ; sinon muet = 0. Les Sfx ne sont pas des morceaux : ils ne sont pas touchés.
+  // en solo, tous ceux qui ne le sont pas se taisent ; sinon muet = 0. Un Sfx se règle sous la clé « sfx:<id> » (mêmes réglages).
   // Le gain de chaque voix du morceau est multiplié (valeur initiale et chaque point d'automation : le mélange reste linéaire).
   function trackMixFactor(mix, id) {
     const ids = Object.keys(mix || {});
@@ -675,8 +675,11 @@
       const alt = alts[s.detail.variationIndex];
       if (!alt || !alt.file) { warn('Sfx introuvable', s); return; }
       const sfxUrl = sfx.base + encodeURIComponent(alt.file) + (sfx.publishedAt ? '?v=' + encodeURIComponent(sfx.publishedAt) : '');
+      // Mix du montage (13/11) : un Sfx se règle sous la clé « sfx:<id> » ; à 0 (muet / hors solo) il ne joue pas et ne fait pas « duck » la musique.
+      const mixF = trackMixFactor(opts.trackMix, 'sfx:' + s.detail.sfxId);
+      if (mixF === 0) return;
       sfxHits.push({ t: s.t, url: sfxUrl, sfx, track: findTrack(s.detail.trackId), durationOverride: s.detail.durationOverride || null,
-        stepIndex: s.detail.spatialStep, spatial: s.detail.spatial || null });
+        stepIndex: s.detail.spatialStep, spatial: s.detail.spatial || null, gain: mixF });
       const duck = s.detail.duck !== undefined ? s.detail.duck : !!(sfx && sfx.duckMainTrack);
       if (duck) master.push({ t: s.t, fileDuration: s.detail.fileDuration || null, url: sfxUrl });
     });

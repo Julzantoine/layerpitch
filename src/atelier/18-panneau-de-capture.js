@@ -141,6 +141,55 @@ function wireAtelierFullscreenButtons(root) {
   syncAtelierFullscreenButtons();
 }
 
+// Listes déroulantes de la fenêtre détachée (13/11, retour de Jules-Antoine : « rien ne se passe quand je clique sur le menu des versions ») :
+// la liste NATIVE du navigateur ne s'ouvre pas pour un élément déplacé dans une autre fenêtre. On la remplace par un menu dessiné dans la
+// page (comme le clic droit de la frise) : même <select> derrière, valeur posée puis « change » émis, donc aucun gestionnaire à réécrire.
+function openDomSelectMenu(sel, win) {
+  const doc = win.document;
+  doc.querySelectorAll('.lp-selmenu').forEach(m => m.remove());
+  const r = sel.getBoundingClientRect();
+  const below = win.innerHeight - r.bottom - 12, above = r.top - 12;
+  const menu = doc.createElement('div');
+  menu.className = 'lp-selmenu';
+  const down = below >= 180 || below >= above;
+  menu.style.cssText = 'position:fixed;left:' + Math.max(4, r.left) + 'px;' + (down ? 'top:' + (r.bottom + 2) + 'px;' : 'bottom:' + (win.innerHeight - r.top + 2) + 'px;')
+    + 'min-width:' + r.width + 'px;max-width:' + Math.max(240, win.innerWidth - 16) + 'px;max-height:' + Math.max(120, down ? below : above) + 'px;overflow:auto;z-index:100000;background:#1c1c1c;border:1px solid #444;'
+    + 'border-radius:6px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);font:inherit;font-size:13px;color:#e6e6e6;';
+  Array.from(sel.options).forEach(o => {
+    const el = doc.createElement(o.disabled ? 'div' : 'button');
+    if (!o.disabled) el.type = 'button';
+    el.textContent = o.textContent;
+    el.style.cssText = 'display:block;width:100%;text-align:left;font:inherit;padding:6px 10px;border:0;border-radius:4px;white-space:nowrap;'
+      + (o.disabled ? 'color:#666;cursor:default;' : 'background:' + (o.value === sel.value ? '#1f3a52' : 'transparent') + ';color:inherit;cursor:pointer;');
+    if (!o.disabled) {
+      el.addEventListener('mouseenter', () => { el.style.background = '#2a2a2a'; });
+      el.addEventListener('mouseleave', () => { el.style.background = o.value === sel.value ? '#1f3a52' : 'transparent'; });
+      el.addEventListener('click', () => { close(); sel.value = o.value; sel.dispatchEvent(new win.Event('change', { bubbles: true })); });
+    }
+    menu.appendChild(el);
+  });
+  const close = () => { menu.remove(); doc.removeEventListener('pointerdown', away, true); doc.removeEventListener('keydown', esc, true); };
+  const away = e => { if (!menu.contains(e.target)) close(); };
+  const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  doc.body.appendChild(menu);
+  doc.addEventListener('pointerdown', away, true);
+  doc.addEventListener('keydown', esc, true);
+}
+function installDetachedSelectMenus(win) {
+  const doc = win.document;
+  doc.addEventListener('mousedown', ev => {
+    const sel = ev.target.closest && ev.target.closest('select');
+    if (!sel || sel.disabled || sel.multiple || ev.button !== 0) return;
+    ev.preventDefault();
+    openDomSelectMenu(sel, win);
+  }, true);
+  doc.addEventListener('keydown', ev => {
+    if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target || ev.target.tagName !== 'SELECT' || ev.target.disabled) return;
+    ev.preventDefault();
+    openDomSelectMenu(ev.target, win);
+  }, true);
+}
+
 // Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
 // écouteurs déjà posés dessus (bouton d'enregistrement, glisser sur la frise, etc.), puisque déplacer
 // un nœud DOM via appendChild ne détruit jamais ses écouteurs. Les feuilles <style> de la page sont
@@ -160,6 +209,8 @@ function detachCapturePanel() {
   wrapper.style.cssText = 'max-width:none;width:100%;';
   while (panel.firstChild) wrapper.appendChild(panel.firstChild); // déplace les vrais nœuds, pas une copie
   win.document.body.appendChild(wrapper);
+  installDetachedSelectMenus(win);
+  win.document.addEventListener('click', atelierRefreshClick); // le « ↻ » du panneau détaché (son écouteur de page est dans l'autre fenêtre)
   panel.classList.remove('active');
   document.body.classList.remove('video-panel-active');
   // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
@@ -1107,6 +1158,8 @@ function openCapturePanel(file, opts) {
     const rb = document.getElementById('videoAltRefBtn'); if (rb) rb.hidden = altList().length === 0;
     altSelect.value = activeAltId || '';
     altSelect.disabled = !!videoCaptureState || altBusy;
+    // Bloqué : on le dit (grisé + info-bulle) au lieu de laisser un menu qui ne répond pas (13/11).
+    altSelect.title = altSelect.disabled ? (videoCaptureState ? tr('altBlockedTake') : tr('altBlockedBusy')) : tr('altSelectTitle');
   }
   async function switchAlt(id) {
     id = id || null;

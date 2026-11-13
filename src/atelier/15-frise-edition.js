@@ -143,8 +143,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
   const escH = x => window.LayerPlayerCore.escapeHtml(x);
   const removeTrackBtn = key => {
-    if (!(editable && key.indexOf('track:') === 0)) return '';
-    const id = key.slice(6);
+    const isSfx = key.indexOf('sfx:') === 0;
+    if (!(editable && (key.indexOf('track:') === 0 || (isSfx && adminHdr)))) return '';
+    const id = isSfx ? key : key.slice(6); // un Sfx garde son préfixe « sfx: » : c'est sa clé de mix et de retrait (13/11)
     if (!adminHdr) return `<button type="button" class="vct-track-remove" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>`;
     const m = mixMap[id] || {};
     const b = (cls, attr, label, title, on) => `<button type="button" class="vct-cbtn ${cls}${on ? ' on' : ''}" ${attr}="${escH(id)}" title="${escH(title)}" aria-label="${escH(title)}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
@@ -212,6 +213,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     });
     // Et les Sfx rattachés au pack lui-même (05/11, pack « Joris » : 3 Sfx au pack, aucun sur ses morceaux -> frise sans Sfx).
     (capturePackLibrary().sfxLibrary || []).forEach(s => { if (!sfxGroups[s.id]) sfxGroups[s.id] = { 0: [] }; });
+    // Sfx retirés de cette version (✕ sur sa ligne, 13/11) : ils ne reviennent pas en piste vide.
+    Object.keys(sfxGroups).forEach(sid => { if (laneLayout.hidden.indexOf('sfx:' + sid) >= 0 && !stingerEvents.some(e => e.detail.sfxId === sid)) delete sfxGroups[sid]; });
   }
   let lanesHtml = '';
   // Même ordre fixe pour les Sfx : celui de la bibliothèque du pack, qu'ils soient joués ou non.
@@ -514,7 +517,19 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
   // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
+  async function removeSfxById(key) {
+    if (videoCaptureState) return;
+    const sid = key.slice(4);
+    const mine = events.filter(e => e.name === 'stinger_play' && e.detail && e.detail.sfxId === sid);
+    const name = (findCaptureSfx(sid) || {}).title || sid;
+    if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', name), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
+    mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
+    if (laneLayout.hidden.indexOf(key) === -1) laneLayout.hidden.push(key);
+    delete mixMap[key];
+    changed();
+  }
   async function removeTrackById(id) {
+    if (id.indexOf('sfx:') === 0) return removeSfxById(id);
     if (videoCaptureState) return;
     const mine = events.filter(e => e.detail && e.detail.trackId === id);
     if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
@@ -590,13 +605,31 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureTrack(srcId) || {}).title || srcId).replace('{to}', (dst || {}).title || dstId)
       + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
   }
+  // « ⇄ » sur un Sfx : tous ses déclenchements passent au Sfx choisi (même moteur ; la variation suit la règle de tirage du nouveau Sfx).
+  async function replaceSfx(srcKey, dstId) {
+    const srcId = srcKey.slice(4);
+    const res = window.LayerCaptureRetarget.retarget(events, { tracks: {}, sfx: { [srcId]: dstId } }, {
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx, fileDuration: () => null,
+    });
+    events.splice(0, events.length, ...res.events);
+    const dk = 'sfx:' + dstId;
+    if (laneLayout.hidden.indexOf(srcKey) === -1) laneLayout.hidden.push(srcKey);
+    const h = laneLayout.hidden.indexOf(dk); if (h >= 0) laneLayout.hidden.splice(h, 1);
+    if (mixMap[srcKey]) { mixMap[dk] = mixMap[srcKey]; delete mixMap[srcKey]; }
+    changed();
+    window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureSfx(srcId) || {}).title || srcId).replace('{to}', (findCaptureSfx(dstId) || {}).title || dstId)
+      + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
+  }
   function openReplaceDialog(srcId) {
     if (!editable || videoCaptureState || !window.LayerCaptureRetarget) return;
-    const src = findCaptureTrack(srcId);
+    const isSfx = srcId.indexOf('sfx:') === 0;
+    const src = isSfx ? findCaptureSfx(srcId.slice(4)) : findCaptureTrack(srcId);
     const L = window.__lpCaptureLibrary || {};
     const esc = window.LayerPlayerCore.escapeHtml;
-    const used = new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean));
-    const rows = (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
+    const used = new Set(events.map(e => e.detail && (isSfx ? e.detail.sfxId : e.detail.trackId)).filter(Boolean));
+    const rows = isSfx
+      ? (L.sfxLibrary || []).filter(t => t.id !== srcId.slice(4) && !used.has(t.id) && (t.alternatives || []).some(a => a.file || a.localFile || a.localUrl)).map(t => ({ t: Object.assign({}, t, { mode: 'Sfx' }), ok: true, why: '' }))
+      : (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
       const cmp = window.LayerCaptureRetarget.compareTracks(src, t);
       return { t, ok: cmp.compatible, why: cmp.issues.filter(i => i.severity === 'block').map(i => tr('versioningIssue_' + i.code)).join(', ') };
     });
@@ -613,7 +646,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         (ok.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOk'))}</div>` + ok.map(item).join('') : `<div class="vct-add-none">${esc(tr('captureTrackReplaceNone'))}</div>`)
         + (off.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOff'))}</div>` + off.map(item).join('') : '');
     };
-    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId))}</div>
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId.replace(/^sfx:/, '')))}</div>
       <input type="search" id="vctRepQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
       <div id="vctRepList" class="vct-add-list"></div>
       <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
@@ -626,7 +659,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!it) return;
       const id = it.dataset.repId;
       dlg.close();
-      replaceTrack(srcId, id);
+      if (isSfx) replaceSfx(srcId, id); else replaceTrack(srcId, id);
     });
     dlg.addEventListener('close', () => dlg.remove());
     dlg.showModal();
@@ -639,7 +672,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // ils lisent l'état courant par container.__vctRerender / __vctCtx, remis à jour à chaque affichage.
   container.__vctRerender = rerender;
   container.__vctCtx = (ev, key) => {
-    const id = key.slice(6);
+    const id = key.indexOf('track:') === 0 ? key.slice(6) : key;
     const doc = ownerDoc;
     doc.querySelectorAll('.vct-ctx').forEach(m => m.remove());
     const menu = doc.createElement('div');
@@ -694,7 +727,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
     }, true);
     container.addEventListener('contextmenu', ev => {
-      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"]');
+      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"], .vct-track-group-header[data-group-key^="sfx:"]');
       if (!h || !container.__vctCtx) return;
       const key = h.dataset.hdrKey || h.dataset.groupKey;
       if (!key || key.indexOf('track:') !== 0) return;

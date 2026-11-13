@@ -191,6 +191,7 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .video-capture-title-input { width: 200px; }
+  .video-alt-select:disabled { opacity: .45; cursor: not-allowed; }
   .video-alt-select { max-width: 200px; min-width: 120px; flex: 0 1 auto; border-color: #2f80c0; color: #dbe9f5; }
   .video-alt-link-btn[aria-pressed="true"] { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }

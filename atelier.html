@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794597317250">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794597317250">
+<link rel="stylesheet" href="player.css?v=1794607240510">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794607240510">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -204,6 +204,7 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .video-capture-title-input { width: 200px; }
+  .video-alt-select:disabled { opacity: .45; cursor: not-allowed; }
   .video-alt-select { max-width: 200px; min-width: 120px; flex: 0 1 auto; border-color: #2f80c0; color: #dbe9f5; }
   .video-alt-link-btn[aria-pressed="true"] { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
@@ -579,8 +580,8 @@
 
   /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
   .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
-  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #444; background: #262626; color: #b5b5b5; border-radius: 4px; min-width: 22px; padding: 0 5px; font-size: 12px; line-height: 20px; cursor: pointer; text-transform: none; letter-spacing: 0; }
   .vct-cbtn:hover { color: #fff; border-color: #666; }
   .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
@@ -593,6 +594,10 @@
   .vct-ctx-check { display: inline-block; width: 12px; }
   .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
   .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
+
+  /* Poignée de la colonne des noms (13/11) : un petit trait toujours visible sur le coin de la règle, bleu quand on le survole. */
+  .vct-ruler-corner::after { content: ''; position: absolute; right: 1px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: #3a3a3a; }
+  .vct-col-resize .vct-ruler-corner::after { background: #2f80c0; }
 </style>
 </head>
 <body>
@@ -640,17 +645,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794597317250"></script>
-<script src="layerpitch-notify.js?v=1794597317250"></script>
-<script src="public-page.js?v=1794597317250"></script>
-<script src="player.js?v=1794597317250"></script>
-<script src="capture-plan.js?v=1794597317250"></script>
-<script src="capture-render.js?v=1794597317250"></script>
-<script src="capture-retarget.js?v=1794597317250"></script>
-<script src="layerpitch-av-sync.js?v=1794597317250"></script>
-<script src="capture-versioning.js?v=1794597317250"></script>
-<script src="layerpitch-guide.js?v=1794597317250"></script>
-<script src="atelier-lecons.js?v=1794597317250"></script>
+<script src="layerpitch-i18n.js?v=1794607240510"></script>
+<script src="layerpitch-notify.js?v=1794607240510"></script>
+<script src="public-page.js?v=1794607240510"></script>
+<script src="player.js?v=1794607240510"></script>
+<script src="capture-plan.js?v=1794607240510"></script>
+<script src="capture-render.js?v=1794607240510"></script>
+<script src="capture-retarget.js?v=1794607240510"></script>
+<script src="layerpitch-av-sync.js?v=1794607240510"></script>
+<script src="capture-versioning.js?v=1794607240510"></script>
+<script src="layerpitch-guide.js?v=1794607240510"></script>
+<script src="atelier-lecons.js?v=1794607240510"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1281,8 +1286,9 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
   const escH = x => window.LayerPlayerCore.escapeHtml(x);
   const removeTrackBtn = key => {
-    if (!(editable && key.indexOf('track:') === 0)) return '';
-    const id = key.slice(6);
+    const isSfx = key.indexOf('sfx:') === 0;
+    if (!(editable && (key.indexOf('track:') === 0 || (isSfx && adminHdr)))) return '';
+    const id = isSfx ? key : key.slice(6); // un Sfx garde son préfixe « sfx: » : c'est sa clé de mix et de retrait (13/11)
     if (!adminHdr) return `<button type="button" class="vct-track-remove" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>`;
     const m = mixMap[id] || {};
     const b = (cls, attr, label, title, on) => `<button type="button" class="vct-cbtn ${cls}${on ? ' on' : ''}" ${attr}="${escH(id)}" title="${escH(title)}" aria-label="${escH(title)}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
@@ -1350,6 +1356,8 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     });
     // Et les Sfx rattachés au pack lui-même (05/11, pack « Joris » : 3 Sfx au pack, aucun sur ses morceaux -> frise sans Sfx).
     (capturePackLibrary().sfxLibrary || []).forEach(s => { if (!sfxGroups[s.id]) sfxGroups[s.id] = { 0: [] }; });
+    // Sfx retirés de cette version (✕ sur sa ligne, 13/11) : ils ne reviennent pas en piste vide.
+    Object.keys(sfxGroups).forEach(sid => { if (laneLayout.hidden.indexOf('sfx:' + sid) >= 0 && !stingerEvents.some(e => e.detail.sfxId === sid)) delete sfxGroups[sid]; });
   }
   let lanesHtml = '';
   // Même ordre fixe pour les Sfx : celui de la bibliothèque du pack, qu'ils soient joués ou non.
@@ -1652,7 +1660,19 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
   // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
+  async function removeSfxById(key) {
+    if (videoCaptureState) return;
+    const sid = key.slice(4);
+    const mine = events.filter(e => e.name === 'stinger_play' && e.detail && e.detail.sfxId === sid);
+    const name = (findCaptureSfx(sid) || {}).title || sid;
+    if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', name), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
+    mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
+    if (laneLayout.hidden.indexOf(key) === -1) laneLayout.hidden.push(key);
+    delete mixMap[key];
+    changed();
+  }
   async function removeTrackById(id) {
+    if (id.indexOf('sfx:') === 0) return removeSfxById(id);
     if (videoCaptureState) return;
     const mine = events.filter(e => e.detail && e.detail.trackId === id);
     if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
@@ -1728,13 +1748,31 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureTrack(srcId) || {}).title || srcId).replace('{to}', (dst || {}).title || dstId)
       + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
   }
+  // « ⇄ » sur un Sfx : tous ses déclenchements passent au Sfx choisi (même moteur ; la variation suit la règle de tirage du nouveau Sfx).
+  async function replaceSfx(srcKey, dstId) {
+    const srcId = srcKey.slice(4);
+    const res = window.LayerCaptureRetarget.retarget(events, { tracks: {}, sfx: { [srcId]: dstId } }, {
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx, fileDuration: () => null,
+    });
+    events.splice(0, events.length, ...res.events);
+    const dk = 'sfx:' + dstId;
+    if (laneLayout.hidden.indexOf(srcKey) === -1) laneLayout.hidden.push(srcKey);
+    const h = laneLayout.hidden.indexOf(dk); if (h >= 0) laneLayout.hidden.splice(h, 1);
+    if (mixMap[srcKey]) { mixMap[dk] = mixMap[srcKey]; delete mixMap[srcKey]; }
+    changed();
+    window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureSfx(srcId) || {}).title || srcId).replace('{to}', (findCaptureSfx(dstId) || {}).title || dstId)
+      + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
+  }
   function openReplaceDialog(srcId) {
     if (!editable || videoCaptureState || !window.LayerCaptureRetarget) return;
-    const src = findCaptureTrack(srcId);
+    const isSfx = srcId.indexOf('sfx:') === 0;
+    const src = isSfx ? findCaptureSfx(srcId.slice(4)) : findCaptureTrack(srcId);
     const L = window.__lpCaptureLibrary || {};
     const esc = window.LayerPlayerCore.escapeHtml;
-    const used = new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean));
-    const rows = (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
+    const used = new Set(events.map(e => e.detail && (isSfx ? e.detail.sfxId : e.detail.trackId)).filter(Boolean));
+    const rows = isSfx
+      ? (L.sfxLibrary || []).filter(t => t.id !== srcId.slice(4) && !used.has(t.id) && (t.alternatives || []).some(a => a.file || a.localFile || a.localUrl)).map(t => ({ t: Object.assign({}, t, { mode: 'Sfx' }), ok: true, why: '' }))
+      : (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
       const cmp = window.LayerCaptureRetarget.compareTracks(src, t);
       return { t, ok: cmp.compatible, why: cmp.issues.filter(i => i.severity === 'block').map(i => tr('versioningIssue_' + i.code)).join(', ') };
     });
@@ -1751,7 +1789,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         (ok.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOk'))}</div>` + ok.map(item).join('') : `<div class="vct-add-none">${esc(tr('captureTrackReplaceNone'))}</div>`)
         + (off.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOff'))}</div>` + off.map(item).join('') : '');
     };
-    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId))}</div>
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId.replace(/^sfx:/, '')))}</div>
       <input type="search" id="vctRepQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
       <div id="vctRepList" class="vct-add-list"></div>
       <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
@@ -1764,7 +1802,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       if (!it) return;
       const id = it.dataset.repId;
       dlg.close();
-      replaceTrack(srcId, id);
+      if (isSfx) replaceSfx(srcId, id); else replaceTrack(srcId, id);
     });
     dlg.addEventListener('close', () => dlg.remove());
     dlg.showModal();
@@ -1777,7 +1815,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // ils lisent l'état courant par container.__vctRerender / __vctCtx, remis à jour à chaque affichage.
   container.__vctRerender = rerender;
   container.__vctCtx = (ev, key) => {
-    const id = key.slice(6);
+    const id = key.indexOf('track:') === 0 ? key.slice(6) : key;
     const doc = ownerDoc;
     doc.querySelectorAll('.vct-ctx').forEach(m => m.remove());
     const menu = doc.createElement('div');
@@ -1832,7 +1870,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
     }, true);
     container.addEventListener('contextmenu', ev => {
-      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"]');
+      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"], .vct-track-group-header[data-group-key^="sfx:"]');
       if (!h || !container.__vctCtx) return;
       const key = h.dataset.hdrKey || h.dataset.groupKey;
       if (!key || key.indexOf('track:') !== 0) return;
@@ -3091,6 +3129,55 @@ function wireAtelierFullscreenButtons(root) {
   syncAtelierFullscreenButtons();
 }
 
+// Listes déroulantes de la fenêtre détachée (13/11, retour de Jules-Antoine : « rien ne se passe quand je clique sur le menu des versions ») :
+// la liste NATIVE du navigateur ne s'ouvre pas pour un élément déplacé dans une autre fenêtre. On la remplace par un menu dessiné dans la
+// page (comme le clic droit de la frise) : même <select> derrière, valeur posée puis « change » émis, donc aucun gestionnaire à réécrire.
+function openDomSelectMenu(sel, win) {
+  const doc = win.document;
+  doc.querySelectorAll('.lp-selmenu').forEach(m => m.remove());
+  const r = sel.getBoundingClientRect();
+  const below = win.innerHeight - r.bottom - 12, above = r.top - 12;
+  const menu = doc.createElement('div');
+  menu.className = 'lp-selmenu';
+  const down = below >= 180 || below >= above;
+  menu.style.cssText = 'position:fixed;left:' + Math.max(4, r.left) + 'px;' + (down ? 'top:' + (r.bottom + 2) + 'px;' : 'bottom:' + (win.innerHeight - r.top + 2) + 'px;')
+    + 'min-width:' + r.width + 'px;max-width:' + Math.max(240, win.innerWidth - 16) + 'px;max-height:' + Math.max(120, down ? below : above) + 'px;overflow:auto;z-index:100000;background:#1c1c1c;border:1px solid #444;'
+    + 'border-radius:6px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);font:inherit;font-size:13px;color:#e6e6e6;';
+  Array.from(sel.options).forEach(o => {
+    const el = doc.createElement(o.disabled ? 'div' : 'button');
+    if (!o.disabled) el.type = 'button';
+    el.textContent = o.textContent;
+    el.style.cssText = 'display:block;width:100%;text-align:left;font:inherit;padding:6px 10px;border:0;border-radius:4px;white-space:nowrap;'
+      + (o.disabled ? 'color:#666;cursor:default;' : 'background:' + (o.value === sel.value ? '#1f3a52' : 'transparent') + ';color:inherit;cursor:pointer;');
+    if (!o.disabled) {
+      el.addEventListener('mouseenter', () => { el.style.background = '#2a2a2a'; });
+      el.addEventListener('mouseleave', () => { el.style.background = o.value === sel.value ? '#1f3a52' : 'transparent'; });
+      el.addEventListener('click', () => { close(); sel.value = o.value; sel.dispatchEvent(new win.Event('change', { bubbles: true })); });
+    }
+    menu.appendChild(el);
+  });
+  const close = () => { menu.remove(); doc.removeEventListener('pointerdown', away, true); doc.removeEventListener('keydown', esc, true); };
+  const away = e => { if (!menu.contains(e.target)) close(); };
+  const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  doc.body.appendChild(menu);
+  doc.addEventListener('pointerdown', away, true);
+  doc.addEventListener('keydown', esc, true);
+}
+function installDetachedSelectMenus(win) {
+  const doc = win.document;
+  doc.addEventListener('mousedown', ev => {
+    const sel = ev.target.closest && ev.target.closest('select');
+    if (!sel || sel.disabled || sel.multiple || ev.button !== 0) return;
+    ev.preventDefault();
+    openDomSelectMenu(sel, win);
+  }, true);
+  doc.addEventListener('keydown', ev => {
+    if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target || ev.target.tagName !== 'SELECT' || ev.target.disabled) return;
+    ev.preventDefault();
+    openDomSelectMenu(ev.target, win);
+  }, true);
+}
+
 // Déplace le VRAI contenu du panneau (pas une copie) dans une fenêtre séparée -- conserve tous les
 // écouteurs déjà posés dessus (bouton d'enregistrement, glisser sur la frise, etc.), puisque déplacer
 // un nœud DOM via appendChild ne détruit jamais ses écouteurs. Les feuilles <style> de la page sont
@@ -3110,6 +3197,8 @@ function detachCapturePanel() {
   wrapper.style.cssText = 'max-width:none;width:100%;';
   while (panel.firstChild) wrapper.appendChild(panel.firstChild); // déplace les vrais nœuds, pas une copie
   win.document.body.appendChild(wrapper);
+  installDetachedSelectMenus(win);
+  win.document.addEventListener('click', atelierRefreshClick); // le « ↻ » du panneau détaché (son écouteur de page est dans l'autre fenêtre)
   panel.classList.remove('active');
   document.body.classList.remove('video-panel-active');
   // Fermeture de la fenêtre détachée PAR L'UTILISATEUR (croix du navigateur, pas notre bouton ✕, qui
@@ -4057,6 +4146,8 @@ function openCapturePanel(file, opts) {
     const rb = document.getElementById('videoAltRefBtn'); if (rb) rb.hidden = altList().length === 0;
     altSelect.value = activeAltId || '';
     altSelect.disabled = !!videoCaptureState || altBusy;
+    // Bloqué : on le dit (grisé + info-bulle) au lieu de laisser un menu qui ne répond pas (13/11).
+    altSelect.title = altSelect.disabled ? (videoCaptureState ? tr('altBlockedTake') : tr('altBlockedBusy')) : tr('altSelectTitle');
   }
   async function switchAlt(id) {
     id = id || null;
@@ -4564,25 +4655,31 @@ window.addEventListener('message', async e => {
 // morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
 // que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
 let atelierRefreshing = false;
-document.addEventListener('click', async ev => {
+async function atelierRefreshClick(ev) {
   const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
   if (!btn || atelierRefreshing) return;
   atelierRefreshing = true; btn.disabled = true;
   const N = window.LayerPitchNotify;
   try {
     if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
-    if (!lastResolvedOwnerId) { location.reload(); return; }
+    if (!lastResolvedOwnerId) { atelierReloadPage(); return; }
     const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
     if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
     try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
-    location.reload();
+    atelierReloadPage();
   } catch (err) {
     console.error('LayerPitch — atelier vidéo, actualisation :', err);
     N.error(tr('loadError'));
   } finally {
     atelierRefreshing = false; btn.disabled = false;
   }
-});
+}
+document.addEventListener('click', atelierRefreshClick);
+// Panneau détaché : sa fenêtre est rattachée d'abord (pagehide remet les vrais nœuds dans la page), sinon le rechargement la viderait (page « about:blank »).
+function atelierReloadPage() {
+  try { if (capturePanelDetachedWindow && !capturePanelDetachedWindow.closed) capturePanelDetachedWindow.close(); } catch (e) {}
+  setTimeout(() => location.reload(), 150);
+}
 
 // « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
 // (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis

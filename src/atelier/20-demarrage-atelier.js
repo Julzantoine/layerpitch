@@ -84,25 +84,31 @@ window.addEventListener('message', async e => {
 // morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
 // que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
 let atelierRefreshing = false;
-document.addEventListener('click', async ev => {
+async function atelierRefreshClick(ev) {
   const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
   if (!btn || atelierRefreshing) return;
   atelierRefreshing = true; btn.disabled = true;
   const N = window.LayerPitchNotify;
   try {
     if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
-    if (!lastResolvedOwnerId) { location.reload(); return; }
+    if (!lastResolvedOwnerId) { atelierReloadPage(); return; }
     const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
     if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
     try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
-    location.reload();
+    atelierReloadPage();
   } catch (err) {
     console.error('LayerPitch — atelier vidéo, actualisation :', err);
     N.error(tr('loadError'));
   } finally {
     atelierRefreshing = false; btn.disabled = false;
   }
-});
+}
+document.addEventListener('click', atelierRefreshClick);
+// Panneau détaché : sa fenêtre est rattachée d'abord (pagehide remet les vrais nœuds dans la page), sinon le rechargement la viderait (page « about:blank »).
+function atelierReloadPage() {
+  try { if (capturePanelDetachedWindow && !capturePanelDetachedWindow.closed) capturePanelDetachedWindow.close(); } catch (e) {}
+  setTimeout(() => location.reload(), 150);
+}
 
 // « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
 // (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis

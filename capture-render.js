@@ -271,6 +271,9 @@
       const buf = await getBuf(hit.url);
       const src = oc.createBufferSource();
       src.buffer = buf;
+      // Volume du Sfx dans le montage (13/11) : un gain entre la source et le reste de la chaîne.
+      let out = src;
+      if (hit.gain != null && hit.gain !== 1) { out = oc.createGain(); out.gain.value = hit.gain; src.connect(out); }
       const sp = hit.spatial || (hit.sfx && hit.sfx.spatial);
       if (sp && sp.enabled) {
         // Curseurs liés à la position / reverb de ce Sfx : départ à la valeur du curseur à cet instant (déjà comprise dans
@@ -280,7 +283,7 @@
         const valueOfAt = t => id => { const sl = sliders.find(x => x.id === id); return sl ? sliderValueAt(track.id, sl, t) : 0; };
         const ov0 = !hit.spatial && sliders.length ? C.fxSliderSfxOverrides(sliders, valueOfAt(hit.t), hit.sfx.id) : null;
         const voice = C.buildSpatialVoice(oc, ov0 ? C.fxSpatialWithOverride(sp, ov0) : sp, { duration: buf.duration, stepKey: hit.sfx, stepIndex: hit.stepIndex, startTime: hit.t });
-        src.connect(voice.input);
+        out.connect(voice.input);
         if (voice.fixed && sliders.length) {
           const end = hit.t + (hit.durationOverride || buf.duration);
           const times = [];
@@ -291,7 +294,7 @@
             voice.setReverbDb(sp2.reverbDb, kt.ramp, kt.t);
           });
         }
-      } else src.connect(sfxBus);
+      } else out.connect(sfxBus);
       src.start(hit.t);
       if (hit.durationOverride) src.stop(hit.t + hit.durationOverride);
     }
