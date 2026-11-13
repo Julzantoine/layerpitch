@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794517511607">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794517511607">
+<link rel="stylesheet" href="player.css?v=1794559555010">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794559555010">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -555,6 +555,16 @@
   .video-alt-group-v2 .video-alt-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: left .12s; }
   .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch { background: #fff; }
   .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch::after { left: 12px; background: #2f80c0; }
+  /* Barre d'étapes Vidéo → Montage → Publier (13/11) : admin seulement (classe atelier-v2). Chaque étape ne montre que ses éléments. */
+  .atelier-stepbar { display: flex; gap: 6px; padding: 8px 10px; background: #141414; }
+  .atelier-stepbar-btn { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid #3a3a3a; background: #1c1c1c; color: #999; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .atelier-stepbar-btn .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: #2a2a2a; margin-right: 6px; font-size: 10px; }
+  .atelier-stepbar-btn.done { color: #ccc; }
+  .atelier-stepbar-btn.on { background: #17324a; border-color: #2f80c0; color: #dbe9f5; }
+  .atelier-stepbar-btn.on .n { background: #2f80c0; color: #fff; }
+  .atelier-step-next { margin-left: auto; background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .video-test-panel.atelier-v2[data-step="montage"] .video-step-publier { display: none; }
+  .video-test-panel.atelier-v2[data-step="publier"] .video-step-montage { display: none; }
   body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
   body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
   body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
@@ -608,17 +618,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794517511607"></script>
-<script src="layerpitch-notify.js?v=1794517511607"></script>
-<script src="public-page.js?v=1794517511607"></script>
-<script src="player.js?v=1794517511607"></script>
-<script src="capture-plan.js?v=1794517511607"></script>
-<script src="capture-render.js?v=1794517511607"></script>
-<script src="capture-retarget.js?v=1794517511607"></script>
-<script src="layerpitch-av-sync.js?v=1794517511607"></script>
-<script src="capture-versioning.js?v=1794517511607"></script>
-<script src="layerpitch-guide.js?v=1794517511607"></script>
-<script src="atelier-lecons.js?v=1794517511607"></script>
+<script src="layerpitch-i18n.js?v=1794559555010"></script>
+<script src="layerpitch-notify.js?v=1794559555010"></script>
+<script src="public-page.js?v=1794559555010"></script>
+<script src="player.js?v=1794559555010"></script>
+<script src="capture-plan.js?v=1794559555010"></script>
+<script src="capture-render.js?v=1794559555010"></script>
+<script src="capture-retarget.js?v=1794559555010"></script>
+<script src="layerpitch-av-sync.js?v=1794559555010"></script>
+<script src="capture-versioning.js?v=1794559555010"></script>
+<script src="layerpitch-guide.js?v=1794559555010"></script>
+<script src="atelier-lecons.js?v=1794559555010"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -2884,6 +2894,9 @@ function openCapturePanel(file, opts) {
   // Ce que ce panneau pose en dehors de lui-même (écouteurs de la page, observateurs, minuteries) : défait par __lpDisposeMontage.
   let disposed = false;
   const cleanups = [() => URL.revokeObjectURL(objectUrl)];
+  // Barre « Vidéo → Montage → Publier » (12-13/11, cadrage « atelier plus friendly ») : admin seulement, hors tutoriel (ses bulles visent
+  // des boutons qui changeraient d'étape). Les autres comptes gardent la page d'avant.
+  const stepsV2 = !!window.__lpCaptureIsAdmin && !(typeof atelierParams !== 'undefined' && atelierParams.has('tuto'));
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
@@ -2899,10 +2912,15 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    ${stepsV2 ? `<div class="atelier-stepbar" id="atelierStepBar" role="tablist">
+      <button type="button" class="atelier-stepbar-btn done" data-step="video" role="tab"><span class="n">1</span> ${tr('stepBarVideo')}</button>
+      <button type="button" class="atelier-stepbar-btn on" data-step="montage" role="tab" aria-selected="true"><span class="n">2</span> ${tr('stepBarMontage')}</button>
+      <button type="button" class="atelier-stepbar-btn" data-step="publier" role="tab"><span class="n">3</span> ${tr('stepBarPublish')}</button>
+    </div>` : ''}
     <div class="video-capture-dock">
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-montage">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
       <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
@@ -2920,9 +2938,10 @@ function openCapturePanel(file, opts) {
       <span class="video-capture-count" id="videoCaptureCount"></span>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureUndoBtn" disabled title="${tr('captureUndoTitle')}" aria-label="${tr('captureUndoTitle')}">&#8630;</button>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureRedoBtn" disabled title="${tr('captureRedoTitle')}" aria-label="${tr('captureRedoTitle')}">&#8631;</button>
+      ${stepsV2 ? `<button type="button" class="video-capture-download-btn atelier-step-next" id="atelierStepNext">${tr('stepBarPublishBtn')}</button>` : ''}
     </div>
     </div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-publier">
       <input type="checkbox" id="videoCaptureCreditCheckbox" checked hidden>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
@@ -2930,18 +2949,37 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
-    <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
+    <div class="video-capture-bar video-step-montage">
       <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
       <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
     </div>
-    <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
-    <div class="video-capture-versioning" id="videoCaptureVersioning" hidden></div>
+    <div class="video-capture-timeline video-step-montage" id="videoCaptureTimeline"></div>
+    <div class="video-capture-versioning video-step-publier" id="videoCaptureVersioning" hidden></div>
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   pinCaptureVideo(panel);
+  panel.classList.toggle('atelier-v2', stepsV2);
+  panel.dataset.step = 'montage';
+  if (stepsV2) {
+    const stepBtns = Array.from(panel.querySelectorAll('.atelier-stepbar-btn'));
+    const goStep = (step) => {
+      if (step === 'video') { document.getElementById('videoCaptureCloseBtn').click(); return; } // revient au choix de la vidéo (confirme si rien n'est publié)
+      if (videoCaptureState) return; // pendant une prise, le bouton Arrêter doit rester sous la main
+      panel.dataset.step = step;
+      stepBtns.forEach(b => {
+        const on = b.dataset.step === step;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      window.dispatchEvent(new Event('resize')); // la hauteur du dock change : le calage de la frise suit
+    };
+    stepBtns.forEach(b => b.addEventListener('click', () => goStep(b.dataset.step)));
+    const nextBtn = document.getElementById('atelierStepNext');
+    if (nextBtn) nextBtn.addEventListener('click', () => goStep('publier'));
+  }
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');

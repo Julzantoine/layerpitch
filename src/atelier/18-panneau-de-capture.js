@@ -189,6 +189,9 @@ function openCapturePanel(file, opts) {
   // Ce que ce panneau pose en dehors de lui-même (écouteurs de la page, observateurs, minuteries) : défait par __lpDisposeMontage.
   let disposed = false;
   const cleanups = [() => URL.revokeObjectURL(objectUrl)];
+  // Barre « Vidéo → Montage → Publier » (12-13/11, cadrage « atelier plus friendly ») : admin seulement, hors tutoriel (ses bulles visent
+  // des boutons qui changeraient d'étape). Les autres comptes gardent la page d'avant.
+  const stepsV2 = !!window.__lpCaptureIsAdmin && !(typeof atelierParams !== 'undefined' && atelierParams.has('tuto'));
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('capturePanelTitle').replace('{name}', window.LayerPlayerCore.escapeHtml(file.name))}</span>
@@ -204,10 +207,15 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    ${stepsV2 ? `<div class="atelier-stepbar" id="atelierStepBar" role="tablist">
+      <button type="button" class="atelier-stepbar-btn done" data-step="video" role="tab"><span class="n">1</span> ${tr('stepBarVideo')}</button>
+      <button type="button" class="atelier-stepbar-btn on" data-step="montage" role="tab" aria-selected="true"><span class="n">2</span> ${tr('stepBarMontage')}</button>
+      <button type="button" class="atelier-stepbar-btn" data-step="publier" role="tab"><span class="n">3</span> ${tr('stepBarPublish')}</button>
+    </div>` : ''}
     <div class="video-capture-dock">
     <div class="video-test-panel-frame-wrap"><video id="videoCaptureEl" src="${objectUrl}" controls muted></video></div>
     <div class="video-capture-image-hidden-note" id="videoCaptureImageHiddenNote">${tr('captureImageHiddenNote')} <button type="button" class="video-capture-download-btn" id="videoCaptureShowImageBtn">${tr('captureShowImageBtn')}</button></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-montage">
       <button type="button" class="video-capture-record-btn" id="videoCaptureRecordBtn"><span class="dot"></span><span id="videoCaptureRecordLabel">${tr('captureStartBtn')}</span></button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureListenBtn" disabled title="${tr('captureListenHelp')}">${tr('captureListenBtn')}</button>
       <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
@@ -225,9 +233,10 @@ function openCapturePanel(file, opts) {
       <span class="video-capture-count" id="videoCaptureCount"></span>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureUndoBtn" disabled title="${tr('captureUndoTitle')}" aria-label="${tr('captureUndoTitle')}">&#8630;</button>
       <button type="button" class="video-capture-download-btn video-capture-history-btn" id="videoCaptureRedoBtn" disabled title="${tr('captureRedoTitle')}" aria-label="${tr('captureRedoTitle')}">&#8631;</button>
+      ${stepsV2 ? `<button type="button" class="video-capture-download-btn atelier-step-next" id="atelierStepNext">${tr('stepBarPublishBtn')}</button>` : ''}
     </div>
     </div>
-    <div class="video-capture-bar">
+    <div class="video-capture-bar video-step-publier">
       <input type="checkbox" id="videoCaptureCreditCheckbox" checked hidden>
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
@@ -235,18 +244,37 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
-    <div class="video-capture-history" id="videoCaptureHistory" hidden></div>
-    <div class="video-capture-bar">
+    <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
+    <div class="video-capture-bar video-step-montage">
       <select class="video-capture-load-select" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
       <button type="button" class="video-capture-download-btn" id="videoCaptureLoadBtn" disabled>${tr('captureLoadBtn')}</button>
       <span class="video-capture-count" id="videoCaptureSaveStatus"></span>
     </div>
-    <div class="video-capture-timeline" id="videoCaptureTimeline"></div>
-    <div class="video-capture-versioning" id="videoCaptureVersioning" hidden></div>
+    <div class="video-capture-timeline video-step-montage" id="videoCaptureTimeline"></div>
+    <div class="video-capture-versioning video-step-publier" id="videoCaptureVersioning" hidden></div>
   `;
   panel.classList.add('active');
   document.body.classList.add('video-panel-active');
   pinCaptureVideo(panel);
+  panel.classList.toggle('atelier-v2', stepsV2);
+  panel.dataset.step = 'montage';
+  if (stepsV2) {
+    const stepBtns = Array.from(panel.querySelectorAll('.atelier-stepbar-btn'));
+    const goStep = (step) => {
+      if (step === 'video') { document.getElementById('videoCaptureCloseBtn').click(); return; } // revient au choix de la vidéo (confirme si rien n'est publié)
+      if (videoCaptureState) return; // pendant une prise, le bouton Arrêter doit rester sous la main
+      panel.dataset.step = step;
+      stepBtns.forEach(b => {
+        const on = b.dataset.step === step;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      window.dispatchEvent(new Event('resize')); // la hauteur du dock change : le calage de la frise suit
+    };
+    stepBtns.forEach(b => b.addEventListener('click', () => goStep(b.dataset.step)));
+    const nextBtn = document.getElementById('atelierStepNext');
+    if (nextBtn) nextBtn.addEventListener('click', () => goStep('publier'));
+  }
   const videoEl = document.getElementById('videoCaptureEl');
   const recordBtn = document.getElementById('videoCaptureRecordBtn');
   const recordLabel = document.getElementById('videoCaptureRecordLabel');
