@@ -222,6 +222,25 @@ const path = require('path');
     check('bloc déplacé : la musique entre au début du fichier', vs.some(v => near(v.start, 2) && v.offset === 0));
   }
 
+  // ---- Mix par morceau (13/11) : muet / solo / volume rangés dans lane_layout.mix, appliqués au gain des voix du morceau ----
+  {
+    const ev = CP.materialize([
+      { t: 1, name: 'track_play', detail: { trackId: 'v' } },
+      { t: 1, name: 'layer_run', detail: { trackId: 'v', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 6, name: 'voices_stop', detail: { trackId: 'v' } },
+      { t: 1, name: 'track_play', detail: { trackId: 'q' } },
+      { t: 1, name: 'layer_run', detail: { trackId: 'q', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 6, name: 'voices_stop', detail: { trackId: 'q' } },
+    ], findTrack);
+    const gainOf = (mix, id) => { const vs = CP.buildPlan(ev, { findTrack, findSfx, trackMix: mix }).plan.voices.filter(v => v.track.id === id); return vs.map(v => Math.max(v.gain.init, ...v.gain.auto.map(a => a[2]))); };
+    const base = gainOf(null, 'v');
+    check('mix : sans réglage, rien ne change', base.some(g => g > 0) && JSON.stringify(gainOf({}, 'v')) === JSON.stringify(base));
+    check('mix : muet = silence pour ce morceau seulement', gainOf({ v: { mute: true } }, 'v').every(g => g === 0) && gainOf({ v: { mute: true } }, 'q').some(g => g > 0));
+    check('mix : volume 50 % divise le gain par deux', gainOf({ v: { vol: 0.5 } }, 'v').every((g, i) => near(g, base[i] * 0.5)));
+    check('mix : solo = les autres morceaux se taisent', gainOf({ v: { solo: true } }, 'q').every(g => g === 0) && gainOf({ v: { solo: true } }, 'v').some(g => g > 0));
+    check('mix : solo gagne sur muet ailleurs, muet gagne seul', CP.trackMixFactor({ a: { mute: true } }, 'a') === 0 && CP.trackMixFactor({ a: { solo: true }, b: { mute: true } }, 'b') === 0 && CP.trackMixFactor({ a: { solo: true } }, 'a') === 1);
+  }
+
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
   process.exit(failures ? 1 : 0);
 })();

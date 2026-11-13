@@ -289,13 +289,13 @@
   .vct-zoom-val { min-width: 34px; text-align: center; color: #9ab; font-size: 10px; }
   .vct-scroll { overflow-x: auto; overflow-y: hidden; }
   .vct-body { position: relative; }
-  .vct-ruler-corner { position: sticky; left: 0; width: 96px; height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
+  .vct-ruler-corner { position: sticky; left: 0; width: var(--vct-label-w, 96px); height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
   .vct-lane-label, .vct-lane-rename-input { position: sticky; left: 0; z-index: 16; background: #1a1a1a; }
   .vct-playhead::before {
     content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
     border-top-color: #ff4444;
   }
-  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-ruler { position: relative; height: 16px; margin-left: var(--vct-label-w, 96px); }
   .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
   .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
   /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
@@ -311,11 +311,11 @@
   .vct-track-group-header:hover { color: #fff; }
   .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
   .vct-lane-nested .vct-lane-label { padding-left: 14px; }
-  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label { width: var(--vct-label-w, 96px); flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
   .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
   .vct-lane-rename-input {
-    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    width: var(--vct-label-w, 96px); flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
     color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
   }
   .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
