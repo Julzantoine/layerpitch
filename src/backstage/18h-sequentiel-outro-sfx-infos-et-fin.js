@@ -14,7 +14,7 @@
           </div>
           <div class="hint-inline">${tr('outroSectionLabel')}</div>
           <div class="hint-inline">${tr('noOutroHint')}</div>
-          <div style="margin-top:8px">
+          <div style="margin-top:8px" data-adv>
             ${collapsibleBlockToggleHtml(`outroDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'outroDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`outroDesc:${ti}`) ? '' : ' collapsed'}" data-role="outroDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -62,9 +62,11 @@
       if (selectedSi === 'infos') {
         const notesEl = document.createElement('div');
         notesEl.innerHTML = `
+          <div data-adv>
           <label data-help="implementationNote">${tr('implementationNoteLabel')}</label>
           <textarea data-field="implementationNote" data-ti="${ti}" placeholder="${tr('implementationNotePlaceholder')}">${escapeAttr(track.implementationNote || '')}</textarea>
           <div class="hint-inline">${tr('implementationNoteHint')}</div>
+          </div>
           <label data-help="noAiOverride" style="margin-top:14px">${tr('noAiOverrideLabel')}</label>
           <select data-field="noAiOverride" data-ti="${ti}">
             <option value="" ${(track.noAiOverride !== true && track.noAiOverride !== false) ? 'selected' : ''}>${tr('noAiFollowGlobalOption', { state: noAiCertifiedGlobal ? tr('yesWord') : tr('noWord') })}</option>

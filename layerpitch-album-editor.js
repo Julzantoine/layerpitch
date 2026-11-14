@@ -253,11 +253,11 @@
         ${trackRows()}
         ${officialRows()}
         ${listeningRows()}
-        ${contributorsRows()}
+        ${(() => { const c = contributorsRows(); return c ? `<div data-adv>${c}</div>` : ''; })()}
         ${rightsRows()}
         <label class="lpae-row" style="margin-top:16px"><input type="checkbox" data-ae-buyable${al.buyable ? ' checked' : ''}><span>${esc(tr('buyable'))}</span></label>
-        <label class="lpae-row"><input type="checkbox" data-ae-shop${al.shopListed ? ' checked' : ''}><span>${esc(tr('shopListed'))}</span></label>
-        <div class="lpae-hint">${esc(tr('shopListedHint'))}</div>
+        <div data-adv><label class="lpae-row"><input type="checkbox" data-ae-shop${al.shopListed ? ' checked' : ''}><span>${esc(tr('shopListed'))}</span></label>
+        <div class="lpae-hint">${esc(tr('shopListedHint'))}</div></div>
         ${feat.confirmRights ? `<label class="lpae-row" style="align-items:flex-start"><input type="checkbox" data-ae-confirm style="margin-top:3px"${al.confirmedRights ? ' checked' : ''}><span>${esc(tr('confirmRights'))}</span></label>` : ''}
         <div class="lpae-actions">
           ${btn('data-ae-save', tr('save'), PRIMARY)}

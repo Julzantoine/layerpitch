@@ -17,7 +17,8 @@ function renderPacks() {
       : hasSfx ? `<span class="badge">${tr('packKindSfx')}</span>`
       : hasMusic ? `<span class="badge">${tr('packKindMusic')}</span>` : '';
     if (!packSelectedEntry.has(pack.id)) packSelectedEntry.set(pack.id, 'content');
-    const entrySel = packSelectedEntry.get(pack.id);
+    // Interface simple (14/11) : l'entrée « Apparence » est avancée ; masquée, on retombe sur « Présentation ».
+    const entrySel = (packSelectedEntry.get(pack.id) === 'appearance' && uiSimpleActive()) ? 'presentation' : packSelectedEntry.get(pack.id);
     el.innerHTML = `
       <div class="list-block-head">
         <div class="list-block-head-left">
@@ -43,7 +44,7 @@ function renderPacks() {
     }
     packMasterHost.appendChild(packMasterItem('presentation', `<div class="seq-master-item-label">${tr('sectionPresentation')}</div>`));
     packMasterHost.appendChild(packMasterItem('content', `<div class="seq-master-item-label">${tr('trackSectionContent')}</div>`));
-    packMasterHost.appendChild(packMasterItem('appearance', `<div class="seq-master-item-label">${tr('sectionAppearance')}</div>`));
+    { const advItem = packMasterItem('appearance', `<div class="seq-master-item-label">${tr('sectionAppearance')}</div>`); advItem.setAttribute('data-adv', ''); packMasterHost.appendChild(advItem); }
     packMasterHost.appendChild(packMasterItem('distribution', `<div class="seq-master-item-label">${tr('sectionDistribution')}</div>`));
 
     const detailEl = document.createElement('div');
@@ -82,12 +83,12 @@ function renderPacks() {
           ${packPriceOptions(pack.priceEurCents)}
         </select>
         <div class="hint-inline">${tr('packPriceHint')}</div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;" data-adv>
           <input type="checkbox" data-pack-field="subscriberCatalog" data-pi="${pi}" ${pack.subscriberCredits ? 'checked' : ''} ${can('subscriber_catalog') && pack.priceEurCents ? '' : 'disabled'} style="width:auto;margin:0;">
           <span data-help="packSubscriberCatalog" style="color:var(--text-dim);font-size:12px;">${tr('packCatalogLabel')}</span>
         </label>
         ${pack.subscriberCredits ? `
-          <select data-pack-field="subscriberCredits" data-pi="${pi}" ${can('subscriber_catalog') ? '' : 'disabled'}>
+          <select data-adv data-pack-field="subscriberCredits" data-pi="${pi}" ${can('subscriber_catalog') ? '' : 'disabled'}>
             ${[1, 2, 4].map(n => `<option value="${n}"${pack.subscriberCredits === n ? ' selected' : ''}>${tr(n === 1 ? 'packCatalogCreditsOne' : 'packCatalogCreditsMany', { n, eur: n * 10 })}</option>`).join('')}
           </select>` : ''}
         <div class="hint-inline">${!can('subscriber_catalog') ? tr('packCatalogLockedHint') : (!pack.priceEurCents ? tr('packCatalogFreeHint') : tr('packCatalogHint'))}</div>
@@ -117,7 +118,7 @@ function renderPacks() {
         </div>
         <label data-help="publishToSocial" style="margin-top:14px">${tr('publishToSocialLabel')}</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">${publishButtonsHtml('publish-pack-social', 'pi', pi)}</div>
-        <div class="actions" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+        <div class="actions" data-adv style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
           <button class="btn btn-small" data-action="view-implementation-sheet" data-pi="${pi}" type="button" data-help="implementationSheetBtn">${tr('viewImplementationSheetBtn')}</button>
         </div>
       `;

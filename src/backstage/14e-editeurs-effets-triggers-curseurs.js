@@ -169,7 +169,7 @@ function fxBlockHtml(fx, extraAttrs) {
   const expanded = isTriggerBlock || expandedAltPoolKeys.has(fxKey);
   const activeCount = ['volume', 'pan', 'compressor', 'lowcut', 'highcut', 'pitch', 'reverb', 'delay', 'bitcrush'].filter(k => fx[k]).length;
   return `
-    <div style="margin-top:10px">
+    <div style="margin-top:10px" data-adv>
       ${isTriggerBlock ? '' : `<button type="button" class="btn btn-small alt-pool-toggle" data-role="fxBlockToggle" data-fx-key="${escapeAttr(fxKey)}"><span data-role="caret">${expanded ? '▾' : '▸'}</span> ${tr('fxSectionTitle')}${activeCount ? ` <span class="hint-inline" style="margin:0">(${tr('fxActiveCount', { n: activeCount })})</span>` : ''}</button>`}
       <div class="list-block-body${expanded ? '' : ' collapsed'}" data-role="fxBlockBody">
       ${toggle('volume', !!fx.volume, 'fxVolumeLabel', `

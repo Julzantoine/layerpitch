@@ -635,6 +635,8 @@
       // Monde ouvert (27/10) : fil d'Ariane des sous-cartes, forme libre en cours de dessin, réglage de l'image de fond, balade libre.
       trail: [], drawing: null, bgEdit: false, avatar: null, dest: null, modeId: null, freeCombat: false, gov: null };
     st.current = st.maps.length ? (st.maps.some(m => m.id === ctx.openId) ? ctx.openId : st.maps[0].id) : null; // openId : carte à ouvrir d'emblée (lien depuis une section)
+    // openNode : point à sélectionner d'emblée sur cette carte (lien depuis une tâche, 4/11)
+    if (ctx.openNode && st.current === ctx.openId && (st.maps.find(m => m.id === st.current).data.nodes || []).some(n => n.id === ctx.openNode)) st.sel = { kind: 'node', id: ctx.openNode };
     let saveTimer = null, saving = false;
     // Lecture (Écouter) : seulement si la page fournit le moteur audio (ctx.audio = { voiceFactory, now, schedule }).
     const audio = ctx.audio && window.LayerPitchLevelMapAudio ? window.LayerPitchLevelMapAudio.createPlayer(Object.assign({}, ctx.audio, { onChange: s => { st.now = s; refreshNow(); drawCanvas(); } })) : null;
@@ -706,9 +708,9 @@
         <div class="lm-toolbar">
           <select id="lmPick" style="max-width:240px">${st.maps.map(m => `<option value="${esc(m.id)}"${m.id === st.current ? ' selected' : ''}>${esc(m.title || tr('map_untitled'))}</option>`).join('')}</select>
           ${ctx.canEdit ? `<button class="btn" id="lmNew" type="button">${esc(tr('map_new'))}</button>` : ''}
-          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}${ctx.linkSections ? `<button class="btn" id="lmLinkSec" type="button" title="${esc(tr('map_linkSectionsHint'))}">🗂 ${esc(tr('map_linkSections'))}${ctx.linkedNames && ctx.linkedNames(cur()) ? ' · ' + esc(ctx.linkedNames(cur())) : ''}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
+          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}${ctx.linkSections ? `<button class="btn" data-adv id="lmLinkSec" type="button" title="${esc(tr('map_linkSectionsHint'))}">🗂 ${esc(tr('map_linkSections'))}${ctx.linkedNames && ctx.linkedNames(cur()) ? ' · ' + esc(ctx.linkedNames(cur())) : ''}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
           <span class="lm-status">${esc(st.status)}</span>
-          <span class="lm-viewbtns">${cur() ? `<button class="btn${st.maximized ? ' primary' : ''}" id="lmMax" type="button" title="${esc(tr(st.maximized ? 'map_fullscreenExitHint' : 'map_fullscreenHint'))}">${st.maximized ? '🗗' : '⛶'} ${esc(tr(st.maximized ? 'map_fullscreenExit' : 'map_fullscreen'))}</button>` : ''}${cur() && ctx.detach ? `<button class="btn" id="lmDetach" type="button" title="${esc(tr('map_detachHint'))}">⧉ ${esc(tr('map_detach'))}</button>` : ''}${ctx.attach ? `<button class="btn" id="lmAttach" type="button" title="${esc(tr('map_attachHint'))}">↩ ${esc(tr('map_attach'))}</button>` : ''}</span>
+          <span class="lm-viewbtns">${cur() ? `<button class="btn${st.maximized ? ' primary' : ''}" id="lmMax" type="button" title="${esc(tr(st.maximized ? 'map_fullscreenExitHint' : 'map_fullscreenHint'))}">${st.maximized ? '🗗' : '⛶'} ${esc(tr(st.maximized ? 'map_fullscreenExit' : 'map_fullscreen'))}</button>` : ''}${cur() && ctx.detach ? `<button class="btn" data-adv id="lmDetach" type="button" title="${esc(tr('map_detachHint'))}">⧉ ${esc(tr('map_detach'))}</button>` : ''}${ctx.attach ? `<button class="btn" id="lmAttach" type="button" title="${esc(tr('map_attachHint'))}">↩ ${esc(tr('map_attach'))}</button>` : ''}</span>
         </div></div>
         ${map ? editorHtml(map) : `<div class="card"><div class="empty">${esc(tr('map_none'))}</div></div>`}`;
       wireHeader();
@@ -1374,7 +1376,7 @@
     // ---- Réglages du monde ouvert : image de fond et modes de déplacement
     function backgroundSettingsHtml(map) {
       const dis = ctx.canEdit ? '' : ' disabled', bg = map.background, imgs = (ctx.images || []);
-      return `<div><label>${esc(tr('map_bg'))}</label>
+      return `<div data-adv><label>${esc(tr('map_bg'))}</label>
         <div class="lm-row"><select id="lmBgPick"${dis}><option value="">${esc(tr('map_bgNone'))}</option>${imgs.map(i => `<option value="${esc(i.id)}"${bg && bg.id === i.id ? ' selected' : ''}>${esc(i.title)}</option>`).join('')}${bg && !imgs.some(i => i.id === bg.id) ? `<option value="${esc(bg.id)}" selected>${esc(bg.title || bg.id)}</option>` : ''}</select>
           ${ctx.uploadImage && ctx.canEdit ? `<label class="btn" style="margin:0;cursor:pointer">${esc(tr('map_bgUpload'))}<input type="file" id="lmBgFile" accept="image/*" hidden></label>` : ''}</div>
         ${bg ? `<label>${esc(tr('map_bgOpacity', { n: Math.round(bg.opacity * 100) }))}</label><input type="range" id="lmBgOpacity" min="10" max="100" step="5" value="${Math.round(bg.opacity * 100)}"${dis}>

@@ -5,7 +5,7 @@
             <label>${tr('nameFieldLabel')}</label><input type="text" data-field="outroLabel" data-ti="${ti}" value="${escapeAttr(track.outro.label)}">
             <div class="hint-inline">${tr('outroSectionLabel')}</div>
             <div class="hint-inline">${tr('noOutroHint')}</div>
-            <div style="margin-top:8px">
+            <div style="margin-top:8px" data-adv>
               ${collapsibleBlockToggleHtml(`outroDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'vrsOutroDescToggle', 'stageDescription')}
               <div class="list-block-body${expandedAltPoolKeys.has(`outroDesc:${ti}`) ? '' : ' collapsed'}" data-role="vrsOutroDescBody" style="margin-top:8px">
                 <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -273,7 +273,7 @@
           row.innerHTML = `
             <div data-role="layerFileCtrl"></div>
             <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('layerLabelPlaceholder')}" data-field="label" data-ti="${ti}" data-li="${li}" value="${escapeAttr(layer.label)}">
-            ${layerFxHtml(layer, ti, li)}
+            ${advHtml(layerFxHtml(layer, ti, li))}
           `;
           modeDetailHost.appendChild(row);
           const ctrlHost = row.querySelector('[data-role="layerFileCtrl"]');

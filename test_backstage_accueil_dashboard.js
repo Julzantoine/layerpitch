@@ -43,7 +43,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   check('rappel du profil', !!root().querySelector('[data-home-reminder="profile"]'));
   check('boîte aux lettres : vide au départ', /Aucun message/.test(txt()));
   check('5 cartes', root().querySelectorAll('.home-cards .home-card').length === 5);
-  check('Nouveautés : toutes les entrées, la plus récente en tête, date courte', root().querySelectorAll('.home-news-item').length === 21 && /Protection/.test(root().querySelector('.home-news-item b').textContent) && /13/.test(root().querySelector('.home-news-item small').textContent));
+  check('Nouveautés : toutes les entrées, la plus récente en tête, date courte', root().querySelectorAll('.home-news-item').length === 25 && /Tâches|Sections/.test(root().querySelector('.home-news-item b').textContent) && /14/.test(root().querySelector('.home-news-item small').textContent));
 
   // Croix de la visite : le rappel disparaît, sur le compte (ici repli navigateur).
   root().querySelector('[data-home-act="tour-dismiss"]').click();

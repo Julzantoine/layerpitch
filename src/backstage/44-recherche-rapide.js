@@ -57,7 +57,41 @@ function quickSearchItems() {
       quickSearchScrollTo('albumsContainer', i);
     } }));
   }
+  // Interface simple (14/11) : les réglages masqués restent trouvables. Choisir l'un d'eux passe en interface avancée, ouvre son
+  // onglet et l'amène à l'écran (il clignote un instant). On ne propose que ceux qui sont dans la page à ce moment-là.
+  if (typeof uiSimpleActive === 'function' && uiSimpleActive()) {
+    const seen = new Set();
+    document.querySelectorAll('.backstage-content [data-adv]').forEach(el => {
+      if (el.parentElement && el.parentElement.closest('[data-adv]')) return;
+      const panel = el.closest('.backstage-panel');
+      const lab = quickSearchAdvLabel(el);
+      if (!lab || !panel) return;
+      const key = (panel.dataset.panel || '') + '|' + lab;
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ kind: 'setting', label: lab, run: () => {
+        setUiAdvanced(true);
+        if (panel.dataset.panel) openTab(panel.dataset.panel);
+        setTimeout(() => {
+          if (!el.isConnected) return;
+          if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          el.classList.add('lp-adv-flash');
+          setTimeout(() => el.classList.remove('lp-adv-flash'), 1800);
+        }, 80);
+      } });
+    });
+  }
   return items;
+}
+// Nom d'un élément avancé : son bouton, son libellé, son titre de zone, sinon le début de son texte.
+function quickSearchAdvLabel(el) {
+  let txt = '';
+  if (el.matches('button, summary')) txt = el.textContent;
+  else {
+    const h = el.querySelector('.seq-master-item-label, label, legend, summary, .nav-section-label, .an-card-title, h3, button');
+    txt = (h || el).textContent;
+  }
+  return String(txt || '').replace(/\s+/g, ' ').trim().slice(0, 70);
 }
 // Classement : début du nom, puis début d'un mot, puis n'importe où ; à égalité, l'ordre des listes est gardé.
 function quickSearchFilter(query) {
