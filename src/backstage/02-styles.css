@@ -1247,6 +1247,11 @@
   .home-seg button { border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
   .home-seg button.on { background: var(--accent-soft); color: var(--accent); }
   .nav-user-hidden { display: none !important; }
+  /* Interface simple / avancée (14/11) : les éléments data-adv sont masqués en interface simple ; repère « N options avancées masquées » à la fin de la zone. */
+  body.lp-ui-simple [data-adv] { display: none !important; }
+  .lp-adv-hint { margin: 10px 0 4px; font-size: 11px; color: var(--text-dimmer); }
+  .lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: var(--accent, #2f80c0); cursor: pointer; text-decoration: underline; }
+
   .home-menu { margin-top: 8px; font-size: 12px; }
   .home-menu summary { cursor: pointer; color: var(--text-dim); }
   .home-menu-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }

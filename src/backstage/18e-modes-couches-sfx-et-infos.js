@@ -11,9 +11,11 @@
       if (modeSel === 'infos') {
         const notesEl = document.createElement('div');
         notesEl.innerHTML = `
+          <div data-adv>
           <label data-help="implementationNote">${tr('implementationNoteLabel')}</label>
           <textarea data-field="implementationNote" data-ti="${ti}" placeholder="${tr('implementationNotePlaceholder')}">${escapeAttr(track.implementationNote || '')}</textarea>
           <div class="hint-inline">${tr('implementationNoteHint')}</div>
+          </div>
           <label data-help="noAiOverride" style="margin-top:14px">${tr('noAiOverrideLabel')}</label>
           <select data-field="noAiOverride" data-ti="${ti}">
             <option value="" ${(track.noAiOverride !== true && track.noAiOverride !== false) ? 'selected' : ''}>${tr('noAiFollowGlobalOption', { state: noAiCertifiedGlobal ? tr('yesWord') : tr('noWord') })}</option>

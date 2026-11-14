@@ -48,11 +48,11 @@
             <div><label>${tr('bpmLabel')}</label><input type="text" inputmode="decimal" data-field="bpm" data-ti="${ti}" value="${bpm}"></div>
             <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" data-field="beatsPerBar" data-ti="${ti}" value="${beatsPerBar}"></div>
           </div>
-          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;" data-adv>
             <input type="checkbox" data-field="seqSlotOrder" data-ti="${ti}" ${track.randomizeSections ? 'checked' : ''} style="width:auto;margin:0;">
             <span data-help="seqSlotOrder" style="color:var(--text-dim);font-size:12px;">${tr('seqSlotOrderLabel')}</span>
           </label>
-          <div class="hint-inline">${tr('seqSlotOrderHint')}</div>
+          <div class="hint-inline" data-adv>${tr('seqSlotOrderHint')}</div>
           <label data-help="maxChainLoops" style="margin-top:10px">${tr('maxChainLoopsLabel')}</label>
           <select data-field="maxChainLoops" data-ti="${ti}">
             <option value=""${!track.maxChainLoops ? ' selected' : ''}>${tr('infiniteLoops')}</option>
@@ -61,13 +61,15 @@
           <div class="hint-inline">${tr('maxChainLoopsHint')}</div>
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
           <textarea class="linkable" data-field="description" data-ti="${ti}">${escapeHtml(track.description)}</textarea>
+          <div data-adv>
           <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
           <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
           <div class="hint-inline">${tr('trackTagsHint')}</div>
-          ${trackNormalizeHtml(track, ti)}
-          ${trackPitchFxHtml(track, ti)}
-          ${fxTriggersEditorHtml(track, ti)}
-          ${fxSlidersEditorHtml(track, ti)}
+          </div>
+          ${advHtml(trackNormalizeHtml(track, ti))}
+          ${advHtml(trackPitchFxHtml(track, ti))}
+          ${advHtml(fxTriggersEditorHtml(track, ti))}
+          ${advHtml(fxSlidersEditorHtml(track, ti))}
         `;
         slotsDetailHost.appendChild(infoEl);
       }

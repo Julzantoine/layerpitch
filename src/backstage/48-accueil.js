@@ -263,7 +263,10 @@ function homeQuickHtml() {
   const dark = window.LayerPitchAppearance && window.LayerPitchAppearance.getTheme() === 'dark';
   const helpOn = !(homePrefs && homePrefs.help_off);
   const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('homeThemeLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('homeThemeDark'))}</button></span></div>` : '';
-  const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${theme}
+  // Interface simple / avancée (14/11, feu vert simple_advanced_ui) : même gabarit que Jour / Nuit.
+  const uiAdv = !!(homePrefs && homePrefs.ui_advanced);
+  const uiLevel = flagOpen('simple_advanced_ui') && !isTutoMode() ? `<div class="home-quick-row"><span><b>${escapeHtml(tr('uiLevelTitle'))}</b><small>${escapeHtml(tr('uiLevelHint'))}</small></span><span class="home-seg"><button type="button" data-home-ui="simple" class="${uiAdv ? '' : 'on'}">${escapeHtml(tr('uiLevelSimple'))}</button><button type="button" data-home-ui="advanced" class="${uiAdv ? 'on' : ''}">${escapeHtml(tr('uiLevelAdvanced'))}</button></span></div>` : '';
+  const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${uiLevel}${theme}
     <details class="home-menu"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
     <details class="home-more"><summary>${escapeHtml(tr('homeQuickMore'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMoreHint'))}</small><div id="homeMoreHost"></div></details>`;
   return homeCard('home-quick', tr('homeQuickTitle'), body);
@@ -339,6 +342,8 @@ function homeDo(act) {
     if (lesson && !lesson.disabled) { homeLearnOpen = false; trackBackstageEvent('home_lesson', { id: lesson.dataset.homeLesson }); openLessonFromMenu(lesson.dataset.homeLesson); renderHome(); return; }
     const recent = e.target.closest('[data-home-recent]');
     if (recent) { homeOpenRecent(recent.dataset.homeRecent, recent.dataset.id); return; }
+    const uiBtn = e.target.closest('[data-home-ui]');
+    if (uiBtn) { setUiAdvanced(uiBtn.dataset.homeUi === 'advanced'); return; }
     const theme = e.target.closest('[data-home-theme]');
     if (theme) { window.LayerPitchAppearance.setTheme(theme.dataset.homeTheme); return; }
     const act = e.target.closest('[data-home-act]');
@@ -378,6 +383,7 @@ function homeDo(act) {
 
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels, via syncBackstageTour) : montre l'onglet, charge ce qu'il faut, arrive sur l'Accueil.
 function syncHome() {
+  syncUiLevel(); // interface simple / avancée (49-interface-simple-avancee.js) : indépendante de l'Accueil
   const open = homeOpen();
   const nav = document.getElementById('navItemHome');
   if (nav) nav.hidden = !open;
