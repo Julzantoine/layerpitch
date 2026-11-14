@@ -49,7 +49,7 @@ function loadPostgresReadScripts() {
   const v = (document.querySelector('script[src*="layerpitch-i18n.js?v="]') || {}).src;
   const version = v ? new URL(v).searchParams.get('v') : '';
   const srcs = [
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js',
     './api/supabase-client.js', './api/auth.js', './api/tracks.js', './api/packs.js', './api/albums.js',
     './api/collections.js', './api/sfx.js', './api/settings.js', './api/adreels.js', './api/site-data.js',
     './api/subscriptions.js', './api/admin.js', './api/analytics.js', './api/access-requests.js', './api/invites.js',
@@ -92,6 +92,7 @@ async function fetchSiteData() {
   const { composerId, error } = await window.LayerPitchAuth.ensureMyComposerProfile();
   if (error) throw new Error('Aucune session active — connecte-toi avant de recharger (' + error + ').');
   loadedComposerId = composerId; // clé du brouillon automatique (un par compte)
+  await seedMyExamplesIfNeeded(); // exemples préchargés (4/11, 45-exemples.js) : copiés une fois, AVANT la lecture
   return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
 }
 

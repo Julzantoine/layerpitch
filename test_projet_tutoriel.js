@@ -11,7 +11,7 @@ const { JSDOM } = require('jsdom');
   const inlineSrc = html.match(/<script>\n(const shellTr[\s\S]*?)<\/script>/)[1];
 
   check('fermé au public par défaut (règle unique dans layerpitch-tuto.js)', /let flagOpen = false;/.test(read('layerpitch-tuto.js')));
-  check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO\) window\.LayerPitchShell/.test(inlineSrc));
+  check('pas de barre commune ni de vrai serveur en mode tutoriel', /if \(!DEMO && !TUTO(?: && !SOLO_MAP)?\) window\.LayerPitchShell/.test(inlineSrc));
 
   // Dans le test seulement, on ouvre le tutoriel (sans quoi le verrou admin renvoie vers la liste des projets).
   const opened = inlineSrc;
@@ -50,7 +50,7 @@ const { JSDOM } = require('jsdom');
   check('Projet fictif « Music City » chargé', /Music City/.test(d.getElementById('pTitle').textContent));
   check('discussion préremplie (13 messages)', d.querySelectorAll('.bubble').length === 13);
   check('les 4 villes du jeu sont des sections', ['Jazz City', 'Rock City', 'Disco City', 'Synth City'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
-  check('pas de liste de leçons dans le bandeau (elles se lancent depuis le menu des tutos)', !d.querySelector('[data-tutolesson]') && w.LayerPitchTutoLessons.list.filter(l => l.page === 'projet' && !l.soon).length === 8);
+  check('pas de liste de leçons dans le bandeau (elles se lancent depuis le menu des tutos)', !d.querySelector('[data-tutolesson]') && w.LayerPitchTutoLessons.list.filter(l => l.page === 'projet' && !l.soon).length === 9);
 
   // ---- Leçon « tchat »
   w.LayerPitchTutoLessons.start('pj-chat'); await wait(100);

@@ -55,6 +55,11 @@ function lpDeviceType() {
 // par le moteur quand il programme le son (futur) ou l'annonce après coup (passé), sinon l'heure courante.
 // `at` : heure EXACTE du contexte audio où le son a lieu (horloge du son, pas celle de la page ni de la vidéo) -- l'outil
 // vidéo s'en sert pour caler tous les sons entre eux à l'échantillon près, puis les replace d'un bloc sur la vidéo.
+// Fondu à l'arrêt (05/11, demande de Jules-Antoine) : durée réglée dans l'atelier vidéo (window.__lpStopFadeSec), 0 partout
+// ailleurs -- les lecteurs des pages publiques s'arrêtent net, comme avant. Plafonnée à 10 s.
+function lpStopFadeSec() { const v = Number(window.__lpStopFadeSec); return v > 0 ? Math.min(v, 10) : 0; }
+// Arrêter le morceau qui joue parce qu'un autre démarre : en fondu si l'atelier en a réglé un ('fade-stop-track'), sinon net.
+function lpStopOtherTrack(id) { document.dispatchEvent(new CustomEvent(lpStopFadeSec() > 0 ? 'fade-stop-track' : 'stop-track', { detail: id })); }
 function captureMark(name, detail) {
   try {
     const d = Object.assign({}, detail || {});
@@ -3492,6 +3497,15 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // qui doit baisser TOUT le morceau en cours d'un coup, peu importe son mode de lecture.
   const trackMasterGain = ctx.createGain();
   trackMasterGain.connect(ctx.destination);
+  // Fondu à l'arrêt (05/11) : pendant que le morceau s'éteint, le gain maître descend jusqu'à 0 (voir fadeThenStop) et rien d'autre
+  // n'y touche (duck). Le repère de capture « arrêt » est posé au début du fondu, avec sa durée : celui que le moteur pose ensuite, au
+  // vrai arrêt, est alors sauté (markVoicesStop).
+  let lpFadeOutTimer = null;
+  let lpSkipNextStopMark = false;
+  function markVoicesStop() {
+    if (lpSkipNextStopMark) { lpSkipNextStopMark = false; return; }
+    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+  }
 
   // ---- Journal de prise de CE morceau (voir setTakeRecording plus haut) ----
   // Une prise commence à chaque vrai démarrage (pas une reprise après pause, un saut dans la frise ou un retour de
@@ -3576,6 +3590,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // démarre dès la moitié du Sfx et s'étale sur une rampe longue — quitte à se terminer après la fin du
   // Sfx lui-même, plutôt que la remontée courte et collée à la toute fin d'avant.
   function duckMainTrack(sfxDurationSec, atTime) {
+    if (lpFadeOutTimer) return; // le morceau s'éteint (fondu à l'arrêt) : le duck le ferait remonter
     const now = atTime != null ? atTime : ctx.currentTime;
     trackMasterGain.gain.cancelScheduledValues(now);
     trackMasterGain.gain.setValueAtTime(trackMasterGain.gain.value, now);
@@ -4217,6 +4232,13 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // l'autre (Backstage vs public) mais jamais PENDANT la vie d'une page (posé une fois par la page hôte
   // avant tout rendu, comme currentSeqMapTheme()) -- lues à chaque appel plutôt que figées une fois pour
   // ne pas dupliquer cette logique entre updateSeqMap() et seqMapDrawEdges(), qui en ont toutes deux besoin.
+  // Retour de Peter K (06/11) : « Répétitions avant de passer au suivant » ne se voyait pas sur la carte. Pastille « ×N » quand
+  // l'emplacement se joue plusieurs fois d'affilée (sans objet pour un emplacement à embranchements, qui ne repart jamais tout seul).
+  function seqMapRepeatBadge(slot) {
+    const n = Math.max(1, parseInt(slot && slot.repeatCount, 10) || 1);
+    if (n < 2 || (slot.nextOptions && slot.nextOptions.length)) return '';
+    return `<span class="seq-map-node-repeat" title="${escapeHtml(t('seqMapRepeatTitle', { n }))}">×${n}</span>`;
+  }
   function seqMapColGap() { return currentSeqMapDensity() === 'roomy' ? 56 : 40; }
   function seqMapRowGap() { return currentSeqMapDensity() === 'roomy' ? 24 : 16; }
   // Boucles de retour (03/09, retour direct "elles sont tracées un peu aléatoirement") : marge sous TOUTE
@@ -4475,7 +4497,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         const label = slot.label || t('slotFallback', { n: idx + 1 });
         const cls = 'seq-map-node' + nodeStateCls(idx, slot);
         const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
-        return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+        return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}"><span class="seq-map-node-label">${escapeHtml(label)}${seqMapRepeatBadge(slot)}</span>${check}</div>`;
       }).join('');
       attachSeqMapNodeClicks(currentSlot);
       return;
@@ -4561,7 +4583,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       const check = (wasPlayed(idx) && idx !== currentIdx) ? '<span class="seq-map-node-check">✓</span>' : '';
       const accent = roomy ? SEQ_MAP_NODE_PALETTE[idx % SEQ_MAP_NODE_PALETTE.length] : null;
       const style = `left:${positions[idx].x}px;top:${positions[idx].y}px` + (accent ? `;--seq-map-node-accent:${accent}` : '');
-      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}</span>${check}</div>`;
+      return `<div class="${cls}" data-slot-idx="${idx}" data-slot-id="${escapeHtml(slot.id || '')}" style="${style}"><span class="seq-map-node-label">${escapeHtml(label)}${seqMapRepeatBadge(slot)}</span>${check}</div>`;
     }).join('');
     seqMapDrawEdges(layout, visibleIdx, positions, w, h, totalW, totalH, roomy);
     attachSeqMapNodeClicks(currentSlot);
@@ -5066,7 +5088,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     }
   }
   function stopSequential() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     seqFinalMarkerSrc = null;
     if (seqSchedulerTimer) { clearInterval(seqSchedulerTimer); seqSchedulerTimer = null; }
     seqActiveSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -5317,7 +5339,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
 
   /* ---- Moteur simple (bouclage natif, comportement existant inchangé) ---- */
   function stopSimple(keepPosition) {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     if (keepPosition !== false) {
       offsetAt = computeElapsed();
     }
@@ -5585,7 +5607,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     chainHooks.onFinalBoundary(at);
   }
   function stopQuantized() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     finalGenerationMarkerSrc = null;
     if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -6064,7 +6086,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     }
   }
   function stopEmbrVertical() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     if (embrSchedulerTimer) { clearInterval(embrSchedulerTimer); embrSchedulerTimer = null; }
     if (embrDetourTimeout) { clearTimeout(embrDetourTimeout); embrDetourTimeout = null; }
     if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
@@ -6566,7 +6588,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     };
   }
   function stopVerticalRandom() {
-    captureMark('voices_stop', { trackId: track.id }); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête net
+    markVoicesStop(); // repère de capture : tout ce qui sonnait pour ce morceau s'arrête (sauf fondu déjà annoncé)
     finalGenerationMarkerSrc = null;
     if (vrSchedulerTimer) { clearInterval(vrSchedulerTimer); vrSchedulerTimer = null; }
     activeGenSources.forEach(({ src }) => { try { src.stop(); } catch(e){} });
@@ -6744,6 +6766,22 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // lecture est un vrai démarrage (intro, premier emplacement/section, boucle de référence, offset 0) et
   // ouvre une nouvelle prise. Le bouton n'est visible que lorsqu'il y a quelque chose à arrêter (lecture
   // en cours ou pause en milieu de morceau).
+  // Fondu à l'arrêt (05/11, atelier vidéo) : Stop, ou un autre morceau lancé, font descendre le gain maître jusqu'à 0 en
+  // lpStopFadeSec() secondes, puis arrêtent vraiment (finish). Sans durée réglée (pages publiques) ou à l'arrêt : tout de suite.
+  function beginFadeOut(sec) {
+    const now = ctx.currentTime, g = trackMasterGain.gain;
+    g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(0, now + sec);
+    captureMark('voices_stop', { trackId: track.id, fadeSec: sec, at: now }); // le rendu de l'atelier refait le même fondu
+    lpSkipNextStopMark = true;
+  }
+  function cancelFadeOut() { if (lpFadeOutTimer) { clearTimeout(lpFadeOutTimer); lpFadeOutTimer = null; } }
+  function fadeThenStop(finish) {
+    if (lpFadeOutTimer) return; // déjà en train de s'éteindre
+    const sec = lpStopFadeSec();
+    if (!sec || !playing) { finish(); return; }
+    beginFadeOut(sec);
+    lpFadeOutTimer = setTimeout(() => { lpFadeOutTimer = null; finish(); }, sec * 1000 + 30);
+  }
   function stopThisTrack() {
     pausedResume = null;
     stopAllSources(false);
@@ -6769,6 +6807,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (take) take.resumable = true;
   }
   function stopAllSources(keepPosition) {
+    cancelFadeOut(); // pause ou arrêt pendant un fondu : coupe ce qui reste
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
     if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
     chainGens = []; chainEmbrMarker = null;
@@ -6815,7 +6854,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   function playThisTrack(reroll, isContinuation) {
     if (!concurrent) {
       if (activeTrackId && activeTrackId !== track.id) {
-        document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+        lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
         if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
       }
       Object.keys(trackCollapsers).forEach(id => {
@@ -6982,6 +7021,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   });
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
+  document.addEventListener('fade-stop-track', (e) => { if (e.detail === track.id) fadeThenStop(() => stopAllSources()); });
   // Reprise après mise en veille de l'écran ou passage en arrière-plan : les minuteurs de programmation
   // et l'horloge audio peuvent avoir été suspendus pendant ce temps, laissant une programmation obsolète
   // qui resterait silencieuse indéfiniment sans ça. On relance proprement depuis la position actuelle
@@ -7038,7 +7078,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     playThisTrack(false, true);
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
-  if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
+  if (stopBtn) stopBtn.addEventListener('click', () => fadeThenStop(stopThisTrack));
   // Pilotage par programme (Carte de niveau, écoute aléatoire des albums) : démarrer à un niveau donné, régler le niveau avec une rampe,
   // arrêter, être prévenu de la fin naturelle, et savoir quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée
   // depuis son départ). Disponible sur tout lecteur ; seul `concurrent` joue en même temps que les autres.
@@ -7061,19 +7101,25 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       };
       if (!tick()) lpLoopTimer = setInterval(() => { if (tick()) { clearInterval(lpLoopTimer); lpLoopTimer = null; } }, 100);
     }
-    let lpWaitTimer = null;
+    let lpWaitTimer = null, lpPendingRamp = null;
     const lpCancelWait = () => { if (lpWaitTimer) { clearInterval(lpWaitTimer); lpWaitTimer = null; } };
     wrapper.lpControl = {
       // Démarrer : si les fichiers du morceau ne sont pas encore chargés (le chargement est asynchrone), on attend qu'ils le soient (au plus
       // 2 minutes) au lieu de « jouer » dans le vide ; stop() annule l'attente. isReady() : les fichiers sont chargés.
+      // Un réglage de niveau demandé pendant l'attente (le fondu d'entrée de la Carte : start(0) puis setLevel(1, durée)) est gardé et joué
+      // au démarrage : sans cela, un morceau pas encore chargé démarrait à 0 et restait muet (05/11, « ça ne marche pas du premier coup »).
       start(level) {
-        const go = () => { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); };
-        lpCancelWait();
+        const go = () => {
+          if (!playing) playThisTrack(true);
+          trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime);
+          if (lpPendingRamp) { const r = lpPendingRamp; lpPendingRamp = null; rampTo(r.level, r.sec); }
+        };
+        lpCancelWait(); lpPendingRamp = null;
         if (ready || playing) { go(); return; }
         let waited = 0;
         lpWaitTimer = setInterval(() => { waited += 100; if (ready) { lpCancelWait(); go(); } else if (waited > 120000) lpCancelWait(); }, 100);
       },
-      stop() { lpCancelWait(); if (playing) stopAllSources(false); },
+      stop() { lpCancelWait(); lpPendingRamp = null; if (playing) stopAllSources(false); },
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
       // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
@@ -7094,12 +7140,14 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         else chainRequestEnd();
       },
       pause: () => pauseThisTrack(),
+      // Séquentiel hybride : la section qui sonne s'éteint en fondu (le parent l'arrête ensuite, voir fadeThenStopAll).
+      beginFadeOut(sec) { if (playing && !lpFadeOutTimer) beginFadeOut(sec); },
       resume: () => playThisTrack(true),
       reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
-      setLevel: rampTo,
+      setLevel(level, sec) { if (lpWaitTimer) { lpPendingRamp = { level, sec }; return; } rampTo(level, sec); },
       isPlaying: () => playing,
       onEnded(cb) { lpEndedCb = cb; },
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
@@ -7968,7 +8016,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   }
   function startChain() {
     if (activeTrackId && activeTrackId !== track.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
     Object.keys(trackCollapsers).forEach(id => { if (id !== track.id) trackCollapsers[id](); });
@@ -8001,6 +8049,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     if (transitionSrc) { try { transitionSrc.stop(); } catch (e) {} transitionSrc = null; }
   }
   function pause() {
+    if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     // Une section programmée mais pas encore entendue est annulée : le passage sera recalculé à la reprise.
     if (pending && pending.given) players[pending.to].control.reset();
     stopTransition();
@@ -8016,7 +8065,17 @@ function initHybridPlayer(track, wrapper, elementColors) {
     clearInterval(timer); timer = null;
     setPlayUI();
   }
+  // Fondu à l'arrêt (05/11, atelier vidéo) : les sections qui sonnent s'éteignent, puis tout s'arrête.
+  let fadeTimer = null;
+  function fadeThenStopAll() {
+    if (fadeTimer) return;
+    const sec = lpStopFadeSec();
+    if (!sec || !playing) { stopAll(); return; }
+    players.forEach(p => p.control.beginFadeOut(sec));
+    fadeTimer = setTimeout(() => { fadeTimer = null; stopAll(); }, sec * 1000 + 30);
+  }
   function stopAll() {
+    if (fadeTimer) { clearTimeout(fadeTimer); fadeTimer = null; }
     if (timer) { clearInterval(timer); timer = null; }
     players.forEach(p => p.control.reset());
     stopTransition();
@@ -8029,7 +8088,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
   }
 
   playBtn.addEventListener('click', () => { playing ? pause() : play(); });
-  stopBtn.addEventListener('click', () => { stopAll(); });
+  stopBtn.addEventListener('click', () => { fadeThenStopAll(); });
   nextBtn.addEventListener('click', () => {
     if (!playing || cur < 0) return;
     trackPublicEvent('hybrid_next', { trackId: track.id, sectionIndex: cur });
@@ -8058,6 +8117,7 @@ function initHybridPlayer(track, wrapper, elementColors) {
     refreshNext();
   });
   document.addEventListener('stop-track', e => { if (e.detail === track.id) { stopAll(); } });
+  document.addEventListener('fade-stop-track', e => { if (e.detail === track.id) fadeThenStopAll(); });
 
   // Le bouton Lecture s'active quand TOUTES les sections sont chargées : un passage ne peut pas attendre un téléchargement.
   const isReady = () => transitionsLoaded && players.every(p => p.control.isReady());
@@ -8413,9 +8473,19 @@ function buildSfxPlayer(sfxDef) {
     animateMainWaveProgress(buf.duration);
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    connectSfxSource(src, sfxDef);
-    src.start();
+    // Même départ précis que les Sfx de morceau (instant connu à l'avance), pour que l'atelier vidéo cale le son à l'échantillon près.
+    const startAt = ctx.currentTime + SFX_START_LEAD_SEC;
+    const spatialVoice = connectSfxSource(src, sfxDef, null, startAt);
+    src.start(startAt);
     activeSource = src;
+    // Capture vidéo (06/11, retour de Jules-Antoine : « tout ce sur quoi on clique est enregistré ») : un Sfx joué seul, sans
+    // morceau, laisse le même repère qu'un Sfx de morceau (stinger_play), sans trackId. Repère de capture seulement : rien
+    // n'est envoyé aux statistiques (pas de trackPublicEvent).
+    // variationIndex = rang parmi les variations qui ont un fichier (la liste que relit le calcul du rendu).
+    const withFile = alts.slice(0, i + 1).filter(a => a.file || a.localFile || a.localUrl).length - 1;
+    captureMark('stinger_play', Object.assign({ sfxId: sfxDef.id, variationIndex: Math.max(0, withFile), fileDuration: buf.duration, at: startAt },
+      spatialVoice && spatialVoice.stepIndex != null ? { spatialStep: spatialVoice.stepIndex } : {},
+      spatialVoice && spatialVoice.__spUsed ? { spatial: spatialVoice.__spUsed } : {}));
     src.onended = () => {
       if (activeSource === src) {
         activeSource = null;
@@ -8427,7 +8497,7 @@ function buildSfxPlayer(sfxDef) {
   rrBlocks.forEach((block, i) => { block.addEventListener('click', () => playIndex(i)); });
   playBtn.addEventListener('click', () => {
     if (activeTrackId && activeTrackId !== sfxDef.id) {
-      document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+      lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
       if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
     }
     Object.keys(trackCollapsers).forEach(id => { if (id !== sfxDef.id) trackCollapsers[id](); });

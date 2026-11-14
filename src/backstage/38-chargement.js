@@ -99,6 +99,7 @@ async function loadData(silent) {
 
       return {
         id: t.id, title: t.title, description: t.description || '', tags: t.tags || '', mode, protected: !!t.protected,
+        exampleSourceId: t.exampleSourceId || null, // exemple préchargé (4/11) : voir 45-exemples.js
         implementationNote: t.implementationNote || '',
         noAiOverride: (t.noAiOverride === true || t.noAiOverride === false) ? t.noAiOverride : null,
         duration: t.duration || 0, base: t.base || '', loopable: !!t.loopable,
@@ -188,7 +189,7 @@ async function loadData(silent) {
         folderId: t.folderId || null
       };
     });
-    libraryFolders = (data.libraryFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
+    libraryFolders = (data.libraryFolders || []).map(f => ({ id: f.id, label: f.label || '', exampleSourceId: f.exampleSourceId || null }));
     // Dossiers fermés par défaut à l'ouverture (29/08, retour de Jules-Antoine) : peupler l'ensemble des
     // dossiers repliés avec TOUS les dossiers existants juste après leur chargement, plutôt que de partir
     // d'un Set() vide qui les laissait tous ouverts. Un dossier créé plus tard dans la session (bouton "+
@@ -196,7 +197,7 @@ async function loadData(silent) {
     libraryFolders.forEach(f => collapsedLibraryFolderIds.add(f.id));
     library.forEach(t => { if (t.folderId && !libraryFolders.some(f => f.id === t.folderId)) t.folderId = null; });
     sfxLibrary = (data.sfxLibrary || []).map(s => ({
-      id: s.id, title: s.title || '', protected: !!s.protected,
+      id: s.id, title: s.title || '', protected: !!s.protected, exampleSourceId: s.exampleSourceId || null,
       // Repli sur l'ancien champ unique "description" pour tout Sfx publié avant le passage au bilingue —
       // lu une fois ici, jamais réécrit dans l'ancien champ ensuite (même principe que tagline -> title/subtitle).
       descriptionFr: s.descriptionFr != null ? s.descriptionFr : (s.description || ''),
@@ -205,17 +206,18 @@ async function loadData(silent) {
       rrMode: s.rrMode === 'sequential' ? 'sequential' : 'random',
       duckMainTrack: !!s.duckMainTrack,
       spatial: s.spatial || null,
+      base: s.base || '', // dossier des fichiers (tutos : tuto/SFX/, exemples : celui de la source) -- lu par previewMediaBase()
       alternatives: (s.alternatives || []).map(a => ({ label: a.label || '', remoteFile: a.file, originalFileName: a.originalFileName || null, pendingFile: null })),
       folderId: s.folderId || null
     }));
-    sfxFolders = (data.sfxFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
+    sfxFolders = (data.sfxFolders || []).map(f => ({ id: f.id, label: f.label || '', exampleSourceId: f.exampleSourceId || null }));
     sfxFolders.forEach(f => collapsedSfxFolderIds.add(f.id)); // fermés par défaut à l'ouverture (29/08), même principe que libraryFolders ci-dessus
     sfxLibrary.forEach(s => { if (s.folderId && !sfxFolders.some(f => f.id === s.folderId)) s.folderId = null; });
     socials = (data.socials || []).map(s => ({ id: s.id, platform: s.platform || 'twitter', url: s.url || '' }));
     adReelFolders = (data.adReelFolders || []).map(f => ({ id: f.id, label: f.label || '' }));
     adReelFolders.forEach(f => collapsedAdReelFolderIds.add(f.id)); // fermés par défaut à l'ouverture (29/08), même principe que libraryFolders ci-dessus
     packs = (data.packs || []).map(p => ({
-      id: p.id, title: p.title || '', illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, pendingIllustration: null,
+      id: p.id, exampleSourceId: p.exampleSourceId || null, title: p.title || '', illustration: p.illustration || null, illustrationOriginalName: p.illustrationOriginalName || null, pendingIllustration: null,
       watermark: p.watermark || null, watermarkOriginalName: p.watermarkOriginalName || null, pendingWatermark: null,
       // Migration douce : les packs publiés avant l'architecture bilingue n'ont qu'un champ "presentation"
       // unique — repris tel quel comme version française plutôt que perdu.
@@ -255,6 +257,7 @@ async function loadData(silent) {
       trackOverrides: a.trackOverrides ? JSON.parse(JSON.stringify(a.trackOverrides)) : {},
       allowIndexing: a.allowIndexing !== false,
       accessMode: a.accessMode || 'public',
+      exampleSourceId: a.exampleSourceId || null, // AdReel « Démo » d'exemple (4/11) : aucune page publique
       slug: a.slug || null,
       blocks: migrateBlocks(a).map(b => {
         if (b.type === 'photo') return { ...b, images: (b.images || []).map(img => ({ file: img.file, originalFileName: img.originalFileName || null, pendingFile: null })) };
@@ -268,10 +271,12 @@ async function loadData(silent) {
     // entre deux publications par exemple) fait remonter l'AdReel à la racine plutôt que de le rendre
     // introuvable dans la liste maître.
     adReels.forEach(a => { if (a.folderId && !adReelFolders.some(f => f.id === a.folderId)) a.folderId = null; });
-    if (adReels.length === 0) {
-      adReels.push({ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
+    // L'AdReel Démo d'exemple (4/11) s'ajoute à côté de l'AdReel principal, ne le remplace jamais : un compte qui n'a que lui
+    // reçoit quand même son AdReel principal vierge, en tête.
+    if (!adReels.some(a => !a.exampleSourceId)) {
+      adReels.unshift({ id: 'main', label: tr('defaultAdreelLabel'), lang: currentLang(), blocks: freshBlocks(), profile: { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) }, testimonials: [], trackIds: [], trackOverrides: {}, allowIndexing: true, logoPendingFile: null, photoPendingFile: null, themeBgImagePendingFile: null, folderId: null });
     }
-    currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : adReels[0].id;
+    currentAdReelId = adReels.some(a => a.id === 'main') ? 'main' : (adReels.find(a => !a.exampleSourceId) || adReels[0]).id;
     const cur = adReels.find(a => a.id === currentAdReelId);
     blocks = cur.blocks; profile = cur.profile; testimonials = cur.testimonials; trackIds = cur.trackIds; trackOverrides = cur.trackOverrides || (cur.trackOverrides = {});
     logoPendingFile = cur.logoPendingFile; photoPendingFile = cur.photoPendingFile; themeBgImagePendingFile = cur.themeBgImagePendingFile || null;

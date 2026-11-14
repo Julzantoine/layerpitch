@@ -57,10 +57,10 @@ function cloneTrackWithRemap(track) {
 }
 // Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
 // Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
-// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+// l'original. Un morceau protégé est copiable (12/11) : la copie naît publique, puis la publication la protège si le feu vert est ouvert. Renvoie la copie, ou null.
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
-  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
+  if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;
   copy.title = src.title && String(src.title).trim() ? tr('duplicateLabel', { label: src.title }) : src.title;
@@ -235,11 +235,21 @@ document.addEventListener('pointercancel', releaseAllDragHandles);
 // leur propre conteneur.
 let draggedOrgItemId = null;
 let draggedOrgFolderId = null;
+let draggedOrgGroupIds = null; // sélection multiple glissée d'un bloc (05/11), null = une seule ligne
 function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateItem) {
+  wireOrgMultiSelect(containerEl, getItems, getFolders, onDrop);
   containerEl.addEventListener('pointerdown', (e) => {
     const folderHandle = e.target.closest('.folder-drag-handle');
     if (folderHandle) {
       const group = folderHandle.closest('.org-folder-group');
+      if (group) group.draggable = true;
+      return;
+    }
+    // Retour bêta 11/11 : « la zone pour attraper n'est pas toujours la même (un coin, parfois le bloc) ». Une ligne se saisit par son
+    // corps ; un dossier doit aussi se saisir par le corps de son en-tête (hors champ du nom et boutons), pas seulement par sa poignée.
+    const folderHeader = e.target.closest('.org-folder-header');
+    if (folderHeader && dragBodyArms(e)) {
+      const group = folderHeader.closest('.org-folder-group');
       if (group) group.draggable = true;
       return;
     }
@@ -258,6 +268,15 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     const row = e.target.closest('.org-row');
     if (!row || e.target !== row || !row.draggable) return;
     draggedOrgItemId = row.dataset.dragId;
+    // Ligne prise dans une sélection multiple (05/11) : toute la sélection part avec elle ; sinon la sélection est oubliée.
+    const sel = orgSelState(containerEl);
+    if (flagOpen('multi_select_folders') && sel.ids.has(draggedOrgItemId) && sel.ids.size > 1) {
+      draggedOrgGroupIds = new Set(sel.ids);
+      containerEl.querySelectorAll('.org-row.multi-selected').forEach(r => r.classList.add('dragging'));
+    } else {
+      draggedOrgGroupIds = null;
+      if (sel.ids.size) { sel.ids.clear(); paintOrgSelection(containerEl); }
+    }
     row.classList.add('dragging');
     containerEl.classList.add('is-reordering');
     // Option / Alt enfoncé = le navigateur demande une COPIE : si la prise n'autorise que « move », il refuse le dépôt (6/10).
@@ -268,7 +287,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
   // recalculée au lâcher, où la souris peut se trouver dans un interstice) et, hors d'une ligne, on retient la ligne la plus
   // proche en hauteur au lieu de refuser le dépôt. dropTarget = { kind: 'row'|'group'|'zone', el, before }.
   let dropTarget = null;
-  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target'));
+  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target, .org-drop-folder').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target', 'org-drop-folder'));
   function nearestBy(selector, y, exceptId) {
     let best = null, bestD = Infinity;
     containerEl.querySelectorAll(selector).forEach(el => {
@@ -290,6 +309,17 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (!draggedOrgItemId) return null;
     const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
     let row = e.target.closest('.org-row');
+    // Retour bêta 11/11 : impossible de ranger un morceau dans un dossier replié, ni de le sortir d'un dossier. Déposer sur l'EN-TÊTE d'un
+    // dossier (ouvert ou replié) le range dedans, en dernier ; déposer sur la zone « Hors dossier » le sort de son dossier.
+    if (!row) {
+      const header = e.target.closest('.org-folder-header');
+      const headerGroup = header && header.closest('.org-folder-group');
+      if (headerGroup) return { kind: 'folder', el: headerGroup, folderId: headerGroup.dataset.dragId };
+      const rootHint = e.target.closest('.org-root-hint');
+      if (rootHint) return { kind: 'zone', el: rootHint.closest('.org-root-dropzone') };
+      const collapsedGroup = e.target.closest('.org-folder-group');
+      if (collapsedGroup && !collapsedGroup.querySelector('.org-folder-dropzone')) return { kind: 'folder', el: collapsedGroup, folderId: collapsedGroup.dataset.dragId };
+    }
     // Une zone sans aucune ligne (dossier vide) reçoit le dépôt ; sinon la ligne visée, ou à défaut la plus proche.
     if (!row && zone && !zone.querySelector('.org-row')) return { kind: 'zone', el: zone };
     if (!row || row.dataset.dragId === draggedOrgItemId) row = nearestBy('.org-row', e.clientY, draggedOrgItemId);
@@ -305,8 +335,12 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (duplicateItem && draggedOrgItemId) { try { e.dataTransfer.dropEffect = isDuplicateDrag(e) ? 'copy' : 'move'; } catch (err) { /* non bloquant */ } }
     dropTarget = t;
     clearIndicators();
-    if (t.kind === 'zone') t.el.classList.add('org-drop-target');
-    else { t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before); }
+    if (t.kind === 'zone' || t.kind === 'folder') t.el.classList.add('org-drop-target');
+    else {
+      t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before);
+      // Le dossier d'arrivée est teinté : la barre seule ne disait pas dans QUEL dossier la ligne atterrit.
+      if (t.kind === 'row' && draggedOrgItemId) { const z = t.el.closest('.org-folder-dropzone, .org-root-dropzone'); if (z) z.classList.add('org-drop-folder'); }
+    }
   });
   containerEl.addEventListener('dragleave', (e) => {
     if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); } // sorti de la liste : plus de cible
@@ -342,11 +376,33 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (!it || !target) return;
     const fromIdx = items.indexOf(it);
     const targetRow = target.kind === 'row' ? target.el : null;
-    const zone = target.kind === 'zone' ? target.el : null;
+    // « zone » = un dossier visé sans ligne précise (zone vide, zone « Hors dossier » ou en-tête d'un dossier) : l'élément y entre en dernier.
+    const zone = (target.kind === 'zone' || target.kind === 'folder')
+      ? { dataset: { folderId: target.kind === 'folder' ? target.folderId : target.el.dataset.folderId } } : null;
     // Alt + glisser (6/10) : le morceau est COPIÉ à l'endroit visé au lieu d'être déplacé (liste qui le permet : duplicateItem).
     if (duplicateItem && isDuplicateDrag(e)) {
       if (targetRow) duplicateItem(it, { folderId: targetRow.dataset.folderId || null, anchorId: targetRow.dataset.dragId, before: target.before });
       else if (zone) duplicateItem(it, { folderId: zone.dataset.folderId || null, append: true });
+      return;
+    }
+    const groupIds = draggedOrgGroupIds;
+    draggedOrgGroupIds = null;
+    if (groupIds) {
+      // Sélection multiple (05/11) : toutes les lignes choisies, dans leur ordre actuel, vont ensemble à l'endroit visé.
+      if (targetRow && groupIds.has(targetRow.dataset.dragId)) return; // lâchée sur elle-même : rien ne bouge
+      const moving = items.filter(x => groupIds.has(x.id));
+      const targetFolderId = targetRow ? (targetRow.dataset.folderId || null) : (zone ? (zone.dataset.folderId || null) : undefined);
+      if (targetFolderId === undefined) return;
+      for (let i = items.length - 1; i >= 0; i--) if (groupIds.has(items[i].id)) items.splice(i, 1);
+      let insertAt = items.length;
+      if (targetRow) {
+        const t = items.findIndex(x => x.id === targetRow.dataset.dragId);
+        if (t !== -1) insertAt = target.before ? t : t + 1;
+      }
+      moving.forEach(x => { x.folderId = targetFolderId; });
+      items.splice(insertAt, 0, ...moving);
+      hasUnsavedEdits = true;
+      onDrop();
       return;
     }
     if (targetRow) {
@@ -376,12 +432,14 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (group) { group.classList.remove('dragging'); group.draggable = false; }
     const row = e.target.closest('.org-row');
     if (row) { row.classList.remove('dragging'); row.draggable = false; }
+    containerEl.querySelectorAll('.org-row.dragging').forEach(r => r.classList.remove('dragging'));
     containerEl.classList.remove('is-reordering');
-    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
+    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target, .org-drop-folder').forEach(el => {
+      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target', 'org-drop-folder');
     });
     draggedOrgItemId = null;
     draggedOrgFolderId = null;
+    draggedOrgGroupIds = null;
     dropTarget = null;
   });
 }
@@ -409,13 +467,15 @@ document.addEventListener('pointercancel', releaseAllOrgFolderDragHandles);
 function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opts) {
   function rowEl(item) {
     const row = document.createElement('div');
-    row.className = 'seq-master-item org-row' + (item.id === opts.selectedId ? ' active' : '');
+    row.className = 'seq-master-item org-row' + (item.id === opts.selectedId ? ' active' : '') + (sel.ids.has(item.id) ? ' multi-selected' : '');
     row.dataset.action = opts.selectAction;
     row.dataset.dragId = item.id;
     row.dataset.folderId = item.folderId || '';
     row.innerHTML = `${dragHandleHtml()}${opts.buildRowInner(item)}`;
     return row;
   }
+  const sel = orgSelState(masterHost);
+  sel.ids.forEach(id => { if (!items.some(it => it.id === id)) sel.ids.delete(id); }); // élément supprimé entre-temps
   masterHost.innerHTML = '';
   folders.forEach(folder => {
     const itemsInFolder = items.filter(it => it.folderId === folder.id);
@@ -428,7 +488,8 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
         ${dragHandleHtml('folder-drag-handle')}
         <button class="btn btn-icon" data-action="${opts.toggleFolderAction}" data-folder-id="${folder.id}" type="button">${collapsed ? '▸' : '▾'}</button>
         <input type="text" class="org-folder-title" ${opts.folderFieldAttr}="label" data-folder-id="${folder.id}" value="${escapeAttr(folder.label)}" placeholder="${tr(opts.folderFallbackKey)}">
-        ${opts.packFromFolderAction ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
+        ${isExample(folder) ? exampleBadgeHtml() : ''}
+        ${opts.packFromFolderAction && !isExample(folder) ? `<button type="button" class="btn btn-small org-folder-pack-btn" data-action="${opts.packFromFolderAction}" data-folder-id="${folder.id}" ${flagOpen('pack_from_folder') ? '' : 'disabled'} title="${escapeAttr(tr(flagOpen('pack_from_folder') ? 'packFromFolderHint' : 'packFromFolderLockedHint'))}">${tr('packFromFolderBtn')}</button>` : ''}
         ${deleteIconBtnHtml(opts.deleteFolderAction, { 'folder-id': folder.id }, tr('deleteBtn'))}
       </div>
     `;
@@ -449,8 +510,134 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
   rootZone.className = 'org-root-dropzone';
   rootZone.dataset.folderId = ''; // racine, hors de tout dossier
   items.filter(it => !it.folderId).forEach(it => rootZone.appendChild(rowEl(it)));
+  // Zone « Hors dossier », visible seulement pendant un glisser (10 px de haut avant : on ne pouvait pas sortir un élément d'un dossier).
+  if (folders.length) rootZone.insertAdjacentHTML('beforeend', `<div class="org-root-hint">${tr('orgRootDropHint')}</div>`);
   masterHost.appendChild(rootZone);
 }
+// ---- Sélection multiple + « Créer un dossier avec la sélection » (05/11, demande de Jules-Antoine) ----
+// Mêmes gestes que le Finder, dans les trois listes à dossiers (morceaux, Sfx, AdReels) :
+//   Cmd (Ctrl sur PC) + clic  ajoute / retire une ligne de la sélection (la ligne affichée en fait partie d'office)
+//   Maj + clic                sélectionne toutes les lignes visibles entre la dernière cliquée et celle-ci
+//   clic simple / Échap       oublie la sélection
+//   clic droit                menu « Créer un dossier avec la sélection » (sur une ligne hors sélection : elle seule)
+//   glisser une ligne choisie emporte toute la sélection (voir wireOrgDragDrop)
+// La sélection vit ici, par conteneur (id du DOM), pas dans les données : rien n'est enregistré.
+// Admin seulement jusqu'au feu vert 'multi_select_folders' : ailleurs, les clics gardent leur effet habituel.
+const orgMultiSel = new Map();
+function orgSelState(host) {
+  const key = host.id || 'org';
+  let st = orgMultiSel.get(key);
+  if (!st) { st = { ids: new Set(), anchor: null }; orgMultiSel.set(key, st); }
+  return st;
+}
+function paintOrgSelection(host) {
+  const st = orgSelState(host);
+  host.querySelectorAll('.org-row').forEach(r => r.classList.toggle('multi-selected', st.ids.has(r.dataset.dragId)));
+}
+function wireOrgMultiSelect(containerEl, getItems, getFolders, rerender) {
+  if (containerEl.dataset.multiSelWired) return; // conteneur statique : écouteurs posés une seule fois
+  containerEl.dataset.multiSelWired = '1';
+  const st = () => orgSelState(containerEl);
+  const activeRowId = () => { const a = containerEl.querySelector('.org-row.active'); return a ? a.dataset.dragId : null; };
+  // Phase de capture : Cmd/Maj + clic ne doivent PAS atteindre le gestionnaire du panneau (qui afficherait la ligne).
+  containerEl.addEventListener('click', e => {
+    if (!flagOpen('multi_select_folders')) return;
+    const row = e.target.closest('.org-row');
+    if (!row) return;
+    const s = st();
+    const id = row.dataset.dragId;
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault(); e.stopPropagation();
+      if (!s.ids.size) { const a = activeRowId(); if (a) s.ids.add(a); }
+      if (s.ids.has(id)) s.ids.delete(id); else s.ids.add(id);
+      s.anchor = id;
+      paintOrgSelection(containerEl);
+      return;
+    }
+    if (e.shiftKey) {
+      e.preventDefault(); e.stopPropagation();
+      const order = [...containerEl.querySelectorAll('.org-row')].map(r => r.dataset.dragId); // ordre affiché (dossiers repliés exclus)
+      let anchor = s.anchor && order.includes(s.anchor) ? s.anchor : activeRowId();
+      if (!anchor || !order.includes(anchor)) anchor = id;
+      const a = order.indexOf(anchor), b = order.indexOf(id);
+      s.ids = new Set(order.slice(Math.min(a, b), Math.max(a, b) + 1));
+      s.anchor = anchor; // Maj + clic suivant repart du même point, comme le Finder
+      paintOrgSelection(containerEl);
+      return;
+    }
+    s.ids.clear(); // clic simple : affichage normal (le panneau re-rend), sélection oubliée
+    s.anchor = id;
+  }, true);
+  containerEl.addEventListener('contextmenu', e => {
+    if (!flagOpen('multi_select_folders')) return;
+    const row = e.target.closest('.org-row');
+    if (!row) return;
+    e.preventDefault();
+    const s = st();
+    const id = row.dataset.dragId;
+    if (!s.ids.has(id)) { s.ids = new Set([id]); s.anchor = id; paintOrgSelection(containerEl); }
+    const n = s.ids.size;
+    openOrgContextMenu(e.clientX, e.clientY, [
+      { label: tr('orgFolderFromSelection', { n }), run: () => createFolderFromOrgSelection(containerEl, getItems, getFolders, rerender) }
+    ]);
+  });
+}
+function createFolderFromOrgSelection(containerEl, getItems, getFolders, rerender) {
+  const s = orgSelState(containerEl);
+  const items = getItems();
+  const folders = getFolders();
+  const chosen = items.filter(it => s.ids.has(it.id));
+  if (!chosen.length) return;
+  const folder = { id: genId(), label: tr('defaultOrgFolderLabel', { n: folders.length + 1 }) };
+  // Le nouveau dossier se place juste avant le dossier de la première ligne choisie (ou en dernier si elle est à la racine).
+  const firstFolderIdx = folders.findIndex(f => f.id === chosen[0].folderId);
+  if (firstFolderIdx === -1) folders.push(folder); else folders.splice(firstFolderIdx, 0, folder);
+  chosen.forEach(it => { it.folderId = folder.id; });
+  s.ids.clear();
+  hasUnsavedEdits = true;
+  rerender();
+  // Nom du dossier prêt à être tapé, comme le Finder.
+  const input = containerEl.querySelector(`.org-folder-title[data-folder-id="${folder.id}"]`);
+  if (input) { input.scrollIntoView({ block: 'nearest' }); input.focus(); input.select(); }
+}
+// Petit menu contextuel générique : se ferme au clic ailleurs, à Échap, au défilement ou au redimensionnement.
+let orgCtxMenuEl = null;
+function closeOrgContextMenu() { if (orgCtxMenuEl) { orgCtxMenuEl.remove(); orgCtxMenuEl = null; } }
+function openOrgContextMenu(x, y, entries) {
+  closeOrgContextMenu();
+  const menu = document.createElement('div');
+  menu.className = 'org-ctx-menu';
+  menu.setAttribute('role', 'menu');
+  entries.forEach(en => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'org-ctx-item';
+    b.setAttribute('role', 'menuitem');
+    b.textContent = en.label;
+    b.addEventListener('click', ev => { ev.stopPropagation(); closeOrgContextMenu(); en.run(); });
+    menu.appendChild(b);
+  });
+  document.body.appendChild(menu);
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.max(4, Math.min(x, window.innerWidth - r.width - 4)) + 'px';
+  menu.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 4)) + 'px';
+  orgCtxMenuEl = menu;
+  const first = menu.querySelector('button');
+  if (first) first.focus({ preventScroll: true });
+}
+document.addEventListener('pointerdown', e => { if (orgCtxMenuEl && !orgCtxMenuEl.contains(e.target)) closeOrgContextMenu(); }, true);
+window.addEventListener('scroll', closeOrgContextMenu, true);
+window.addEventListener('resize', closeOrgContextMenu);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (orgCtxMenuEl) { closeOrgContextMenu(); return; }
+  orgMultiSel.forEach((s, key) => {
+    if (!s.ids.size) return;
+    s.ids.clear();
+    const host = document.getElementById(key);
+    if (host) paintOrgSelection(host);
+  });
+});
 // Supprime un dossier de façon non destructrice (20/08, généralisé) : demande confirmation seulement s'il
 // contient encore des éléments, et les fait remonter à la racine plutôt que de les supprimer -- un
 // AdReel/Sfx/morceau contient trop de travail pour risquer une perte accidentelle sur un simple clic de

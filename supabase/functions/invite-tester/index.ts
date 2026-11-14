@@ -59,30 +59,53 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function sendInviteEmail(email: string, actionLink: string, personalMessage: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
+// Textes de l'invitation (4 novembre) : FR ou EN selon le sélecteur « Langue » du formulaire admin
+// (avant : toujours en français), bouton au bleu LayerPitch (avant : orange), texte par défaut qui
+// annonce le menu « Tutoriel ». Le message personnalisé, s'il y en a un, remplace le texte par défaut.
+const INVITE_COPY: Record<string, { subject: string; heading: string; intro: string; tutorial: string; button: string; fallback: string }> = {
+  fr: {
+    subject: 'Invitation à la bêta LayerPitch',
+    heading: 'Bienvenue sur LayerPitch',
+    intro: 'Ta place dans la bêta LayerPitch est prête ! Clique sur le bouton ci-dessous pour activer ton accès.',
+    tutorial: 'Une fois connecté·e, le menu « Tutoriel », en haut de l\'écran, te guide pas à pas.',
+    button: 'Rejoindre la bêta',
+    fallback: 'Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :',
+  },
+  en: {
+    subject: 'Your invitation to the LayerPitch beta',
+    heading: 'Welcome to LayerPitch',
+    intro: 'Your spot in the LayerPitch beta is ready! Click the button below to activate your access.',
+    tutorial: 'Once you\'re signed in, the "Tutorial" menu at the top of the screen guides you step by step.',
+    button: 'Join the beta',
+    fallback: 'If the button doesn\'t work, copy this link into your browser:',
+  },
+};
+
+async function sendInviteEmail(email: string, actionLink: string, personalMessage: string | null, lang: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
   if (!apiKey || !fromAddress) {
     return { ok: false, error: 'Secrets Resend non configurés côté Supabase (RESEND_API_KEY / RESEND_FROM_ADDRESS).' };
   }
+  const copy = INVITE_COPY[lang] || INVITE_COPY.fr;
   const messageHtml = personalMessage
     ? `<p>${escapeHtml(personalMessage).replace(/\n/g, '<br>')}</p>`
-    : '<p>Tu es invité·e à rejoindre la bêta LayerPitch.</p>';
+    : `<p>${escapeHtml(copy.intro)}</p><p>${escapeHtml(copy.tutorial)}</p>`;
   const html = `
     <div style="font-family:sans-serif;color:#262521;max-width:480px;">
-      <h2 style="font-family:sans-serif;">Bienvenue sur LayerPitch</h2>
+      <h2 style="font-family:sans-serif;">${escapeHtml(copy.heading)}</h2>
       ${messageHtml}
-      <p><a href="${actionLink}" style="display:inline-block;padding:10px 24px;background:#c9713c;color:#fff;text-decoration:none;border-radius:4px;">Rejoindre la bêta</a></p>
-      <p style="font-size:12px;color:#6f6b62;">Si le bouton ne fonctionne pas, copie ce lien dans ton navigateur :<br>${actionLink}</p>
+      <p><a href="${actionLink}" style="display:inline-block;padding:10px 24px;background:#2f80c0;color:#fff;text-decoration:none;border-radius:4px;">${escapeHtml(copy.button)}</a></p>
+      <p style="font-size:12px;color:#6f6b62;">${escapeHtml(copy.fallback)}<br>${actionLink}</p>
     </div>`;
   // Version texte brut (20 septembre) : un email HTML seul, sans alternative texte, est un signal
   // spam classique -- un testeur (Fastmail) a vu son invitation classée en spam.
   const text = [
-    'Bienvenue sur LayerPitch',
+    copy.heading,
     '',
-    personalMessage || 'Tu es invité·e à rejoindre la bêta LayerPitch.',
+    personalMessage || (copy.intro + '\n\n' + copy.tutorial),
     '',
-    'Rejoindre la bêta :',
+    copy.button + (lang === 'en' ? ':' : ' :'),
     actionLink,
   ].join('\n');
   try {
@@ -92,7 +115,7 @@ async function sendInviteEmail(email: string, actionLink: string, personalMessag
       body: JSON.stringify({
         from: fromAddress,
         to: email,
-        subject: 'Invitation à la bêta LayerPitch',
+        subject: copy.subject,
         html,
         text,
         // Réponses des testeurs vers la boîte contact, pas vers l'adresse d'envoi (20 septembre).
@@ -177,7 +200,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const emailResult = await sendInviteEmail(email, actionLink, typeof personalMessage === 'string' && personalMessage.trim() ? personalMessage.trim() : null);
+    const emailResult = await sendInviteEmail(email, actionLink, typeof personalMessage === 'string' && personalMessage.trim() ? personalMessage.trim() : null, lang === 'en' ? 'en' : 'fr');
     if (!emailResult.ok) {
       // Le compte existe déjà à ce stade (generateLink a déjà eu son effet de bord) -- on renvoie
       // actionLink pour que Jules-Antoine puisse transmettre le lien à la main plutôt que de perdre
@@ -192,8 +215,8 @@ Deno.serve(async (req) => {
 
     // Trace de l'invitation (16 septembre) : best-effort, ne doit jamais faire échouer la réponse
     // -- l'invitation elle-même a déjà réussi (compte créé, email parti) à ce stade. p_lang (17
-    // septembre) : enregistre la valeur du sélecteur "Langue" du formulaire -- ne change toujours
-    // rien à l'email lui-même (Jules-Antoine ne voulait pas de traduction), juste une trace pour
+    // septembre) : enregistre la valeur du sélecteur "Langue" du formulaire (qui choisit aussi,
+    // depuis le 4 novembre, la langue de l'email lui-même), et garde une trace pour
     // pouvoir répondre "cette invitation était en FR ou EN ?" plus tard, ce qui était jusqu'ici
     // irrécupérable (ni stocké, ni dans le journal d'audit Supabase, vérifié le 17 septembre).
     const { error: recordError } = await callerClient.rpc('record_invite', {

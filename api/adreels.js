@@ -23,6 +23,7 @@
       profile: row.profile, testimonials: row.testimonials, trackIds, trackOverrides: row.track_overrides,
       allowIndexing: row.allow_indexing !== false,
       slug: row.slug || null, // nom dans l'adresse publique (/<nom>/<slug>, 27/09)
+      exampleSourceId: row.example_source_id || null, // AdReel « Démo » d'exemple (4/11), accessMode 'example'
       accessMode: row.access_mode || 'public', // 'public' | 'password' | 'magic' (6/10) ; absent de la ligne renvoyée aux visiteurs
     };
   }

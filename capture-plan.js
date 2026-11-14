@@ -272,7 +272,21 @@
 
   // Repères liés à une bascule d'embranchement (sa clé k et, de proche en proche, les bascules qu'elle a armées) : ils
   // suivent le bloc quand on le déplace, et disparaissent avec lui.
+  // Bloc de calque (vertical / statique) qui est le PREMIER départ de son morceau : les repères de l'écoute enregistrée
+  // (démarrage, générations, arrêt de fin) le suivent. Sinon la musique reste calée sur l'ancien départ -- elle entre
+  // alors au milieu du fichier au nouvel endroit, et le bloc déplacé est « couvert » par l'ancienne écoute (07/11).
+  function linkedSegmentMarks(events, e) {
+    const trackId = e.detail && e.detail.trackId;
+    const EPS = 0.05;
+    const segs = events.filter(o => o.name === 'layer_segment' && o.detail.trackId === trackId);
+    if (segs.some(o => o !== e && o.t <= e.t + EPS)) return []; // un autre calque joue déjà (ou démarre en même temps) : l'écoute reste son repère
+    const end = e.t + (e.detail.duration || 0);
+    return events.filter(o => o !== e && o.detail && o.detail.trackId === trackId && (
+      ((o.name === 'layer_run' || o.name === 'layer_gen' || o.name === 'track_play') && o.t >= e.t - EPS && o.t < end - EPS) ||
+      (o.name === 'voices_stop' && !o.detail.scope && Math.abs(o.t - end) <= EPS)));
+  }
   function linkedMarks(events, e) {
+    if (e && e.name === 'layer_segment') return linkedSegmentMarks(events, e);
     if (!e || e.name !== 'embr_loop_select' || !e.detail.k) return [];
     const keys = new Set([e.detail.k]);
     let grew = true;
@@ -288,7 +302,8 @@
   function captureTotal(events) {
     const lastT = Math.max(0, ...events.map(e => e.t),
       ...events.filter(e => e.name === 'stinger_play').map(e => e.t + (e.detail.durationOverride || e.detail.fileDuration || 1)),
-      ...events.filter(e => e.name === 'layer_segment' || e.name === 'fx_segment').map(e => e.t + e.detail.duration));
+      ...events.filter(e => e.name === 'layer_segment' || e.name === 'fx_segment').map(e => e.t + e.detail.duration),
+      ...events.filter(e => e.name === 'voices_stop' && e.detail.fadeSec > 0).map(e => e.t + e.detail.fadeSec)); // fondu à l'arrêt
     return lastT + TAIL;
   }
 
@@ -315,6 +330,68 @@
     return { init: auto[0][2], auto };
   }
   const byT = (a, b) => a.t - b.t;
+
+  // ---- Fondu à l'arrêt (05/11, demande de Jules-Antoine) ----
+  // Un arrêt enregistré dans l'atelier peut porter une durée de fondu (voices_stop.detail.fadeSec, posée par le lecteur au début du
+  // fondu, retouchable sur la frise). Toute voix du morceau qui s'arrêtait à cet instant s'éteint alors en fondu : son volume descend
+  // jusqu'à 0 et elle sonne fadeSec de plus. Sans durée (arrêt de fin de prise, anciennes captures) : arrêt net, comme avant.
+  const STOP_MATCH_SEC = 0.06; // un bloc statique finit pile sur son arrêt ; certaines coupures ajoutent quelques centièmes
+  function autoValueAt(gain, t) {
+    let v = gain.init, pt = -Infinity, pv = gain.init;
+    for (const [tag, at, val] of gain.auto) {
+      if (at > t) { if (tag === 'lin' && isFinite(pt) && at > pt) return pv + (val - pv) * (t - pt) / (at - pt); break; }
+      v = val; pt = at; pv = val;
+    }
+    return v;
+  }
+  function fadeVoiceOut(v, t, sec) {
+    const gain = v.gain || { init: 1, auto: [['set', v.start, 1]] };
+    const val = autoValueAt(gain, t);
+    const kept = [];
+    for (const step of gain.auto) {
+      if (step[1] <= t) { kept.push(step); continue; }
+      if (step[0] === 'lin') kept.push(['lin', t, val]); // rampe en cours : même trajet jusqu'au début du fondu
+      break;
+    }
+    kept.push(['set', t, val], ['lin', t + sec, 0]);
+    v.gain = { init: gain.init, auto: kept };
+    v.stop = t + sec;
+  }
+  // Statique : un bloc = une écoute, que la frise permet d'allonger ou de raccourcir sans toucher à l'arrêt -- le fondu suit alors la
+  // fin du bloc (celui de l'arrêt qui fermait cette écoute).
+  function applyStopFades(voices, events) {
+    const stops = events.filter(e => e.name === 'voices_stop' && !e.detail.scope).sort(byT);
+    if (!stops.some(e => e.detail.fadeSec > 0)) return;
+    voices.forEach(v => {
+      if (v.stop == null || !v.track) return;
+      const own = stops.filter(e => e.detail.trackId === v.track.id && e.t > v.start + 1e-6);
+      const f = v.track.mode === 'static' ? own[0] : own.find(e => Math.abs(v.stop - e.t) <= STOP_MATCH_SEC);
+      if (f && f.detail.fadeSec > 0) fadeVoiceOut(v, v.track.mode === 'static' ? v.stop : f.t, f.detail.fadeSec);
+    });
+  }
+
+  // Mix PAR MORCEAU du montage (13/11, demande de Jules-Antoine : M / S / volume dans l'en-tête de piste de la frise, comme Logic).
+  // mix = { [idMorceau]: { mute?, solo?, vol? (0..1, 1 = inchangé) } }, rangé dans lane_layout.mix de la version. Dès qu'un morceau est
+  // en solo, tous ceux qui ne le sont pas se taisent ; sinon muet = 0. Les Sfx ne sont pas des morceaux : ils ne sont pas touchés.
+  // Le gain de chaque voix du morceau est multiplié (valeur initiale et chaque point d'automation : le mélange reste linéaire).
+  function trackMixFactor(mix, id) {
+    const ids = Object.keys(mix || {});
+    const m = (mix && mix[id]) || {};
+    const vol = m.vol == null ? 1 : Math.min(1, Math.max(0, Number(m.vol)));
+    if (ids.some(k => mix[k] && mix[k].solo)) return m.solo ? vol : 0;
+    return m.mute ? 0 : vol;
+  }
+  function applyTrackMix(voices, mix) {
+    if (!mix || !Object.keys(mix).length) return;
+    voices.forEach(v => {
+      const id = v.track && v.track.id;
+      if (!id) return;
+      const f = trackMixFactor(mix, id);
+      if (f === 1) return;
+      const g = v.gain || { init: 1, auto: [['set', v.start, 1]] };
+      v.gain = { init: g.init * f, auto: g.auto.map(a => [a[0], a[1], a[2] * f]) };
+    });
+  }
 
   // Mix du visiteur (muet / solo / volume par voix 'layer-i' / 'pool-i') au fil de la capture.
   function mixTimeline(events, trackId) {
@@ -389,7 +466,25 @@
           return list.sort(byT);
         };
         const runs = events.filter(e => e.name === 'layer_run' && e.detail.trackId === trackId).sort(byT);
-        const gens = events.filter(e => e.name === 'layer_gen' && e.detail.trackId === trackId).sort(byT);
+        let gens = events.filter(e => e.name === 'layer_gen' && e.detail.trackId === trackId).sort(byT);
+        // Montage à la souris (05/11) : morceau posé dans la frise sans jamais avoir été joué (aucune écoute ni génération enregistrée).
+        // Moteur quantifié : on refait les générations du lecteur (29-moteur-quantifie.js) -- la première depuis le point de départ du
+        // morceau dès le premier bloc posé (intro comprise), les suivantes depuis l'entrée de boucle, une par tour, la queue de chacune
+        // chevauchant la suivante -- jusqu'à la fin du dernier bloc, où la musique s'arrête. Sans cela, les couches bouclaient le fichier
+        // entier (intro et queue comprises) et se décalaient.
+        if (!runs.length && !gens.length && segs.length && track.loopEngine === 'quantized') {
+          const spb = 60 / (Number(track.bpm) || 120), bpb = Number(track.beatsPerBar) || 4;
+          const loopIn = (Number(track.loopInBeat) || 0) * spb;
+          const loopOut = Math.max(loopIn + spb, (Number(track.loopOutBeat) || bpb * 4) * spb);
+          const startSec = Math.min((Number(track.startTrackBeat) || 0) * spb, loopIn);
+          const t0 = Math.min(...segs.map(x => x.t)), tEnd = Math.max(...segs.map(x => x.t + x.detail.duration));
+          for (let t = t0, off = startSec, n = 0; t < tEnd - 1e-3 && n < 10000; n++) {
+            gens.push({ t, name: 'layer_gen', detail: { trackId, bufferOffset: off } });
+            t += off < loopIn ? loopOut - off : loopOut - loopIn;
+            off = loopIn;
+          }
+          if (firstStopAfter(stops, t0) == null) stops.push(tEnd);
+        }
         const covered = [];
         // Moteur simple : chaque couche tourne en boucle depuis le démarrage (une seule source par couche et par écoute).
         runs.forEach(r => {
@@ -586,6 +681,8 @@
       if (duck) master.push({ t: s.t, fileDuration: s.detail.fileDuration || null, url: sfxUrl });
     });
 
+    applyStopFades(voices, events);
+    applyTrackMix(voices, opts.trackMix);
     const plan = {
       total, voices, sfxHits, duckHits: master,
       headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
@@ -609,6 +706,6 @@
     resolveSeqAlternative, resolveSeqTransition, resolveVRSection,
     buildSeqTimelineWindows, buildVRTimelineWindows, buildEmbrTimelineWindows,
     materializeLayerSegments, materializeEmbrSwitches, syncSliderIntensityLayers, intensitySliderOf, materializeCaptureExtras, materialize, decimateHeadTurns, decimateSliderKeys,
-    linkedMarks, captureTotal, envAt, automation, mixTimeline, buildPlan
+    linkedMarks, captureTotal, envAt, automation, mixTimeline, trackMixFactor, applyTrackMix, buildPlan
   };
 })();

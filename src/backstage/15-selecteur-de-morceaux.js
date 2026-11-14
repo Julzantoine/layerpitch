@@ -1,7 +1,83 @@
+/* ---------------- Menu « Ajouter… » avec recherche et dossiers (06/11) ----------------
+ * Remplace l'ancienne liste déroulante, devenue ingérable avec beaucoup de morceaux : un champ de recherche qui
+ * ouvre une liste rangée par dossier (dans l'ordre des dossiers de la bibliothèque, puis « Sans dossier »).
+ * On tape quelques lettres (accents et majuscules ignorés) : seuls les éléments dont le titre OU le nom du dossier
+ * correspond restent. Flèches pour choisir, Entrée pour ajouter, Échap pour fermer. Servi aux morceaux (AdReel, Pack)
+ * et aux Sfx. items : [{ id, title, folderId }] ; folders : [{ id, label }] ; onPick(id). */
+function addPickerNormalize(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+function buildAddPicker(hostEl, items, folders, placeholder, onPick) {
+  hostEl.classList.add('add-picker');
+  hostEl.innerHTML = `
+    <input type="search" class="add-picker-input" data-sel-action="add" placeholder="${escapeAttr(placeholder)}" autocomplete="off" spellcheck="false">
+    <div class="add-picker-panel" hidden></div>
+  `;
+  const input = hostEl.querySelector('.add-picker-input');
+  const panel = hostEl.querySelector('.add-picker-panel');
+  let visible = []; // ids affichés, dans l'ordre, pour le clavier
+  let active = 0;
+
+  function groups(query) {
+    const q = addPickerNormalize(query);
+    const known = new Set(folders.map(f => f.id));
+    const out = [];
+    const push = (label, list) => {
+      const folderHit = q && addPickerNormalize(label).includes(q);
+      const kept = list.filter(it => !q || folderHit || addPickerNormalize(it.title).includes(q));
+      if (kept.length) out.push({ label, items: kept });
+    };
+    folders.forEach(f => push(f.label || tr('untitledFallback'), items.filter(it => it.folderId === f.id)));
+    push(folders.length ? tr('addPickerNoFolder') : '', items.filter(it => !it.folderId || !known.has(it.folderId)));
+    return out;
+  }
+  function draw() {
+    const gs = groups(input.value);
+    visible = [];
+    if (!gs.length) {
+      panel.innerHTML = `<div class="add-picker-empty">${tr('addPickerNoMatch')}</div>`;
+      return;
+    }
+    panel.innerHTML = gs.map(g => `
+      ${g.label ? `<div class="add-picker-folder">📁 ${escapeAttr(g.label)}</div>` : ''}
+      ${g.items.map(it => { visible.push(it.id); return `<div class="add-picker-item${g.label ? ' in-folder' : ''}" data-pick-id="${escapeAttr(it.id)}">${escapeAttr(it.title) || tr('untitledFallback')}</div>`; }).join('')}
+    `).join('');
+    if (active >= visible.length) active = visible.length - 1;
+    if (active < 0) active = 0;
+    highlight();
+  }
+  function highlight() {
+    panel.querySelectorAll('.add-picker-item').forEach((el, i) => el.classList.toggle('active', i === active));
+    const el = panel.querySelectorAll('.add-picker-item')[active];
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  function open() { if (panel.hidden) { panel.hidden = false; active = 0; draw(); } }
+  function close() { panel.hidden = true; }
+  function pick(id) { if (!id) return; close(); input.value = ''; onPick(id); }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('input', () => { panel.hidden = false; active = 0; draw(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); open(); active = Math.min(active + 1, visible.length - 1); highlight(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); highlight(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (!panel.hidden) pick(visible[active]); }
+    else if (e.key === 'Escape') { if (!panel.hidden) { e.preventDefault(); e.stopPropagation(); close(); } }
+  });
+  // mousedown (et non click) : sinon la perte de focus du champ ferme la liste avant que le clic n'arrive.
+  panel.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const row = e.target.closest('[data-pick-id]');
+    if (row) pick(row.dataset.pickId);
+  });
+  input.addEventListener('blur', close);
+}
+
 /* ---------------- Sélecteur de morceaux (bibliothèque -> AdReel ou Pack) ---------------- */
 // overridesObj : objet live { [trackId]: { title?, description?, layers?: {li: label}, stingers?: {si: label} } }.
 // Fourni uniquement pour l'usage AdReel (jamais pour les Packs) — active l'éditeur "Personnaliser pour cet AdReel".
-function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
+// allowExamples (4/11) : les morceaux d'exemple ne sont proposés que dans le pack et l'AdReel d'exemple (exampleChoices).
+function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj, allowExamples) {
   const expandedOverrides = new Set(); // état d'affichage de l'éditeur de surcharge, local à ce widget (pas persistant entre rendus de page)
 
   function layersOf(track) {
@@ -85,26 +161,15 @@ function buildTrackSelectorWidget(hostEl, selectedIds, onChange, overridesObj) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = library.filter(t => !selectedIds.includes(t.id));
+    const unselected = exampleChoices(library.filter(t => !selectedIds.includes(t.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addTrackOption')}</option>
-          ${unselected.map(t2 => `<option value="${t2.id}">${escapeAttr(t2.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, libraryFolders, tr('addTrackOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allTracksIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
@@ -254,9 +319,14 @@ function privateLinkNotice(adReelId) {
   return false;
 }
 // Texte quand il n'y a pas (encore) de lien public : en mode tutoriel, le compte est fictif, il n'aura jamais de vrai lien.
-function adReelUrlMissingText() { return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending'); }
+// item (optionnel, 4/11) : l'AdReel ou le pack concerné -- un exemple n'a jamais de page publique, on le dit plutôt que « lien en attente ».
+function adReelUrlMissingText(item) {
+  if (isExample(item)) return tr(packs.includes(item) ? 'examplePackNoPage' : 'exampleAdreelNoPage');
+  return tr(isTutoMode() ? 'tutoNoPublicLink' : 'adreelUrlPending');
+}
 function computeAdReelUrl(adReelId) {
   if (isTutoMode()) return null; // compte fictif : aucun lien public réel (ni copie, ni partage, ni « Visualiser »)
+  if (isExample(adReels.find(a => a.id === adReelId))) return null; // AdReel Démo d'exemple (4/11) : aucune page publique
   // Lien public = chemin joli du handle sur beta.layerpitch.com (voir 404.html). Jamais de lien de substitution :
   // tant que le handle n'est pas chargé (asynchrone, voir refreshMyComposerHandle), il n'y a simplement pas encore
   // de lien à afficher -- null est un état transitoire normal. (Le lien github.io des dépôts personnels a disparu
@@ -275,6 +345,7 @@ function computeAdReelUrl(adReelId) {
 // que le handle n'est pas chargé, comme computeAdReelUrl.
 function computePackUrl(packId) {
   if (!myComposerHandle) return null;
+  if (isExample(packs.find(p => p.id === packId))) return null; // pack d'exemple (4/11) : aucune page publique
   return `https://beta.layerpitch.com/${encodeURIComponent(myComposerHandle)}/pack.html?id=${encodeURIComponent(packId)}`;
 }
 function computeCollectionUrl(collectionId) {
@@ -314,17 +385,20 @@ function renderAdReelSelect() {
   const box = document.getElementById('adReelUrlBox');
   box.innerHTML = url
     ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>`
-    : escapeAttr(adReelUrlMissingText());
+    : escapeAttr(adReelUrlMissingText(currentAdReelObj()));
   const linkButtons = document.getElementById('adReelLinkButtons');
   if (linkButtons) linkButtons.hidden = isTutoMode(); // copier / partager / intégrer un lien qui n'existe pas : masqués
+  // AdReel Démo d'exemple (4/11) : copier / partager / intégrer grisés (pas de page publique) ; « Prévisualiser » marche.
+  const curIsExample = isExample(currentAdReelObj());
+  ['btnCopyAdReelUrl', 'btnShareAdReelUrl'].forEach(id => { const b = document.getElementById(id); b.disabled = curIsExample; b.title = curIsExample ? tr('exampleAdreelNoPage') : ''; });
   document.getElementById('btnDeleteAdReel').disabled = (currentAdReelId === 'main' || adReels.length <= 1);
   // Code d'intégration (liste de morceaux uniquement, voir embedMode côté index.html) : désactivé si
   // cet AdReel n'a aucun bloc "Morceaux" -- rien à intégrer, plutôt qu'un lecteur vide et déroutant.
   const ar = adReels.find(a => a.id === currentAdReelId);
   const hasTracksBlock = !!(ar && (ar.blocks || []).some(b => b.type === 'tracks'));
   const embedBtn = document.getElementById('btnEmbedAdReelTracks');
-  embedBtn.disabled = !hasTracksBlock;
-  embedBtn.title = hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint');
+  embedBtn.disabled = !hasTracksBlock || curIsExample;
+  embedBtn.title = curIsExample ? tr('exampleAdreelNoPage') : (hasTracksBlock ? '' : tr('embedAdreelTracksDisabledHint'));
 }
 function renderManageAdreels() {
   const masterHost = document.getElementById('manageAdreelsMaster');
@@ -343,6 +417,7 @@ function renderManageAdreels() {
     folderFallbackKey: 'orgFolderFallback',
     buildRowInner: a => `
       <span class="seq-master-item-label">${escapeAttr(a.label || a.id)}</span>
+      ${isExample(a) ? exampleBadgeHtml() : ''}
       ${a.id === currentAdReelId ? `<span class="badge">${tr('currentAdreelBadge')}</span>` : ''}
     `
   });
@@ -361,12 +436,12 @@ function renderManageAdreels() {
       </div>
       <span class="hint-inline" style="font-family:monospace;white-space:nowrap;">${escapeAttr(selected.id)}</span>
     </div>
-    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText())}</div>
+    <div class="hint-inline" style="margin-top:6px;word-break:break-all;">${url ? `<a href="${url}" target="_blank" rel="noopener">${escapeAttr(url)}</a>` : escapeAttr(adReelUrlMissingText(selected))}</div>
     <div class="actions" style="margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-small" data-action="edit-adreel" data-id="${selected.id}" type="button">${tr('editAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button">${tr('duplicateAdreelBtn')}</button>
-      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button">${tr('copyLink')}</button>
-      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button">${tr('shareBtn')}</button>
+      <button class="btn btn-small" data-action="duplicate-adreel" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleNoCopy'))}"` : ''}>${tr('duplicateAdreelBtn')}</button>
+      <button class="btn btn-small" data-action="copy-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('copyLink')}</button>
+      <button class="btn btn-small" data-action="share-adreel-url-manage" data-id="${selected.id}" type="button" ${isExample(selected) ? `disabled title="${escapeAttr(tr('exampleAdreelNoPage'))}"` : ''}>${tr('shareBtn')}</button>
       <button class="btn btn-small btn-danger" data-action="delete-adreel-manage" data-id="${selected.id}" type="button" ${canDelete ? '' : 'disabled'} title="${canDelete ? '' : escapeAttr(tr('cantDeleteLastAdreel'))}">${tr('deleteBtn')}</button>
     </div>
   `;
@@ -421,7 +496,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const copyBtn = e.target.closest('[data-action="copy-adreel-url-manage"]');
   if (copyBtn) {
     const url = computeAdReelUrl(copyBtn.dataset.id);
-    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === copyBtn.dataset.id))); return; }
     if (privateLinkNotice(copyBtn.dataset.id)) return;
     const done = () => { const original = copyBtn.textContent; copyBtn.textContent = tr('copiedStatus'); setTimeout(() => { copyBtn.textContent = original; }, 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -432,7 +507,7 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
   const shareBtn = e.target.closest('[data-action="share-adreel-url-manage"]');
   if (shareBtn) {
     const shareUrl = computeAdReelUrl(shareBtn.dataset.id);
-    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+    if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(adReels.find(a => a.id === shareBtn.dataset.id))); return; }
     if (privateLinkNotice(shareBtn.dataset.id)) return;
     const ar = adReels.find(a => a.id === shareBtn.dataset.id);
     const result = await shareViaSocialsOrFallback(shareUrl, (ar && ar.label) || 'LayerPitch');
@@ -444,10 +519,12 @@ document.getElementById('manageAdreelsContainer').addEventListener('click', asyn
     return;
   }
 });
-document.getElementById('adReelSelect').addEventListener('change', e => switchAdReel(e.target.value));
+// Choisir un AdReel dans la liste, c'est presque toujours pour l'éditer (06/11) : on bascule sur l'onglet Contenu,
+// comme le font déjà la liste « Gérer les AdReels » et la recherche rapide.
+document.getElementById('adReelSelect').addEventListener('change', e => { switchAdReel(e.target.value); openTab('content'); });
 document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
   const url = computeAdReelUrl(currentAdReelId);
-  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnCopyAdReelUrl');
   const done = () => { const original = btn.textContent; btn.textContent = tr('copiedStatus'); setTimeout(() => { btn.textContent = original; }, 1500); };
@@ -459,7 +536,7 @@ document.getElementById('btnCopyAdReelUrl').addEventListener('click', () => {
 });
 document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => {
   const baseUrl = computeAdReelUrl(currentAdReelId);
-  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!baseUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   const ar = adReels.find(a => a.id === currentAdReelId);
   // computeAdReelUrl('main') ne contient pas encore de "?" (juste la racine) -- &embed=1 supposerait à
   // tort un "?" déjà présent, contrairement à computePackUrl/computeCollectionUrl (toujours "?id=...").
@@ -468,7 +545,7 @@ document.getElementById('btnEmbedAdReelTracks').addEventListener('click', () => 
 });
 document.getElementById('btnShareAdReelUrl').addEventListener('click', async () => {
   const shareUrl = computeAdReelUrl(currentAdReelId);
-  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText()); return; }
+  if (!shareUrl) { window.LayerPitchNotify.info(adReelUrlMissingText(currentAdReelObj())); return; }
   if (privateLinkNotice(currentAdReelId)) return;
   const btn = document.getElementById('btnShareAdReelUrl');
   const ar = adReels.find(a => a.id === currentAdReelId);
@@ -558,9 +635,13 @@ document.getElementById('btnAddAdReel').addEventListener('click', () => openNewA
 document.getElementById('newAdReelCancel').addEventListener('click', () => {
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
 });
-document.getElementById('newAdReelOk').addEventListener('click', () => {
+document.getElementById('newAdReelOk').addEventListener('click', async () => {
   const label = document.getElementById('newAdReelLabel').value.trim();
   if (!label) { window.LayerPitchNotify.info(tr('giveNameAlert')); return; }
+  // Nom déjà pris (06/11, AdReel « Joris » créé deux fois à un jour d'écart sans le savoir) : on prévient
+  // avant de créer un second AdReel du même nom, au lieu de le créer en silence.
+  const sameName = adReels.find(a => (a.label || a.id).trim().toLowerCase() === label.toLowerCase());
+  if (sameName && !(await window.LayerPitchNotify.confirm(tr('adreelNameTakenConfirm', { label: sameName.label || sameName.id }), { okLabel: tr('adreelNameTakenCreateAnyway') }))) return;
   const sourceId = document.getElementById('newAdReelSource').value;
   const source = sourceId ? adReels.find(a => a.id === sourceId) : null;
   const imp = {
@@ -572,8 +653,11 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
     extraBlocks: source && document.getElementById('importExtraBlocks').checked
   };
 
-  let id = slug(label);
-  if (!id || adReels.some(a => a.id === id)) id = genId();
+  // Identifiant lisible : « joris », puis « joris-2 », « joris-3 »… si déjà pris (avant : une suite de
+  // lettres au hasard comme « bmw410foj4ace8 », affichée telle quelle dans la liste des AdReels).
+  const baseId = slug(label);
+  let id = baseId;
+  for (let n = 2; adReels.some(a => a.id === id); n++) id = baseId + '-' + n;
 
   const profile = { title: '', subtitle: '', bio: '', contactEmail: '', contactUrl: '', logo: null, photo: null, theme: Object.assign({}, DEFAULT_THEME) };
   if (imp.header && source) {
@@ -618,6 +702,7 @@ document.getElementById('newAdReelOk').addEventListener('click', () => {
   trackBackstageEvent('adreel_add', { imported: !!source });
   document.getElementById('newAdReelModalOverlay').style.display = 'none';
   switchAdReel(id);
+  openTab('content'); // un AdReel tout neuf, on va le remplir (06/11)
 });
 async function deleteAdReel(id) {
   if (id === 'main' || adReels.length <= 1) return;

@@ -39,15 +39,21 @@ Deno.serve(async (req) => {
 
     const { data: composerId, error: composerError } = await callerClient.rpc('ensure_composer_profile');
     if (composerError || !composerId) return json({ error: 'Non autorisé.' }, 403);
-    const { data: source } = await adminClient.from('tracks').select('owner_id, protected').eq('id', fromTrackId).maybeSingle();
+    const { data: source } = await adminClient.from('tracks').select('owner_id, protected, example_source_id').eq('id', fromTrackId).maybeSingle();
     if (!source) return json({ error: 'Morceau d\'origine introuvable (publie-le d\'abord).' }, 404);
     if (source.owner_id !== composerId) return json({ error: 'Ce morceau ne t\'appartient pas.' }, 403);
-    if (source.protected) return json({ error: 'Ce morceau est protégé : retire la protection, copie-le, puis remets-la.' }, 409);
+    // Exemple préchargé (4/11) : ses fichiers sont ceux de la source, audio/<id de la copie>/ est vide -- rien à copier, refusé.
+    if (source.example_source_id) return json({ error: 'Exemple : il ne peut pas être copié. Pour ta propre musique, crée un nouveau morceau.' }, 409);
     const { data: existing } = await adminClient.from('tracks').select('id').eq('id', toTrackId).maybeSingle();
     if (existing) return json({ error: 'La destination existe déjà.' }, 409);
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
+    // Copie d'un morceau protégé (12/11, protection par défaut) : on lit dans le stockage PRIVÉ et on écrit dans le stockage public, car la
+    // copie naît publique (tracks.protected = false, rien n'est encore en base pour elle) ; la publication suivante la protège
+    // comme tout nouveau morceau. Avant, la copie d'un morceau protégé était refusée.
     const bucket = Deno.env.get('R2_BUCKET')!;
+    const fromBucket = source.protected ? Deno.env.get('R2_PROJECTS_BUCKET') : bucket;
+    if (!fromBucket) return json({ error: 'Stockage privé non configuré (R2_PROJECTS_BUCKET).' }, 500);
     const client = new AwsClient({ accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!, secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!, service: 's3', region: 'auto' });
     const host = `https://${accountId}.r2.cloudflarestorage.com`;
     const fromPrefix = `audio/${fromTrackId}/`, toPrefix = `audio/${toTrackId}/`;
@@ -56,7 +62,7 @@ Deno.serve(async (req) => {
     const keys: string[] = [];
     let token: string | null = null;
     do {
-      const res = await client.fetch(`${host}/${bucket}?list-type=2&prefix=${encodeURIComponent(fromPrefix)}${token ? '&continuation-token=' + encodeURIComponent(token) : ''}`);
+      const res = await client.fetch(`${host}/${fromBucket}?list-type=2&prefix=${encodeURIComponent(fromPrefix)}${token ? '&continuation-token=' + encodeURIComponent(token) : ''}`);
       if (!res.ok) { console.error('copy-track-files: list', res.status); return json({ error: 'Lecture des fichiers impossible.' }, 500); }
       const xml = await res.text();
       for (const m of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) keys.push(unxml(m[1]));
@@ -68,7 +74,7 @@ Deno.serve(async (req) => {
     for (let i = 0; i < keys.length; i += 6) {
       const results = await Promise.all(keys.slice(i, i + 6).map(async (key) => {
         const dest = toPrefix + key.slice(fromPrefix.length);
-        const res = await client.fetch(`${host}/${bucket}/${enc(dest)}`, { method: 'PUT', headers: { 'x-amz-copy-source': `/${bucket}/${enc(key)}` } });
+        const res = await client.fetch(`${host}/${bucket}/${enc(dest)}`, { method: 'PUT', headers: { 'x-amz-copy-source': `/${fromBucket}/${enc(key)}` } });
         return { key, ok: res.ok, status: res.status };
       }));
       const failed = results.find((r) => !r.ok);

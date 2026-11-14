@@ -233,6 +233,9 @@ async function publishAll() {
     // dans chacune des 3 boucles ci-dessous (un seul composer_profiles.plan pour tout le compositeur).
     // Bloque la publication plutôt que de deviner un palier si la session/RPC échoue -- même logique que
     // le garde-fou dataLoadOk ci-dessus, jamais de publication avec un palier incertain.
+    // Exemples préchargés (4/11) : vérifiés AVANT tout envoi (pas de nouveau fichier son, jamais dans une page publique).
+    const exampleProblem = examplePublishProblem();
+    if (exampleProblem) throw new Error(exampleProblem);
     log(tr('resolvingEffectivePlan'));
     await loadPostgresReadScripts();
     const { status: planStatus, error: planError } = await window.LayerPitchSubscriptions.getTrialStatus();
@@ -381,7 +384,8 @@ async function publishAll() {
     }
     for (const track of library) {
       if (!track.id) track.id = slug(track.title);
-      track.base = `${MEDIA_BASE}audio/${track.id}/`;
+      // Exemple préchargé (4/11) : ses fichiers sont ceux de la source (base figée, aussi en base) -- jamais audio/<id de la copie>/.
+      if (!isExample(track)) track.base = `${MEDIA_BASE}audio/${track.id}/`;
       const isStatic = track.mode === 'static';
       const hadPendingAudio = trackAudioItems(track).some(it => it.pendingFile);
       const layersToPublish = isStatic ? (track.layers || []).slice(0, 1) : (track.layers || []);
@@ -536,7 +540,7 @@ async function publishAll() {
     }
     for (const sfx of sfxLibrary) {
       if (!sfx.id) sfx.id = genId();
-      sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`;
+      if (!isExample(sfx)) sfx.base = `${MEDIA_BASE}audio/sfx-${sfx.id}/`; // exemple (4/11) : fichiers de la source
       for (let ai = 0; ai < (sfx.alternatives || []).length; ai++) {
         const alt = sfx.alternatives[ai];
         if (alt.pendingFile) {
@@ -562,6 +566,19 @@ async function publishAll() {
       const { ok, error } = await window.LayerPitchTracks.syncFolders(kind, folders);
       if (!ok) throw new Error('Écriture des dossiers (' + kind + ') échouée — publication arrêtée : ' + error);
     }
+    // Sfx AVANT morceaux, packs et AdReels (04/11) : un morceau ou un pack qui cite un Sfx tout neuf (jamais enregistré) était
+    // refusé par la base (« Sfx introuvable »), et la sauvegarde s'arrêtait là. Les Sfx ne dépendent que de leurs dossiers (juste au-dessus).
+    log('Écriture en base : Sfx...');
+    const pgSfxErrors = [];
+    for (const sfx of data.sfxLibrary) {
+      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
+      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
+    }
+    if (pgSfxErrors.length) {
+      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
+    }
+    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
+
     log('Écriture en base : morceaux...');
     const pgErrors = [];
     for (const track of data.library) {
@@ -572,6 +589,27 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgErrors.length + ' morceau(x) — publication arrêtée :\n' + pgErrors.join('\n'));
     }
     log(`Écriture en base : ${data.library.length} morceau(x) OK.`, 'ok');
+
+    // Protection par défaut (retour bêta du 11/11, décision du 12/11) : un morceau publié POUR LA PREMIÈRE FOIS est protégé tout de
+    // suite (fichiers dans le stockage privé, liens temporaires, plus de téléchargement direct). Seulement les nouveaux : ceux qui
+    // étaient déjà en base gardent le choix du compositeur. Une panne ne bloque pas la publication : le morceau reste public et un
+    // avertissement le dit. Admin seulement jusqu'au feu vert 'protect_by_default'.
+    if (flagOpen('protect_by_default') && publishedCatalog) {
+      const fresh = data.library.filter(t => t.id && !publishedCatalog.tracks.has(t.id) && !isExample(t) && !t.protected);
+      for (const t of fresh) {
+        log(tr('protectingNewTrack', { title: t.title || t.id }));
+        let r;
+        try { r = await window.LayerPitchTracks.setTrackProtected(t.id, true); }
+        catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+        if (r.ok) {
+          const live = library.find(x => x.id === t.id);
+          if (live) live.protected = true;
+          log(tr('protectedNewTrack', { title: t.title || t.id }), 'ok');
+        } else {
+          log(tr('protectNewTrackFailed', { title: t.title || t.id, error: r.error }), 'warn');
+        }
+      }
+    }
 
     log('Écriture en base : packs...');
     const pgPackErrors = [];
@@ -584,6 +622,16 @@ async function publishAll() {
     }
     log(`Écriture en base : ${data.packs.length} pack(s) OK.`, 'ok');
 
+    // Montage vidéo (06/11) : après les packs (le montage en dépend), avant les AdReels (ils l'affichent) -- l'atelier, s'il est ouvert, publie
+    // le son et les étiquettes du montage retouché. Un échec arrête la publication, avec la raison (jamais d'AdReel à moitié à jour).
+    if (typeof finishAtelierMontage === 'function') {
+      log(tr('montageFinishing'));
+      let montageResult;
+      try { montageResult = await finishAtelierMontage(); }
+      catch (err) { throw new Error(tr('montageFinishFailed', { error: err && err.message ? err.message : String(err) })); }
+      log(tr(montageResult === 'done' ? 'montagePublished' : 'montageNothingToPublish'), 'ok');
+    }
+
     log('Écriture en base : AdReels...');
     const pgAdReelErrors = [];
     for (const adReel of data.adReels) {
@@ -594,17 +642,6 @@ async function publishAll() {
       throw new Error('Écriture Postgres échouée pour ' + pgAdReelErrors.length + ' AdReel(s) — publication arrêtée :\n' + pgAdReelErrors.join('\n'));
     }
     log(`Écriture en base : ${data.adReels.length} AdReel(s) OK.`, 'ok');
-
-    log('Écriture en base : Sfx...');
-    const pgSfxErrors = [];
-    for (const sfx of data.sfxLibrary) {
-      const { ok, error } = await window.LayerPitchSfx.upsertSfx(sfx);
-      if (!ok) pgSfxErrors.push(`${sfx.title || sfx.id} : ${error}`);
-    }
-    if (pgSfxErrors.length) {
-      throw new Error('Écriture Postgres échouée pour ' + pgSfxErrors.length + ' Sfx — publication arrêtée :\n' + pgSfxErrors.join('\n'));
-    }
-    log(`Écriture en base : ${data.sfxLibrary.length} Sfx OK.`, 'ok');
 
     log('Écriture en base : collections...');
     const pgCollectionErrors = [];
@@ -650,6 +687,7 @@ async function publishAll() {
     renderSocials();
     rebuildAllCards();
     renderPacks();
+    if (typeof notifyAtelierPacksChanged === 'function') notifyAtelierPacksChanged();
     // Élément déjà acheté, refusé par la base : il est toujours en ligne -- rechargement pour qu'il réapparaisse ici
     // plutôt que de rester invisible dans le Backstage tout en existant (tout le reste vient d'être publié).
     if (retiredDeletes.length) window.LayerPitchNotify.info(tr('deleteRetiredAlert', { list: retiredDeletes.join('\n') }));

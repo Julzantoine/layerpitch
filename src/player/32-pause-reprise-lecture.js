@@ -105,6 +105,22 @@
   // lecture est un vrai démarrage (intro, premier emplacement/section, boucle de référence, offset 0) et
   // ouvre une nouvelle prise. Le bouton n'est visible que lorsqu'il y a quelque chose à arrêter (lecture
   // en cours ou pause en milieu de morceau).
+  // Fondu à l'arrêt (05/11, atelier vidéo) : Stop, ou un autre morceau lancé, font descendre le gain maître jusqu'à 0 en
+  // lpStopFadeSec() secondes, puis arrêtent vraiment (finish). Sans durée réglée (pages publiques) ou à l'arrêt : tout de suite.
+  function beginFadeOut(sec) {
+    const now = ctx.currentTime, g = trackMasterGain.gain;
+    g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(0, now + sec);
+    captureMark('voices_stop', { trackId: track.id, fadeSec: sec, at: now }); // le rendu de l'atelier refait le même fondu
+    lpSkipNextStopMark = true;
+  }
+  function cancelFadeOut() { if (lpFadeOutTimer) { clearTimeout(lpFadeOutTimer); lpFadeOutTimer = null; } }
+  function fadeThenStop(finish) {
+    if (lpFadeOutTimer) return; // déjà en train de s'éteindre
+    const sec = lpStopFadeSec();
+    if (!sec || !playing) { finish(); return; }
+    beginFadeOut(sec);
+    lpFadeOutTimer = setTimeout(() => { lpFadeOutTimer = null; finish(); }, sec * 1000 + 30);
+  }
   function stopThisTrack() {
     pausedResume = null;
     stopAllSources(false);
@@ -130,6 +146,7 @@
     if (take) take.resumable = true;
   }
   function stopAllSources(keepPosition) {
+    cancelFadeOut(); // pause ou arrêt pendant un fondu : coupe ce qui reste
     lpManualStop = true; // arrêt demandé : pas une fin naturelle (voir setStoppedUI)
     if (chainCutTimer) { clearTimeout(chainCutTimer); chainCutTimer = null; }
     chainGens = []; chainEmbrMarker = null;
@@ -176,7 +193,7 @@
   function playThisTrack(reroll, isContinuation) {
     if (!concurrent) {
       if (activeTrackId && activeTrackId !== track.id) {
-        document.dispatchEvent(new CustomEvent('stop-track', { detail: activeTrackId }));
+        lpStopOtherTrack(activeTrackId); // en fondu dans l'atelier vidéo (05/11)
         if (trackStingerKillers[activeTrackId]) trackStingerKillers[activeTrackId]();
       }
       Object.keys(trackCollapsers).forEach(id => {
@@ -343,6 +360,7 @@
   });
 
   document.addEventListener('stop-track', (e) => { if (e.detail === track.id) stopAllSources(); });
+  document.addEventListener('fade-stop-track', (e) => { if (e.detail === track.id) fadeThenStop(() => stopAllSources()); });
   // Reprise après mise en veille de l'écran ou passage en arrière-plan : les minuteurs de programmation
   // et l'horloge audio peuvent avoir été suspendus pendant ce temps, laissant une programmation obsolète
   // qui resterait silencieuse indéfiniment sans ça. On relance proprement depuis la position actuelle
@@ -399,7 +417,7 @@
     playThisTrack(false, true);
   });
   playBtn.addEventListener('click', () => { playing ? pauseThisTrack() : playThisTrack(true); });
-  if (stopBtn) stopBtn.addEventListener('click', stopThisTrack);
+  if (stopBtn) stopBtn.addEventListener('click', () => fadeThenStop(stopThisTrack));
   // Pilotage par programme (Carte de niveau, écoute aléatoire des albums) : démarrer à un niveau donné, régler le niveau avec une rampe,
   // arrêter, être prévenu de la fin naturelle, et savoir quand tombe la prochaine mesure / le prochain temps (grille du morceau, comptée
   // depuis son départ). Disponible sur tout lecteur ; seul `concurrent` joue en même temps que les autres.
@@ -422,19 +440,25 @@
       };
       if (!tick()) lpLoopTimer = setInterval(() => { if (tick()) { clearInterval(lpLoopTimer); lpLoopTimer = null; } }, 100);
     }
-    let lpWaitTimer = null;
+    let lpWaitTimer = null, lpPendingRamp = null;
     const lpCancelWait = () => { if (lpWaitTimer) { clearInterval(lpWaitTimer); lpWaitTimer = null; } };
     wrapper.lpControl = {
       // Démarrer : si les fichiers du morceau ne sont pas encore chargés (le chargement est asynchrone), on attend qu'ils le soient (au plus
       // 2 minutes) au lieu de « jouer » dans le vide ; stop() annule l'attente. isReady() : les fichiers sont chargés.
+      // Un réglage de niveau demandé pendant l'attente (le fondu d'entrée de la Carte : start(0) puis setLevel(1, durée)) est gardé et joué
+      // au démarrage : sans cela, un morceau pas encore chargé démarrait à 0 et restait muet (05/11, « ça ne marche pas du premier coup »).
       start(level) {
-        const go = () => { if (!playing) playThisTrack(true); trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime); };
-        lpCancelWait();
+        const go = () => {
+          if (!playing) playThisTrack(true);
+          trackMasterGain.gain.cancelScheduledValues(ctx.currentTime); trackMasterGain.gain.setValueAtTime(Math.max(0, level), ctx.currentTime);
+          if (lpPendingRamp) { const r = lpPendingRamp; lpPendingRamp = null; rampTo(r.level, r.sec); }
+        };
+        lpCancelWait(); lpPendingRamp = null;
         if (ready || playing) { go(); return; }
         let waited = 0;
         lpWaitTimer = setInterval(() => { waited += 100; if (ready) { lpCancelWait(); go(); } else if (waited > 120000) lpCancelWait(); }, 100);
       },
-      stop() { lpCancelWait(); if (playing) stopAllSources(false); },
+      stop() { lpCancelWait(); lpPendingRamp = null; if (playing) stopAllSources(false); },
       isReady: () => !!ready,
       // Séquentiel hybride : départ à un instant précis, demande de finir à la fin de la boucle en cours, pause et remise à zéro.
       // skipIntro : on arrive dans cette section par un passage, on démarre au point d'entrée de boucle (ou sans le fichier d'intro).
@@ -455,12 +479,14 @@
         else chainRequestEnd();
       },
       pause: () => pauseThisTrack(),
+      // Séquentiel hybride : la section qui sonne s'éteint en fondu (le parent l'arrête ensuite, voir fadeThenStopAll).
+      beginFadeOut(sec) { if (playing && !lpFadeOutTimer) beginFadeOut(sec); },
       resume: () => playThisTrack(true),
       reset() { chainStartAt = null; chainFinishRequested = false; lpEndedCb = null; lpCancelWait(); stopThisTrack(); },
       // Vertical-random : « nouveau tirage » (rejoue la section en cours avec de nouveaux tirages) ; faux pour les autres modes.
       canRefreshPool: () => isVerticalRandom,
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
-      setLevel: rampTo,
+      setLevel(level, sec) { if (lpWaitTimer) { lpPendingRamp = { level, sec }; return; } rampTo(level, sec); },
       isPlaying: () => playing,
       onEnded(cb) { lpEndedCb = cb; },
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),

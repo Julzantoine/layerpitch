@@ -138,7 +138,7 @@ function buildTracksCard(block) {
   const { card, body } = makeCardShell(block);
   body.innerHTML = `<div class="hint" data-help="tracksBlockSelector" style="margin-bottom:10px">${tr('tracksBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
-  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, trackOverrides);
+  const refresh = buildTrackSelectorWidget(host, trackIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, trackOverrides, isExample(currentAdReelObj()));
   blockTracksRefresh = refresh;
   return card;
 }

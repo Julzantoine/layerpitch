@@ -79,7 +79,7 @@
     }
     const trackSfxSelectorHost = el.querySelector('[data-role="trackSfxSelector"]');
     if (!track.sfxIds) track.sfxIds = [];
-    if (trackSfxSelectorHost) buildSfxSelectorWidget(trackSfxSelectorHost, track.sfxIds, () => { hasUnsavedEdits = true; });
+    if (trackSfxSelectorHost) buildSfxSelectorWidget(trackSfxSelectorHost, track.sfxIds, () => { hasUnsavedEdits = true; }, isExample(track));
 
     detailHost.appendChild(el);
   });

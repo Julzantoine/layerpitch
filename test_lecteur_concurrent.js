@@ -146,6 +146,15 @@ const path = require('path');
   const rowL2 = mount(Object.assign({}, SL, { id: 'slow-l2', layers: [{ label: 'L1', localFile: slowFile('slow2.wav', 600) }] }), { concurrent: true });
   await sleep(100); rowL2.lpControl.start(1); rowL2.lpControl.stop(); await sleep(1200);
   check('stop pendant le chargement : annule le démarrage en attente', !rowL2.lpControl.isPlaying());
+  // Fondu d'entrée demandé avant la fin du chargement (05/11) : la Carte fait start(0) puis setLevel(1, durée) ; le morceau ne doit pas
+  // démarrer muet une fois chargé, la rampe vers 1 est jouée au démarrage.
+  const rowL3 = mount(Object.assign({}, SL, { id: 'slow-l3', layers: [{ label: 'L1', localFile: slowFile('slow3.wav', 600) }] }), { concurrent: true });
+  await sleep(100); window.__ramps = [];
+  rowL3.lpControl.start(0); rowL3.lpControl.setLevel(1, 2);
+  check('fondu demandé pendant le chargement : rien n\'est joué tout de suite', window.__ramps.length === 0 && !rowL3.lpControl.isPlaying());
+  await sleep(1200);
+  check('chargement terminé : le morceau démarre ET monte vers le niveau demandé (plus de démarrage muet)', rowL3.lpControl.isPlaying() && window.__ramps.some(r => r.v === 1));
+  rowL3.lpControl.stop(); await sleep(50);
   check('nouveau tirage : seulement pour le vertical-random', rowA.lpControl.canRefreshPool() === false && rowA.lpControl.refreshPool() === false);
   const VR = { id: 'vr-x', title: 'VR', mode: 'vertical-random', description: '', duration: 10, base: '', publishedAt: 1, bpm: 120, beatsPerBar: 4, sfxIds: [], sections: [{ id: 'S1', label: 'S1', pools: [{ label: 'P', alternatives: [{ localFile: fakeFile('p1.wav'), bars: 1 }, { localFile: fakeFile('p2.wav'), bars: 1 }] }] }] };
   const rowV = mount(VR, { concurrent: true }); await sleep(400);

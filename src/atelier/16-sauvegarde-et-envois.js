@@ -16,11 +16,13 @@
 // aux fonctions vidéo porte alors p_studio (et asStudio pour les envois de fichiers).
 const videoAsStudio = () => !!window.__lpStudioBuyer;
 const withStudio = args => (videoAsStudio() ? Object.assign({}, args, { p_studio: true }) : args);
-async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups) {
+async function saveVideoCapture(packId, id, title, videoFilename, events, laneOverrides, collapsedGroups, markers, laneLayout) {
   const client = window.LayerPitchSupabaseClient.getClient();
   const { data, error } = await client.rpc('save_video_capture', withStudio({
     p_id: id, p_pack_id: packId, p_title: title || '', p_video_filename: videoFilename || null,
     p_events: events, p_lane_overrides: laneOverrides, p_collapsed_groups: collapsedGroups,
+    p_markers: markers || [], // marqueurs de la frise (05/11, migration 20261105010000)
+    p_lane_layout: laneLayout || null, // pistes masquées / ajoutées (10/11, migration 20261110040000) ; null = on garde celles de la base
   }));
   if (error) throw error;
   return data;
@@ -70,11 +72,54 @@ async function loadFfmpegWasm(onProgress) {
 
 function findCaptureTrack(trackId) { return (window.__lpCaptureLibrary.library || []).find(t => t.id === trackId); }
 function findCaptureSfx(sfxId) { return (window.__lpCaptureLibrary.sfxLibrary || []).find(s => s.id === sfxId); }
+// Bibliothèque limitée au pack ouvert (05/11) : ce que la frise et le Versioning proposent. findCaptureTrack / findCaptureSfx gardent
+// toute la bibliothèque (relire un ancien montage).
+function capturePackLibrary() {
+  const lib = window.__lpCaptureLibrary || {};
+  if (!lib.packTrackIds) return lib;
+  const trackIds = new Set(lib.packTrackIds);
+  const sfxIds = new Set(lib.packSfxIds || []);
+  return Object.assign({}, lib, {
+    library: (lib.library || []).filter(t => trackIds.has(t.id)),
+    sfxLibrary: (lib.sfxLibrary || []).filter(s => sfxIds.has(s.id)),
+  });
+}
 
+// Fichiers audio gardés en mémoire (12/11) : chaque écoute du montage, chaque version du Versioning et chaque export recalcule la musique et
+// retéléchargeait TOUS les fichiers des morceaux -- sans cache du navigateur pour les morceaux protégés (lien signé, différent à chaque
+// fois). Une écoute multi-versions à 5 versions téléchargeait 5 fois le pack. Gardés ici, compressés tels quels (le rendu en fait une copie
+// avant décodage), dans la limite de CACHE_BUDGET : les plus anciens sortent d'abord. Un échec n'est pas gardé (on réessaie la fois suivante).
+const AUDIO_BYTES_CACHE_BUDGET = 256 * 1048576;
+const audioBytesCache = new Map(); // url -> { p: Promise<Uint8Array>, size }, dans l'ordre d'usage (le plus récent à la fin)
+let audioBytesCacheSize = 0;
+// Les octets rendus sont PARTAGÉS : on ne les modifie ni ne les transfère jamais (ffmpeg.writeFile transfère : lui donner une copie).
 async function fetchAsUint8Array(url) {
-  const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
-  if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
-  return new Uint8Array(await res.arrayBuffer());
+  let entry = audioBytesCache.get(url);
+  if (entry) { audioBytesCache.delete(url); audioBytesCache.set(url, entry); return entry.p; }
+  entry = { p: null, size: 0 };
+  entry.p = (async () => {
+    const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
+    if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
+    return new Uint8Array(await res.arrayBuffer());
+  })();
+  audioBytesCache.set(url, entry);
+  try {
+    const bytes = await entry.p;
+    if (audioBytesCache.get(url) === entry && !entry.size) {
+      entry.size = bytes.byteLength;
+      audioBytesCacheSize += entry.size;
+      for (const [k, v] of audioBytesCache) {
+        if (audioBytesCacheSize <= AUDIO_BYTES_CACHE_BUDGET) break;
+        if (k === url) continue;
+        audioBytesCache.delete(k);
+        audioBytesCacheSize -= v.size;
+      }
+    }
+    return bytes;
+  } catch (e) {
+    if (audioBytesCache.get(url) === entry) audioBytesCache.delete(url);
+    throw e;
+  }
 }
 
 // --- Bibliothèque vidéo (2026-09-16) -- déposer un export du moteur de capture dans composer_videos,
@@ -92,11 +137,39 @@ async function r2SignedUrl(path, method, size) {
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
 }
-async function r2PutFile(key, bytes, contentType) {
-  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength);
+// Progression d'envoi (09/11) : même principe que dans le Backstage (src/backstage/41-envoi-r2-et-bibliotheque-video.js) -- fetch() ne donne
+// pas l'avancement d'un envoi, donc XMLHttpRequest quand un onProgress(envoyé, total) est fourni.
+function putWithProgress(url, headers, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    Object.entries(headers || {}).forEach(([k, v]) => { if (k.toLowerCase() !== 'content-length') xhr.setRequestHeader(k, v); });
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText });
+    xhr.onerror = () => reject(new Error('envoi interrompu (réseau)'));
+    xhr.onabort = () => reject(new Error('envoi annulé'));
+    xhr.send(body);
+  });
+}
+// Texte d'avancement affiché pendant un envoi, au plus 4 fois par seconde.
+function uploadProgressReporter(onStatus) {
+  if (!onStatus) return undefined;
+  let last = 0;
+  return (done, total) => {
+    const now = Date.now();
+    if (done < total && now - last < 250) return;
+    last = now;
+    onStatus(tr('captureUploadingProgress').replace('{pct}', Math.round(done / total * 100)).replace('{done}', (done / 1048576).toFixed(1)).replace('{total}', (total / 1048576).toFixed(1)));
+  };
+}
+async function r2PutFile(key, bytes, contentType, onProgress) {
+  const { url, headers } = await r2SignedUrl(key, 'PUT', bytes.byteLength != null ? bytes.byteLength : bytes.size);
   // En-têtes imposés et signés par le serveur (type, et pour un SVG Content-Disposition) : renvoyés tels quels, sinon
   // R2 refuse l'envoi. contentType ne sert plus que si le serveur n'en renvoie pas (ancienne version).
-  const res = await fetch(url, { method: 'PUT', headers: headers || { 'content-type': contentType }, body: bytes });
+  const putHeaders = headers || { 'content-type': contentType };
+  const res = onProgress
+    ? await putWithProgress(url, putHeaders, bytes, onProgress)
+    : await fetch(url, { method: 'PUT', headers: putHeaders, body: bytes });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`PUT R2 ${key} → ${res.status} ${text.slice(0, 300)}`);
@@ -104,6 +177,18 @@ async function r2PutFile(key, bytes, contentType) {
 }
 // Vidéo muette d'un montage (21/10) : l'image d'origine recopiée sans son (-an, -c:v copy : aucun réencodage, quelques secondes).
 async function makeSilentVideo(videoFile, onProgress) {
+  // 09/11 : par WebCodecs + Mediabunny d'abord (layerpitch-video-compress.js, même règles que la bibliothèque du Backstage) : une vidéo chargée depuis
+  // l'ordinateur n'était JAMAIS compressée ici (-c:v copy) et partait en taille brute ; elle est désormais compressée si elle est lourde, et recopiée
+  // telle quelle si elle est déjà légère. Repli sur l'ancienne copie ffmpeg.wasm (sans compression) si le navigateur ne peut pas.
+  try {
+    return await window.LayerPitchVideoCompress.compress(videoFile, {
+      keepAudio: false,
+      log: (msg) => console.info('LayerPitch — vidéo muette :', msg),
+      onProgress: (pct) => { onProgress && onProgress(tr('captureMakingSilentVideo') + ' ' + pct + ' %'); },
+    });
+  } catch (e) {
+    console.warn('LayerPitch — vidéo muette : compression WebCodecs impossible, repli sur ffmpeg.wasm (copie sans compression) :', e);
+  }
   const ffmpeg = await loadFfmpegWasm(onProgress);
   const ext = videoFile.name.slice(videoFile.name.lastIndexOf('.')) || '.mp4';
   await ffmpeg.writeFile('src' + ext, new Uint8Array(await videoFile.arrayBuffer()));
@@ -116,7 +201,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });
@@ -138,13 +223,13 @@ async function r2DeleteRemovedVideos(removed) {
 // initial (déjà long) serait une attente supplémentaire dont le gain resterait marginal.
 // kind (21/10) : 'capture_export' (vidéo complète, par défaut), 'capture_base' (vidéo muette d'un montage) ou 'capture_audio' (son seul
 // d'une version, dans un conteneur .mp4) -- voir la migration 20261021040000.
-async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind) {
+async function saveExportToVideoLibrary(blob, packId, title, durationSeconds, kind, onStatus) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
   const base = `${MEDIA_BASE}video/${id}/`;
   let uploaded = false;
   try {
     const fileName = kind === 'capture_audio' ? 'audio.mp4' : (kind === 'capture_base' ? 'base.mp4' : 'export.mp4');
-    await r2PutFile(`video/${id}/${fileName}`, new Uint8Array(await blob.arrayBuffer()), 'video/mp4');
+    await r2PutFile(`video/${id}/${fileName}`, blob, 'video/mp4', uploadProgressReporter(onStatus));
     uploaded = true;
     const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('upsert_video', {
       payload: {

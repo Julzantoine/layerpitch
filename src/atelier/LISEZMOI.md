@@ -15,12 +15,14 @@ Les morceaux des deux dossiers sont triés ENSEMBLE par leur nom (une seule port
 | (src/pack) 10-donnees-et-achat.js, 11-langue-et-theme.js | chargement des scripts du compte, langue, traductions |
 | 13-capture-enregistrement.js | capture : armer un morceau, démarrer, arrêter l'enregistrement |
 | 14-frise-libelles.js | libellés des pistes et des évènements de la frise, étiquettes des versions |
-| 15-frise-edition.js | frise de la capture : affichage et édition |
+| 15-frise-edition.js | frise de la capture : affichage et édition, marqueurs (double-clic sur la règle / clic droit, colonne `markers` du montage) |
 | 16-sauvegarde-et-envois.js | sauvegarde des montages, ffmpeg, envoi vers le stockage et la bibliothèque vidéo |
 | 17-export-video.js | export vidéo (rendu audio exact, incrustations, encodage) |
 | 18-panneau-de-capture.js | panneau de capture (ouverture, fermeture, réglages, Versioning) |
 | 19-bouton-de-capture.js | droits (compositeur / studio), bouton et dialogue « choisir la vidéo » |
 | 20-demarrage-atelier.js | démarrage : compte, choix du pack, morceaux, leçon du tutoriel |
 | 90-fin.html | fermeture du script et de la page |
+
+Calage du son sur l'image (12/11) : `layerpitch-av-sync.js` (racine), le SEUL moteur des écoutes de l'atelier (« Écouter le montage », écoutes du Versioning). Ne jamais relancer un son « à la main » sur la vidéo : passer par `LayerPitchAVSync.follow(video, { buffers })`. Toute retouche de la frise passe par `changed()` (15) puis `refreshActionButtons(kind)` (18) : c'est ce qui enregistre et rend annulable.
 
 Leçon du tutoriel : `atelier-lecons.js` (racine). Après modification : `npm run build` (et `npm run bump-version` si un `.js` servi aux navigateurs a changé).

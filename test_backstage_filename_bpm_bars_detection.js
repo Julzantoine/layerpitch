@@ -62,8 +62,8 @@ const path = require('path');
 
   check('BPM auto-rempli pour les 3 emplacements (120, 120, 160)', bpms.join(',') === '120,120,160');
   check('mesures auto-remplies pour les 3 alternatives (30, 30, 40)', bars.join(',') === '30,30,40');
-  check('libellés propres, sans les jetons bpm/mesures',
-    JSON.stringify(labels) === JSON.stringify(['#1 RobotAdventure WetDarkCave', '#2 RobotAdventure Corridor', '#3 RobotAdventure BattleFinal']));
+  check('libellés propres, sans les jetons bpm/mesures, « _ » gardés (retour bêta 11/11)',
+    JSON.stringify(labels) === JSON.stringify(['#1_RobotAdventure_WetDarkCave', '#2_RobotAdventure_Corridor', '#3_RobotAdventure_BattleFinal']));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);

@@ -8,7 +8,7 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch — Pack</title>
-<link rel="stylesheet" href="player.css?v=1793805359422">
+<link rel="stylesheet" href="player.css?v=1794648668592">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -193,15 +193,6 @@
   .video-capture-record-btn.recording .dot { animation: video-capture-pulse 1s infinite; }
   @keyframes video-capture-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   .video-capture-count { flex: 1; }
-  .video-capture-armed-status { color: #e74c3c; }
-  /* Bouton ⏺ posé à côté du VRAI bouton de lecture d'un morceau (pas dans le panneau de capture) --
-     discret par défaut, coloré quand la piste est armée. */
-  .video-capture-arm-track-btn {
-    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
-    color: var(--text-dim); cursor: pointer; font-size: 10px; line-height: 1; margin-left: 4px;
-  }
-  .video-capture-arm-track-btn:hover { border-color: #e74c3c; color: #e74c3c; }
-  .video-capture-arm-track-btn.armed { background: #e74c3c; border-color: #e74c3c; color: #fff; }
   .video-capture-download-btn {
     padding: 6px 12px; border-radius: 5px; border: 1px solid #3a3a3a; background: #222; color: #ccc;
     cursor: pointer; font-size: 11px;
@@ -212,6 +203,8 @@
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .video-capture-title-input { width: 200px; }
+  .video-alt-select { max-width: 200px; min-width: 120px; flex: 0 1 auto; border-color: #2f80c0; color: #dbe9f5; }
+  .video-alt-link-btn[aria-pressed="true"] { background: #2f80c0; border-color: #2f80c0; color: #fff; }
   .video-capture-load-select:disabled, .video-capture-title-input:disabled { opacity: 0.4; }
   .video-capture-export-opt { display: flex; align-items: center; gap: 5px; color: #999; white-space: nowrap; }
   /* Versioning (26/09, capture-versioning.js) : versions vidéo d'un montage sauvegardé -- admin seulement pour l'instant. */
@@ -242,6 +235,54 @@
   .vcv-notes { border-top: 1px dashed #2c2c2c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
   .vcv-note { color: #aaa; }
   .vcv-note-info { color: #9ab; }
+  .vcv-review { font: inherit; padding: 2px 6px; border-radius: 999px; border: 1px solid #444; background: #222; color: #ccc; }
+  .vcv-review-sent { border-color: #2f80c0; color: #7db8e8; }
+  .vcv-review-changes_requested { border-color: #f0a050; color: #f0a050; }
+  .vcv-review-approved { border-color: #4caf7a; color: #6fcf97; }
+  .vcv-diff { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; overflow-x: auto; }
+  .vcv-diff-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .vcv-diff-table { border-collapse: collapse; width: 100%; }
+  .vcv-diff-table th, .vcv-diff-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #2c2c2c; color: #ddd; font-weight: normal; }
+  .vcv-diff-table th { color: #eee; font-weight: 600; }
+  .vcv-diff-label { color: #999 !important; }
+  .vcv-diff-kind { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; margin-right: 4px; }
+  .vcv-diff-same { color: #777 !important; }
+  .vcv-diff-choose { color: #f0a050 !important; }
+  .vcv-diff-changed { color: #7db8e8 !important; font-weight: 600; }
+  .vcv-by { color: #888; font-size: 11px; }
+  .vcv-review-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #3a3a3a; border-radius: 6px; background: #1c1c1c; }
+  .vcv-review-edit { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 6px; background: #181818; border: 1px dashed #3a3a3a; }
+  .vcv-ab-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; margin: 6px 0; border: 1px solid #2f80c0; border-radius: 6px; background: #17222c; }
+  .vcv-ab-on { background: #2f80c0 !important; border-color: #2f80c0 !important; color: #fff !important; }
+  /* Panneau Versioning remis en ordre (09/11) : lignes sobres + menu ⋯, barre des versions cochées, relecture client repliée, sélecteur d'écoute sous la vidéo. */
+  .vcv-version .vcv-summary { flex: 1 1 140px; min-width: 0; }
+  .vcv-more { position: relative; }
+  .vcv-more > summary { list-style: none; cursor: pointer; user-select: none; }
+  .vcv-more > summary::-webkit-details-marker { display: none; }
+  .vcv-more-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; display: flex; flex-direction: column; gap: 4px; min-width: 150px; padding: 6px; background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+  .vcv-more-menu button { text-align: left; }
+  .vcv-picked-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px; border: 1px dashed #2f80c0; border-radius: 6px; }
+  .vcv-picked-bar[hidden] { display: none; }
+  .vcv-picked-count { font-size: 12px; color: #9ab; }
+  .vcv-review-fold > summary { cursor: pointer; padding: 6px 2px; font-weight: 600; }
+  .vcv-rv-state { margin-left: 8px; font-weight: 400; font-size: 11px; color: #9ab; }
+  .vcv-ab-dock { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; background: #17222d; border-top: 1px solid #2f80c0; }
+  .vcv-ab-dock[hidden] { display: none; }
+  .vcv-ab-lbl { font-size: 12px; color: #9ab; }
+  .vcv-ab-select { min-width: 220px; max-width: 100%; }
+  .vcv-ab-note { flex: 1; font-size: 12px; color: #9ab; }
+  .vcv-ab-loading { color: #e0c341; }
+  .vcv-ab-dock kbd { font: inherit; font-size: 10px; padding: 0 4px; margin-right: 4px; border: 1px solid #4a6a85; border-radius: 3px; opacity: .8; }
+  .vcv-link-input { flex: 1; min-width: 220px; font-size: 11px; color: #ccc; background: #151515; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; }
+  .vcv-rcm { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid #2c2c2c; }
+  .vcv-rcm-done { opacity: .55; }
+  .vcv-rcm-meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; color: #999; font-size: 11px; }
+  .vcv-rcm-t { background: none; border: 0; color: #7db8e8; font-weight: 600; cursor: pointer; padding: 0; }
+  .vcv-rcm-who { color: #ddd; font-weight: 600; }
+  .vcv-rcm-ver { color: #888; }
+  .vcv-rcm-body { color: #ddd; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .vcv-rcm-reply { margin-left: 12px; padding-left: 8px; border-left: 2px solid #333; color: #bbb; }
+  .vcv-rcm-input { flex: 1; min-width: 200px; background: #151515; border: 1px solid #333; border-radius: 4px; color: #ddd; padding: 4px 6px; font: inherit; }
   /* Frise d'édition (cible finale, schéma papier de Jules-Antoine 2026-09-14) : une piste horizontale par
      calque du morceau + une piste SFX, blocs positionnés en pourcentage de la durée totale (pas de pixel
      fixe -- pas de défilement horizontal à gérer, suffisant pour les prises courtes de ce prototype). */
@@ -250,12 +291,23 @@
     font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #ccc; position: relative;
   }
   .vct-empty { padding: 10px; color: #777; }
-  .vct-playhead { position: absolute; top: 20px; bottom: 34px; width: 1px; background: #ff4444; pointer-events: none; z-index: 20; }
+  .vct-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff4444; pointer-events: none; z-index: 14; }
+  /* Trait d'aimantation (09/11) : montre le repère auquel le point glissé vient de s'accrocher. */
+  .vct-snap-guide { display: none; position: absolute; top: 0; bottom: 0; width: 1px; background: #2f80c0; box-shadow: 0 0 4px #2f80c0; pointer-events: none; z-index: 13; }
+  /* Zoom de la frise (06/11) : la frise défile à l'horizontale, les noms de pistes restent collés à gauche. */
+  .vct-zoombar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .vct-zoom-btn { font: inherit; font-size: 11px; min-width: 24px; padding: 2px 7px; border-radius: 4px; border: 1px solid #3a3a3a; background: #222; color: #ccc; cursor: pointer; }
+  .vct-zoom-btn:hover { border-color: var(--accent); color: #fff; }
+  .vct-zoom-val { min-width: 34px; text-align: center; color: #9ab; font-size: 10px; }
+  .vct-scroll { overflow-x: auto; overflow-y: hidden; }
+  .vct-body { position: relative; }
+  .vct-ruler-corner { position: sticky; left: 0; width: var(--vct-label-w, 96px); height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
+  .vct-lane-label, .vct-lane-rename-input { position: sticky; left: 0; z-index: 16; background: #1a1a1a; }
   .vct-playhead::before {
     content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
     border-top-color: #ff4444;
   }
-  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-ruler { position: relative; height: 16px; margin-left: var(--vct-label-w, 96px); }
   .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
   .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
   /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
@@ -271,14 +323,19 @@
   .vct-track-group-header:hover { color: #fff; }
   .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
   .vct-lane-nested .vct-lane-label { padding-left: 14px; }
-  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label { width: var(--vct-label-w, 96px); flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
   .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
   .vct-lane-rename-input {
-    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    width: var(--vct-label-w, 96px); flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
     color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
   }
   .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
+  /* Ligne de titre d'un morceau (12/11) : rien à y déposer, donc elle ne ressemble plus à une piste vide. */
+  .vct-group-summary .vct-lane-track { background: transparent; border-color: transparent; }
+  /* Barre repliée : un cadre léger qui réunit les placements des couches (segments pleins). */
+  .vct-block-group { background: transparent; border: 1px solid #3d6a99; overflow: hidden; }
+  .vct-block-group .vct-group-seg { position: absolute; top: 2px; bottom: 2px; background: #3d6a99; border-radius: 2px; pointer-events: none; }
   .vct-block { position: absolute; top: 2px; bottom: 2px; min-width: 4px; border-radius: 3px; cursor: grab; border: 1px solid transparent; overflow: hidden; touch-action: none; }
   .vct-block.vct-layer { background: #2f5d8a; }
   .vct-block.vct-sfx { background: #8a5a2f; }
@@ -286,6 +343,20 @@
   .vct-block.vct-fx-cut { background: repeating-linear-gradient(45deg, #7a4d9c, #7a4d9c 3px, #3d2650 3px, #3d2650 6px); min-width: 10px; }
   .vct-block.vct-head { background: #3d8a6e; min-width: 10px; }
   .vct-block.vct-slider { background: #a0742f; min-width: 12px; }
+  /* Arrêt d'un morceau (05/11) : trait net, ou pente qui descend sur la durée du fondu */
+  .vct-block.vct-stop { background: #6b7684; min-width: 6px; cursor: pointer; }
+  .vct-track-remove { margin-left: 6px; padding: 0 4px; border: 0; background: transparent; color: #777; cursor: pointer; font-size: 11px; line-height: 1; opacity: 0; }
+  .vct-lane-label:hover .vct-track-remove, .vct-track-remove:focus { opacity: 1; }
+  .vct-track-remove:hover { color: #e57373; }
+  .vct-add-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
+  .vct-add-group { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; margin: 8px 0 2px; }
+  .vct-add-item { display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 6px 8px; border: 1px solid #333; border-radius: 4px; background: #1d1d1d; color: #ddd; cursor: pointer; font: inherit; font-size: 12px; }
+  .vct-add-item:hover { border-color: #2f80c0; }
+  .vct-add-item small { color: #888; }
+  .vct-add-none { color: #888; font-size: 12px; padding: 8px 0; }
+  .vct-fade-handle { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; background: rgba(47,128,192,0.55); border-radius: 2px; }
+  .vct-fade-handle:hover { background: #2f80c0; }
+  .vct-block.vct-stop.vct-stop-fade { background: linear-gradient(to bottom right, #6b7684 49%, transparent 51%); }
   .vct-track-group-head { border-left-color: #3d8a6e; }
   .vct-track-group-head .vct-track-group-header { color: #6fd4ae; }
   .vct-block-implicit { opacity: 0.45; cursor: default; }
@@ -296,7 +367,7 @@
   .vct-detail { display: flex; align-items: center; gap: 8px; padding: 8px 0 4px; margin-top: 4px; border-top: 1px solid #2a2a2a; min-height: 30px; }
   .vct-detail-empty { color: #666; font-size: 10px; }
   .vct-detail-label { flex: 1; color: #ddd; }
-  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw, .video-capture-event-slidervalue {
+  .video-capture-event-time, .video-capture-event-duration, .video-capture-event-yaw, .video-capture-event-slidervalue, .video-capture-event-stopfade, #videoCaptureStopFade {
     width: 56px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
     font-family: inherit; font-size: 11px; padding: 2px 4px;
   }
@@ -358,7 +429,8 @@
   /* Historique des exports d'un montage (21/10) */
   .video-capture-history { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .video-capture-history[hidden] { display: none; }
-  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #ccc; }
+  .video-capture-history .video-capture-count { color: #999; }
 </style>
 <script>
   // Umami chargé dynamiquement (pas une balise <script> statique) et sauté entièrement en mode
@@ -461,11 +533,11 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1793805359422"></script>
-<script src="layerpitch-notify.js?v=1793805359422"></script>
-<script src="public-page.js?v=1793805359422"></script>
-<script src="layerpitch-seller-contact.js?v=1793805359422"></script>
-<script src="player.js?v=1793805359422"></script>
+<script src="layerpitch-i18n.js?v=1794648668592"></script>
+<script src="layerpitch-notify.js?v=1794648668592"></script>
+<script src="public-page.js?v=1794648668592"></script>
+<script src="layerpitch-seller-contact.js?v=1794648668592"></script>
+<script src="player.js?v=1794648668592"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -547,7 +619,7 @@ function loadPurchaseScripts() {
   // Même chargeur que loadPostgresReadScripts() (public-page.js) : téléchargement parallèle, exécution dans l'ordre,
   // version du déploiement.
   purchaseScriptsLoaded = lpLoadScriptsInOrder([
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js',
     './api/supabase-client.js',
     './api/auth.js',
     './api/packs.js',
@@ -753,17 +825,22 @@ function isMultiScreen() {
   try { return !!(window.screen && window.screen.isExtended); } catch (e) { return false; }
 }
 
-function videoTestUrl(parsed) {
-  return `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+// resume (facultatif) : { t, muted } — moment de lecture et état du son à reprendre quand on détache ou
+// qu'on raccroche la vidéo, pour qu'elle ne reparte pas du début.
+function videoTestUrl(parsed, resume) {
+  let url = `./video-test.html?service=${parsed.service}&id=${encodeURIComponent(parsed.id)}&lang=${pageLang}`;
+  if (resume && resume.t > 0) url += `&t=${Math.floor(resume.t)}`;
+  if (resume && resume.muted === false) url += '&muted=0';
+  return url;
 }
 
 // Positionnement approximatif sur le second écran : sans permission Window Management, on ne connaît pas
 // la vraie disposition des écrans, donc on décale simplement la fenêtre de la largeur de l'écran principal.
 // Fonctionne bien pour la disposition la plus courante (écrans côte à côte) ; à défaut, la personne peut
 // toujours la déplacer elle-même — les navigateurs se souviennent en général de la position choisie.
-function openInWindow(parsed) {
+function openInWindow(parsed, resume) {
   const left = (window.screen && window.screen.width) ? window.screen.width : 0;
-  window.open(videoTestUrl(parsed), '_blank', `left=${left},top=40,width=960,height=600`);
+  window.open(videoTestUrl(parsed, resume), '_blank', `left=${left},top=40,width=960,height=600`);
   trackPublicEvent('video_test_open', { service: parsed.service, mode: 'window' });
 }
 
@@ -776,11 +853,11 @@ function closeVideoPanel() {
 
 // parsed : { service: 'youtube' | 'vimeo', id } (lien collé), ou { service: 'library', url, title } (vidéo de la bibliothèque du
 // visiteur connecté, 21/10) -- celle-ci se joue directement ici, son coupé, comme le ferait la fenêtre YouTube/Vimeo.
-function openInPanel(parsed) {
+function openInPanel(parsed, resume) {
   const panel = document.getElementById('videoTestPanel');
   const media = parsed.service === 'library'
     ? `<video src="${escapeHtml(parsed.url)}" controls muted playsinline></video>`
-    : `<iframe src="${videoTestUrl(parsed)}" allow="autoplay"></iframe>`;
+    : `<iframe src="${videoTestUrl(parsed, resume)}" allow="autoplay"></iframe>`;
   panel.innerHTML = `
     <div class="video-test-panel-header">
       <span class="video-test-panel-title">${tr('videoTestPanelTitle')}</span>
@@ -797,13 +874,29 @@ function openInPanel(parsed) {
   const detachBtn = document.getElementById('videoTestDetachBtn');
   // Une vidéo de la bibliothèque reste dans la page (pas de fenêtre séparée prévue pour elle).
   if (parsed.service === 'library') detachBtn.hidden = true;
-  else detachBtn.addEventListener('click', () => {
+  else detachBtn.addEventListener('click', async () => {
+    // L'iframe est sur le même site : on lui demande où en est la vidéo avant de la fermer.
+    let resume = null;
+    try {
+      const frame = panel.querySelector('iframe');
+      if (frame && frame.contentWindow && frame.contentWindow.lpGetVideoState) resume = await frame.contentWindow.lpGetVideoState();
+    } catch (e) { resume = null; }
     closeVideoPanel();
-    openInWindow(parsed);
+    openInWindow(parsed, resume);
   });
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  trackPublicEvent('video_test_open', { service: parsed.service, mode: 'embedded' });
+  if (!(resume && resume.redock)) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  trackPublicEvent('video_test_open', { service: parsed.service, mode: (resume && resume.redock) ? 'redocked' : 'embedded' });
 }
+
+// « Raccrocher à la page » depuis la fenêtre détachée (video-test.html) : elle nous renvoie la vidéo et
+// le moment où elle en était, on la remet dans le panneau à côté du lecteur.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.type !== 'layerpitch-video-redock') return;
+  if ((d.service !== 'youtube' && d.service !== 'vimeo') || !d.id) return;
+  openInPanel({ service: d.service, id: String(d.id) }, { t: Number(d.t) || 0, muted: d.muted !== false, redock: true });
+});
 
 // Ouverture du dialogue « Tester en jeu ». Visiteur connecté à un compte LayerPitch (21/10, décidé par Jules-Antoine) : en plus du
 // lien YouTube/Vimeo, une vidéo de SA bibliothèque (compositeur, ou studio de son équipe). Les scripts du compte ne sont chargés
@@ -821,7 +914,11 @@ let openVideoTestDialog = () => document.getElementById('videoTestDialog').showM
   async function loadLibrary() {
     if (loaded) return;
     loaded = true;
-    try {
+    // Leçon « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play) : la vidéo muette de « Music City » est proposée ici,
+    // comme une vidéo de la bibliothèque (compte fictif, rien n'est lu ni enregistré). Même fichier que la leçon Versioning de l'atelier.
+    if (window.LayerPitchPackLessons && window.LayerPitchPackLessons.active()) {
+      videoTestLibrary = [window.LayerPitchPackLessons.KIT.video];
+    } else try {
       await loadPurchaseScripts();
       const { session } = await window.LayerPitchAuth.getSession();
       if (!session) return;
@@ -1167,7 +1264,32 @@ document.getElementById('publicEmbedCopyBtn').addEventListener('click', async ()
   });
 })();
 window.addEventListener('load', init);
+// Leçon guidée « Jouer en direct sur une vidéo » (05/11, ?tuto&lesson=live-play, voir pack-lecons.js) : le moteur des bulles et la leçon ne
+// sont chargés QUE dans ce cas (jamais pour un visiteur ordinaire de la page). La porte d'entrée du tutoriel (layerpitch-tuto.js, appelée au
+// chargement des données) a déjà renvoyé un non-admin vers la page normale ; la leçon démarre une fois le pack affiché.
+(function setupPackLesson() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('tuto') || q.get('lesson') !== 'live-play') return;
+  const css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = lpVersioned('layerpitch-guide.css');
+  document.head.appendChild(css);
+  // Boutons des bulles (layerpitch-guide.css s'appuie sur les .btn de la page qui l'accueille, absents ici) : mêmes règles que l'atelier.
+  const btnCss = document.createElement('style');
+  btnCss.textContent = '.tour-card .btn{font:inherit;font-size:12px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}'
+    + '.tour-card .btn:hover{border-color:var(--accent);color:var(--accent)}.tour-card .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}.tour-card .btn-primary:hover{opacity:.9;color:#fff}';
+  document.head.appendChild(btnCss);
+  const scripts = lpLoadScriptsInOrder(['./layerpitch-guide.js', './pack-lecons.js']);
+  window.addEventListener('load', () => scripts.then(() => {
+    let waited = 0;
+    const timer = setInterval(() => {
+      waited += 200;
+      if (document.querySelector('.video-test-trigger-btn')) { clearInterval(timer); window.LayerPitchPackLessons.init({ lang: pageLang }).start(); }
+      else if (waited > 60000) clearInterval(timer);
+    }, 200);
+  }).catch(e => console.warn('LayerPitch — leçon indisponible :', e)));
+})();
 </script>
-<script src="layerpitch-preview-tuto.js?v=1793805359422"></script>
+<script src="layerpitch-preview-tuto.js?v=1794648668592"></script>
 </body>
 </html>

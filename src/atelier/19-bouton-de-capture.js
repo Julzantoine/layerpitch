@@ -63,35 +63,13 @@ async function setupCaptureTrigger(pack, container, opts) {
   captureBtn.type = 'button';
   captureBtn.className = 'video-capture-trigger-btn';
   captureBtn.textContent = tr('atelierChooseVideoBtn');
-  captureBtn.addEventListener('click', () => openVideoCaptureDialog());
+  captureBtn.addEventListener('click', () => { if (!videoCaptureState) openVideoCaptureDialog(); }); // pas pendant une prise : elle se perdrait
   container.insertBefore(captureBtn, container.firstChild);
   // &montage=<id> (Backstage → Vidéo → Versioning, bloc vidéo d'un AdReel, espace studio) : ce montage sauvegardé s'ouvre dès que
   // la vidéo est choisie -- le dialogue s'ouvre tout de suite.
   const montageParam = new URLSearchParams(location.search).get('montage');
   if (montageParam) openVideoCaptureDialog(montageParam);
 
-  // Boutons ⏺ "Armer" -- un par morceau, posés directement à côté de son propre bouton de lecture dans
-  // le VRAI lecteur du pack (pas un sélecteur séparé dans le panneau de capture) : plus logique puisque
-  // c'est là que le compositeur manipule déjà les morceaux (confirmé par Jules-Antoine 2026-09-15).
-  // Exclusif -- en armer un désarme automatiquement l'ancien. `[data-track-id]` posé par
-  // renderTracksBlock (player.js, décoratif) permet de retrouver quel bloc correspond à quel morceau.
-  document.querySelectorAll('[data-track-id]').forEach(row => {
-    const playBtn = row.querySelector('[data-role="playBtn"]');
-    if (!playBtn || row.querySelector('.video-capture-arm-track-btn')) return;
-    const armBtn = document.createElement('button');
-    armBtn.type = 'button';
-    armBtn.className = 'video-capture-arm-track-btn';
-    armBtn.textContent = '⏺';
-    armBtn.title = tr('captureArmBtnTitle');
-    armBtn.addEventListener('click', () => {
-      const trackId = row.dataset.trackId;
-      armedTrackId = (armedTrackId === trackId) ? null : trackId; // reclique = désarme
-      document.querySelectorAll('.video-capture-arm-track-btn').forEach(b => b.classList.remove('armed'));
-      if (armedTrackId === trackId) armBtn.classList.add('armed');
-      updateArmedStatusDisplay();
-    });
-    playBtn.insertAdjacentElement('afterend', armBtn);
-  });
   return true;
 }
 
@@ -112,9 +90,12 @@ let openVideoCaptureDialog = () => {};
   const libStatus = document.getElementById('videoCaptureLibraryStatus');
   if (!dialog) return;
   let libraryVideos = [];
+  // Vidéo reconnue à son type, ou à défaut à son extension (12/11 : un .mov / .mkv / .m4v arrive parfois sans type, selon le système).
+  const looksLikeVideo = f => !!f && (/^video\//.test(f.type || '') || (!f.type && /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name || '')));
   function handleFile(file) {
-    if (!file || !file.type.startsWith('video/')) {
+    if (!looksLikeVideo(file)) {
       errorEl.textContent = tr('captureChooseVideoError');
+      libStatus.textContent = '';
       return;
     }
     errorEl.textContent = '';
@@ -132,7 +113,7 @@ let openVideoCaptureDialog = () => {};
     montageNote.hidden = true;
     libPick.hidden = true;
     libStatus.textContent = '';
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal(); // déjà ouvert (pack republié pendant le choix) : showModal() lèverait une erreur
     if (pendingMontageId) {
       try {
         pendingMontage = await loadVideoCapture(pendingMontageId);
@@ -157,19 +138,76 @@ let openVideoCaptureDialog = () => {};
     libSelect.innerHTML = libraryVideos.map(v => `<option value="${window.LayerPlayerCore.escapeHtml(v.id)}" ${match && match.id === v.id ? 'selected' : ''}>${window.LayerPlayerCore.escapeHtml(v.title || v.originalName || v.file)}${v.kind === 'capture_export' ? ' — ' + window.LayerPlayerCore.escapeHtml(tr('captureLibraryKindExport')) : ''}</option>`).join('');
     libPick.hidden = false;
     if (wanted && !match) libStatus.textContent = tr('captureLibraryNoMatch').replace('{video}', wanted);
+    // Montage à rouvrir dont la vidéo d'origine est dans la bibliothèque : on la charge directement, sans redemander (06/11).
+    if (match && dialog.open) libBtn.click();
   };
+  let libAbort = null; // téléchargement de la bibliothèque en cours (arrêté par Annuler)
   libBtn.addEventListener('click', async () => {
     const v = libraryVideos.find(x => x.id === libSelect.value);
     if (!v) return;
     libBtn.disabled = true;
     libStatus.textContent = tr('captureLibraryDownloading');
     try {
-      const res = await fetch(v.base + encodeURIComponent(v.file));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const blob = await res.blob();
+      // Lecture par morceaux, avec reprise (13/11, « vidéo bloquée à 47 % ») : un flux qui s'arrête sans erreur laissait l'attente infinie.
+      // Maintenant : si plus rien n'arrive pendant 15 s, la connexion est coupée et le téléchargement REPREND là où il s'était arrêté
+      // (en-tête Range ; si le serveur l'ignore, on repart du début), jusqu'à 5 essais. « Annuler » arrête aussi le téléchargement.
+      libAbort = new AbortController();
+      const url = v.base + encodeURIComponent(v.file);
+      const STALL_MS = 15000, MAX_TRIES = 5;
+      const parts = []; let got = 0, total = 0, blob = null, lastErr = null, ctype = '';
+      for (let attempt = 0; attempt < MAX_TRIES && !blob; attempt++) {
+        if (libAbort.signal.aborted) break;
+        const ctl = new AbortController();
+        const onAll = () => ctl.abort();
+        libAbort.signal.addEventListener('abort', onAll);
+        let timer = null, stalled = false;
+        const arm = () => { clearTimeout(timer); timer = setTimeout(() => { stalled = true; ctl.abort(); }, STALL_MS); };
+        try {
+          arm();
+          const res = await fetch(url, { headers: got > 0 ? { Range: 'bytes=' + got + '-' } : {}, signal: ctl.signal });
+          if (res.status === 206) {
+            // Content-Range n'est lisible entre sites que si le serveur l'expose (CORS) ; sinon on fait confiance au 206 (la reprise
+            // demandée commence à `got`) et le total vaut ce qu'on a déjà + la longueur de cette réponse (Content-Length est toujours lisible).
+            const m = /bytes (\d+)-\d+\/(\d+|\*)/.exec(res.headers.get('content-range') || '');
+            if (m && Number(m[1]) !== got) { parts.length = 0; got = 0; throw new Error('Reprise décalée'); }
+            if (m && m[2] !== '*') total = Number(m[2]);
+            else if (!m) total = got + (Number(res.headers.get('content-length')) || 0);
+          } else if (res.ok) {
+            if (got > 0) { parts.length = 0; got = 0; } // le serveur a ignoré la reprise : on repart du début
+            total = Number(res.headers.get('content-length')) || 0;
+          } else throw new Error('HTTP ' + res.status);
+          ctype = res.headers.get('content-type') || ctype;
+          const reader = res.body.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            arm(); parts.push(value); got += value.length;
+            libStatus.textContent = tr('captureLibraryDownloading') + ' ' + (total ? Math.round(got * 100 / total) + ' %' : Math.round(got / 1048576) + ' Mo');
+          }
+          if (total && got < total) throw new Error('Flux interrompu (' + Math.round(got / 1048576) + ' / ' + Math.round(total / 1048576) + ' Mo)');
+          blob = new Blob(parts, { type: ctype });
+        } catch (e) {
+          lastErr = stalled ? new Error('plus rien reçu depuis ' + (STALL_MS / 1000) + ' s') : e;
+          if (libAbort.signal.aborted) break;
+          console.warn('[atelier] téléchargement de la vidéo interrompu :', lastErr && lastErr.message, '| reçu', got, '/', total, 'octets | essai', attempt + 1, '/', MAX_TRIES, '| connexion', (navigator.connection && navigator.connection.effectiveType) || '?');
+          if (attempt < MAX_TRIES - 1) {
+            libStatus.textContent = tr('captureLibraryResuming').replace('{n}', String(attempt + 2)).replace('{max}', String(MAX_TRIES)).replace('{reason}', (lastErr && lastErr.message) || '?');
+            await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+          }
+        } finally {
+          clearTimeout(timer);
+          libAbort.signal.removeEventListener('abort', onAll);
+        }
+      }
+      if (libAbort.signal.aborted) { libStatus.textContent = ''; return; } // annulé par l'utilisateur
+      if (!blob) throw new Error((lastErr && lastErr.name ? lastErr.name + ' : ' : '') + (lastErr && lastErr.message || '') + ' (' + Math.round(got / 1048576) + ' Mo reçus)');
       // Nom du fichier d'origine : c'est lui que le montage a retenu (vérification « bonne vidéo » au chargement).
       const name = v.originalName || v.title || v.file;
-      handleFile(new File([blob], name, { type: v.mimeType || blob.type || 'video/mp4' }));
+      // Le type enregistré peut être générique (application/octet-stream) : on retombe sur le type d'après l'extension, sinon mp4.
+      const guess = /\.webm$/i.test(name) ? 'video/webm' : /\.mov$/i.test(name) ? 'video/quicktime' : 'video/mp4';
+      const type = [v.mimeType, blob.type].find(t => t && t.startsWith('video/')) || guess;
+      libStatus.textContent = '';
+      handleFile(new File([blob], name, { type }));
     } catch (e) {
       console.error(e);
       libStatus.textContent = tr('captureLibraryDownloadFailed').replace('{error}', e.message);
@@ -186,7 +224,7 @@ let openVideoCaptureDialog = () => {};
     dropzone.classList.remove('dragover');
     handleFile(e.dataTransfer.files[0]);
   });
-  cancelBtn.addEventListener('click', () => { pendingMontageId = null; dialog.close(); });
+  cancelBtn.addEventListener('click', () => { pendingMontageId = null; if (libAbort) libAbort.abort(); dialog.close(); });
   dialog.addEventListener('close', () => { errorEl.textContent = ''; fileInput.value = ''; });
 })();
 

@@ -1,5 +1,6 @@
 /* ---------------- Sélecteur de packs (banque de packs -> bloc "Packs" d'un AdReel) ---------------- */
-function buildPackSelectorWidget(hostEl, selectedIds, onChange) {
+// allowExamples (4/11) : le pack d'exemple n'est proposé que dans l'AdReel d'exemple (jamais dans une collection).
+function buildPackSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
   function render() {
     hostEl.innerHTML = '';
     if (packs.length === 0) {
@@ -19,7 +20,7 @@ function buildPackSelectorWidget(hostEl, selectedIds, onChange) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = packs.filter(p => !selectedIds.includes(p.id));
+    const unselected = exampleChoices(packs.filter(p => !selectedIds.includes(p.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
     if (unselected.length) {
@@ -66,7 +67,7 @@ function buildPacksBlockCard(block) {
   body.querySelector('[data-role="presentation"]').addEventListener('input', e => { block.presentation = e.target.value; hasUnsavedEdits = true; });
   const host = body.querySelector('[data-role="selector"]');
   if (!block.packIds) block.packIds = [];
-  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  buildPackSelectorWidget(host, block.packIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, isExample(currentAdReelObj()));
   return card;
 }
 

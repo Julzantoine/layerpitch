@@ -33,7 +33,7 @@
     { id: 'pj-map-music', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapMusicTitle', descKey: 'plMapMusicDesc' },
     { id: 'pj-map-walk', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plMapWalkTitle', descKey: 'plMapWalkDesc' },
     // « bientôt » tant que les deux vidéos de « Music City » (music-city-gameplay-musique1/2.mp4) ne sont pas en ligne (media.layerpitch.com/tuto/).
-    { id: 'pj-annotate', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', soon: true },
+    { id: 'pj-annotate', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc' },
     // Vitrine (02/11), tout à la fin : la construire, puis son apparence.
     { id: 'pj-vitrine', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc' },
     { id: 'pj-vitrine-look', theme: LESSON_THEME_ID, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc' },
@@ -105,16 +105,20 @@
       'pj-annotate': [
         { titleKey: 'plAnnWelcomeTitle', textKey: 'plAnnWelcomeText' },
         { selector: '.tab[data-tab="videos"]', titleKey: 'plAnnTabTitle', textKey: 'plAnnTabText', done: () => S.tab === 'videos' },
-        { selector: '#montageGrid .lp-video-versions select', titleKey: 'plAnnVersionTitle', textKey: 'plAnnVersionText' },
-        { selector: '#montageGrid video', titleKey: 'plAnnPlayTitle', textKey: 'plAnnPlayText' },
+        // Chaque geste est exigé (05/11) : la musique 2, la pause quand la batterie arrive (~9 s), la note adressée à Joshua.
+        { selector: '#montageGrid .lp-video-versions select', titleKey: 'plAnnVersionTitle', textKey: 'plAnnVersionText',
+          done: () => { const sel = document.querySelector('#montageGrid .lp-video-versions select'); return !!(sel && sel.value && sel.value !== 'original'); } },
+        { selector: '#montageGrid video', titleKey: 'plAnnPlayTitle', textKey: 'plAnnPlayText',
+          done: () => { const v = document.querySelector('#montageGrid video'); return !!(v && v.paused && v.currentTime >= 7 && v.currentTime <= 14); } },
         { selector: '#montageGrid [data-act="notes"]', titleKey: 'plAnnOpenTitle', textKey: 'plAnnOpenText',
           done: () => !!document.querySelector('#montageGrid [data-role="noteHere"]') },
         { selector: '#montageGrid [data-role="noteHere"]', titleKey: 'plAnnHereTitle', textKey: 'plAnnHereText',
           done: () => { const l = document.querySelector('#montageGrid [data-role="noteAtLabel"]'); return !!(l && l.textContent.trim()); } },
         { selector: '#montageGrid [data-role="noteBody"]', titleKey: 'plAnnBodyTitle', textKey: 'plAnnBodyText',
           done: () => { const t = document.querySelector('#montageGrid [data-role="noteBody"]'); return !!(t && t.value.trim().length > 3); },
-          drops: [label('Ici, le club se remplit trop tôt : attendre que le joueur ait passé la porte.')] },
-        { selector: '#montageGrid [data-role="noteTo"]', titleKey: 'plAnnToTitle', textKey: 'plAnnToText' },
+          drops: [label('Ici, la batterie arrive un peu tôt : on aimerait qu’elle attende que la salle soit pleine.')] },
+        { selector: '#montageGrid [data-role="noteTo"]', titleKey: 'plAnnToTitle', textKey: 'plAnnToText',
+          done: () => { const sel = document.querySelector('#montageGrid [data-role="noteTo"]'); const o = sel && sel.selectedOptions && sel.selectedOptions[0]; return !!(o && /joshua/i.test(o.textContent)); } },
         { selector: '#montageGrid [data-role="noteAdd"]', titleKey: 'plAnnAddTitle', textKey: 'plAnnAddText',
           done: () => !!document.querySelector('#montageGrid [data-note]') },
         { titleKey: 'plAnnDoneTitle', textKey: 'plAnnDoneText', final: true },

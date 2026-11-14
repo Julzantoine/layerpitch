@@ -19,3 +19,144 @@
   .tour-card .btn:hover { border-color: var(--accent); color: var(--accent); }
   .tour-card .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tour-card .btn-primary:hover { opacity: 0.9; color: #fff; }
+  /* Vidéo accrochée en haut quand on fait défiler (05/11, voir pinCaptureVideo dans 18-panneau-de-capture.js). */
+  /* Dock collant (09/11) : sticky, pas fixed -- aucun changement de mise en page à l'accrochage. `overflow: clip` (et non hidden) garde les coins
+     arrondis du panneau sans le transformer en conteneur de défilement, ce qui empêcherait sticky de fonctionner. */
+  body.video-panel-active .video-test-panel { overflow: clip; }
+  .video-capture-dock { position: sticky; top: 0; z-index: 40; background: #111; }
+  .video-capture-image-hidden .video-capture-dock { position: static; }
+  /* Barre de zoom de la frise (12/11) : reste accrochée sous le dock (commandes de lecture) quand on fait défiler, comme elles. */
+  body.video-panel-active .vct-zoombar { position: sticky; top: var(--atelier-dock-h, 0px); z-index: 39; background: #111; padding: 6px 0; margin-bottom: 0; }
+  .video-capture-dock.video-capture-pinned { border-radius: 0 0 8px 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+  .vct-lane-nested .vct-lane-label.vct-lane-label-solo { padding-left: 6px; font-weight: 600; color: #7fb0e8; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
+  /* Règle des temps de la frise : on y déplace la tête de lecture (05/11, voir renderCaptureTimeline). */
+  .vct-ruler.vct-scrub { cursor: ew-resize; touch-action: none; }
+  /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
+     travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
+  .vct-body { position: relative; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: var(--vct-label-w, 96px); right: 0; pointer-events: none; z-index: 15; }
+  .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
+  .vct-marker-flag {
+    position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
+    background: #e0c341; color: #111; font-size: 9px; font-weight: 600; border-radius: 0 3px 3px 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: grab; touch-action: none; user-select: none;
+  }
+  .vct-marker-selected { border-left-style: solid; }
+  /* Remarques du client (9/11) : drapeaux bleus en bas de la frise, distincts des marqueurs jaunes de l'auteur. */
+  .vct-review-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dotted #2f80c0; }
+  .vct-review-flag {
+    position: absolute; bottom: 0; left: 0; height: 14px; line-height: 14px; max-width: 130px; padding: 0 5px 0 4px;
+    background: #2f80c0; color: #fff; font-size: 9px; font-weight: 600; border-radius: 0 3px 3px 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; user-select: none;
+  }
+  .vct-review-resolved { opacity: .45; }
+  .vct-marker-selected .vct-marker-flag { background: #fff; }
+  .video-capture-marker-name {
+    width: 160px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #ccc;
+    font-family: inherit; font-size: 11px; padding: 2px 4px;
+  }
+  /* Plein écran de l'atelier (05/11). */
+  .atelier-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .atelier-fullscreen-btn { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; white-space: nowrap; }
+  .atelier-fullscreen-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .atelier-fullscreen-btn[hidden] { display: none; }
+  html:fullscreen, html:fullscreen body { background: var(--bg, #fff); overflow-y: auto; }
+  /* Hiérarchie inversée (05/11, demande de Jules-Antoine : « les infos statiques ont beaucoup de place, l'atelier très peu ») :
+     dès qu'une vidéo est ouverte, le panneau de capture prend toute la largeur disponible et le reste (choix du pack, étapes,
+     morceaux à déclencher) devient une colonne étroite à droite, accrochée pendant le défilement. Remplace, pour l'atelier
+     seulement, le côte à côte de la page pack (contenu 760 px + panneau 400 px, src/pack/02-styles.css). */
+  body.video-panel-active { max-width: none; padding: 16px 20px 40px; align-items: stretch; }
+  body.video-panel-active .video-test-panel { width: 100%; max-width: none; }
+  body.video-panel-active .page { max-width: none; width: 100%; }
+  body.video-panel-active .video-test-panel-frame-wrap { width: min(100%, calc(40vh * 16 / 9)); margin: 0 auto; }
+  body.video-panel-active .atelier-intro { display: none; }
+  /* Un seul plein écran : celui du lecteur (06/11). Les infos (titre, pack, étapes) se replient depuis le lecteur (bouton ⓘ). */
+  body.video-panel-active .atelier-fullscreen-btn { display: none; }
+  body.video-panel-active.atelier-info-collapsed .atelier-head, body.video-panel-active.atelier-info-collapsed .atelier-pack-name, body.video-panel-active.atelier-info-collapsed .atelier-steps { display: none; }
+  /* Les consignes de départ (étapes) et le bouton « Choisir la vidéo » n'ont plus lieu d'être une fois la vidéo chargée (10/11, demande de Jules-Antoine) :
+     le panneau de droite commence directement par le pack, la musique et les Sfx. Fermer le panneau (✕) les ramène pour changer de vidéo. */
+  body.video-panel-active .atelier-steps, body.video-panel-active .video-capture-trigger-btn { display: none; }
+  body.video-panel-active.atelier-hide-right .page { display: none; }
+  .atelier-zones { display: inline-flex; margin-right: 6px; border-radius: 6px; overflow: hidden; }
+  .atelier-zones .atelier-zone-btn { border-radius: 0; margin: 0; border-right-width: 0; color: #888; }
+  .atelier-zones .atelier-zone-btn:last-child { border-right-width: 1px; }
+  .atelier-zones .atelier-zone-btn.active { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .atelier-zones[hidden] { display: none; }
+  .atelier-zones .atelier-zone-btn[hidden] { display: none; }
+  .atelier-zones .atelier-zone-btn svg { display: block; margin: 0 auto; }
+  .video-test-panel-btn.active { border-color: var(--accent); color: var(--accent); }
+  body.video-panel-active .atelier-head { margin-bottom: 16px; }
+  body.video-panel-active .atelier-title { font-size: 17px; margin: 0; }
+  body.video-panel-active .atelier-pack-name { font-size: 15px; }
+  body.video-panel-active .atelier-steps { font-size: 12px; line-height: 1.5; }
+  body.video-panel-active #content .video-capture-trigger-btn { margin-bottom: 16px; }
+  /* Le panneau de droite reste à droite tant que la fenêtre n'est pas vraiment étroite (10/11, retour de Jules-Antoine : pour jouer en direct, morceaux
+     et frise doivent rester côte à côte) ; il se rétrécit avant de passer dessous (seuil 720 px, à ajuster à l'usage). */
+  @media (min-width: 720px) {
+    body.video-panel-active { flex-direction: row; align-items: flex-start; justify-content: flex-start; margin: 0; gap: 20px; }
+    body.video-panel-active .video-test-panel { order: 1; flex: 1 1 auto; min-width: 0; width: auto; position: static; }
+    body.video-panel-active .page { order: 2; flex: 0 0 clamp(230px, 24vw, 300px); width: clamp(230px, 24vw, 300px); position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding-right: 4px; }
+  }
+  /* Image masquée pendant l'incrustation (05/11, voir wireCaptureImageHiding) : la vidéo garde sa place dans le DOM, hauteur nulle. */
+  .video-capture-image-hidden-note { display: none; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: #bbb; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; }
+  .video-capture-image-hidden .video-capture-image-hidden-note { display: block; }
+  .video-capture-image-hidden .video-test-panel-frame-wrap { aspect-ratio: auto; height: 0; overflow: hidden; }
+  .video-capture-image-hidden #videoCaptureHideImageBtn { color: var(--accent); }
+
+  .video-test-panel-header .video-capture-name-field { flex: 1 1 160px; width: auto; min-width: 0; max-width: 360px; font-size: 13px; }
+  .vct-zoom-slider { width: 130px; accent-color: #2f80c0; }
+
+  .atelier-export-opt { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+  .atelier-export-opt input { width: auto; margin: 0; }
+
+  /* Sections du projet (09/11, voir setAtelierView) : le Backstage montre l'atelier, le Versioning ou la relecture client, un seul à la fois. */
+  body.atelier-view-atelier #videoCaptureVersioning { display: none; }
+  /* Groupe « Versions » (12/11) : menu des versions + marqueurs liés + reprise des marqueurs, réunis ; admin seulement (classe -v2),
+     les autres gardent la barre d'avant (le groupe est alors transparent : display: contents). */
+  .video-alt-group { display: contents; }
+  .video-alt-group[hidden] { display: none; }
+  .video-alt-group-v2 { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid #2a3a48; border-radius: 8px; background: #151a1f; flex-wrap: wrap; }
+  .video-alt-group-label { font-size: 10px; color: #7d8a96; text-transform: none; }
+  .video-alt-switch { display: none; }
+  .video-alt-group-v2 .video-alt-switch { display: inline-block; width: 22px; height: 12px; border-radius: 6px; background: #3a3a3a; position: relative; vertical-align: -2px; margin-right: 6px; }
+  .video-alt-group-v2 .video-alt-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: left .12s; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch { background: #fff; }
+  .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch::after { left: 12px; background: #2f80c0; }
+  /* Barre d'étapes Vidéo → Montage → Publier (13/11) : admin seulement (classe atelier-v2). Chaque étape ne montre que ses éléments. */
+  .atelier-stepbar { display: flex; gap: 6px; padding: 8px 10px; background: #141414; }
+  .atelier-stepbar-btn { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid #3a3a3a; background: #1c1c1c; color: #999; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .atelier-stepbar-btn .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: #2a2a2a; margin-right: 6px; font-size: 10px; }
+  .atelier-stepbar-btn.done { color: #ccc; }
+  .atelier-stepbar-btn.on { background: #17324a; border-color: #2f80c0; color: #dbe9f5; }
+  .atelier-stepbar-btn.on .n { background: #2f80c0; color: #fff; }
+  .atelier-step-next { margin-left: auto; background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .video-test-panel.atelier-v2 #videoCaptureAdditiveLabel { display: none !important; } /* remplacée par le choix Fusionner / Remplacer au clic sur Enregistrer */
+  .video-test-panel.atelier-v2[data-step="montage"] .video-step-publier { display: none; }
+  .video-test-panel.atelier-v2[data-step="publier"] .video-step-montage { display: none; }
+  body.atelier-view-versioning .video-capture-bar, body.atelier-view-review .video-capture-bar,
+  body.atelier-view-versioning #videoCaptureTimeline, body.atelier-view-review #videoCaptureTimeline,
+  body.atelier-view-versioning #videoCaptureHistory, body.atelier-view-review #videoCaptureHistory { display: none; }
+  body.atelier-view-versioning .vcv-review-fold { display: none; }
+  body.atelier-view-review .vcv-version, body.atelier-view-review .vcv-picked-bar, body.atelier-view-review .vcv-diff,
+  body.atelier-view-review #videoCaptureVersioning > .vcv-head, body.atelier-view-review .vcv-review-fold > summary { display: none; }
+
+  /* Remplacer un morceau sur la frise (13/11, admin) : même discrétion que la croix, bleu au survol. */
+  .vct-track-replace { margin-left: 4px; font-size: 12px; }
+  .vct-track-replace:hover { color: #2f80c0; }
+
+  /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
+  .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-cbtn:hover { color: #fff; border-color: #666; }
+  .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
+  .vct-cx:hover { color: #e57373; }
+  .vct-vol { width: 44px; height: 10px; accent-color: #2f80c0; }
+  .vct-col-resize, .vct-col-resize * { cursor: col-resize !important; }
+  .vct-ctx { position: fixed; z-index: 100000; background: #262626; border: 1px solid #444; border-radius: 8px; padding: 4px 0; min-width: 210px; font-size: 12px; color: #ddd; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .vct-ctx-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; padding: 5px 12px; cursor: pointer; font: inherit; }
+  .vct-ctx-item:hover { background: #2f80c0; color: #fff; }
+  .vct-ctx-check { display: inline-block; width: 12px; }
+  .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
+  .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }

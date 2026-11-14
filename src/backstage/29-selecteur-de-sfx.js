@@ -1,5 +1,6 @@
 /* ---------------- Sélecteur de Sfx (bibliothèque Sfx -> bloc "Sfx" d'un AdReel) ---------------- */
-function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
+// allowExamples (4/11) : les Sfx d'exemple ne sont proposés que dans un morceau, le pack ou l'AdReel d'exemple (exampleChoices).
+function buildSfxSelectorWidget(hostEl, selectedIds, onChange, allowExamples) {
   function render() {
     hostEl.innerHTML = '';
     if (sfxLibrary.length === 0) {
@@ -19,26 +20,15 @@ function buildSfxSelectorWidget(hostEl, selectedIds, onChange) {
       `;
       hostEl.appendChild(row);
     });
-    const unselected = sfxLibrary.filter(s => !selectedIds.includes(s.id));
+    const unselected = exampleChoices(sfxLibrary.filter(s => !selectedIds.includes(s.id)), allowExamples);
     const addRow = document.createElement('div');
     addRow.style.marginTop = '8px';
+    hostEl.appendChild(addRow);
     if (unselected.length) {
-      addRow.innerHTML = `
-        <select data-sel-action="add">
-          <option value="">${tr('addSfxOption')}</option>
-          ${unselected.map(s => `<option value="${s.id}">${escapeAttr(s.title) || tr('untitledFallback')}</option>`).join('')}
-        </select>
-      `;
+      buildAddPicker(addRow, unselected, sfxFolders, tr('addSfxOption'), id => { selectedIds.push(id); onChange(); render(); });
     } else {
       addRow.innerHTML = `<div class="hint-inline">${tr('allSfxIncluded')}</div>`;
     }
-    hostEl.appendChild(addRow);
-
-    hostEl.querySelectorAll('[data-sel-action="add"]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        if (sel.value) { selectedIds.push(sel.value); onChange(); render(); }
-      });
-    });
     hostEl.querySelectorAll('button[data-sel-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.selAction;
@@ -59,7 +49,7 @@ function buildSfxBlockCard(block) {
   body.innerHTML = `<div class="hint" style="margin-bottom:10px">${tr('sfxBlockHint')}</div><div data-role="selector"></div>`;
   const host = body.querySelector('[data-role="selector"]');
   if (!block.sfxIds) block.sfxIds = [];
-  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); });
+  buildSfxSelectorWidget(host, block.sfxIds, () => { hasUnsavedEdits = true; refreshAllBlockSummaries(); }, isExample(currentAdReelObj()));
   return card;
 }
 
@@ -149,6 +139,15 @@ function buildVideoCard(block) {
   // niveau de l'app comme sfxLibrary/packs/collections, donc récupérée à l'ouverture de ce bloc.
   let libraryVideos = [];
   let libraryLoaded = false;
+  // « Un de mes montages » (06/11) : choisir directement un montage de l'atelier, sans passer par la bibliothèque ni par son fichier
+  // technique (l'image du montage, « … — montage »). Le bloc est enregistré comme avant (source 'library', vidéo = l'image du montage,
+  // montageId posé par fillVersionRows) : rien ne change pour la page publique. montageMode = vidéos du bloc dont ce choix vient d'être
+  // fait et qui n'ont pas encore de montage retenu (rien de plus n'est stocké dans le bloc).
+  let montageIdx = null;
+  const montageMode = new WeakSet();
+  const montageAllowed = () => flagOpen('video_upload') && entitlementLevel('versioning') === 'saved';
+  const montageChoices = () => ((montageIdx && montageIdx.captures) || []).filter(x => x.capture.baseVideoId || x.siblings.length);
+  function resetVideoLink(v) { v.libraryVideoId = null; v.url = ''; v.montageId = null; v.defaultVersion = null; v.hiddenVersions = []; }
   function renderList() {
     listEl.innerHTML = '';
     block.videos.forEach((v, i) => {
@@ -156,7 +155,9 @@ function buildVideoCard(block) {
       // grisé pour tout autre compositeur (16 septembre, compression trop lente pour un vrai usage --
       // voir layerpitch_video_compression_single_thread_limit.md), donc aucun non-admin ne peut avoir
       // de bibliothèque à piocher dedans. Pas de bascule à montrer dans ce cas, juste le lien externe.
-      const source = flagOpen('video_upload') && v.source === 'library' ? 'library' : 'url';
+      const isMontage = montageAllowed() && (montageMode.has(v) || (v.source === 'library' && !!v.montageId));
+      const source = isMontage ? 'montage' : (flagOpen('video_upload') && v.source === 'library' ? 'library' : 'url');
+      const choices = montageChoices();
       const el = document.createElement('div');
       el.className = 'list-block';
       el.innerHTML = `
@@ -168,19 +169,30 @@ function buildVideoCard(block) {
         <label>${tr('videoSourceLabel')}</label>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
           <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="url" style="width:auto;margin:0" ${source === 'url' ? 'checked' : ''}> ${tr('videoSourceUrl')}</label>
+          ${montageAllowed() ? `<label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="montage" style="width:auto;margin:0" ${source === 'montage' ? 'checked' : ''}> ${tr('videoSourceMontage')}</label>` : ''}
           <label style="display:flex;align-items:center;gap:4px;font-weight:normal"><input type="radio" name="videoSource-${block.id}-${i}" data-role="sourceRadio" data-i="${i}" value="library" style="width:auto;margin:0" ${source === 'library' ? 'checked' : ''}> ${tr('videoSourceLibrary')}</label>
         </div>` : ''}
-        <div data-role="urlWrap" ${source === 'library' ? 'style="display:none"' : ''}>
+        <div data-role="urlWrap" ${source !== 'url' ? 'style="display:none"' : ''}>
           <label data-help="videoLink">${tr('videoLinkLabel')}</label><input type="text" data-field="url" data-i="${i}" value="${escapeAttr(source === 'url' ? (v.url || '') : '')}">
         </div>
         ${flagOpen('video_upload') ? `
-        <div data-role="libraryWrap" ${source === 'library' ? '' : 'style="display:none"'}>
+        <div data-role="libraryWrap" ${source === 'url' ? 'style="display:none"' : ''}>
+          <div data-role="montageWrap" ${source === 'montage' ? '' : 'style="display:none"'}>
+            <label>${tr('videoMontageSelectLabel')}</label>
+            <select data-role="montageSelect" data-i="${i}">
+              <option value="">${tr('videoMontageSelectPlaceholder')}</option>
+              ${choices.map(x => `<option value="${escapeAttr(x.capture.id)}" ${v.montageId === x.capture.id ? 'selected' : ''}>${escapeAttr(x.capture.title || (x.capture.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'))}</option>`).join('')}
+            </select>
+            ${montageIdx && !choices.length ? `<div class="hint-inline">${tr('videoMontageSelectEmpty')}</div>` : ''}
+          </div>
+          <div data-role="fileWrap" ${source === 'library' ? '' : 'style="display:none"'}>
           <label>${tr('videoLibrarySelectLabel')}</label>
           <select data-role="librarySelect" data-i="${i}">
             <option value="">${tr('videoLibrarySelectPlaceholder')}</option>
-            ${libraryVideos.map(lv => `<option value="${lv.id}" ${v.libraryVideoId === lv.id ? 'selected' : ''}>${escapeAttr(lv.title || lv.originalName || lv.file)}</option>`).join('')}
+            ${libraryVideos.filter(lv => lv.kind !== 'capture_base' || lv.id === v.libraryVideoId).map(lv => `<option value="${lv.id}" ${v.libraryVideoId === lv.id ? 'selected' : ''}>${escapeAttr(lv.title || lv.originalName || lv.file)}</option>`).join('')}
           </select>
           ${libraryLoaded && !libraryVideos.length ? `<div class="hint-inline">${tr('videoLibrarySelectEmpty')}</div>` : ''}
+          </div>
           <div data-role="versionRow" data-i="${i}"></div>
         </div>` : ''}
         <label>${tr('commentLabel')}</label><textarea data-field="comment" data-i="${i}" rows="2">${escapeAttr(v.comment || '')}</textarea>
@@ -227,6 +239,7 @@ function buildVideoCard(block) {
     libraryLoaded = true;
     renderList();
   });
+  if (montageAllowed()) loadVideoVersioningIndex().then(ix => { montageIdx = ix; renderList(); });
   const atelierBtn = body.querySelector('[data-role="openAtelier"]');
   if (atelierBtn) atelierBtn.addEventListener('click', () => openVideoAtelier());
   body.querySelector('[data-role="addBtn"]').addEventListener('click', () => {
@@ -256,13 +269,18 @@ function buildVideoCard(block) {
     const radio = e.target.closest('[data-role="sourceRadio"]');
     if (radio) {
       const v = block.videos[parseInt(radio.dataset.i, 10)];
-      v.source = radio.value;
-      if (v.source === 'library') { v.url = ''; } else { v.libraryVideoId = null; }
+      v.source = radio.value === 'montage' ? 'library' : radio.value;
+      // Changer de source repart de zéro : ni vidéo ni montage retenus (un montage choisi puis « Bibliothèque vidéo » ne doit pas rester relié).
+      if (radio.value === 'montage') montageMode.add(v); else montageMode.delete(v);
+      if (radio.value === 'url') { v.libraryVideoId = null; v.montageId = null; v.defaultVersion = null; v.hiddenVersions = []; } else { resetVideoLink(v); }
       hasUnsavedEdits = true;
       renderList();
       refreshAllBlockSummaries();
-      // Bibliothèque relue au choix de « Bibliothèque vidéo » : une vidéo envoyée APRÈS la création du bloc y figure alors aussi.
-      if (v.source === 'library' && flagOpen('video_upload')) loadMyVideos().then(({ videos }) => { libraryVideos = videos || []; libraryLoaded = true; renderList(); });
+      // Bibliothèque relue au choix de « Bibliothèque vidéo » ou de « Un de mes montages » : une vidéo ou un montage envoyé APRÈS la création du bloc y figure alors aussi.
+      if (v.source === 'library' && flagOpen('video_upload')) {
+        loadMyVideos().then(({ videos }) => { libraryVideos = videos || []; libraryLoaded = true; renderList(); });
+        if (radio.value === 'montage') loadVideoVersioningIndex(true).then(ix => { montageIdx = ix; renderList(); });
+      }
       return;
     }
     const shown = e.target.closest('[data-role="versionShown"]');
@@ -286,6 +304,26 @@ function buildVideoCard(block) {
         if (full) { v.libraryVideoId = full.id; v.url = full.base + full.file; }
         renderList(); refreshAllBlockSummaries();
       });
+      return;
+    }
+    const msel = e.target.closest('[data-role="montageSelect"]');
+    if (msel) {
+      const v = block.videos[parseInt(msel.dataset.i, 10)];
+      hasUnsavedEdits = true;
+      if (!msel.value) { resetVideoLink(v); renderList(); refreshAllBlockSummaries(); return; }
+      (async () => {
+        const ix = await loadVideoVersioningIndex(); montageIdx = ix;
+        const entry = (ix.captures || []).find(x => x.capture.id === msel.value);
+        if (!entry) return;
+        // L'image du montage (sa vidéo sans le son) ; à défaut, la vidéo de son premier export. Le son suit, version par version.
+        const vid = entry.capture.baseVideoId || (entry.siblings[0] && entry.siblings[0].videoId);
+        let lv = libraryVideos.find(l => l.id === vid);
+        if (!lv) { const r = await loadMyVideos(); libraryVideos = r.videos || []; libraryLoaded = true; lv = libraryVideos.find(l => l.id === vid); }
+        if (!lv) { window.LayerPitchNotify.info(tr('videoMontageNoVideo')); resetVideoLink(v); renderList(); return; }
+        v.libraryVideoId = vid; v.url = lv.base + lv.file; v.montageId = null; // montageId et version par défaut : fillVersionRows (renderList)
+        if (!v.title) v.title = entry.capture.title || '';
+        renderList(); refreshAllBlockSummaries();
+      })();
       return;
     }
     const sel = e.target.closest('[data-role="librarySelect"]');

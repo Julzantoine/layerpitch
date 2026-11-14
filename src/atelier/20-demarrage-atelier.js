@@ -41,6 +41,84 @@ async function atelierPackChoices(client) {
   return (data || []).filter(p => p.owner_id === composerId).map(p => ({ id: p.id, title: p.title || tr('atelierUntitledPack') }));
 }
 
+function atelierFillPackSelect(select, choices, packId) {
+  // Un pack ouvert par un lien (montage d'un autre compte de l'équipe, pack retiré de la liste…) reste proposé.
+  if (packId && !choices.some(c => c.id === packId)) choices.unshift({ id: packId, title: packId });
+  select.innerHTML = (packId ? '' : `<option value="">${escapeHtml(tr('atelierPickPack'))}</option>`)
+    + choices.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === packId ? 'selected' : ''}>${escapeHtml(c.title)}</option>`).join('');
+}
+
+// Sauvegarde dans le Backstage (04/11) : la page hôte prévient (« lp-backstage » / packsChanged) -- un pack créé puis sauvegardé
+// apparaît dans la liste sans recharger la page. Aucun pack ouvert : l'atelier se relance (rien à perdre). Un pack ouvert (prise ou
+// montage peut-être en cours) : seule la liste des packs est remise à jour, rien d'autre n'est touché.
+let atelierPacksRefreshing = false;
+window.addEventListener('message', async e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'packsChanged') return;
+  if (atelierPacksRefreshing) return;
+  atelierPacksRefreshing = true;
+  try {
+    const packId = atelierParams.get('id');
+    if (!packId) { await init(); return; }
+    const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+    if (!client) return;
+    atelierFillPackSelect(document.getElementById('atelierPackSelect'), await atelierPackChoices(client), packId);
+    // Pack publié entre-temps (11/11, retour de Jules-Antoine : « j'ai ajouté un morceau au pack, il n'apparaît pas ») : les morceaux étaient lus
+    // une seule fois à l'ouverture. Si le pack a été republié, l'atelier se recharge sur le même projet, après avoir enregistré ce qui était en
+    // cours ; jamais pendant une prise.
+    if (lastResolvedOwnerId && window.__lpPackPublishedAt) {
+      const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+      if (fresh && fresh.publishedAt && fresh.publishedAt !== window.__lpPackPublishedAt) {
+        if (window.__lpAtelierBusy && window.__lpAtelierBusy()) return; // prise en cours : on ne touche à rien, la page se rechargera au prochain passage
+        try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { return; } // l'enregistrement a échoué : on ne recharge pas, rien ne doit se perdre
+        location.reload();
+      }
+    }
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, mise à jour des packs :', err);
+  } finally {
+    atelierPacksRefreshing = false;
+  }
+});
+
+// « ↻ » dans l'en-tête du panneau (13/11, admin) : relire le pack publié sans attendre un message du Backstage (retour de Jules-Antoine : un
+// morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
+// que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
+let atelierRefreshing = false;
+document.addEventListener('click', async ev => {
+  const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
+  if (!btn || atelierRefreshing) return;
+  atelierRefreshing = true; btn.disabled = true;
+  const N = window.LayerPitchNotify;
+  try {
+    if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
+    if (!lastResolvedOwnerId) { location.reload(); return; }
+    const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+    if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
+    try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
+    location.reload();
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, actualisation :', err);
+    N.error(tr('loadError'));
+  } finally {
+    atelierRefreshing = false; btn.disabled = false;
+  }
+});
+
+// « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
+// (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis
+// quand c'est fini (finishMontageResult : none = rien à publier, done = publié, error = échec + raison). Pas de panneau ouvert : none.
+window.addEventListener('message', async e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'finishMontage') return;
+  const id = e.data.id;
+  atelierTell('finishMontageAck', { id });
+  try {
+    const status = window.__lpFinishMontage ? await window.__lpFinishMontage() : 'none';
+    atelierTell('finishMontageResult', { id, status });
+  } catch (err) {
+    atelierTell('finishMontageResult', { id, status: 'error', message: (err && err.message) || String(err) });
+  }
+});
+
 async function init() {
   const container = document.getElementById('content');
   const packId = atelierParams.get('id');
@@ -65,20 +143,26 @@ async function init() {
       atelierEmpty(container, escapeHtml(tr(atelierAsStudio ? 'atelierNoPacksStudio' : 'atelierNoPacks')));
       return;
     }
-    // Un pack ouvert par un lien (montage d'un autre compte de l'équipe, pack retiré de la liste…) reste proposé.
-    if (packId && !choices.some(c => c.id === packId)) choices.unshift({ id: packId, title: packId });
-    select.innerHTML = (packId ? '' : `<option value="">${escapeHtml(tr('atelierPickPack'))}</option>`)
-      + choices.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === packId ? 'selected' : ''}>${escapeHtml(c.title)}</option>`).join('');
-    row.hidden = false;
-    select.addEventListener('change', () => {
-      if (!select.value) return;
-      const next = new URLSearchParams(location.search);
-      next.set('id', select.value);
-      next.delete('montage');
-      atelierTell('pack', { packId: select.value });
-      location.search = next.toString();
-    });
-    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); return; }
+    atelierFillPackSelect(select, choices, packId);
+    // Ouvert sur un projet vidéo (09/11, &montage=<id> depuis le Backstage) : le pack est celui du projet, choisi dans le Backstage -- ni liste de packs
+    // ni phrase « choisis le pack » ici. Tutoriel : parcours guidé inchangé.
+    const inProject = atelierParams.has('montage') && !atelierParams.has('tuto');
+    row.hidden = inProject;
+    const introEl = document.querySelector('.atelier-intro');
+    if (introEl) introEl.hidden = inProject;
+    if (!select.dataset.bound) {
+      select.dataset.bound = '1';
+      select.addEventListener('change', () => {
+        if (!select.value) return;
+        const next = new URLSearchParams(location.search);
+        next.set('id', select.value);
+        next.delete('montage');
+        atelierTell('pack', { packId: select.value });
+        location.search = next.toString();
+      });
+    }
+    // Pas encore de pack : la leçon démarre quand même (sa bulle « Choisis le pack » montre la liste).
+    if (!packId) { atelierEmpty(container, escapeHtml(tr('atelierPickPackHint'))); startAtelierLessonIfAsked(); return; }
 
     // Données publiées du compositeur du pack (le sien, ou celui qui a vendu le pack au studio) : mêmes données que la page publique.
     const { data: packRows } = await client.from('packs').select('id, owner_id').eq('id', packId);
@@ -86,6 +170,7 @@ async function init() {
     if (!owner) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     lastResolvedOwnerId = owner.owner_id;
     const data = await window.LayerPitchSiteData.loadSiteDataFromPostgres(owner.owner_id);
+    window.__lpPackPublishedAt = data.publishedAt || null;
     const pack = (data.packs || []).find(p => p.id === packId);
     if (!pack) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     // Référence pour la capture (trackId/sfxId -> fichier réel, voir exportCaptureVideo) ; composerName : crédit compositeur de l'export.
@@ -93,11 +178,23 @@ async function init() {
     window.__lpCaptureLibrary = {
       library: data.library || [], sfxLibrary: data.sfxLibrary || [], sfxFolders: data.sfxFolders || [],
       composerName: (mainAdReel && mainAdReel.profile && mainAdReel.profile.title) || '',
+      // Ce que l'atelier PROPOSE (05/11, retour de Jules-Antoine : toute la bibliothèque s'affichait) : les morceaux du pack, ses Sfx et
+      // ceux de ses morceaux. Le reste de la bibliothèque sert seulement à relire un montage qui citerait un morceau sorti du pack.
+      packTrackIds: (pack.trackIds || []).slice(),
+      packSfxIds: [...new Set((pack.sfxIds || []).concat(...(pack.trackIds || []).map(id => {
+        const t = (data.library || []).find(x => x.id === id);
+        return (t && t.sfxIds) || [];
+      })))],
+      // Autres packs du compositeur, proposés dans le Versioning (06/11) : pas côté studio, où le pack acheté n'ouvre pas le reste de son compte.
+      otherPacks: atelierAsStudio ? [] : (data.packs || []).filter(p => p.id !== packId).map(p => ({
+        id: p.id, title: p.title || p.id, trackIds: (p.trackIds || []).slice(),
+        sfxIds: [...new Set((p.sfxIds || []).concat(...(p.trackIds || []).map(id => { const t = (data.library || []).find(x => x.id === id); return (t && t.sfxIds) || []; })))],
+      })),
     };
     window.LayerPlayerCore.setSeqMapDensity('roomy');
 
     container.innerHTML = `<div class="atelier-pack-name">${escapeHtml(pack.title)}</div>
-      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
+      <ol class="atelier-steps"><li>${escapeHtml(tr('atelierStepVideo'))}</li><li>${escapeHtml(tr('atelierStepArm'))}</li><li>${escapeHtml(tr('atelierStepPlay'))}</li></ol>`;
     const musicContainer = document.createElement('div');
     musicContainer.className = 'pub-section';
     container.appendChild(musicContainer);
@@ -147,8 +244,9 @@ function startAtelierLessonIfAsked() {
     document.body.classList.add('has-preview-banner');
   }
   if (atelierParams.get('lesson') === 'versioning') {
-    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone') }).start(), 600);
+    // Ouverte / fermée : le Backstage cache sa propre bulle pendant que celles de l'atelier sont à l'écran (une seule bulle à la fois).
+    setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone'), onOpen: () => atelierTell('lessonOpen'), onClose: () => atelierTell('lessonClose') }).start(), 600);
   }
 }
 
-window.addEventListener('load', init);
+window.addEventListener('load', () => { wireAtelierFullscreenButtons(document); init(); });

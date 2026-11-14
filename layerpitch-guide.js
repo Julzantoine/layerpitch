@@ -355,7 +355,7 @@
         if (guide.adminTarget == null) guide.adminTarget = guide.steps.length - 1;
         const adminHtml = adminOn ? `<div class="tour-admin"><span class="tour-admin-tag">${esc(tr('tourAdminTag'))}</span>
         <button class="btn btn-small" type="button" data-tour="adm-skip">${esc(tr('tourAdminSkip'))}</button>
-        <select data-tour="adm-target" title="${esc(tr('tourAdminTargetTitle'))}">${guide.steps.map((st, k) => `<option value="${k}"${k === guide.adminTarget ? ' selected' : ''}>${k + 1} · ${esc(tr(st.titleKey || ''))}</option>`).join('')}</select>
+        <select data-tour="adm-target" title="${esc(tr('tourAdminTargetTitle'))}">${guide.steps.map((st, k) => `<option value="${k}"${k === guide.adminTarget ? ' selected' : ''}>${k + 1} · ${esc(tr(st.titleKey || '', host.textVars ? host.textVars(st, guide) : {}))}</option>`).join('')}</select>
         <button class="btn btn-small" type="button" data-tour="adm-jump" title="${esc(tr('tourAdminJumpTitle'))}">${esc(tr('tourAdminJump'))}</button>
         <button class="btn btn-small" type="button" data-tour="adm-auto" title="${esc(tr('tourAdminAutoTitle'))}">${esc(tr(guide.autoRunning ? 'tourAdminStop' : 'tourAdminAuto'))}</button>
         <span class="tour-admin-msg" data-tour="adm-msg">${esc(guide.adminMsg || '')}</span></div>` : '';
@@ -376,7 +376,7 @@
         <button class="btn btn-small" type="button" data-tour="skip">${esc(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
         <span style="flex:1"></span>
         ${guide.index > 0 && !step.final ? `<button class="btn btn-small" type="button" data-tour="prev">${esc(tr('tourPrev'))}</button>` : ''}
-        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${esc(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+\s·\s/, '') }))}</button>` : ''}
+        ${nextLesson ? `<button class="btn btn-small btn-primary" type="button" data-tour="nextlesson">${esc(tr('lessonNextBtn', { n: nextLesson.n, title: tr(nextLesson.lesson.titleKey).replace(/^\d+(?: bis)?\s·\s/, '') }))}</button>` : ''}
         ${auto
           /* étape à geste : elle n'avance que lorsque le geste est fait ; « Passer l'étape » n'existe que pour une étape déjà
              franchie, revue avec « Précédent » */

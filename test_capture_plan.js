@@ -65,6 +65,23 @@ const path = require('path');
     check('vertical retouché : bloc ajouté hors écoute -> la couche joue, en boucle, calée sur la phase du morceau', !!extra && extra.loop && near(extra.offset, (40 - 1) % 8));
   }
 
+  // ---- Montage à la souris (05/11) : morceau quantifié jamais joué, couches posées dans la frise -> générations du lecteur refaites ----
+  {
+    const hand = Object.assign({}, quant, { id: 'h', bpm: 120, beatsPerBar: 4, loopInBeat: 2, loopOutBeat: 10, startTrackBeat: 0 }); // entrée 1 s, sortie 5 s, tour 4 s
+    tracks.h = hand;
+    const ev = [
+      { t: 2, name: 'layer_segment', detail: { trackId: 'h', layerIndex: 0, duration: 12 } },
+      { t: 6, name: 'layer_segment', detail: { trackId: 'h', layerIndex: 1, duration: 8 } },
+    ];
+    const vs = plan(ev).voices.filter(v => v.track.id === 'h');
+    const l0 = vs.filter(v => v.targetKey === 'layer:0').sort((x, y) => x.start - y.start);
+    check('à la souris : 1re génération au premier bloc, depuis le départ du morceau (intro comprise)', l0.length && l0[0].start === 2 && l0[0].offset === 0);
+    check('à la souris : générations suivantes à chaque tour, depuis l\'entrée de boucle', l0.length === 3 && l0[1].start === 7 && l0[1].offset === 1 && l0[2].start === 11 && l0[2].offset === 1);
+    check('à la souris : plus de boucle du fichier entier, tout s\'arrête à la fin du dernier bloc', vs.every(v => !v.loop && v.stop === 14));
+    const l1 = vs.filter(v => v.targetKey === 'layer:1');
+    check('à la souris : la 2e couche suit les mêmes générations, muette avant son bloc', l1.length === 3 && at(l1[0].gain.auto, 2) === 0);
+  }
+
   // ---- Vertical quantifié : une génération par tour, jouée jusqu'au bout ; l'intensité ne touche que la génération en cours ----
   {
     const raw = [
@@ -188,6 +205,41 @@ const path = require('path');
   // ---- Enveloppes ----
   check('envAt : rampe linéaire depuis la valeur du moment', near(CP.envAt(1, [{ t: 1, target: 0, ramp: 2 }], 2), 0.5));
   check('envAt : saut immédiat', CP.envAt(1, [{ t: 1, target: 0.3, ramp: 0 }], 1) === 0.3);
+
+  // ---- Premier bloc de calque déplacé : l'écoute enregistrée (démarrage, générations, arrêt) le suit ----
+  {
+    const ev = CP.materialize([
+      { t: 0.5, name: 'track_play', detail: { trackId: 'v' } },
+      { t: 0.5, name: 'layer_run', detail: { trackId: 'v', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 10, name: 'voices_stop', detail: { trackId: 'v' } },
+    ], findTrack);
+    const seg = ev.find(e => e.name === 'layer_segment');
+    const linked = CP.linkedMarks(ev, seg);
+    check('bloc déplacé : démarrage, écoute et arrêt de fin suivent', linked.length === 3);
+    const dt = 1.5; seg.t += dt; linked.forEach(m => { m.t += dt; });
+    const vs = plan(ev).voices.filter(v => v.track.id === 'v');
+    check('bloc déplacé : plus de voix calée sur l\'ancien départ', vs.every(v => v.start >= 2 - 1e-9));
+    check('bloc déplacé : la musique entre au début du fichier', vs.some(v => near(v.start, 2) && v.offset === 0));
+  }
+
+  // ---- Mix par morceau (13/11) : muet / solo / volume rangés dans lane_layout.mix, appliqués au gain des voix du morceau ----
+  {
+    const ev = CP.materialize([
+      { t: 1, name: 'track_play', detail: { trackId: 'v' } },
+      { t: 1, name: 'layer_run', detail: { trackId: 'v', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 6, name: 'voices_stop', detail: { trackId: 'v' } },
+      { t: 1, name: 'track_play', detail: { trackId: 'q' } },
+      { t: 1, name: 'layer_run', detail: { trackId: 'q', offset: 0, loop: [0, 8], level: 0 } },
+      { t: 6, name: 'voices_stop', detail: { trackId: 'q' } },
+    ], findTrack);
+    const gainOf = (mix, id) => { const vs = CP.buildPlan(ev, { findTrack, findSfx, trackMix: mix }).plan.voices.filter(v => v.track.id === id); return vs.map(v => Math.max(v.gain.init, ...v.gain.auto.map(a => a[2]))); };
+    const base = gainOf(null, 'v');
+    check('mix : sans réglage, rien ne change', base.some(g => g > 0) && JSON.stringify(gainOf({}, 'v')) === JSON.stringify(base));
+    check('mix : muet = silence pour ce morceau seulement', gainOf({ v: { mute: true } }, 'v').every(g => g === 0) && gainOf({ v: { mute: true } }, 'q').some(g => g > 0));
+    check('mix : volume 50 % divise le gain par deux', gainOf({ v: { vol: 0.5 } }, 'v').every((g, i) => near(g, base[i] * 0.5)));
+    check('mix : solo = les autres morceaux se taisent', gainOf({ v: { solo: true } }, 'q').every(g => g === 0) && gainOf({ v: { solo: true } }, 'v').some(g => g > 0));
+    check('mix : solo gagne sur muet ailleurs, muet gagne seul', CP.trackMixFactor({ a: { mute: true } }, 'a') === 0 && CP.trackMixFactor({ a: { solo: true }, b: { mute: true } }, 'b') === 0 && CP.trackMixFactor({ a: { solo: true } }, 'a') === 1);
+  }
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est OK');
   process.exit(failures ? 1 : 0);
