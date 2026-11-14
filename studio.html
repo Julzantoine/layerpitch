@@ -6,7 +6,7 @@
 <title data-i18n="pageTitle">LayerPitch — Espace studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="player.css?v=1794610197439">
+<link rel="stylesheet" href="player.css?v=1794646220644">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -58,6 +58,38 @@
   .icon-btn:disabled { opacity: .35; cursor: default; }
   .player-box { margin-top: 12px; }
   .section-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dimmer); margin: 16px 0 4px; }
+  /* Accueil (14/11) : peu de cadres, la hiérarchie vient de l'espace, de la taille et de la graisse (comme l'Accueil du Backstage). */
+  .sh-home header { margin-bottom: 22px; }
+  .sh-greeting { font-size: 22px; margin: 0 0 4px; }
+  .sh-question { margin-bottom: 26px; }
+  .sh-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sh-block { margin-bottom: 26px; }
+  .sh-block h2, .sh-question h2 { font-size: 15px; margin: 0 0 10px; }
+  .sh-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .sh-head h2 { margin: 0; }
+  .sh-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 32px; }
+  .sh-empty { color: var(--text-dimmer); font-size: 13px; padding: 4px 0 8px; }
+  .sh-link { border: 0; background: none; padding: 4px 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 12.5px; }
+  .sh-mail-item { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); color: var(--text); text-decoration: none; cursor: pointer; }
+  .sh-mail-item:first-of-type { border-top: 0; }
+  .sh-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; background: transparent; }
+  .sh-mail-item.unread .sh-dot { background: var(--accent); }
+  .sh-mail-body { flex: 1; min-width: 0; }
+  .sh-mail-line { display: flex; justify-content: space-between; gap: 10px; }
+  .sh-mail-line small { color: var(--text-dimmer); white-space: nowrap; }
+  .sh-mail-text { display: block; font-size: 12.5px; color: var(--text-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sh-mail-item.expanded .sh-mail-text { white-space: normal; overflow-wrap: anywhere; }
+  .sh-recent { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 0; cursor: pointer; font: inherit; color: var(--text); }
+  .sh-recent:hover span { color: var(--accent); }
+  .sh-recent small { display: block; color: var(--text-dimmer); font-size: 11.5px; }
+  .sh-plan-name { font-family: var(--font-title); font-size: 20px; }
+  .sh-plan-line { font-size: 12.5px; color: var(--text-dim); margin-bottom: 4px; }
+  .sh-news { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 8px; font-size: 12.5px; color: var(--text-dim); }
+  .sh-news small { color: var(--text-dimmer); } .sh-news b { color: var(--text); font-size: 13.5px; }
+  .sh-quick { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+  .sh-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .sh-seg button { border: 0; background: none; padding: 5px 12px; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--text); }
+  .sh-seg button.on { background: var(--accent); color: var(--on-accent); }
   @media (max-width: 520px) { .item-row { flex-wrap: wrap; } .item-row input[type="text"] { width: 100%; } }
 </style>
 </head>
@@ -71,22 +103,22 @@
 
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794610197439"></script>
-<script src="layerpitch-notify.js?v=1794610197439"></script>
-<script src="player.js?v=1794610197439"></script>
-<script src="api/supabase-client.js?v=1794610197439"></script>
-<script src="api/auth.js?v=1794610197439"></script>
-<script src="layerpitch-appearance.js?v=1794610197439"></script>
-<script src="layerpitch-album-shared.js?v=1794610197439"></script>
-<script src="layerpitch-album-editor.js?v=1794610197439"></script>
-<script src="layerpitch-shell.js?v=1794610197439"></script>
-<script src="api/purchases.js?v=1794610197439"></script>
-<script src="api/tracks.js?v=1794610197439"></script>
-<script src="api/sfx.js?v=1794610197439"></script>
-<script src="api/subscriptions.js?v=1794610197439"></script>
-<script src="api/albums.js?v=1794610197439"></script>
-<script src="layerpitch-studio-albums.js?v=1794610197439"></script>
-<script src="api/studio.js?v=1794610197439"></script>
+<script src="layerpitch-i18n.js?v=1794646220644"></script>
+<script src="layerpitch-notify.js?v=1794646220644"></script>
+<script src="player.js?v=1794646220644"></script>
+<script src="api/supabase-client.js?v=1794646220644"></script>
+<script src="api/auth.js?v=1794646220644"></script>
+<script src="layerpitch-appearance.js?v=1794646220644"></script>
+<script src="layerpitch-album-shared.js?v=1794646220644"></script>
+<script src="layerpitch-album-editor.js?v=1794646220644"></script>
+<script src="layerpitch-shell.js?v=1794646220644"></script>
+<script src="api/purchases.js?v=1794646220644"></script>
+<script src="api/tracks.js?v=1794646220644"></script>
+<script src="api/sfx.js?v=1794646220644"></script>
+<script src="api/subscriptions.js?v=1794646220644"></script>
+<script src="api/albums.js?v=1794646220644"></script>
+<script src="layerpitch-studio-albums.js?v=1794646220644"></script>
+<script src="api/studio.js?v=1794646220644"></script>
 <script>
 // studio.html — Espace studio (chantier profils et permissions, étape 3, 28/09 ; D2, D9, D13, D33 du cadrage
 // layerpitch-docs/2026-09-27-cadrage-profils-permissions.md). Espace DÉDIÉ au studio, distinct du Backstage compositeur ;
@@ -117,7 +149,8 @@ const PLAN_NAMES = { solodev: 'SoloDev', indie: 'Indie', aa: 'AA', aaa: 'AAA' };
 const startParams = new URLSearchParams(location.search);
 const justSubscribed = startParams.get('subscribed') === '1';
 const fromPortal = startParams.get('portal') === '1';
-const startTab = justSubscribed ? 'plan' : (['library', 'custom', 'albums', 'team', 'plan'].includes(startParams.get('tab')) ? startParams.get('tab') : 'library');
+const startTabAsked = ['home', 'library', 'custom', 'video', 'albums', 'team', 'plan'].includes(startParams.get('tab')) ? startParams.get('tab') : null; // adresse avec ?tab= valide
+const startTab = justSubscribed ? 'plan' : (startTabAsked || 'library');
 if (justSubscribed || fromPortal) history.replaceState(null, '', location.pathname + '?tab=plan' + (pageLang === 'en' ? '&lang=en' : ''));
 const state = { tab: startTab, ent: {}, flags: {}, purchases: [], owned: [], customPacks: [], editing: null, playing: null };
 const content = $('content');
@@ -130,7 +163,7 @@ function quotaText(e) {
 
 // Barre latérale commune (28/09) : les onglets de l'espace studio sont ses entrées « Studio » ; le fil d'Ariane et
 // le titre suivent l'onglet choisi. Un lien de la barre vers cette même page change d'onglet sans rechargement.
-const STUDIO_TABS = ['library', 'custom', 'video', 'albums', 'team', 'plan'];
+const STUDIO_TABS = ['home', 'library', 'custom', 'video', 'albums', 'team', 'plan'];
 function shellPlaces() {
   return { active: 'studio.' + state.tab, crumbs: [{ label: tr('h1') }, { label: tr('tab_' + state.tab) }] };
 }
@@ -208,6 +241,13 @@ async function render() {
       <p class="hint"><a href="./shop.html?tab=assets&lang=${pageLang}">${esc(tr('catalogLink'))}</a></p></div>`;
     return;
   }
+  // Accueil (14/11, feu vert « studio_home ») : page d'arrivée par défaut, sauf si l'adresse demande un onglet (?tab=…) ou au retour de Stripe.
+  // Feu vert fermé : l'onglet n'existe pas, on retombe sur « Mes achats ».
+  if (!state.flags.studio_home && state.tab === 'home') state.tab = 'library';
+  else if (state.flags.studio_home && !startTabAsked && !justSubscribed && !render.arrived) state.tab = 'home';
+  render.arrived = true;
+  $('pageTitle').textContent = tr('tab_' + state.tab);
+  if (window.LayerPitchShell) window.LayerPitchShell.update(shellPlaces());
   const planEnt = Object.values(state.ent).find(e => e.kind === 'studio');
   const plan = planEnt ? planEnt.plan : 'solodev';
   content.innerHTML = `
@@ -237,6 +277,7 @@ function renderAlbumsTab(panel) {
 function renderPanel() {
   if (state.tab !== 'albums' && window.LayerPitchStudioAlbums) LayerPitchStudioAlbums.unmount();
   const panel = $('panel');
+  if (state.tab === 'home') return renderHome(panel);
   if (state.tab === 'library') return renderLibrary(panel);
   if (state.tab === 'custom') return state.editing ? renderEditor(panel) : renderCustomList(panel);
   if (state.tab === 'albums') return renderAlbumsTab(panel);
@@ -244,6 +285,118 @@ function renderPanel() {
   if (state.tab === 'team') return renderTeam(panel);
   return renderPlan(panel);
 }
+
+// ---- Accueil (14/11, feu vert « studio_home », admin seulement jusqu'à ouverture) ----
+// Page d'arrivée de l'Espace studio : salutation, « Que veux-tu faire aujourd'hui ? », boîte aux lettres (les mêmes messages que la cloche),
+// puis des repères discrets : Continuer (derniers montages vidéo), Ton palier, Nouveautés, Réglages rapides. Rien n'est écrit en base : tout est lu
+// dans ce qui existe déjà (palier, crédits, montages du studio, cloche). Pendant la bêta : CHAQUE nouveauté est validée par Jules-Antoine avant ajout.
+const STUDIO_NEWS = [ // { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text } }
+  { date: '2026-11-12', fr: { title: 'Projets', text: "Réunis ton équipe autour d'un projet avec Moodboard, discussion et invités, pour piloter une production au même endroit." }, en: { title: 'Projects', text: 'Bring your team together around a project with a Moodboard, chat and guests, to run a production in one place.' } },
+];
+const homeState = { inbox: null, inboxWired: false, mailAll: false, montages: null, credits: null };
+function homeChoicesHtml() {
+  const btn = (act, key) => `<button class="btn" type="button" data-sh-do="${act}">${esc(tr(key))}</button>`;
+  return [btn('catalog', 'sh_doCatalog'), btn('library', 'sh_doLibrary'), btn('custom', 'sh_doCustom'), btn('video', 'sh_doVideo'), btn('team', 'sh_doTeam'),
+    state.flags.projects ? btn('projects', 'sh_doProjects') : '', state.flags.sell_albums ? btn('albums', 'sh_doAlbums') : ''].join('');
+}
+function homeMailHtml() {
+  const items = homeState.inbox || [];
+  const unread = items.filter(it => it.unread).length;
+  const shown = homeState.mailAll ? items : items.slice(0, 3);
+  const rel = iso => (window.LayerPitchShell && window.LayerPitchShell.relTime ? window.LayerPitchShell.relTime(iso) : '');
+  const rows = shown.map((it, i) => `<${it.href ? `a href="${esc(it.href)}"` : 'div'} class="sh-mail-item${it.unread ? ' unread' : ''}" data-sh-mail="${i}">
+      <span class="sh-dot" aria-hidden="true"></span>
+      <span class="sh-mail-body"><span class="sh-mail-line"><b>${esc(it.title)}</b><small>${esc(rel(it.createdAt))}</small></span>${it.text ? `<span class="sh-mail-text">${esc(it.text)}</span>` : ''}</span>
+    </${it.href ? 'a' : 'div'}>`).join('');
+  const more = items.length > 3 ? `<button class="sh-link" type="button" data-sh-do="mail-toggle">${esc(tr(homeState.mailAll ? 'sh_mailLess' : 'sh_mailMore'))}</button>` : '';
+  return `<div class="sh-head"><h2>${esc(tr('sh_mailTitle'))}</h2>${unread ? `<span class="plan-badge">${esc(tr('sh_mailUnread', { n: unread }))}</span>` : ''}</div>
+    ${rows || `<div class="sh-empty">${esc(tr('sh_mailEmpty'))}</div>`}${more}`;
+}
+function homeContinueHtml() {
+  const list = homeState.montages;
+  const body = list && list.length
+    ? list.map(c => `<button type="button" class="sh-recent" data-sh-montage="${esc(c.id)}" data-sh-pack="${esc(c.packId)}"><span>${esc(c.title || tr('sv_untitled'))}</span><small>${esc(tr('sh_continueMontage'))} · ${esc(new Date(c.updatedAt).toLocaleDateString(pageLang))}</small></button>`).join('')
+    : `<div class="sh-empty">${esc(tr(list ? 'sh_continueEmpty' : 'loading'))}</div>`;
+  return `<section class="sh-block"><h2>${esc(tr('sh_continueTitle'))}</h2>${body}</section>`;
+}
+function homePlanHtml() {
+  const planEnt = Object.values(state.ent).find(e => e.kind === 'studio');
+  const plan = planEnt ? planEnt.plan : 'solodev';
+  const cr = homeState.credits;
+  const credits = cr ? `<div class="sh-plan-line">${esc(tr('sh_planCredits', { n: cr.balance }))}</div>` : '';
+  return `<section class="sh-block"><h2>${esc(tr('sh_planTitle'))}</h2><div class="sh-plan-name">${esc(PLAN_NAMES[plan] || plan)}</div>${credits}
+    <button class="sh-link" type="button" data-sh-do="plan">${esc(tr('sh_planDetail'))}</button></section>`;
+}
+function homeNewsHtml() {
+  const items = STUDIO_NEWS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const body = items.length
+    ? items.map(n => { const t = n[pageLang] || n.fr; const d = new Date(n.date + 'T12:00:00'); return `<div class="sh-news"><small>${esc(isNaN(d) ? n.date : d.toLocaleDateString(pageLang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short' }))}</small><b>${esc(t.title)}</b><span>${esc(t.text)}</span></div>`; }).join('')
+    : `<div class="sh-empty">${esc(tr('sh_newsEmpty'))}</div>`;
+  return `<section class="sh-block"><h2>${esc(tr('sh_newsTitle'))}</h2>${body}</section>`;
+}
+function homeQuickHtml() {
+  if (!window.LayerPitchAppearance) return '';
+  const dark = window.LayerPitchAppearance.getTheme() === 'dark';
+  return `<section class="sh-block"><h2>${esc(tr('sh_quickTitle'))}</h2><div class="sh-quick"><span>${esc(tr('sh_quickTheme'))}</span><span class="sh-seg"><button type="button" data-sh-theme="light" class="${dark ? '' : 'on'}">${esc(tr('sh_themeLight'))}</button><button type="button" data-sh-theme="dark" class="${dark ? 'on' : ''}">${esc(tr('sh_themeDark'))}</button></span></div></section>`;
+}
+function homeDraw() {
+  const panel = $('panel');
+  if (!panel || state.tab !== 'home') return;
+  panel.innerHTML = `<div class="sh-home">
+    <header><h2 class="sh-greeting">${esc(tr('sh_greeting'))}</h2><p class="hint">${esc(tr('sh_greetingSub'))}</p></header>
+    <section class="sh-question"><h2>${esc(tr('sh_question'))}</h2><div class="sh-choices">${homeChoicesHtml()}</div></section>
+    <section class="sh-block sh-mail" id="shMail">${homeMailHtml()}</section>
+    <div class="sh-cards">${homeContinueHtml()}${homePlanHtml()}${homeNewsHtml()}${homeQuickHtml()}</div>
+  </div>`;
+}
+function homeGo(act) {
+  switch (act) {
+    case 'catalog': location.href = './shop.html?tab=assets&lang=' + pageLang; break;
+    case 'projects': location.href = './projets.html?lang=' + pageLang; break;
+    case 'library': case 'custom': case 'video': case 'albums': case 'team': case 'plan': selectTab(act); break;
+    case 'mail-toggle': homeState.mailAll = !homeState.mailAll; homeDraw(); break;
+  }
+}
+async function renderHome(panel) {
+  homeDraw();
+  if (!homeState.inboxWired && window.LayerPitchShell && window.LayerPitchShell.onInbox) {
+    homeState.inboxWired = true;
+    window.LayerPitchShell.onInbox(items => { homeState.inbox = items; if (state.tab === 'home') homeDraw(); });
+  }
+  // Montages récents et solde de crédits : lus à chaque arrivée sur l'Accueil, sans bloquer l'affichage.
+  const client = window.LayerPitchSupabaseClient.getClient();
+  const [caps, cred] = await Promise.all([
+    Promise.resolve(client.rpc('list_my_video_captures', { p_pack_id: null, p_studio: true })).catch(() => ({})),
+    Promise.resolve(LayerPitchStudio.myCredits()).catch(() => ({})),
+  ]);
+  homeState.montages = (caps.data || []).slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 3);
+  homeState.credits = cred.credits || null;
+  homeDraw();
+}
+document.addEventListener('click', e => {
+  const panel = $('panel');
+  if (!panel || state.tab !== 'home' || !panel.contains(e.target)) return;
+  const montage = e.target.closest('[data-sh-montage]');
+  if (montage) {
+    // Ouvre le montage dans l'atelier de l'onglet Vidéos (même cadre que « Ouvrir » de la liste des montages).
+    selectTab('video');
+    const frame = $('svAtelier');
+    if (frame) frame.src = svAtelierUrl(montage.dataset.shPack, montage.dataset.shMontage);
+    return;
+  }
+  const theme = e.target.closest('[data-sh-theme]');
+  if (theme) { window.LayerPitchAppearance.setTheme(theme.dataset.shTheme); return; }
+  const doBtn = e.target.closest('[data-sh-do]');
+  if (doBtn) { homeGo(doBtn.dataset.shDo); return; }
+  const mail = e.target.closest('.sh-mail-item');
+  if (mail && !mail.matches('a') && !e.target.closest('a')) {
+    mail.classList.toggle('expanded');
+    // Lu en grand dans l'Accueil = lu : même relève que la cloche (annonces et messages de contact).
+    if (homeState.inbox && homeState.inbox.some(it => it.unread && (it.kind === 'announcement' || it.kind === 'contact')) && window.LayerPitchShell) window.LayerPitchShell.markInboxSeen();
+  }
+});
+// Réglage de thème changé ailleurs (cloche, autre onglet) : les boutons Jour/Nuit suivent.
+document.addEventListener('lp-appearance-change', () => { if (state.tab === 'home') homeDraw(); });
 
 // ---- Vidéos du studio (21/10, migration 20261021060000) ----
 // Les membres d'un studio sont les parties d'une seule entité : un montage (outil « Capturer une prise » d'un pack acheté) appartient

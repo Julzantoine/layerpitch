@@ -33,6 +33,7 @@
 
   // Icônes au trait (même esprit que la barre du Backstage).
   const ICONS = {
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h4v-6h4v6h4V10"/>',
     backstage: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     sales: '<path d="M17 5.5A7 7 0 1 0 17 18.5M3 10h10M3 14h10"/>',
     purchases: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>',
@@ -450,6 +451,8 @@
       ] : [
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
       ];
+      // Accueil du studio (14/11) : feu vert « studio_home » (admin seulement pendant la bêta), en tête de la section Studio.
+      if (studioSpace && ctx.flags.studio_home) studio.unshift({ id: 'studio.home', icon: 'home', href: 'studio.html?tab=home' });
       // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
       if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
       if (!ctx.composerId) studio.push({ id: 'account.sales', icon: 'sales', href: 'mon-compte.html?section=sales', label: 'salesStudio' });
