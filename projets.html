@@ -43,7 +43,7 @@
   .choice input { width: auto; margin: 0; }
   .empty { color: var(--text-dimmer); text-align: center; padding: 24px 0; }
 </style>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794656903995">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794660209272">
 </head>
 <body>
 <div class="page">
@@ -51,20 +51,20 @@
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-tuto.js?v=1794656903995"></script>
-<script src="layerpitch-i18n.js?v=1794656903995"></script>
-<script src="layerpitch-notify.js?v=1794656903995"></script>
-<script src="api/supabase-client.js?v=1794656903995"></script>
-<script src="api/auth.js?v=1794656903995"></script>
-<script src="layerpitch-appearance.js?v=1794656903995"></script>
-<script src="layerpitch-shell.js?v=1794656903995"></script>
-<script src="api/studio.js?v=1794656903995"></script>
-<script src="api/demo-client.js?v=1794656903995"></script>
-<script src="api/demo-projects.js?v=1794656903995"></script>
-<script src="layerpitch-guide.js?v=1794656903995"></script>
-<script src="layerpitch-lesson-previews.js?v=1794656903995"></script>
-<script src="projet-lecons.js?v=1794656903995"></script>
-<script src="api/projects.js?v=1794656903995"></script>
+<script src="layerpitch-tuto.js?v=1794660209272"></script>
+<script src="layerpitch-i18n.js?v=1794660209272"></script>
+<script src="layerpitch-notify.js?v=1794660209272"></script>
+<script src="api/supabase-client.js?v=1794660209272"></script>
+<script src="api/auth.js?v=1794660209272"></script>
+<script src="layerpitch-appearance.js?v=1794660209272"></script>
+<script src="layerpitch-shell.js?v=1794660209272"></script>
+<script src="api/studio.js?v=1794660209272"></script>
+<script src="api/demo-client.js?v=1794660209272"></script>
+<script src="api/demo-projects.js?v=1794660209272"></script>
+<script src="layerpitch-guide.js?v=1794660209272"></script>
+<script src="layerpitch-lesson-previews.js?v=1794660209272"></script>
+<script src="projet-lecons.js?v=1794660209272"></script>
+<script src="api/projects.js?v=1794660209272"></script>
 <script>
 // projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
 // Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
@@ -172,9 +172,19 @@ function maybeOfferProjectsTour() {
     if (client) Promise.resolve(client.rpc('set_my_home_prefs', { p: { section_tours_seen: ['projects'] } })).catch(() => {});
     const steps = [{ titleKey: 'stProjectsTitle', textKey: 'stProjectsText' }];
     if ($('createBtn')) steps.push({ selector: '#createBtn', titleKey: 'stProjectsNewTitle', textKey: 'stProjectsNewText' });
-    steps.push({ titleKey: 'stEndTitle', textKey: myFlags.home_dashboard ? 'stEndTextHome' : 'stEndText', choices: [{ labelKey: 'stLearn', lesson: 'pj-create' }] });
+    steps.push({ titleKey: 'stEndTitle', textKey: myFlags.home_dashboard ? 'stEndTextHome' : 'stEndText', choices: [{ labelKey: 'stProjectsVisit', action: 'example-project' }, { labelKey: 'stLearn', lesson: 'pj-create' }] });
+    // Les boutons du moteur (« Passer », « Suivant »…) vivent dans le dictionnaire du Backstage : cette page ne lit que « projects » et « shared ».
+    const trGuide = (key, vars) => {
+      const out = tr(key, vars);
+      if (out !== key) return out;
+      const I18N = window.LAYERPITCH_I18N || {};
+      const str = (((I18N[pageLang] || {}).backstage || {})[key]) || (((I18N.fr || {}).backstage || {})[key]) || key;
+      return vars ? Object.keys(vars).reduce((acc, k) => acc.split('{' + k + '}').join(vars[k]), str) : str;
+    };
     const G = window.LayerPitchGuide.create({
-      tr,
+      tr: trGuide,
+      // « Visiter le projet d'exemple » : le projet « Music City » du tutoriel (faux serveur, rien n'est enregistré), dans une nouvelle fenêtre, avec sa visite.
+      choiceAction: action => { if (action === 'example-project') window.open('./projet.html?id=demo-music-city&tuto&lesson=pj-tour&lang=' + pageLang, '_blank', 'noopener'); },
       startChoice: id => window.open('./projets.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + pageLang, '_blank', 'noopener'),
     });
     G.open('tour', steps, 'section:projects');
