@@ -103,6 +103,44 @@ window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierZones') return;
   if (typeof window.__lpReloadZones === 'function') window.__lpReloadZones();
 });
+// Interface simple / avancée (14/11, feu vert simple_advanced_ui) : le Backstage décide (feu vert, tutoriel, choix du compte) et nous le dit.
+// Sans message (atelier seul, tutoriel, studio) : tout est affiché. Les éléments data-adv sont masqués par la classe lp-ui-simple sur <body>
+// (règle dans 02b-styles-atelier.css) ; un repère « N options avancées masquées · Afficher » demande au Backstage de passer en avancée.
+let atelierAdvObserver = null, atelierAdvRaf = 0;
+function refreshAtelierAdvHint() {
+  if (atelierAdvObserver) atelierAdvObserver.disconnect();
+  try {
+    document.querySelectorAll('.lp-adv-hint').forEach(h => h.remove());
+    const host = document.getElementById('videoTestPanel');
+    if (host && document.body.classList.contains('lp-ui-simple')) {
+      const n = [...document.querySelectorAll('[data-adv]')].filter(el => !(el.parentElement && el.parentElement.closest('[data-adv]'))
+        && (el.textContent.trim() || el.querySelector('input, select, textarea, button'))).length;
+      if (n) {
+        const hint = document.createElement('div');
+        hint.className = 'lp-adv-hint';
+        hint.innerHTML = `<span></span> <button type="button" class="lp-adv-show"></button>`;
+        hint.querySelector('span').textContent = tr(n > 1 ? 'uiAdvHintMany' : 'uiAdvHintOne').replace('{n}', String(n));
+        hint.querySelector('button').textContent = tr('uiAdvShow');
+        hint.querySelector('button').addEventListener('click', () => { try { window.parent.postMessage({ source: 'lp-atelier', type: 'uiAdvanced' }, location.origin); } catch (err) { /* page d'accueil absente */ } });
+        host.appendChild(hint);
+      }
+    }
+  } finally {
+    if (atelierAdvObserver) atelierAdvObserver.observe(document.body, { childList: true, subtree: true });
+  }
+}
+function setAtelierUiLevel(simple) {
+  document.body.classList.toggle('lp-ui-simple', !!simple);
+  refreshAtelierAdvHint();
+}
+atelierAdvObserver = new MutationObserver(() => {
+  if (!document.body.classList.contains('lp-ui-simple') || atelierAdvRaf) return;
+  atelierAdvRaf = requestAnimationFrame(() => { atelierAdvRaf = 0; refreshAtelierAdvHint(); });
+});
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'uiLevel') return;
+  setAtelierUiLevel(e.data.simple);
+});
 try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
@@ -201,7 +239,8 @@ function openCapturePanel(file, opts) {
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneRight" title="${tr('atelierZoneRight')}" aria-label="${tr('atelierZoneRight')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="10.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
         </span>
-        <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        ${window.__lpCaptureIsAdmin ? `<button type="button" class="video-test-panel-btn" id="atelierRefreshBtn" title="${tr('atelierRefreshTitle')}" aria-label="${tr('atelierRefreshTitle')}">↻</button>` : ''}
+        <button type="button" class="video-test-panel-btn" data-adv id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
@@ -221,8 +260,8 @@ function openCapturePanel(file, opts) {
       <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
       ${window.__lpCaptureIsAdmin ? `<span class="video-alt-group-label">${tr('altGroupLabel')}</span>` : ''}
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" data-adv id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" data-adv id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
       </span>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
@@ -241,7 +280,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
-      <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
+      <label class="video-capture-count" data-adv id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
@@ -301,6 +340,7 @@ function openCapturePanel(file, opts) {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', withStudio({ p_capture_id: savedCaptureId }));
     if (error || !data || !data.length) { historyEl.hidden = true; historyEl.innerHTML = ''; return; }
     historyEl.hidden = false;
+    historyEl.setAttribute('data-adv', '');
     historyEl.innerHTML = `<div class="video-capture-count">${tr('captureHistoryTitle')}</div>` + data.map(h => `
       <div class="video-capture-history-row"><span>${new Date(h.createdAt).toLocaleString()}${h.versionId ? ' · ' + tr('captureHistoryVersion') : ' · ' + tr('captureHistoryMontage')}${h.sizeBytes ? ' · ' + (h.sizeBytes / 1048576).toFixed(1) + ' Mo' : ''}</span>
         <a class="video-capture-download-btn" href="${h.url}" target="_blank" rel="noopener">${tr('captureHistoryView')}</a>
@@ -368,7 +408,7 @@ function openCapturePanel(file, opts) {
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
   // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
-  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [], mix: (o && o.mix && typeof o.mix === 'object' && !Array.isArray(o.mix)) ? JSON.parse(JSON.stringify(o.mix)) : {} });
   let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
@@ -382,10 +422,22 @@ function openCapturePanel(file, opts) {
     const box = document.getElementById('videoAltPropagate');
     const linked = !!box && box.getAttribute('aria-pressed') === 'true';
     const deltas = new Map();
-    timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    const added = [], removedIds = new Set();
+    const nowIds = new Set(timelineMarkers.map(m => m.id));
+    timelineMarkers.forEach(m => { if (!markerMemo.has(m.id)) added.push(m); else if (markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    markerMemo.forEach((t, id) => { if (!nowIds.has(id)) removedIds.add(id); });
     memoMarkers();
-    if (!deltas.size || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
-    const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
+    if (!(deltas.size || added.length || removedIds.size) || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
+    // Marqueurs liés : un marqueur posé ou effacé ici l'est aussi dans les autres versions (11/11, retour de Jules-Antoine : posé sur une version, il n'apparaissait pas sur l'autre) ;
+    // un marqueur déplacé est décalé du même écart. Ce qui existe déjà (même identifiant) n'est jamais dupliqué.
+    const shift = list => {
+      let ch = false;
+      if (removedIds.size) { const n = list.length; for (let i = list.length - 1; i >= 0; i--) if (removedIds.has(list[i].id)) list.splice(i, 1); if (list.length !== n) ch = true; }
+      list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } });
+      added.forEach(m => { if (!list.some(x => x.id === m.id)) { list.push(Object.assign({}, m)); ch = true; } });
+      if (ch) list.sort((a, b) => a.t - b.t);
+      return ch;
+    };
     const alts = versioning.alternatives;
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
@@ -504,7 +556,7 @@ function openCapturePanel(file, opts) {
       while (!buffer) {
         const gen = montageGen;
         const b = montageBuffer || await window.LayerCaptureRender.render(
-          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan,
+          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: laneLayout.mix }).plan,
           { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
         if (disposed) return;
         if (gen === montageGen) { montageBuffer = b; buffer = b; }
@@ -709,7 +761,7 @@ function openCapturePanel(file, opts) {
         const st = await altExportState(targets[ti]);
         if (!st) continue;
         const prefix = targets.length > 1 ? (ti + 1) + '/' + targets.length + ' — ' : '';
-        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, exportOptions);
+        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, Object.assign({}, exportOptions, { trackMix: st.laneLayout && st.laneLayout.mix }));
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -742,8 +794,8 @@ function openCapturePanel(file, opts) {
       <div class="video-test-dialog-title">${esc(tr('captureExportMenuTitle'))}</div>
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
-      <label class="atelier-export-opt" title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
-      <label class="atelier-export-opt" title="${esc(tr('captureKeepOldHelp'))}"><input type="checkbox" id="atelierExportKeepOld"> ${esc(tr('captureKeepOldLabel'))}</label>
+      <label class="atelier-export-opt" data-adv title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
+      <label class="atelier-export-opt" data-adv title="${esc(tr('captureKeepOldHelp'))}"><input type="checkbox" id="atelierExportKeepOld"> ${esc(tr('captureKeepOldLabel'))}</label>
       <div class="video-test-dialog-actions">
         <button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button>
         <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('captureExportGoBtn'))}</button>
@@ -757,13 +809,13 @@ function openCapturePanel(file, opts) {
   async function altExportState(key) {
     if (!key || key === '') {
       const b = baseState();
-      return { events: b.events, laneOverrides: b.laneOverrides, name: tr('altOriginal') };
+      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: tr('altOriginal') };
     }
-    if (key === activeAltId) return { events: lastEvents, laneOverrides, name: (altList().find(v => v.id === key) || {}).title || key };
+    if (key === activeAltId) return { events: lastEvents, laneOverrides, laneLayout, name: (altList().find(v => v.id === key) || {}).title || key };
     const v = altList().find(x => x.id === key);
     if (!v) return null;
     const mat = await versioning.alternatives.materialize(v);
-    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, name: v.title || key };
+    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, laneLayout: v.events ? normLayout(v.laneLayout) : baseState().laneLayout, name: v.title || key };
   }
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {

@@ -17,7 +17,7 @@ const fs = require('fs');
     from: () => ({ select: () => ({ maybeSingle: async () => ({ data: { onboarding_profile: stored }, error: null }) }) }),
     rpc: async (name, params) => { if (name === 'set_my_onboarding_profile') { saves.push(params.p); stored = Object.assign({}, params.p, { at: 'now' }); return { data: stored, error: null }; } return { data: null, error: null }; },
   }) };
-  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: () => true }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });");
+  ev("currentUserIsAdmin = true; myFlags = new Proxy({}, { get: (t, k) => k !== 'home_dashboard' }); myEntitlements = new Proxy({}, { get: () => ({ allowed: true, level: 'saved', amount: null }) });");
   ev("window.LayerPitchNotify.error = m => { window.__err = m; }; window.open = () => null;");
   const doc = w.document;
   const card = () => doc.querySelector('.tour-card');
@@ -27,9 +27,9 @@ const fs = require('fs');
   // ---- Jamais proposées : elles remplacent le double choix en fin de visite
   check('réponses lues en base (jamais proposées = null)', (await ev('loadMyOnboardingProfile()')) === null);
   check('fin de visite : les questions, plus le double choix « moteur / pitch »', ev('tourFinalStep().profileQuiz') === true && !ev('tourFinalStep().choices'));
-  ev("myFlags = new Proxy({}, { get: (t, k) => k !== 'onboarding_profile' })");
+  ev("myFlags = new Proxy({}, { get: (t, k) => k !== 'onboarding_profile' && k !== 'home_dashboard' })");
   check('feu vert onboarding_profile fermé : le double choix d\'avant', !!(ev('tourFinalStep()') || {}).choices);
-  ev("myFlags = new Proxy({}, { get: () => true })");
+  ev("myFlags = new Proxy({}, { get: (t, k) => k !== 'home_dashboard' })");
   check('mode tutoriel (sans compte) : jamais de questions', /function profileQuizOpen\(\) \{ return !isTutoMode\(\)/.test(fs.readFileSync('src/backstage/46-questions-de-profil.js', 'utf8')));
 
   ev("startBackstageTour()"); await settle(50);

@@ -16,7 +16,7 @@
             </div>
           </div>
           <div class="hint-inline">${tr('introSectionLabel')}</div>
-          <div style="margin-top:8px">
+          <div style="margin-top:8px" data-adv>
             ${collapsibleBlockToggleHtml(`introDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'introDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`introDesc:${ti}`) ? '' : ' collapsed'}" data-role="introDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -80,7 +80,7 @@
               <label data-help="slotRepeatCount">${tr('repeatCountLabel')}</label>
               <input type="text" inputmode="numeric" data-slot-field="repeatCount" data-ti="${ti}" data-si="${si}" value="${slot.repeatCount || 1}">
             </div>
-            <div>
+            <div data-adv>
               <label data-help="slotContentSource">${tr('slotContentSourceLabel')}</label>
               <select data-slot-field="referencesSlotId" data-ti="${ti}" data-si="${si}" ${isReferencedByOthers ? 'disabled' : ''}>
                 <option value="">${tr('slotContentOwnOption')}</option>
@@ -88,14 +88,14 @@
               </select>
             </div>
             ${!isDuplicate ? `
-              <div>
+              <div data-adv>
                 <label data-help="slotBpmOverride">${tr('bpmLabel')}</label>
                 <input type="text" inputmode="decimal" placeholder="${bpm}" data-slot-field="bpm" data-ti="${ti}" data-si="${si}" value="${slot.bpm || ''}">
               </div>
             ` : ''}
           </div>
           ${!isDuplicate ? `
-            <div class="hint-inline">${tr('slotBpmOverrideHint')}</div>
+            <div class="hint-inline" data-adv>${tr('slotBpmOverrideHint')}</div>
             <div class="row" style="margin-top:8px">
               <div><label>${tr('beatsPerBarLabel')}</label><input type="text" inputmode="numeric" placeholder="${beatsPerBar}" data-slot-field="beatsPerBar" data-ti="${ti}" data-si="${si}" value="${slot.beatsPerBar || ''}"></div>
             </div>
@@ -103,7 +103,7 @@
           </div>
           ${isReferencedByOthers ? `<div class="hint-inline">${tr('slotIsSourceHint')}</div>` : ''}
           <div class="hint-inline">${tr('repeatCountHint')}</div>
-          <div style="margin-top:8px">
+          <div style="margin-top:8px" data-adv>
             ${collapsibleBlockToggleHtml(`slotDesc:${ti}:${si}`, tr('stageDescriptionToggleLabel'), 'slotDescToggle', 'stageDescription')}
             <div class="list-block-body${expandedAltPoolKeys.has(`slotDesc:${ti}:${si}`) ? '' : ' collapsed'}" data-role="slotDescBody" style="margin-top:8px">
               <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -154,7 +154,7 @@
           ${isDuplicate ? `
             <div class="hint-inline">${tr('slotDuplicateHint', { label: escapeAttr((sourceSlot && sourceSlot.label) || tr('untitledFallback')) })}</div>
           ` : `
-            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;" data-adv>
               <input type="checkbox" data-slot-field="avoidImmediateRepeat" data-ti="${ti}" data-si="${si}" ${slot.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
               <span style="color:var(--text-dim);font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
             </label>
@@ -234,7 +234,7 @@
                   </div>
                   <div class="hint-inline">${tr('transitionBarsTempoHint')}</div>
                 `}
-                <div style="margin-top:6px">
+                <div style="margin-top:6px" data-adv>
                   ${collapsibleBlockToggleHtml(`transDesc:${ti}:${si}:${bi}`, tr('stageDescriptionToggleLabel'), 'transDescToggle', 'stageDescription')}
                   <div class="list-block-body${expandedAltPoolKeys.has(`transDesc:${ti}:${si}:${bi}`) ? '' : ' collapsed'}" data-role="transDescBody" style="margin-top:6px">
                     <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -285,7 +285,7 @@
             <div class="row">
               <div><label>${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-slot-alt-field="label" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${escapeAttr(alt.label)}"></div>
               <div><label>${tr('barsLabel')}</label><input type="text" inputmode="numeric" data-slot-alt-field="bars" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${alt.bars || 8}"></div>
-              <div><label>${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-slot-alt-field="volumeDb" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${alt.volumeDb || 0}"></div>
+              <div data-adv><label>${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-slot-alt-field="volumeDb" data-ti="${ti}" data-si="${si}" data-ai="${ai}" value="${alt.volumeDb || 0}"></div>
               <div><label>${tr('roleLabel')}</label>
                 <select data-role-select="segment" data-ti="${ti}" data-si="${si}" data-ai="${ai}">
                   <option value="intro">${tr('roleIntro')}</option>

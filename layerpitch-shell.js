@@ -231,6 +231,7 @@
     const parts = [];
     if (u.newMessages) parts.push(tr('inboxMessages', { n: u.newMessages }));
     if (u.addressedNotes) parts.push(tr('inboxNotes', { n: u.addressedNotes }));
+    if (u.assignedTasks) parts.push(tr('inboxTasks', { n: u.assignedTasks })); // tâches qui te sont assignées (4/11)
     if (u.changes) parts.push(tr('inboxChanges', { n: u.changes }));
     const c = (u.lastChanges || [])[0];
     const detail = u.lastMessage && (!c || u.lastMessage.createdAt >= c.createdAt)

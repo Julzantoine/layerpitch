@@ -70,13 +70,31 @@
     if (video.getAttribute('src') !== srcFor(current)) video.src = srcFor(current);
     if (isSound(current)) audio.src = current.url;
     // Le son suit l'image : lecture, pause, déplacement, vitesse, volume.
+    let startFix = false; // le prochain « playing » de la piste son doit la recaler une fois
+    let nudge = 0; // correction de dérive en cours : -1 (ralentie), 0 (vitesse normale), +1 (accélérée)
     const follow = () => isSound(current);
     const videoRolling = () => !video.paused && !video.ended && !video.seeking && video.readyState >= 3;
-    const startAudio = () => { if (follow() && videoRolling()) { audio.currentTime = video.currentTime; safePlay(audio); } };
+    // 13/11 : on ne replace la piste son que si elle est vraiment ailleurs (> 0,12 s) -- la replacer à chaque « playing » / « seeked »
+    // la faisait recharger (micro-arrêts de quelques ms) alors qu'elle était déjà au bon endroit.
+    const startAudio = () => {
+      if (!(follow() && videoRolling())) return;
+      if (audio.paused || Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime;
+      audio.playbackRate = video.playbackRate || 1; nudge = 0; startFix = true;
+      safePlay(audio);
+    };
+    // La piste son met 50 à 300 ms à démarrer vraiment (décodage du conteneur) : elle est donc en retard sur l'image au départ. Avant, ce
+    // retard était rattrapé en l'accélérant de 5 % pendant plusieurs secondes -> musique « pitchée » et dégradée (étirement du temps).
+    // Maintenant : UN seul saut juste après le vrai démarrage, puis la vitesse reste normale.
+    audio.addEventListener('playing', fixStart); spare.addEventListener('playing', fixStart);
+    function fixStart(ev) {
+      if (!startFix || ev.target !== audio || !videoRolling()) return;
+      startFix = false;
+      if (Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.04) audio.currentTime = video.currentTime + 0.02;
+    }
     video.addEventListener('playing', startAudio);
     video.addEventListener('seeked', startAudio);
     ['pause', 'waiting', 'ended', 'seeking'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
-    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate || 1; });
+    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate || 1; nudge = 0; });
     // Le son coupé puis remis pendant la lecture (lecture automatique muette, puis clic sur le haut-parleur) : la piste son, que le navigateur
     // avait peut-être refusé de lancer sans geste, repart ici (12/11 : avant, elle restait muette jusqu'à la prochaine pause).
     video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; if (!video.muted && audio.paused) startAudio(); });
@@ -90,9 +108,13 @@
       const now = performance.now();
       if (now < settleUntil) return;
       const d = (audio.currentTime || 0) - (video.currentTime || 0);
-      if (Math.abs(d) > 0.25) { audio.currentTime = video.currentTime; audio.playbackRate = rate; settleUntil = now + 1500; return; }
-      const want = Math.abs(d) > 0.04 ? rate * (1 - Math.max(-0.05, Math.min(0.05, d * 0.5))) : rate;
-      if (Math.abs(audio.playbackRate - want) > 0.001) audio.playbackRate = want;
+      if (Math.abs(d) > 0.25) { audio.currentTime = video.currentTime; audio.playbackRate = rate; nudge = 0; settleUntil = now + 1500; return; }
+      // 13/11 : avant, la vitesse de la piste son était recalculée à CHAQUE image (valeur différente chaque fois) : le navigateur
+      // relançait son étireur de temps en permanence -> craquements. Maintenant : deux paliers fixes (± 1 %) avec hystérésis
+      // (on entre à 100 ms d'écart, on sort à 30 ms), donc la vitesse ne change que quelques fois par minute.
+      const ad = Math.abs(d);
+      const next = nudge === 0 ? (ad > 0.1 ? (d > 0 ? -1 : 1) : 0) : (ad < 0.03 ? 0 : nudge);
+      if (next !== nudge) { nudge = next; audio.playbackRate = rate * (1 + 0.01 * nudge); }
     };
 
     // Musique et Sfx au même endroit (bas à droite), chacun sous un petit libellé.
@@ -112,11 +134,13 @@
     const credit = document.createElement('div');
     credit.className = 'lp-video-cue lp-video-cue-credit';
     wrap.appendChild(stack); wrap.appendChild(credit);
+    // N'écrit dans la page que ce qui change (avant : réécriture des textes à chaque image, 60 fois par seconde).
+    const put = (box, el, text) => { if (el.textContent !== text) el.textContent = text; if (box.hidden !== !text) box.hidden = !text; };
     const refresh = () => {
       const txt = cueTextAt(current.cues, video.currentTime || 0);
-      label.txt.textContent = txt.state; label.box.hidden = !txt.state;
-      flash.txt.textContent = txt.flash; flash.box.hidden = !txt.flash;
-      credit.textContent = txt.credit ? '\u266A ' + txt.credit : ''; credit.hidden = !txt.credit;
+      put(label.box, label.txt, txt.state);
+      put(flash.box, flash.txt, txt.flash);
+      put(credit, credit, txt.credit ? '\u266A ' + txt.credit : '');
     };
     let raf = 0;
     const loop = () => { refresh(); resync(); raf = video.paused ? 0 : requestAnimationFrame(loop); };

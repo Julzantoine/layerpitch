@@ -703,4 +703,5 @@ async function publishAll() {
 }
 
 // Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
-if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();
+// Différé d'un cran (microtâche) : tout le script de la page (fichiers 43 à 48…) doit être lu avant d'ouvrir un onglet, sinon les « const/let » définis plus bas sont inaccessibles (13-14/11).
+if (!new URLSearchParams(location.search).get('tab')) Promise.resolve().then(() => { try { restoreBackstageTab(); } catch (e) { console.error('restoreBackstageTab', e); } });
