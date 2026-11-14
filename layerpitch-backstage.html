@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794611060151">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794645597606">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1251,6 +1251,7 @@
   .home-spark { height: 60px; margin-top: 8px; }
   .home-news-item { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 12px; }
   .home-news-item:first-of-type { border-top: none; }
+  .home-card.home-news { max-height: 360px; overflow-y: auto; }
   .home-news-item small { color: var(--text-dimmer); font-size: 10px; }
   .home-quick-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 12px; cursor: pointer; }
   .home-quick-row small { display: block; color: var(--text-dimmer); font-size: 10px; }
@@ -2339,19 +2340,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794611060151"></script>
-<script src="layerpitch-i18n.js?v=1794611060151"></script>
-<script src="layerpitch-import-engine.js?v=1794611060151"></script>
-<script src="layerpitch-appearance.js?v=1794611060151"></script>
-<script src="layerpitch-album-shared.js?v=1794611060151"></script>
-<script src="layerpitch-album-editor.js?v=1794611060151"></script>
-<script src="layerpitch-shell.js?v=1794611060151"></script>
-<script src="layerpitch-social-icons.js?v=1794611060151"></script>
-<script src="layerpitch-notify.js?v=1794611060151"></script>
-<script src="layerpitch-guide.js?v=1794611060151"></script>
-<script src="layerpitch-lesson-previews.js?v=1794611060151"></script>
-<script src="layerpitch-help.js?v=1794611060151"></script>
-<script src="player.js?v=1794611060151"></script>
+<script src="layerpitch-tuto.js?v=1794645597606"></script>
+<script src="layerpitch-i18n.js?v=1794645597606"></script>
+<script src="layerpitch-import-engine.js?v=1794645597606"></script>
+<script src="layerpitch-appearance.js?v=1794645597606"></script>
+<script src="layerpitch-album-shared.js?v=1794645597606"></script>
+<script src="layerpitch-album-editor.js?v=1794645597606"></script>
+<script src="layerpitch-shell.js?v=1794645597606"></script>
+<script src="layerpitch-social-icons.js?v=1794645597606"></script>
+<script src="layerpitch-notify.js?v=1794645597606"></script>
+<script src="layerpitch-guide.js?v=1794645597606"></script>
+<script src="layerpitch-lesson-previews.js?v=1794645597606"></script>
+<script src="layerpitch-help.js?v=1794645597606"></script>
+<script src="player.js?v=1794645597606"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19302,7 +19303,29 @@ function switchEssentialsPath(path) {
  * navigateur tant que la migration n'est pas appliquée. Jamais en mode tutoriel (?tuto, compte fictif). */
 const HOME_PREFS_LOCAL = 'lp_home_prefs_v1'; // repli (navigateur) : mêmes clés que profiles.home_prefs
 const HOME_ON_HINT = 'lp_home_on'; // « l'Accueil est ouvert pour moi » : choisit le bon onglet dès le chargement, avant que les feux verts soient connus
-const HOME_NEWS = []; // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+const HOME_NEWS = [ // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+  { date: "2026-11-13", fr: { title: "Protection des morceaux par défaut", text: "Tes nouveaux morceaux sont protégés dès la publication." }, en: { title: "Tracks protected by default", text: "Your new tracks are protected from the moment they are published." } },
+  { date: "2026-11-12", fr: { title: "Projets", text: "Réunis ton équipe autour d'un projet avec Moodboard, discussion et invités, pour piloter une production au même endroit." }, en: { title: "Projects", text: "Bring your team together around a project with a Moodboard, chat and guests, to run a production in one place." } },
+  { date: "2026-11-06", fr: { title: "Liens privés", text: "Partage un AdReel ou un pack avec un lien privé, que seules les personnes qui l'ont reçu peuvent ouvrir." }, en: { title: "Private links", text: "Share an AdReel or a pack through a private link that only the people who received it can open." } },
+  { date: "2026-11-06", fr: { title: "Annuaire des compositeurs", text: "Fais-toi découvrir par les studios et écoute le travail d'autres compositeurs depuis l'annuaire." }, en: { title: "Composer directory", text: "Get discovered by studios and listen to other composers' work from the directory." } },
+  { date: "2026-11-06", fr: { title: "Import de vidéos", text: "Importe tes vidéos dans le Backstage pour les utiliser dans tes montages et tes AdReels." }, en: { title: "Video upload", text: "Upload your videos to the Backstage to use them in your edits and your AdReels." } },
+  { date: "2026-11-06", fr: { title: "Bloc Réseaux sociaux", text: "Ajoute à ton AdReel un bloc avec tes liens (Bandcamp, Spotify, Twitch…), affichés avec leurs icônes." }, en: { title: "Social links block", text: "Add a block with your links (Bandcamp, Spotify, Twitch…) to your AdReel, shown with their icons." } },
+  { date: "2026-11-06", fr: { title: "Effets audio", text: "Règle des effets sur tes morceaux pour que la musique s'adapte à ce qui se passe dans le jeu." }, en: { title: "Audio effects", text: "Set effects on your tracks so the music adapts to what happens in the game." } },
+  { date: "2026-11-06", fr: { title: "Effets par voix", text: "Donne à chaque couche son volume, ses coupures graves et aiguës, sa réverbération, son écho et son bitcrusher." }, en: { title: "Per-voice effects", text: "Give each layer its own volume, low and high cuts, reverb, echo and bitcrusher." } },
+  { date: "2026-11-06", fr: { title: "Exemples préchargés", text: "Des morceaux, des Sfx et un AdReel de démonstration t'attendent dans ton Backstage pour essayer tout de suite." }, en: { title: "Preloaded examples", text: "Demo tracks, Sfx and an AdReel are waiting in your Backstage so you can try things right away." } },
+  { date: "2026-11-06", fr: { title: "Adresse personnalisée", text: "Choisis ton pseudo et l'adresse de chacun de tes AdReels pour des liens courts et à ton nom." }, en: { title: "Custom address", text: "Pick your handle and the address of each AdReel for short links with your name on them." } },
+  { date: "2026-11-06", fr: { title: "Hybride à sections", text: "Enchaîne des sections de modes différents dans un même morceau, avec des points et des fichiers de transition." }, en: { title: "Sectioned hybrid", text: "Chain sections of different modes in a single track, with transition points and files." } },
+  { date: "2026-11-06", fr: { title: "Carte de niveau", text: "Dessine la carte d'un niveau avec ses zones et ses sous-cartes, et balade-toi dessus en musique." }, en: { title: "Level map", text: "Draw a level's map with its zones and sub-maps, and walk around it with the music." } },
+  { date: "2026-11-06", fr: { title: "Créer un pack depuis un dossier", text: "Transforme un dossier de ta bibliothèque en pack d'un clic, avec ses morceaux et leurs Sfx." }, en: { title: "Create a pack from a folder", text: "Turn a library folder into a pack in one click, with its tracks and their Sfx." } },
+  { date: "2026-11-06", fr: { title: "Pitch", text: "Change la hauteur d'un élément, ou la vitesse de tout le morceau en restant bien synchronisé." }, en: { title: "Pitch", text: "Change the pitch of an element, or the speed of the whole track while staying in sync." } },
+  { date: "2026-11-06", fr: { title: "Apparence du projet", text: "Personnalise les couleurs et l'allure de ton espace Projet pour le mettre à l'image de ta production." }, en: { title: "Project appearance", text: "Customize the colors and look of your Project space to match your production." } },
+  { date: "2026-11-06", fr: { title: "Référencement", text: "Tes AdReels publics sont mieux référencés par les moteurs de recherche et les assistants IA." }, en: { title: "Search visibility", text: "Your public AdReels are better indexed by search engines and AI assistants." } },
+  { date: "2026-11-06", fr: { title: "Triggers", text: "Offre à ton public des boutons qui changent l'effet en direct, ou laisse les embranchements les déclencher." }, en: { title: "Triggers", text: "Give your audience buttons that change the effect live, or let branches fire them." } },
+  { date: "2026-11-06", fr: { title: "Sélection multiple dans les dossiers", text: "Sélectionne plusieurs éléments avec Cmd ou Maj, puis fais un clic droit pour les ranger dans un nouveau dossier." }, en: { title: "Multi-select in folders", text: "Select several items with Cmd or Shift, then right-click to put them in a new folder." } },
+  { date: "2026-10-27", fr: { title: "Recherche rapide", text: "Retrouve n'importe quel morceau ou Sfx instantanément avec Cmd+P." }, en: { title: "Quick search", text: "Find any track or Sfx instantly with Cmd+P." } },
+  { date: "2026-10-23", fr: { title: "Leçons guidées", text: "Apprends LayerPitch pas à pas avec des leçons interactives, directement dans le Backstage." }, en: { title: "Guided lessons", text: "Learn LayerPitch step by step with interactive lessons, right inside the Backstage." } },
+  { date: "2026-10-22", fr: { title: "Alt + glisser, touche Suppr", text: "Duplique un élément en le glissant avec Alt, et supprime-le avec la touche Suppr." }, en: { title: "Alt + drag, Delete key", text: "Duplicate an item by dragging it with Alt, and delete it with the Delete key." } },
+];
 // « J'ai besoin de comprendre… » : chaque besoin = un petit parcours de leçons existantes (celles non ouvertes à la personne sont retirées).
 const HOME_NEEDS = [
   { key: 'homeNeedMusic', lessons: ['upload', 'static', 'embranchement', 'additive', 'sfx'] },
@@ -19517,11 +19540,15 @@ function homeActivityHtml() {
   const detail = `<button class="btn btn-small" type="button" data-home-do="analytics">${escapeHtml(tr('homeActivityDetail'))}</button>`;
   return homeCard('home-activity', tr('homeActivityTitle'), body + (o && !(o.tier === 'free' || o.locked) && o.totals && o.totals.visits ? detail : ''), `<span class="home-sub">${escapeHtml(tr('homeActivityDays'))}</span>`);
 }
+function homeNewsDate(iso, lang) {
+  const d = new Date(iso + 'T12:00:00');
+  return isNaN(d) ? String(iso) : d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short' });
+}
 function homeNewsHtml() {
   const lang = currentLang() === 'en' ? 'en' : 'fr';
-  const items = HOME_NEWS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
+  const items = HOME_NEWS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const body = items.length
-    ? items.map(n => { const t = n[lang] || n.fr; return `<div class="home-news-item"><small>${escapeHtml(n.date)}</small><b>${escapeHtml(t.title)}</b><span>${escapeHtml(t.text)}</span></div>`; }).join('')
+    ? items.map(n => { const t = n[lang] || n.fr; return `<div class="home-news-item"><small>${escapeHtml(homeNewsDate(n.date, lang))}</small><b>${escapeHtml(t.title)}</b><span>${escapeHtml(t.text)}</span></div>`; }).join('')
     : `<div class="home-empty">${escapeHtml(tr('homeNewsEmpty'))}</div>`;
   return homeCard('home-news', tr('homeNewsTitle'), body);
 }
