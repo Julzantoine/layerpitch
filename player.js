@@ -111,7 +111,8 @@ function trackPublicEvent(name, detail, captureExtra) {
 function adReelFromParam() {
   const ctx = window.__lpTrackContext || {};
   if (ctx.type !== 'adreel' || !ctx.id) return '';
-  const handle = new URLSearchParams(location.search).get('u');
+  // Sur l'adresse jolie (/<nom>/), ?u= n'est plus dans location.search : repli sur le nom capturé par la page hôte (14/11, pack « introuvable » depuis l'AdReel d'un autre compositeur).
+  const handle = new URLSearchParams(location.search).get('u') || window.__lpComposerHandle;
   return `&from=${encodeURIComponent(ctx.id)}` + (handle ? `&u=${encodeURIComponent(handle)}` : '');
 }
 
@@ -1356,15 +1357,18 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
       const isRef = !!l.isInitial;
       const isShort = isShortLoop(l, isRef);
       const label = escapeHtml(l.label || t('loopFallback', { n: i + 1 }));
+      // Piloté par un curseur : seules les lignes à forme d'onde restent (elles montrent la tête de lecture) ; une boucle courte
+      // (simple bouton texte, détour) n'aurait rien à montrer et ne se déclenche plus au clic.
+      if (structureBySlider && embrRichMode && isShort) return '';
       if (embrRichMode && !isShort) {
         return `<button type="button" class="embr-loop-btn embr-wave-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="0"><canvas class="embr-wave-bg" data-role="embrWaveBg-${i}"></canvas><canvas class="embr-wave-fg" data-role="embrWaveFg-${i}"></canvas><span class="embr-wave-label">${label}</span>${loopOverlayHtml()}</button>`;
       }
       return `<button type="button" class="embr-loop-btn${isRef ? ' active' : ''}" data-loop-id="${escapeHtml(l.id || String(i))}" data-loop-idx="${i}" data-short="${isShort ? '1' : '0'}">${label}</button>`;
     }).join('');
     embrVertBlockHtml = `
-      <div class="track-intensity-block"${structureBySlider ? ' style="display:none"' : ''}>
+      <div class="track-intensity-block"${structureBySlider && !embrRichMode ? ' style="display:none"' : ''}>
         <div class="track-intensity-label">${t('embrLoopsLabel')}</div>
-        <div class="intensity-picker" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
+        <div class="intensity-picker${structureBySlider ? ' is-slider-driven' : ''}" data-role="embrLoopPicker"${embrRichMode ? ` style="--embr-row-h:${embrRowH}px"` : ''}>${buttons}</div>
       </div>
     `;
   }
@@ -1612,7 +1616,7 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
      <div class="track-row-details-inner">
       <div class="track-desc" data-role="trackDesc">${linkify(track.description || '')}</div>
       ${track.tags ? `<div class="track-tags">${track.tags.split(',').map(s => s.trim()).filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}${adReelFromParam()}">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
+      ${packsForTrack && packsForTrack.length ? `<div class="pack-link">${packsForTrack.map(p => `<a href="./pack.html?id=${encodeURIComponent(p.id)}${adReelFromParam()}" target="_blank" rel="noopener">${t('partOfPack', { title: escapeHtml(p.title) })}</a>`).join('<br>')}</div>` : ''}
       ${!supported ? `<span class="placeholder-tag">Mode "${track.mode}" pas encore supporté</span>` :
         !hasFiles ? `<span class="placeholder-tag">Fichiers audio manquants</span>` : (
         (isSequential || isVerticalRandom || isEmbrVert) ? `
@@ -6346,7 +6350,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     }
   }
   embrLoopBtns.forEach(btn => {
-    btn.addEventListener('click', () => { if (btn.dataset.dragged) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
+    // Un curseur pilote les boucles : un clic ne bascule plus (le curseur décide), il sert seulement à placer la tête de lecture.
+    btn.addEventListener('click', () => { if (btn.dataset.dragged || btn.closest('.is-slider-driven')) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
   });
   // Cliquer/glisser sur la forme d'onde de la boucle EN COURS (gabarit riche uniquement) déplace la tête
   // de lecture -- même principe que les blocs séquentiels : position affichée en direct pendant le
@@ -6382,7 +6387,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     btn.addEventListener('pointerdown', (e) => {
       if (!isSeekable()) return;
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-      if (idx === embrActiveLoopIdx) { dragging = true; showFraction(fractionFromEvent(e)); }
+      if (idx === embrActiveLoopIdx || btn.closest('.is-slider-driven')) { dragging = true; showFraction(fractionFromEvent(e)); }
       else { pending = true; startX = e.clientX; }
     });
     btn.addEventListener('pointermove', (e) => {
