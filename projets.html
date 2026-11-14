@@ -43,7 +43,7 @@
   .choice input { width: auto; margin: 0; }
   .empty { color: var(--text-dimmer); text-align: center; padding: 24px 0; }
 </style>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794610197439">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794645901924">
 </head>
 <body>
 <div class="page">
@@ -51,20 +51,20 @@
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-tuto.js?v=1794610197439"></script>
-<script src="layerpitch-i18n.js?v=1794610197439"></script>
-<script src="layerpitch-notify.js?v=1794610197439"></script>
-<script src="api/supabase-client.js?v=1794610197439"></script>
-<script src="api/auth.js?v=1794610197439"></script>
-<script src="layerpitch-appearance.js?v=1794610197439"></script>
-<script src="layerpitch-shell.js?v=1794610197439"></script>
-<script src="api/studio.js?v=1794610197439"></script>
-<script src="api/demo-client.js?v=1794610197439"></script>
-<script src="api/demo-projects.js?v=1794610197439"></script>
-<script src="layerpitch-guide.js?v=1794610197439"></script>
-<script src="layerpitch-lesson-previews.js?v=1794610197439"></script>
-<script src="projet-lecons.js?v=1794610197439"></script>
-<script src="api/projects.js?v=1794610197439"></script>
+<script src="layerpitch-tuto.js?v=1794645901924"></script>
+<script src="layerpitch-i18n.js?v=1794645901924"></script>
+<script src="layerpitch-notify.js?v=1794645901924"></script>
+<script src="api/supabase-client.js?v=1794645901924"></script>
+<script src="api/auth.js?v=1794645901924"></script>
+<script src="layerpitch-appearance.js?v=1794645901924"></script>
+<script src="layerpitch-shell.js?v=1794645901924"></script>
+<script src="api/studio.js?v=1794645901924"></script>
+<script src="api/demo-client.js?v=1794645901924"></script>
+<script src="api/demo-projects.js?v=1794645901924"></script>
+<script src="layerpitch-guide.js?v=1794645901924"></script>
+<script src="layerpitch-lesson-previews.js?v=1794645901924"></script>
+<script src="projet-lecons.js?v=1794645901924"></script>
+<script src="api/projects.js?v=1794645901924"></script>
 <script>
 // projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
 // Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
@@ -84,6 +84,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const $ = id => document.getElementById(id);
 const content = $('content');
 let showArchived = false;
+let myFlags = {};
 // MODE TUTORIEL (?tuto, 20/10) : Projets fictifs sur un faux serveur local (api/demo-projects.js), rien n'est enregistré ; porte d'entrée unique :
 // layerpitch-tuto.js (fermé au public tant que Jules-Antoine ne l'a pas ouvert).
 const TUTO = new URLSearchParams(location.search).has('tuto');
@@ -101,6 +102,7 @@ async function render() {
   const [{ composerId }, { studioId }] = session ? await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]) : [{}, {}];
   if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
   const [{ flags }, { entitlements }, list] = await Promise.all([LayerPitchStudio.myFeatureFlags(), LayerPitchStudio.myEntitlements(), PJ.listMine()]);
+  myFlags = flags || {};
   if (!flags || !flags.projects) {
     content.innerHTML = `<div class="card"><h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('comingSoonHint'))}</p></div>`;
     return;
@@ -150,8 +152,37 @@ async function render() {
     location.href = './projet.html?id=' + encodeURIComponent(r.data) + '&lang=' + pageLang;
   };
 }
+// Visite de section (14/11, feu vert « section_tours », admin seulement jusqu'à ouverture) : à la PREMIÈRE arrivée sur la page Projets, une bulle
+// présente l'espace, puis la zone de création, et finit par « suivre le tutoriel » (leçon pj-create, dans une nouvelle fenêtre) avec le
+// rappel de l'Accueil. Même mémoire que les sections du Backstage (43a-visites-de-section.js) : profiles.home_prefs.section_tours_seen
+// (le serveur fusionne la liste, il n'efface jamais une section déjà vue) avec repli sur ce navigateur. Jamais en mode tutoriel.
+const SECTION_TOURS_LOCAL = 'lp_section_tours_seen_v1';
+let projectsTourTried = false;
+function maybeOfferProjectsTour() {
+  if (projectsTourTried || TUTO || !myFlags.section_tours || !myFlags.projects || !window.LayerPitchGuide) return;
+  projectsTourTried = true;
+  let seen = [];
+  try { seen = JSON.parse(localStorage.getItem(SECTION_TOURS_LOCAL) || '[]') || []; } catch (e) { /* stockage indisponible */ }
+  const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+  Promise.resolve(client ? client.from('profiles').select('home_prefs').maybeSingle() : { data: null }).then(({ data }) => {
+    const account = data && data.home_prefs && Array.isArray(data.home_prefs.section_tours_seen) ? data.home_prefs.section_tours_seen : [];
+    if (seen.includes('projects') || account.includes('projects') || document.querySelector('.tour-root')) return;
+    seen = [...new Set([...seen, ...account, 'projects'])];
+    try { localStorage.setItem(SECTION_TOURS_LOCAL, JSON.stringify(seen)); } catch (e) { /* stockage indisponible */ }
+    if (client) Promise.resolve(client.rpc('set_my_home_prefs', { p: { section_tours_seen: ['projects'] } })).catch(() => {});
+    const steps = [{ titleKey: 'stProjectsTitle', textKey: 'stProjectsText' }];
+    if ($('createBtn')) steps.push({ selector: '#createBtn', titleKey: 'stProjectsNewTitle', textKey: 'stProjectsNewText' });
+    steps.push({ titleKey: 'stEndTitle', textKey: myFlags.home_dashboard ? 'stEndTextHome' : 'stEndText', choices: [{ labelKey: 'stLearn', lesson: 'pj-create' }] });
+    const G = window.LayerPitchGuide.create({
+      tr,
+      startChoice: id => window.open('./projets.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + pageLang, '_blank', 'noopener'),
+    });
+    G.open('tour', steps, 'section:projects');
+  });
+}
 if (!TUTO) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: tr('h1') }] });
 tutoReady.then(() => LayerPitchAuth.onAuthStateChange(() => render().then(() => {
+  maybeOfferProjectsTour();
   const l = TUTO ? new URLSearchParams(location.search).get('lesson') : null; // lien depuis le menu Tutoriel du Backstage
   if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(PJ_LESSON_IN_PROJECT ? 'pj-open' : l), 400); }
 })));

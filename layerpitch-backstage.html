@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794610197439">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794645901924">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2328,19 +2328,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794610197439"></script>
-<script src="layerpitch-i18n.js?v=1794610197439"></script>
-<script src="layerpitch-import-engine.js?v=1794610197439"></script>
-<script src="layerpitch-appearance.js?v=1794610197439"></script>
-<script src="layerpitch-album-shared.js?v=1794610197439"></script>
-<script src="layerpitch-album-editor.js?v=1794610197439"></script>
-<script src="layerpitch-shell.js?v=1794610197439"></script>
-<script src="layerpitch-social-icons.js?v=1794610197439"></script>
-<script src="layerpitch-notify.js?v=1794610197439"></script>
-<script src="layerpitch-guide.js?v=1794610197439"></script>
-<script src="layerpitch-lesson-previews.js?v=1794610197439"></script>
-<script src="layerpitch-help.js?v=1794610197439"></script>
-<script src="player.js?v=1794610197439"></script>
+<script src="layerpitch-tuto.js?v=1794645901924"></script>
+<script src="layerpitch-i18n.js?v=1794645901924"></script>
+<script src="layerpitch-import-engine.js?v=1794645901924"></script>
+<script src="layerpitch-appearance.js?v=1794645901924"></script>
+<script src="layerpitch-album-shared.js?v=1794645901924"></script>
+<script src="layerpitch-album-editor.js?v=1794645901924"></script>
+<script src="layerpitch-shell.js?v=1794645901924"></script>
+<script src="layerpitch-social-icons.js?v=1794645901924"></script>
+<script src="layerpitch-notify.js?v=1794645901924"></script>
+<script src="layerpitch-guide.js?v=1794645901924"></script>
+<script src="layerpitch-lesson-previews.js?v=1794645901924"></script>
+<script src="layerpitch-help.js?v=1794645901924"></script>
+<script src="player.js?v=1794645901924"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -3156,6 +3156,7 @@ function openTab(tabName) {
   if (tabName === 'analytics') loadAnalyticsIfNeeded();
   if (tabName === 'videoLibrary') renderVideoLibrary();
   if (tabName === 'albums') loadAlbums();
+  if (typeof maybeOfferSectionTour === 'function') maybeOfferSectionTour(tabName); // mini-visite à la première arrivée (43a-visites-de-section.js)
 }
 // Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
 function restoreBackstageTab() {
@@ -17169,12 +17170,21 @@ if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();
 // l'instant. Menu « Tutoriel » (leçons) dans la barre du haut, à côté de la cloche et du compte : feu vert séparé « in_app_lessons ».
 const TOUR_DONE_STORAGE = 'layerpitch_tour_done_v1';
 const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
+// Étapes de l'Accueil (14/11) : `home: true` = zone de la page d'Accueil ; l'étape ouvre l'onglet Accueil avant de s'afficher, et n'existe que
+// si l'Accueil est ouvert pour la personne (feu vert « home_dashboard », jamais en mode tutoriel). Ordre = celui du menu, de haut en bas.
+const openHomeForTour = () => { if (typeof openTab === 'function') openTab('home'); };
 const TOUR_STEPS = [
-  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
-  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
+  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText', enter: () => { if (homeOpen()) openHomeForTour(); } },
+  { selector: '.nav-item[data-tab="home"]', titleKey: 'tourHomeTitle', textKey: 'tourHomeText', home: true, enter: openHomeForTour },
+  { selector: '.home-question', titleKey: 'tourHomeQuestionTitle', textKey: 'tourHomeQuestionText', home: true, enter: openHomeForTour },
+  { selector: '#homeMail', titleKey: 'tourHomeMailTitle', textKey: 'tourHomeMailText', home: true, enter: openHomeForTour },
+  { selector: '.home-essentials', titleKey: 'tourHomeEssentialsTitle', textKey: 'tourHomeEssentialsText', home: true, enter: openHomeForTour },
+  { selector: '.home-activity', titleKey: 'tourHomeActivityTitle', textKey: 'tourHomeActivityText', home: true, enter: openHomeForTour },
+  { selector: '.home-quick', titleKey: 'tourHomeQuickTitle', textKey: 'tourHomeQuickText', home: true, enter: openHomeForTour },
   { selector: '.sidebar-adreel-group', titleKey: 'tourAdreelTitle', textKey: 'tourAdreelText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
+  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'tourSfxTitle', textKey: 'tourSfxText' },
   { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'tourVideoTitle', textKey: 'tourVideoText', hideIf: () => { const b = document.getElementById('navVideoLibraryBadge'); return !!b && !b.hidden; } },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
@@ -18478,8 +18488,9 @@ const GUIDE = window.LayerPitchGuide.create({
   // Choix de fin de visite : dans le vrai compte, la leçon s'ouvre dans une nouvelle fenêtre (compte fictif), comme depuis le menu « Tutoriel ».
   startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
-  onTourDone: tourMarkDone,
-  onClose: () => { hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
+  onTourDone: () => { if (!sectionTourOpen) tourMarkDone(); }, // une mini-visite de section (43a-visites-de-section.js) ne vaut pas « visite générale faite »
+  choiceAction: action => { if (action.startsWith('example:')) sectionTourRunExample(action.slice(8)); },
+  onClose: () => { sectionTourOpen = false; hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -18553,7 +18564,7 @@ function startBackstageTour() {
   // Questions de profil (4/11) : leur présence en fin de visite dépend des réponses déjà enregistrées, lues une fois.
   if (profileQuizOpen() && myOnboardingProfile === undefined && !tourProfileWaited) { tourProfileWaited = true; loadMyOnboardingProfile().then(startBackstageTour); return; }
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
-  const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
+  const steps = TOUR_STEPS.filter(s => s.home ? homeOpen() && (!s.selector || document.querySelector(s.selector)) : (!s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
   const choice = tourFinalStep(); // questions de profil / tes essentiels, ou le double choix d'avant (46-questions-de-profil.js)
   openGuide('tour', choice ? steps.concat(choice) : steps);
 }
@@ -18770,6 +18781,88 @@ function syncBackstageWelcome() {
   if (viewBtn) { viewBtn.disabled = true; viewBtn.title = tr('tutoNoPublicLink'); }
   document.getElementById('btnTutoQuit').addEventListener('click', () => { window.location.href = window.location.pathname; });
 })();
+/* ---------------- Visites de section (14/11, feu vert « section_tours », admin seulement jusqu'à ouverture) ----------------
+ * À la PREMIÈRE arrivée dans une section (Contenu, Apparence, Bibliothèque, Sfx, Packs, Analytics), une vraie bulle propose une
+ * mini-visite : 2 ou 3 zones clés, puis une dernière bulle à choix — « explorer l'exemple » (morceau, Sfx, pack ou AdReel d'exemple
+ * préchargé) ou « suivre le tutoriel » (la leçon de la section) — qui rappelle que l'Accueil garde toutes les infos. Même moteur de
+ * bulles que la visite générale (43-visite-guidee.js), mais une mini-visite ne compte JAMAIS comme « visite générale faite ».
+ * Mémoire de ce qui a été proposé : sur le compte (profiles.home_prefs.section_tours_seen, migration 20261114010000) avec repli sur ce
+ * navigateur. Une section est notée « vue » dès qu'elle est proposée (passer la bulle = ne plus la proposer).
+ * Jamais en mode tutoriel (?tuto, compte fictif), jamais pendant une visite ou une leçon. La page Projet a la sienne (projet-lecons.js). */
+const SECTION_TOURS_LOCAL = 'lp_section_tours_seen_v1';
+// Par onglet : `zones` = [sélecteur, préfixe de texte] (ignorées si absentes de l'écran), `lesson` = leçon suivie, `example` = action « explorer l'exemple ».
+const SECTION_TOURS = {
+  content: { key: 'stContent', lesson: 'adreel-intro', example: 'adreel', zones: [['.add-block-row', 'Add'], ['#btnPublish', 'Publish']] },
+  appearance: { key: 'stAppearance', lesson: 'appearance', example: 'adreel', zones: [['#appLang', 'Lang'], ['#appSlug', 'Slug'], ['#appAccessMode', 'Access']] },
+  library: { key: 'stLibrary', lesson: 'static', example: 'library', zones: [['#btnAddLibraryTrack', 'Add'], ['#libraryMaster', 'List']] },
+  sfxLibrary: { key: 'stSfx', lesson: 'sfx', example: 'sfx', zones: [['#btnAddSfx', 'Add'], ['#sfxLibraryMaster', 'List']] },
+  packs: { key: 'stPacks', lesson: 'pack', example: 'pack', zones: [['#btnAddPack', 'Add'], ['#packsContainer', 'List']] },
+  analytics: { key: 'stAnalytics', lesson: 'tracking', zones: [['#analyticsPresets', 'Period']] },
+};
+let sectionTourOpen = false; // vrai pendant une mini-visite : la fermeture ne vaut pas « visite générale faite » (voir onTourDone)
+function sectionToursOpen() { return !isTutoMode() && flagOpen('section_tours'); }
+function sectionToursSeen() {
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(SECTION_TOURS_LOCAL) || '[]') || []; } catch (e) { /* stockage indisponible */ }
+  const account = (typeof homePrefs !== 'undefined' && homePrefs && Array.isArray(homePrefs.section_tours_seen)) ? homePrefs.section_tours_seen : [];
+  return [...new Set([...local, ...account])];
+}
+function sectionTourMarkSeen(tab) {
+  const seen = sectionToursSeen();
+  if (seen.includes(tab)) return;
+  seen.push(tab);
+  try { localStorage.setItem(SECTION_TOURS_LOCAL, JSON.stringify(seen)); } catch (e) { /* stockage indisponible */ }
+  // Jamais bloquant : si le compte est injoignable, la mémoire de ce navigateur suffit.
+  try { if (typeof homeSavePrefs === 'function') Promise.resolve(homeSavePrefs({ section_tours_seen: seen })).catch(() => {}); } catch (e) { /* idem */ }
+}
+// « Explorer l'exemple » : ouvre l'élément d'exemple préchargé de la section (le choix n'est proposé que s'il existe encore).
+function sectionTourExample(kind) {
+  if (kind === 'library') return library.find(isExample) || null;
+  if (kind === 'sfx') return sfxLibrary.find(isExample) || null;
+  if (kind === 'pack') return packs.find(isExample) || null;
+  if (kind === 'adreel') return adReels.find(isExample) || null;
+  return null;
+}
+function sectionTourRunExample(kind) {
+  const ex = sectionTourExample(kind);
+  if (!ex) return;
+  if (kind === 'library') { manageLibrarySelectedId = ex.id; renderLibrary(); }
+  else if (kind === 'sfx') { manageSfxSelectedId = ex.id; renderSfxLibrary(); }
+  else if (kind === 'pack') {
+    collapsedPackIds.delete(ex.id); renderPacks();
+    const idx = packs.findIndex(p => p.id === ex.id);
+    const el = document.querySelectorAll('#packsContainer > .list-block')[idx];
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  } else if (kind === 'adreel') { if (currentAdReelId !== ex.id) switchAdReel(ex.id); }
+}
+function sectionTourSteps(tab) {
+  const def = SECTION_TOURS[tab];
+  if (!def) return null;
+  const steps = [{ titleKey: def.key + 'Title', textKey: def.key + 'Text' }];
+  def.zones.forEach(([selector, name]) => {
+    const el = document.querySelector(selector);
+    if (el && tourTargetVisible(el)) steps.push({ selector, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
+  });
+  const lesson = LESSONS.find(l => l.id === def.lesson);
+  const choices = [];
+  if (def.example && sectionTourExample(def.example)) choices.push({ labelKey: def.key + 'Explore', action: 'example:' + def.example });
+  if (lessonsAccessOpen() && lesson && lessonPlayable(lesson) && !lesson.soon && !(lesson.needs && !flagOpen(lesson.needs))) choices.push({ labelKey: 'stLearn', lesson: def.lesson });
+  steps.push({ titleKey: 'stEndTitle', textKey: homeOpen() ? 'stEndTextHome' : 'stEndText', ...(choices.length ? { choices } : {}) });
+  return steps;
+}
+function maybeOfferSectionTour(tab) {
+  if (!SECTION_TOURS[tab] || !sectionToursOpen() || guide || sectionToursSeen().includes(tab)) return;
+  // Laisse l'onglet se dessiner (listes, boutons) avant de viser ses zones ; si la personne est déjà repartie ailleurs, on n'ouvre rien.
+  setTimeout(() => {
+    const active = document.querySelector('.backstage-panel.active');
+    if (guide || !active || active.dataset.panel !== tab || sectionToursSeen().includes(tab)) return;
+    const steps = sectionTourSteps(tab);
+    if (!steps) return;
+    sectionTourMarkSeen(tab);
+    sectionTourOpen = true;
+    openGuide('tour', steps, 'section:' + tab);
+  }, 700);
+}
 /* ---------------- Recherche rapide Cmd+P / Ctrl+P (27/10) ----------------
  * Une petite fenêtre au milieu de l'écran : on tape quelques lettres et on saute directement à un onglet, un morceau,
  * un Sfx, un AdReel, un pack, une collection ou un album. Flèches pour choisir, Entrée pour ouvrir, Échap pour fermer.

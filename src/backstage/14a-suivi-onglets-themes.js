@@ -35,6 +35,7 @@ function openTab(tabName) {
   if (tabName === 'analytics') loadAnalyticsIfNeeded();
   if (tabName === 'videoLibrary') renderVideoLibrary();
   if (tabName === 'albums') loadAlbums();
+  if (typeof maybeOfferSectionTour === 'function') maybeOfferSectionTour(tabName); // mini-visite à la première arrivée (43a-visites-de-section.js)
 }
 // Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
 function restoreBackstageTab() {
