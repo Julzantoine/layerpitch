@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794681418078">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794682358411">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2356,19 +2356,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794681418078"></script>
-<script src="layerpitch-i18n.js?v=1794681418078"></script>
-<script src="layerpitch-import-engine.js?v=1794681418078"></script>
-<script src="layerpitch-appearance.js?v=1794681418078"></script>
-<script src="layerpitch-album-shared.js?v=1794681418078"></script>
-<script src="layerpitch-album-editor.js?v=1794681418078"></script>
-<script src="layerpitch-shell.js?v=1794681418078"></script>
-<script src="layerpitch-social-icons.js?v=1794681418078"></script>
-<script src="layerpitch-notify.js?v=1794681418078"></script>
-<script src="layerpitch-guide.js?v=1794681418078"></script>
-<script src="layerpitch-lesson-previews.js?v=1794681418078"></script>
-<script src="layerpitch-help.js?v=1794681418078"></script>
-<script src="player.js?v=1794681418078"></script>
+<script src="layerpitch-tuto.js?v=1794682358411"></script>
+<script src="layerpitch-i18n.js?v=1794682358411"></script>
+<script src="layerpitch-import-engine.js?v=1794682358411"></script>
+<script src="layerpitch-appearance.js?v=1794682358411"></script>
+<script src="layerpitch-font-picker.js?v=1794682358411"></script>
+<script src="layerpitch-album-shared.js?v=1794682358411"></script>
+<script src="layerpitch-album-editor.js?v=1794682358411"></script>
+<script src="layerpitch-shell.js?v=1794682358411"></script>
+<script src="layerpitch-social-icons.js?v=1794682358411"></script>
+<script src="layerpitch-notify.js?v=1794682358411"></script>
+<script src="layerpitch-guide.js?v=1794682358411"></script>
+<script src="layerpitch-lesson-previews.js?v=1794682358411"></script>
+<script src="layerpitch-help.js?v=1794682358411"></script>
+<script src="player.js?v=1794682358411"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16263,7 +16264,7 @@ function loadVideoVersioningIndex(force) {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
-      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: (c.title || '').trim() || tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });
@@ -18966,7 +18967,7 @@ var SECTION_TOURS = {
   appearance: { key: 'stAppearance', lesson: 'appearance', example: 'adreel', zones: [['#appLang', 'Lang'], ['#appSlug', 'Slug'], ['#appAccessMode', 'Access']] },
   library: { key: 'stLibrary', lesson: 'static', example: 'library', zones: [['#libraryFolderDrop', 'Drop'], ['#btnAddLibraryTrack', 'Add', '#libraryFolderDrop'], ['#libraryMaster', 'List'], ['example:#libraryMaster', 'Example']] },
   sfxLibrary: { key: 'stSfx', lesson: 'sfx', example: 'sfx', zones: [['#sfxLibraryDrop', 'Drop'], ['#btnAddSfx', 'Add', '#sfxLibraryDrop'], ['#sfxLibraryMaster', 'List'], ['example:#sfxLibraryMaster', 'Example']] },
-  videoLibrary: { key: 'stVideo', lesson: 'upload', zones: [['#videoLibraryDropzone', 'Drop'], ['#videoProjectNewBtn', 'Project']] },
+  videoLibrary: { key: 'stVideo', lesson: 'versioning', zones: [['.video-col-section[data-fold-key="library"]', 'Lib'], ['#videoLibraryDropzone', 'Drop'], ['.video-col-section[data-fold-key="projects"]', 'Project'], ['#videoColNav||#videoColList', 'Sections']] },
   packs: { key: 'stPacks', lesson: 'pack', example: 'pack', zones: [['#btnAddPack', 'Add'], ['#packsContainer', 'List']] },
   analytics: { key: 'stAnalytics', lesson: 'tracking', zones: [['#analyticsPresets', 'Period']] },
 };
@@ -19028,8 +19029,9 @@ function sectionTourSteps(tab) {
       if (find()) steps.push({ selector: find, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
       return;
     }
-    const el = document.querySelector(selector);
-    if (usable(el)) steps.push({ selector, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
+    // « a||b » : la première cible visible (ex. les sections d'un projet si un projet est ouvert, sinon la colonne de gauche).
+    const pick = selector.split('||').find(sel => usable(document.querySelector(sel)));
+    if (pick) steps.push({ selector: pick, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
   });
   const lesson = LESSONS.find(l => l.id === def.lesson);
   const choices = [];

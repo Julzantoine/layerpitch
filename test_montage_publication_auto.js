@@ -20,7 +20,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
   // Atelier : publication
   check('atelier : « Publier le montage » = même fonction que le bouton global ; masqué dans le Backstage',
-    /async function publishMontageNow\(opts\)/.test(atelier) && /window\.__lpFinishMontage = async \(\) =>/.test(atelier) && /if \(hostPublishes \|\| !captureCanSave\) \{\s*updateEverywhereBtn\.hidden = true;/.test(atelier)
+    /async function publishMontageNow\(opts\)/.test(atelier) && /window\.__lpFinishMontage = async \(\) =>/.test(atelier) && /if \(!captureCanSave\) updateEverywhereBtn\.hidden = true;/.test(atelier)
     && /const hostPublishes = typeof atelierEmbedded !== 'undefined' && atelierEmbedded && !atelierAsStudio;/.test(atelier));
   check('atelier : la publication enregistre d\'abord (ce qui est publié = ce qui est enregistré) et ne republie pas sans changement', /await saveCaptureNow\(\); \/\/ ce qui est publié/.test(atelier) && /if \(!opts\.force && key === lastPublishedKey\) return 'none';/.test(atelier));
   check('atelier : fermer un montage non publié propose de le publier (pas de confirm natif)', /montageNeedsPublish\(\)[\s\S]{0,200}LayerPitchNotify\.confirm\(tr\('captureCloseUnpublishedAsk'\)/.test(atelier) && !/window\.confirm\(/.test(atelier));

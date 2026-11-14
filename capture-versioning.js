@@ -466,7 +466,7 @@
       publishReviewMarks();
     }
     const reviewVersionTitle = key => {
-      if (key === 'original') return tr('versioningReviewOriginal');
+      if (key === 'original') return (ctx.getCaptureTitle() || '').trim() || tr('versioningReviewOriginal');
       const v = versions.find(x => x.id === key);
       return v ? (verName(v)) : tr('captureUntitled');
     };
@@ -555,7 +555,7 @@
       dlg.className = 'video-test-dialog';
       const row = (id, label, checked, disabled) => `<label class="atelier-export-opt"><input type="checkbox" data-send="${esc(id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}> ${esc(label)}</label>`;
       dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('versioningSendClientTitle'))}</div>`
-        + row('', tr('altOriginal'), true, true)
+        + row('', (ctx.getCaptureTitle() || '').trim() || tr('altOriginal'), true, true)
         + versions.map((v, i) => row(v.id, v.title || tr('altDefaultName').replace('{n}', String(i + 2)), statusOf(v) !== 'draft', false)).join('')
         + `<div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button><button type="submit" class="video-test-btn-primary" value="go">${esc(tr('versioningSendClientGo'))}</button></div></form>`;
       host.appendChild(dlg);
