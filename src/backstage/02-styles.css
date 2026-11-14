@@ -1187,15 +1187,19 @@
   .home-need-lesson.is-done { color: var(--seq-map-success); }
   .home-card { background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .home-fold { background: none; border: none; color: var(--text-dimmer); cursor: pointer; font-size: 12px; padding: 0 4px 0 0; line-height: 1; }
+  .home-fold { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 4px; line-height: 1; flex: none; }
+  .sub[data-i18n="introText"] { display: none; }
   .home-fold:hover { color: var(--text); }
-  .home-card-head .home-sub, .home-card-head .home-count { margin-left: auto; }
+  .home-card-head h2, .home-card-head h3 { flex: 1; min-width: 0; }
   .home-card.is-collapsed .home-card-body, .home-question.is-collapsed .home-card-body { display: none; }
   .is-collapsed > .home-card-head { margin-bottom: 0; }
   .home-question .home-card-head h2 { margin-bottom: 0; }
-  .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
+  .home-card-head h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
-  .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
+  .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin: 0; }
+  .home-mail-pulse { width: 9px; height: 9px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 0 rgba(229,72,77,.6); animation: homeMailPulse 1.8s infinite; flex: none; }
+  @keyframes homeMailPulse { 70% { box-shadow: 0 0 0 7px rgba(229,72,77,0); } 100% { box-shadow: 0 0 0 0 rgba(229,72,77,0); } }
+  @media (prefers-reduced-motion: reduce) { .home-mail-pulse { animation: none; } }
   .home-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; font-family: inherit; }
   .home-link:hover { text-decoration: underline; }
   .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; align-items: start; }

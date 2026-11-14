@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794645597606">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794646495991">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1203,15 +1203,19 @@
   .home-need-lesson.is-done { color: var(--seq-map-success); }
   .home-card { background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .home-fold { background: none; border: none; color: var(--text-dimmer); cursor: pointer; font-size: 12px; padding: 0 4px 0 0; line-height: 1; }
+  .home-fold { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 4px; line-height: 1; flex: none; }
+  .sub[data-i18n="introText"] { display: none; }
   .home-fold:hover { color: var(--text); }
-  .home-card-head .home-sub, .home-card-head .home-count { margin-left: auto; }
+  .home-card-head h2, .home-card-head h3 { flex: 1; min-width: 0; }
   .home-card.is-collapsed .home-card-body, .home-question.is-collapsed .home-card-body { display: none; }
   .is-collapsed > .home-card-head { margin-bottom: 0; }
   .home-question .home-card-head h2 { margin-bottom: 0; }
-  .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
+  .home-card-head h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
-  .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
+  .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin: 0; }
+  .home-mail-pulse { width: 9px; height: 9px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 0 rgba(229,72,77,.6); animation: homeMailPulse 1.8s infinite; flex: none; }
+  @keyframes homeMailPulse { 70% { box-shadow: 0 0 0 7px rgba(229,72,77,0); } 100% { box-shadow: 0 0 0 0 rgba(229,72,77,0); } }
+  @media (prefers-reduced-motion: reduce) { .home-mail-pulse { animation: none; } }
   .home-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; font-family: inherit; }
   .home-link:hover { text-decoration: underline; }
   .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; align-items: start; }
@@ -2340,19 +2344,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794645597606"></script>
-<script src="layerpitch-i18n.js?v=1794645597606"></script>
-<script src="layerpitch-import-engine.js?v=1794645597606"></script>
-<script src="layerpitch-appearance.js?v=1794645597606"></script>
-<script src="layerpitch-album-shared.js?v=1794645597606"></script>
-<script src="layerpitch-album-editor.js?v=1794645597606"></script>
-<script src="layerpitch-shell.js?v=1794645597606"></script>
-<script src="layerpitch-social-icons.js?v=1794645597606"></script>
-<script src="layerpitch-notify.js?v=1794645597606"></script>
-<script src="layerpitch-guide.js?v=1794645597606"></script>
-<script src="layerpitch-lesson-previews.js?v=1794645597606"></script>
-<script src="layerpitch-help.js?v=1794645597606"></script>
-<script src="player.js?v=1794645597606"></script>
+<script src="layerpitch-tuto.js?v=1794646495991"></script>
+<script src="layerpitch-i18n.js?v=1794646495991"></script>
+<script src="layerpitch-import-engine.js?v=1794646495991"></script>
+<script src="layerpitch-appearance.js?v=1794646495991"></script>
+<script src="layerpitch-album-shared.js?v=1794646495991"></script>
+<script src="layerpitch-album-editor.js?v=1794646495991"></script>
+<script src="layerpitch-shell.js?v=1794646495991"></script>
+<script src="layerpitch-social-icons.js?v=1794646495991"></script>
+<script src="layerpitch-notify.js?v=1794646495991"></script>
+<script src="layerpitch-guide.js?v=1794646495991"></script>
+<script src="layerpitch-lesson-previews.js?v=1794646495991"></script>
+<script src="layerpitch-help.js?v=1794646495991"></script>
+<script src="player.js?v=1794646495991"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19459,7 +19463,7 @@ async function loadHomeActivity() {
 function homeLessonOk(l) { return !!l && lessonsAccessOpen() && lessonOpenToMe(l) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
 function homeNeedLessons(need) { return need.lessons.map(id => LESSONS.find(l => l.id === id)).filter(homeLessonOk); }
 function homeCard(cls, title, body, extra) {
-  return `<section class="home-card ${cls}${homeIsCollapsed(cls) ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn(cls)}<h3>${escapeHtml(title)}</h3>${extra || ''}</div><div class="home-card-body">${body}</div></section>`;
+  return `<section class="home-card ${cls}${homeIsCollapsed(cls) ? ' is-collapsed' : ''}"><div class="home-card-head"><h3>${escapeHtml(title)}</h3>${extra || ''}${homeFoldBtn(cls)}</div><div class="home-card-body">${body}</div></section>`;
 }
 function homeRemindersHtml() {
   const rows = [];
@@ -19474,7 +19478,7 @@ function homeQuestionHtml() {
   const albumsOk = !!document.getElementById('navItemAlbums') && !document.getElementById('navItemAlbums').hidden;
   const sellPop = `<div class="home-learn-pop home-sell-pop" role="dialog" aria-label="${escapeAttr(tr('homeSellTitle'))}"><div class="home-learn-head"><strong>${escapeHtml(tr('homeSellTitle'))}</strong><button class="home-x" type="button" data-home-do="learn-close" aria-label="${escapeAttr(tr('homeLearnClose'))}">×</button></div><button type="button" class="home-sell-opt" data-home-do="sell-packs"><b>${escapeHtml(tr('homeSellPacks'))}</b><small>${escapeHtml(tr('homeSellPacksHint'))}</small></button>${albumsOk ? `<button type="button" class="home-sell-opt" data-home-do="sell-albums"><b>${escapeHtml(tr('homeSellAlbums'))}</b><small>${escapeHtml(tr('homeSellAlbumsHint'))}</small></button>` : ''}</div>`;
   const sell = `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="sell" aria-haspopup="true" aria-expanded="${homeSellOpen}">${escapeHtml(tr('homeDoSell'))}</button>${homeSellOpen ? sellPop : ''}</span>`;
-  return `<section class="home-question${homeIsCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn('home-question')}<h2>${escapeHtml(tr('homeQuestion'))}</h2></div><div class="home-card-body"><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></div></section>`;
+  return `<section class="home-question${homeIsCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head"><h2>${escapeHtml(tr('homeQuestion'))}</h2>${homeFoldBtn('home-question')}</div><div class="home-card-body"><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></div></section>`;
 }
 function homeLearnHtml() {
   const done = lessonsDone();
@@ -19498,7 +19502,7 @@ function homeMailHtml() {
       <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
   const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
-  return `<section class="home-card home-mail${homeIsCollapsed('home-mail') ? ' is-collapsed' : ''}" id="homeMail"><div class="home-card-head">${homeFoldBtn('home-mail')}<h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div><div class="home-card-body">${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</div></section>`;
+  return `<section class="home-card home-mail${homeIsCollapsed('home-mail') ? ' is-collapsed' : ''}" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${unread && homeIsCollapsed('home-mail') ? '<span class="home-mail-pulse" aria-hidden="true"></span>' : ''}${head}${homeFoldBtn('home-mail')}</div><div class="home-card-body">${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</div></section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
@@ -19567,7 +19571,7 @@ function renderHome() {
   if (!homePrefs) homePrefs = Object.assign({}, homeLocalPrefs());
   const moreOpen = !!(root.querySelector('.home-more') && root.querySelector('.home-more').open);
   const menuOpen = !!(root.querySelector('.home-menu') && root.querySelector('.home-menu').open);
-  root.innerHTML = `<header class="home-greeting"><h2>${escapeHtml(tr('homeGreeting'))}</h2><div class="sub">${escapeHtml(tr('homeGreetingSub'))}</div></header>
+  root.innerHTML = `<header class="home-greeting"><h2>${escapeHtml(tr('homeGreeting'))}</h2></header>
     ${homeRemindersHtml()}${homeQuestionHtml()}${homeMailHtml()}
     <div class="home-cards">${homeContinueHtml()}${homeEssentialsHtml()}${homeActivityHtml()}${homeNewsHtml()}${homeQuickHtml()}</div>`;
   // Le panneau « Apparence du backstage » (fond, filigrane) vit ici désormais : on le replace dans la carte Réglages rapides.
@@ -19585,6 +19589,7 @@ function homeStartProfileQuiz() { if (!guide && profileQuizOpen()) openGuide('to
 function homeCloseLearn() { if (!homeLearnOpen && !homeSellOpen) return; homeLearnOpen = false; homeSellOpen = false; renderHome(); }
 function homeFocusMailbox() {
   openTab('home');
+  if (homeIsCollapsed('home-mail')) homeToggleCollapse('home-mail'); // la cloche déplie la boîte si elle était repliée
   homeMailAll = true;
   renderHome();
   const el = document.getElementById('homeMail');
