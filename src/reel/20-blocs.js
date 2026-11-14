@@ -93,6 +93,7 @@ function renderPacksBlockItem(container, block, packsById) {
   selected.forEach(p => {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
+    a.target = '_blank'; a.rel = 'noopener'; // un pack s'ouvre dans une nouvelle fenêtre : l'AdReel reste là où il est (et la musique continue)
     a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
     a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
