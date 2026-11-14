@@ -6,7 +6,34 @@
  * navigateur tant que la migration n'est pas appliquée. Jamais en mode tutoriel (?tuto, compte fictif). */
 const HOME_PREFS_LOCAL = 'lp_home_prefs_v1'; // repli (navigateur) : mêmes clés que profiles.home_prefs
 const HOME_ON_HINT = 'lp_home_on'; // « l'Accueil est ouvert pour moi » : choisit le bon onglet dès le chargement, avant que les feux verts soient connus
-const HOME_NEWS = []; // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+const HOME_NEWS = [ // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+  { date: "2026-11-14", fr: { title: "Noms de variantes simplifiés", text: "Retire d'un clic le début commun des noms des variantes d'un pool pour ne garder que ce qui les distingue." }, en: { title: "Shorter variant names", text: "Remove the shared beginning of a pool's variant names in one click, keeping only what tells them apart." } },
+  { date: "2026-11-14", fr: { title: "Tâches du projet", text: "Partage une liste de tâches avec ton équipe : assigne, fixe une échéance et lie chaque tâche à un élément du projet." }, en: { title: "Project tasks", text: "Share a task list with your team: assign people, set due dates and link each task to an item in the project." } },
+  { date: "2026-11-14", fr: { title: "Sections du projet", text: "Range les éléments de ton projet dans des sections libres, et place un même élément dans plusieurs sections." }, en: { title: "Project sections", text: "Organize your project's items into free-form sections, and place the same item in several sections." } },
+  { date: "2026-11-14", fr: { title: "Nouvel Accueil", text: "Retrouve en un coup d'œil ce que tu faisais, ton activité, les nouveautés et des raccourcis dès l'ouverture du Backstage." }, en: { title: "New Home page", text: "See at a glance what you were working on, your activity, what's new and shortcuts as soon as you open the Backstage." } },
+  { date: "2026-10-11", fr: { title: "Spatialisation des Sfx", text: "Place chaque Sfx dans l'espace (salle, distance, trajectoire) et laisse ton public le déplacer en 3D." }, en: { title: "Sfx spatialization", text: "Place each Sfx in space (room, distance, trajectory) and let your audience move it in 3D." } },
+  { date: "2026-11-13", fr: { title: "Protection des morceaux par défaut", text: "Tes nouveaux morceaux sont protégés dès la publication." }, en: { title: "Tracks protected by default", text: "Your new tracks are protected from the moment they are published." } },
+  { date: "2026-11-12", fr: { title: "Projets", text: "Réunis ton équipe autour d'un projet avec Moodboard, discussion et invités, pour piloter une production au même endroit." }, en: { title: "Projects", text: "Bring your team together around a project with a Moodboard, chat and guests, to run a production in one place." } },
+  { date: "2026-11-06", fr: { title: "Liens privés", text: "Partage un AdReel ou un pack avec un lien privé, que seules les personnes qui l'ont reçu peuvent ouvrir." }, en: { title: "Private links", text: "Share an AdReel or a pack through a private link that only the people who received it can open." } },
+  { date: "2026-11-06", fr: { title: "Annuaire des compositeurs", text: "Fais-toi découvrir par les studios et écoute le travail d'autres compositeurs depuis l'annuaire." }, en: { title: "Composer directory", text: "Get discovered by studios and listen to other composers' work from the directory." } },
+  { date: "2026-11-06", fr: { title: "Import de vidéos", text: "Importe tes vidéos dans le Backstage pour les utiliser dans tes montages et tes AdReels." }, en: { title: "Video upload", text: "Upload your videos to the Backstage to use them in your edits and your AdReels." } },
+  { date: "2026-11-06", fr: { title: "Bloc Réseaux sociaux", text: "Ajoute à ton AdReel un bloc avec tes liens (Bandcamp, Spotify, Twitch…), affichés avec leurs icônes." }, en: { title: "Social links block", text: "Add a block with your links (Bandcamp, Spotify, Twitch…) to your AdReel, shown with their icons." } },
+  { date: "2026-11-06", fr: { title: "Effets audio", text: "Règle des effets sur tes morceaux pour que la musique s'adapte à ce qui se passe dans le jeu." }, en: { title: "Audio effects", text: "Set effects on your tracks so the music adapts to what happens in the game." } },
+  { date: "2026-11-06", fr: { title: "Effets par voix", text: "Donne à chaque couche son volume, ses coupures graves et aiguës, sa réverbération, son écho et son bitcrusher." }, en: { title: "Per-voice effects", text: "Give each layer its own volume, low and high cuts, reverb, echo and bitcrusher." } },
+  { date: "2026-11-06", fr: { title: "Exemples préchargés", text: "Des morceaux, des Sfx et un AdReel de démonstration t'attendent dans ton Backstage pour essayer tout de suite." }, en: { title: "Preloaded examples", text: "Demo tracks, Sfx and an AdReel are waiting in your Backstage so you can try things right away." } },
+  { date: "2026-11-06", fr: { title: "Adresse personnalisée", text: "Choisis ton pseudo et l'adresse de chacun de tes AdReels pour des liens courts et à ton nom." }, en: { title: "Custom address", text: "Pick your handle and the address of each AdReel for short links with your name on them." } },
+  { date: "2026-11-06", fr: { title: "Hybride à sections", text: "Enchaîne des sections de modes différents dans un même morceau, avec des points et des fichiers de transition." }, en: { title: "Sectioned hybrid", text: "Chain sections of different modes in a single track, with transition points and files." } },
+  { date: "2026-11-06", fr: { title: "Carte de niveau", text: "Dessine la carte d'un niveau avec ses zones et ses sous-cartes, et balade-toi dessus en musique." }, en: { title: "Level map", text: "Draw a level's map with its zones and sub-maps, and walk around it with the music." } },
+  { date: "2026-11-06", fr: { title: "Créer un pack depuis un dossier", text: "Transforme un dossier de ta bibliothèque en pack d'un clic, avec ses morceaux et leurs Sfx." }, en: { title: "Create a pack from a folder", text: "Turn a library folder into a pack in one click, with its tracks and their Sfx." } },
+  { date: "2026-11-06", fr: { title: "Pitch", text: "Change la hauteur d'un élément, ou la vitesse de tout le morceau en restant bien synchronisé." }, en: { title: "Pitch", text: "Change the pitch of an element, or the speed of the whole track while staying in sync." } },
+  { date: "2026-11-06", fr: { title: "Apparence du projet", text: "Personnalise les couleurs et l'allure de ton espace Projet pour le mettre à l'image de ta production." }, en: { title: "Project appearance", text: "Customize the colors and look of your Project space to match your production." } },
+  { date: "2026-11-06", fr: { title: "Référencement", text: "Tes AdReels publics sont mieux référencés par les moteurs de recherche et les assistants IA." }, en: { title: "Search visibility", text: "Your public AdReels are better indexed by search engines and AI assistants." } },
+  { date: "2026-11-06", fr: { title: "Triggers", text: "Offre à ton public des boutons qui changent l'effet en direct, ou laisse les embranchements les déclencher." }, en: { title: "Triggers", text: "Give your audience buttons that change the effect live, or let branches fire them." } },
+  { date: "2026-11-06", fr: { title: "Sélection multiple dans les dossiers", text: "Sélectionne plusieurs éléments avec Cmd ou Maj, puis fais un clic droit pour les ranger dans un nouveau dossier." }, en: { title: "Multi-select in folders", text: "Select several items with Cmd or Shift, then right-click to put them in a new folder." } },
+  { date: "2026-10-27", fr: { title: "Recherche rapide", text: "Retrouve n'importe quel morceau ou Sfx instantanément avec Cmd+P." }, en: { title: "Quick search", text: "Find any track or Sfx instantly with Cmd+P." } },
+  { date: "2026-10-23", fr: { title: "Leçons guidées", text: "Apprends LayerPitch pas à pas avec des leçons interactives, directement dans le Backstage." }, en: { title: "Guided lessons", text: "Learn LayerPitch step by step with interactive lessons, right inside the Backstage." } },
+  { date: "2026-10-22", fr: { title: "Alt + glisser, touche Suppr", text: "Duplique un élément en le glissant avec Alt, et supprime-le avec la touche Suppr." }, en: { title: "Alt + drag, Delete key", text: "Duplicate an item by dragging it with Alt, and delete it with the Delete key." } },
+];
 // « J'ai besoin de comprendre… » : chaque besoin = un petit parcours de leçons existantes (celles non ouvertes à la personne sont retirées).
 const HOME_NEEDS = [
   { key: 'homeNeedMusic', lessons: ['upload', 'static', 'embranchement', 'additive', 'sfx'] },
@@ -21,6 +48,22 @@ let homeInboxItems = null;
 let homeInboxWired = false;
 let homeMailAll = false;
 let homeLearnOpen = false;
+let homeSellOpen = false;
+// Cartes repliées (par personne, dans ce navigateur) : on garde juste le titre.
+const HOME_COLLAPSE_KEY = 'lp_home_collapsed_v1';
+function homeCollapsedSet() { try { return new Set(JSON.parse(localStorage.getItem(HOME_COLLAPSE_KEY) || '[]')); } catch (e) { return new Set(); } }
+function homeIsCollapsed(id) { return homeCollapsedSet().has(id); }
+function homeToggleCollapse(id) {
+  const set = homeCollapsedSet();
+  if (set.has(id)) set.delete(id); else set.add(id);
+  try { localStorage.setItem(HOME_COLLAPSE_KEY, JSON.stringify([...set])); } catch (e) { /* stockage indisponible */ }
+  renderHome();
+}
+function homeFoldBtn(id) {
+  const c = homeIsCollapsed(id);
+  const label = tr(c ? 'homeUnfold' : 'homeFold');
+  return `<button class="home-fold" type="button" data-home-fold="${escapeAttr(id)}" aria-expanded="${!c}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${c ? '▸' : '▾'}</button>`;
+}
 let homeActivity = { state: 'idle', overview: null, at: 0 };
 let homeArrivalDone = false;
 let homeAppearanceHost = null;
@@ -124,19 +167,22 @@ async function loadHomeActivity() {
 function homeLessonOk(l) { return !!l && lessonsAccessOpen() && lessonOpenToMe(l) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
 function homeNeedLessons(need) { return need.lessons.map(id => LESSONS.find(l => l.id === id)).filter(homeLessonOk); }
 function homeCard(cls, title, body, extra) {
-  return `<section class="home-card ${cls}"><div class="home-card-head"><h3>${escapeHtml(title)}</h3>${extra || ''}</div>${body}</section>`;
+  return `<section class="home-card ${cls}${homeIsCollapsed(cls) ? ' is-collapsed' : ''}"><div class="home-card-head"><h3>${escapeHtml(title)}</h3>${extra || ''}${homeFoldBtn(cls)}</div><div class="home-card-body">${body}</div></section>`;
 }
 function homeRemindersHtml() {
   const rows = [];
-  if (homeTourReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="tour"><span>${escapeHtml(tr('homeTourReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="tour-start">${escapeHtml(tr('homeTourStart'))}</button><button class="home-x" type="button" data-home-act="tour-dismiss" title="${escapeAttr(tr('homeTourDismiss'))}" aria-label="${escapeAttr(tr('homeTourDismiss'))}">×</button></div>`);
-  if (homeProfileReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="profile"><span>${escapeHtml(tr('homeProfileReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="profile-start">${escapeHtml(tr('homeProfileStart'))}</button></div>`);
+  if (homeTourReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="tour"><span class="home-reminder-ico" aria-hidden="true">◎</span><span class="home-reminder-text">${escapeHtml(tr('homeTourReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="tour-start">${escapeHtml(tr('homeTourStart'))}</button><button class="home-x" type="button" data-home-act="tour-dismiss" title="${escapeAttr(tr('homeTourDismiss'))}" aria-label="${escapeAttr(tr('homeTourDismiss'))}">×</button></div>`);
+  if (homeProfileReminderShown()) rows.push(`<div class="home-reminder" data-home-reminder="profile"><span class="home-reminder-ico" aria-hidden="true">☺</span><span class="home-reminder-text">${escapeHtml(tr('homeProfileReminder'))}</span><button class="btn btn-small btn-primary" type="button" data-home-act="profile-start">${escapeHtml(tr('homeProfileStart'))}</button></div>`);
   return rows.length ? `<div class="home-reminders">${rows.join('')}</div>` : '';
 }
 function homeQuestionHtml() {
   const learnOk = HOME_NEEDS.some(n => homeNeedLessons(n).length);
   const btn = (act, key) => `<button class="btn" type="button" data-home-do="${act}">${escapeHtml(tr(key))}</button>`;
   const learn = learnOk ? `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="learn" aria-haspopup="true" aria-expanded="${homeLearnOpen}">${escapeHtml(tr('homeDoLearn'))}</button>${homeLearnOpen ? homeLearnHtml() : ''}</span>` : '';
-  return `<section class="home-question"><h2>${escapeHtml(tr('homeQuestion'))}</h2><div class="home-choices">${btn('import', 'homeDoImport')}${btn('tune', 'homeDoTune')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${learn}</div></section>`;
+  const albumsOk = !!document.getElementById('navItemAlbums') && !document.getElementById('navItemAlbums').hidden;
+  const sellPop = `<div class="home-learn-pop home-sell-pop" role="dialog" aria-label="${escapeAttr(tr('homeSellTitle'))}"><div class="home-learn-head"><strong>${escapeHtml(tr('homeSellTitle'))}</strong><button class="home-x" type="button" data-home-do="learn-close" aria-label="${escapeAttr(tr('homeLearnClose'))}">×</button></div><button type="button" class="home-sell-opt" data-home-do="sell-packs"><b>${escapeHtml(tr('homeSellPacks'))}</b><small>${escapeHtml(tr('homeSellPacksHint'))}</small></button>${albumsOk ? `<button type="button" class="home-sell-opt" data-home-do="sell-albums"><b>${escapeHtml(tr('homeSellAlbums'))}</b><small>${escapeHtml(tr('homeSellAlbumsHint'))}</small></button>` : ''}</div>`;
+  const sell = `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="sell" aria-haspopup="true" aria-expanded="${homeSellOpen}">${escapeHtml(tr('homeDoSell'))}</button>${homeSellOpen ? sellPop : ''}</span>`;
+  return `<section class="home-question${homeIsCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head"><h2>${escapeHtml(tr('homeQuestion'))}</h2>${homeFoldBtn('home-question')}</div><div class="home-card-body"><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></div></section>`;
 }
 function homeLearnHtml() {
   const done = lessonsDone();
@@ -160,7 +206,7 @@ function homeMailHtml() {
       <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
   const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
-  return `<section class="home-card home-mail" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div>${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</section>`;
+  return `<section class="home-card home-mail${homeIsCollapsed('home-mail') ? ' is-collapsed' : ''}" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${unread && homeIsCollapsed('home-mail') ? '<span class="home-mail-pulse" aria-hidden="true"></span>' : ''}${head}${homeFoldBtn('home-mail')}</div><div class="home-card-body">${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</div></section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
@@ -202,11 +248,15 @@ function homeActivityHtml() {
   const detail = `<button class="btn btn-small" type="button" data-home-do="analytics">${escapeHtml(tr('homeActivityDetail'))}</button>`;
   return homeCard('home-activity', tr('homeActivityTitle'), body + (o && !(o.tier === 'free' || o.locked) && o.totals && o.totals.visits ? detail : ''), `<span class="home-sub">${escapeHtml(tr('homeActivityDays'))}</span>`);
 }
+function homeNewsDate(iso, lang) {
+  const d = new Date(iso + 'T12:00:00');
+  return isNaN(d) ? String(iso) : d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short' });
+}
 function homeNewsHtml() {
   const lang = currentLang() === 'en' ? 'en' : 'fr';
-  const items = HOME_NEWS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 5);
+  const items = HOME_NEWS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const body = items.length
-    ? items.map(n => { const t = n[lang] || n.fr; return `<div class="home-news-item"><small>${escapeHtml(n.date)}</small><b>${escapeHtml(t.title)}</b><span>${escapeHtml(t.text)}</span></div>`; }).join('')
+    ? items.map(n => { const t = n[lang] || n.fr; return `<div class="home-news-item"><small>${escapeHtml(homeNewsDate(n.date, lang))}</small><b>${escapeHtml(t.title)}</b><span>${escapeHtml(t.text)}</span></div>`; }).join('')
     : `<div class="home-empty">${escapeHtml(tr('homeNewsEmpty'))}</div>`;
   return homeCard('home-news', tr('homeNewsTitle'), body);
 }
@@ -214,7 +264,10 @@ function homeQuickHtml() {
   const dark = window.LayerPitchAppearance && window.LayerPitchAppearance.getTheme() === 'dark';
   const helpOn = !(homePrefs && homePrefs.help_off);
   const theme = window.LayerPitchAppearance ? `<div class="home-quick-row"><span>${escapeHtml(tr('homeQuickTheme'))}</span><span class="home-seg"><button type="button" data-home-theme="light" class="${dark ? '' : 'on'}">${escapeHtml(tr('homeThemeLight'))}</button><button type="button" data-home-theme="dark" class="${dark ? 'on' : ''}">${escapeHtml(tr('homeThemeDark'))}</button></span></div>` : '';
-  const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${theme}
+  // Interface simple / avancée (14/11, feu vert simple_advanced_ui) : même gabarit que Jour / Nuit.
+  const uiAdv = !!(homePrefs && homePrefs.ui_advanced);
+  const uiLevel = flagOpen('simple_advanced_ui') && !isTutoMode() ? `<div class="home-quick-row"><span><b>${escapeHtml(tr('uiLevelTitle'))}</b><small>${escapeHtml(tr('uiLevelHint'))}</small></span><span class="home-seg"><button type="button" data-home-ui="simple" class="${uiAdv ? '' : 'on'}">${escapeHtml(tr('uiLevelSimple'))}</button><button type="button" data-home-ui="advanced" class="${uiAdv ? 'on' : ''}">${escapeHtml(tr('uiLevelAdvanced'))}</button></span></div>` : '';
+  const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${uiLevel}${theme}
     <details class="home-menu"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
     <details class="home-more"><summary>${escapeHtml(tr('homeQuickMore'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMoreHint'))}</small><div id="homeMoreHost"></div></details>`;
   return homeCard('home-quick', tr('homeQuickTitle'), body);
@@ -225,7 +278,7 @@ function renderHome() {
   if (!homePrefs) homePrefs = Object.assign({}, homeLocalPrefs());
   const moreOpen = !!(root.querySelector('.home-more') && root.querySelector('.home-more').open);
   const menuOpen = !!(root.querySelector('.home-menu') && root.querySelector('.home-menu').open);
-  root.innerHTML = `<header class="home-greeting"><h2>${escapeHtml(tr('homeGreeting'))}</h2><div class="sub">${escapeHtml(tr('homeGreetingSub'))}</div></header>
+  root.innerHTML = `<header class="home-greeting"><h2>${escapeHtml(tr('homeGreeting'))}</h2></header>
     ${homeRemindersHtml()}${homeQuestionHtml()}${homeMailHtml()}
     <div class="home-cards">${homeContinueHtml()}${homeEssentialsHtml()}${homeActivityHtml()}${homeNewsHtml()}${homeQuickHtml()}</div>`;
   // Le panneau « Apparence du backstage » (fond, filigrane) vit ici désormais : on le replace dans la carte Réglages rapides.
@@ -240,9 +293,10 @@ function renderHome() {
 
 // ---- Actions ----
 function homeStartProfileQuiz() { if (!guide && profileQuizOpen()) openGuide('tour', [profileQuizStep({ alone: true })]); }
-function homeCloseLearn() { if (!homeLearnOpen) return; homeLearnOpen = false; renderHome(); }
+function homeCloseLearn() { if (!homeLearnOpen && !homeSellOpen) return; homeLearnOpen = false; homeSellOpen = false; renderHome(); }
 function homeFocusMailbox() {
   openTab('home');
+  if (homeIsCollapsed('home-mail')) homeToggleCollapse('home-mail'); // la cloche déplie la boîte si elle était repliée
   homeMailAll = true;
   renderHome();
   const el = document.getElementById('homeMail');
@@ -256,11 +310,16 @@ function homeBellIntercept() {
 }
 function homeDo(act) {
   switch (act) {
-    case 'import': case 'tune': openTab('library'); break;
+    case 'import': openTab('library'); break;
+    case 'sfx': openTab('sfxLibrary'); break;
+    case 'tour': startBackstageTour(); break;
+    case 'sell-packs': homeSellOpen = false; openTab('packs'); break;
+    case 'sell-albums': homeSellOpen = false; openTab('albums'); break;
     case 'video': openTab('videoLibrary'); break;
     case 'share': openTab('content'); break;
     case 'team': { const a = document.getElementById('navLinkProjects'); if (a && a.href) window.location.href = a.getAttribute('href'); break; }
-    case 'learn': homeLearnOpen = !homeLearnOpen; renderHome(); return;
+    case 'learn': homeLearnOpen = !homeLearnOpen; homeSellOpen = false; renderHome(); return;
+    case 'sell': homeSellOpen = !homeSellOpen; homeLearnOpen = false; renderHome(); return;
     case 'learn-close': homeCloseLearn(); return;
     case 'analytics': openTab('analytics'); break;
     case 'all-tutorials': { const b = document.getElementById('btnTutorialMenu'); if (b) b.click(); break; }
@@ -278,10 +337,14 @@ function homeDo(act) {
   const root = document.getElementById('homeRoot');
   if (!root) return;
   root.addEventListener('click', e => {
+    const fold = e.target.closest('[data-home-fold]');
+    if (fold) { homeToggleCollapse(fold.dataset.homeFold); return; }
     const lesson = e.target.closest('[data-home-lesson]');
     if (lesson && !lesson.disabled) { homeLearnOpen = false; trackBackstageEvent('home_lesson', { id: lesson.dataset.homeLesson }); openLessonFromMenu(lesson.dataset.homeLesson); renderHome(); return; }
     const recent = e.target.closest('[data-home-recent]');
     if (recent) { homeOpenRecent(recent.dataset.homeRecent, recent.dataset.id); return; }
+    const uiBtn = e.target.closest('[data-home-ui]');
+    if (uiBtn) { setUiAdvanced(uiBtn.dataset.homeUi === 'advanced'); return; }
     const theme = e.target.closest('[data-home-theme]');
     if (theme) { window.LayerPitchAppearance.setTheme(theme.dataset.homeTheme); return; }
     const act = e.target.closest('[data-home-act]');
@@ -312,7 +375,7 @@ function homeDo(act) {
     if (e.target.id === 'homeHelpToggle') { homeSavePrefs({ help_off: !e.target.checked }); applyHomeHelp(); }
   });
   // Une bulle « J'ai besoin de comprendre » se referme d'un clic ailleurs ou d'Échap.
-  document.addEventListener('click', e => { if (homeLearnOpen && !e.target.closest('.home-learn-wrap')) homeCloseLearn(); });
+  document.addEventListener('click', e => { if ((homeLearnOpen || homeSellOpen) && !e.target.closest('.home-learn-wrap')) homeCloseLearn(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') homeCloseLearn(); });
   // Réglages d'apparence changés ailleurs (autre onglet, autre panneau) : les boutons Jour/Nuit suivent.
   document.addEventListener('lp-appearance-change', () => renderHome());
@@ -321,6 +384,7 @@ function homeDo(act) {
 
 // Appelée une fois les feux verts connus (fin de renderAdminOnlyPanels, via syncBackstageTour) : montre l'onglet, charge ce qu'il faut, arrive sur l'Accueil.
 function syncHome() {
+  syncUiLevel(); // interface simple / avancée (49-interface-simple-avancee.js) : indépendante de l'Accueil
   const open = homeOpen();
   const nav = document.getElementById('navItemHome');
   if (nav) nav.hidden = !open;

@@ -110,7 +110,8 @@ function trackPublicEvent(name, detail, captureExtra) {
 function adReelFromParam() {
   const ctx = window.__lpTrackContext || {};
   if (ctx.type !== 'adreel' || !ctx.id) return '';
-  const handle = new URLSearchParams(location.search).get('u');
+  // Sur l'adresse jolie (/<nom>/), ?u= n'est plus dans location.search : repli sur le nom capturé par la page hôte (14/11, pack « introuvable » depuis l'AdReel d'un autre compositeur).
+  const handle = new URLSearchParams(location.search).get('u') || window.__lpComposerHandle;
   return `&from=${encodeURIComponent(ctx.id)}` + (handle ? `&u=${encodeURIComponent(handle)}` : '');
 }
 

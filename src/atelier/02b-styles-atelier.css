@@ -160,3 +160,8 @@
   .vct-ctx-check { display: inline-block; width: 12px; }
   .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
   .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
+
+/* Interface simple / avancée (14/11) : le Backstage envoie « uiLevel » ; les éléments data-adv sont masqués en simple. */
+body.lp-ui-simple [data-adv], body.lp-ui-simple .vct-track-group-head { display: none !important; }
+.lp-adv-hint { margin: 10px 12px 6px; font-size: 11px; opacity: .75; }
+.lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: #2f80c0; cursor: pointer; text-decoration: underline; }

@@ -47,7 +47,7 @@ function check(label, cond) { console.log((cond ? 'OK   ' : 'FAIL ') + label); i
   const embrRowButtons = C.buildTrackRow(embr({ fxSliders: [slHealth] }), [], false, true);
   check('embranchement-vertical sans curseur de structure : boutons de boucles visibles', !!embrRowButtons.querySelector('[data-role="embrLoopPicker"]') && embrRowButtons.querySelector('[data-role="embrLoopPicker"]').closest('.track-intensity-block').style.display !== 'none');
   const embrRowSlider = C.buildTrackRow(embr({ fxSliders: [slIntensity] }), [], false, true);
-  check('embranchement-vertical avec curseur de structure : boutons de boucles masqués, curseur affiché', embrRowSlider.querySelector('[data-role="embrLoopPicker"]').closest('.track-intensity-block').style.display === 'none' && !!embrRowSlider.querySelector('[data-fx-slider="s1"]'));
+  check('embranchement-vertical avec curseur de structure : frise des boucles gardée (lecture seule), curseur affiché', embrRowSlider.querySelector('[data-role="embrLoopPicker"]').closest('.track-intensity-block').style.display !== 'none' && embrRowSlider.querySelector('[data-role="embrLoopPicker"]').classList.contains('is-slider-driven') && !!embrRowSlider.querySelector('[data-fx-slider="s1"]'));
   const embrTrack = embr({ id: 'e2', fxSliders: [slIntensity] });
   const embrWrap = C.buildTrackRow(embrTrack, [], false, true);
   window.document.body.appendChild(embrWrap);

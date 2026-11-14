@@ -340,7 +340,7 @@ function renderAnalyticsEntity() {
       <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsTracksTitle'))} <span class="hint">${escapeHtml(tr('analyticsTracksNote'))}</span></div>
         ${trackRows ? `<table class="an-table"><thead><tr><th>${escapeHtml(tr('analyticsTracksTitle'))}</th><th>${escapeHtml(tr('analyticsColPlays'))}</th><th>${escapeHtml(tr('analyticsTrackColEnd'))}</th><th>${escapeHtml(tr('analyticsTrackColSkipped'))}</th></tr></thead><tbody>${trackRows}</tbody></table>` : `<div class="hint">${escapeHtml(tr('analyticsNoTracks'))}</div>`}
       </div>
-      <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsInteractionsTitle'))}</div>
+      <div class="an-card" data-adv><div class="an-card-title">${escapeHtml(tr('analyticsInteractionsTitle'))}</div>
         ${ix ? `<ul class="an-ix">${ix}</ul>` : `<div class="hint">${escapeHtml(tr('analyticsNoInteractionsShort'))}</div>`}
       </div>${analyticsFxButtonsCard(e.fxButtons)}`;
   } else {
@@ -355,9 +355,9 @@ function renderAnalyticsEntity() {
       <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartVisits'))}</div>${analyticsBuildChart(e.series.visits || [], e.buckets, e.bucket)}</div>
       <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsChartPlays'))}</div>${isPro ? analyticsBuildChart(e.series.plays || [], e.buckets, e.bucket) : `<div class="an-locked-box">${analyticsLockedBadge()}</div>`}</div>
     </div>
-    <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsDevicesTitle'))}</div>${devices}</div>
+    <div class="an-card" data-adv><div class="an-card-title">${escapeHtml(tr('analyticsDevicesTitle'))}</div>${devices}</div>
     ${proBlocks}
-    <div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsRecentSessionsTitle'))}</div><ul class="an-ix">${recent || `<li class="hint">${escapeHtml(tr('analyticsNoItems'))}</li>`}</ul></div>`;
+    <div class="an-card" data-adv><div class="an-card-title">${escapeHtml(tr('analyticsRecentSessionsTitle'))}</div><ul class="an-ix">${recent || `<li class="hint">${escapeHtml(tr('analyticsNoItems'))}</li>`}</ul></div>`;
   overviewEl.hidden = true; entityEl.hidden = false;
   document.getElementById('btnAnalyticsBack').addEventListener('click', () => {
     analyticsSelected = null; analyticsEntityData = null; renderAnalyticsView();
@@ -393,7 +393,7 @@ function analyticsFxButtonsCard(fxButtons) {
     const info = analyticsFxTriggerInfo({ trackId: b.trackId, triggerId: b.triggerId });
     return `<li>${escapeHtml(info.label)} <span class="hint">(${escapeHtml(info.trackTitle)})</span> <strong>${escapeHtml(tr('analyticsFxPresses', { n: b.presses, s: b.sessions }))}</strong></li>`;
   }).join('');
-  return `<div class="an-card"><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
+  return `<div class="an-card" data-adv><div class="an-card-title">${escapeHtml(tr('analyticsFxSummaryTitle'))} <span class="hint">${escapeHtml(tr('analyticsFxEntityHint'))}</span></div><ul class="an-ix">${rows}</ul></div>`;
 }
 // Nom lisible d'un morceau (1er/10) : le tableau de bord montrait l'identifiant interne (bmrc8rec1wtahz). Retrouvé dans la
 // bibliothèque locale ; repli sur l'identifiant si le morceau a été supprimé depuis.
