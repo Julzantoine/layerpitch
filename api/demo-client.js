@@ -102,7 +102,7 @@
     list_video_export_history: () => [],
   };
   const CAPTURES = new Map(), VERSIONS = new Map(), UPLOADED_VIDEOS = [];
-  const isVersioning = () => ['versioning', 'versioning-adreel'].includes(lessonParam()); // 05/11 : la partie AdReel est sa propre leçon
+  const isVersioning = () => ['versioning', 'versioning-adreel', 'versioning-pas'].includes(lessonParam()); // 05/11 : la partie AdReel est sa propre leçon
   const onAtelierPage = () => !!(window.location && /\/atelier\.html$/.test(window.location.pathname));
   // Montage d'exemple de « Music City » déjà publié en deux musiques : leçon AdReel, et partie « bloc vidéo » de la leçon Versioning (Backstage).
   // Dans l'atelier, la leçon Versioning part de zéro (montages gardés en mémoire ci-dessus).
@@ -230,6 +230,30 @@
   const DEMO_SFX_JORIS = [{"id": "bmw40wgx1bwy7y", "title": "Short Elevator", "description_fr": "", "description_en": "", "rr_mode": "random", "duck_main_track": false, "base": "https://media.layerpitch.com/audio/sfx-bmw40wgx1bwy7y/", "alternatives": [{"file": "0-short-elevator.ogg", "label": "Short Elevator", "localUrl": null, "originalFileName": "Short Elevator.mp3"}], "spatial": null, "tag": "", "retired_at": null, "protected": false, "example_source_id": null}].map(joSfx);
   const DEMO_PACKS_JORIS = [Object.assign({}, DEMO_PACKS[0], { id: 'p-joris', title: 'Joris', video_test_mode_enabled: true,
     pack_tracks: DEMO_TRACKS_JORIS.map((t, i) => ({ track_id: t.id, position: i })), pack_sfx: DEMO_SFX_JORIS.map((x, i) => ({ sfx_id: x.id, position: i })) })];
+  // Leçon « Les pas » (14/11, versioning-pas) : le montage Joris est DÉJÀ PRÊT (quatre marqueurs, « Welcome to the Office Alt 1 » en trois couches arrêtées à l'ascenseur, ascenseur, « Drone Urbex#1 »),
+  // chargé d'office à l'ouverture de la vidéo (window.__lpTutoMontageId, atelier-lecons.js). On y ajoute les pas en passe additive (« Stone Walk », pack Joris), puis la version les passe en
+  // « Concrete Walk » (pack « Footsteps », à ajouter). Lignes de sfx_library copiées de la base de Jules-Antoine (lecture seule, 14/11), audio public media.layerpitch.com/audio/sfx-<id>/.
+  const sfxPas = (id, title, slug, n) => joSfx({ id, title, description_fr: '', description_en: '', rr_mode: 'random', duck_main_track: false, base: 'https://media.layerpitch.com/audio/sfx-' + id + '/',
+    alternatives: n.map((k, i) => ({ file: i + '-sx-fs-' + slug + '-' + k + '.ogg', label: ('SX FS ' + slug + ' ' + k).toUpperCase().replace(/-/g, ' '), localUrl: null, originalFileName: ('SX_FS_' + slug + '_' + k + '.wav').toUpperCase().replace(/-/g, '_') })),
+    spatial: null, tag: '', retired_at: null, protected: false, example_source_id: null });
+  const SFX_STONE = 'bmw3dg2foqzndw', SFX_CONCRETE = 'bmw3dfcf4ye93a', SFX_ELEVATOR = 'bmw40wgx1bwy7y';
+  const DEMO_SFX_PAS = [sfxPas(SFX_STONE, 'Stone Walk', 'stone-walk', ['02', '03', '04']), sfxPas(SFX_CONCRETE, 'Concrete Walk', 'concrete-walk', ['01', '02', '03', '04'])]
+    .concat(DEMO_SFX_JORIS.filter(x => x.id === SFX_ELEVATOR));
+  const DEMO_TRACKS_PAS = DEMO_TRACKS_JORIS.filter(t => ['bmwb6s3d467w77', 'bmw41gclr2m44q'].includes(t.id));
+  const packPas = (id, title, trackIds, sfxIds) => Object.assign({}, DEMO_PACKS[0], { id, title, video_test_mode_enabled: true,
+    pack_tracks: trackIds.map((t, i) => ({ track_id: t, position: i })), pack_sfx: sfxIds.map((x, i) => ({ sfx_id: x, position: i })) });
+  const DEMO_PACKS_PAS = [packPas('p-joris', 'Joris', DEMO_TRACKS_PAS.map(t => t.id), [SFX_STONE, SFX_ELEVATOR]), packPas('p-footsteps', 'Footsteps', [], [SFX_CONCRETE])];
+  // Événements du montage prêt (instants en secondes ; 65 bpm : une mesure = 3,692 s, les couches 2 et 3 entrent à la mesure suivante). La vidéo dure 2 min 42 (162,47 s).
+  const PAS_CAPTURE = { id: 'cap-joris-pas', packId: 'p-joris', title: 'Joris : du bureau à l’ascenseur', videoFilename: JORIS_VIDEO, lastExportVideoId: null, baseVideoId: null, createdAt: '2026-11-14T10:00:00Z', updatedAt: '2026-11-14T10:00:00Z',
+    events: [
+      { t: 0, name: 'layer_segment', detail: { trackId: 'bmwb6s3d467w77', layerIndex: 0, duration: 50.4 } },
+      { t: 18.46, name: 'layer_segment', detail: { trackId: 'bmwb6s3d467w77', layerIndex: 1, duration: 31.94 } },
+      { t: 40.62, name: 'layer_segment', detail: { trackId: 'bmwb6s3d467w77', layerIndex: 2, duration: 9.78 } },
+      { t: 50.4, name: 'stinger_play', detail: { sfxId: SFX_ELEVATOR, variationIndex: 0 } },
+      { t: 55, name: 'layer_segment', detail: { trackId: 'bmw41gclr2m44q', layerIndex: 0, duration: 107.47 } },
+    ],
+    laneOverrides: {}, collapsedGroups: {},
+    markers: [{ id: 'mk-photo', t: 16.8, label: 'Photocopieuse' }, { id: 'mk-hall', t: 38, label: 'Couloir' }, { id: 'mk-elev', t: 50.4, label: 'Ascenseur' }, { id: 'mk-exit', t: 55, label: 'Sortie' }] };
   // Leçon AdReel : la vidéo de gameplay de « Music City » en DEUX versions vidéo (même montage, deux musiques), dans la bibliothèque
   // vidéo du compte fictif. Le bloc vidéo propose alors de choisir la version affichée. FICHIERS À DÉPOSER par Jules-Antoine dans
   // media.layerpitch.com/tuto/ sous ces noms (tant qu'ils manquent, la vidéo ne se lit pas, la leçon se déroule quand même).
@@ -239,6 +263,7 @@
   ];
   const MC_CAPTURE = { id: 'cap-music-city', packId: 'p-music-city', title: 'Music City : de la rue au club', videoFilename: 'music-city-gameplay-muette.mp4', lastExportVideoId: 'vid-music-city-1', createdAt: '2026-10-20T10:00:00Z', updatedAt: '2026-10-20T10:00:00Z' };
   const lessonParam = () => { try { return new URLSearchParams(window.location.search).get('lesson'); } catch (e) { return null; } };
+  if (lessonParam() === 'versioning-pas') CAPTURES.set(PAS_CAPTURE.id, PAS_CAPTURE);
   const isLivePlayPackPage = () => lessonParam() === 'live-play' && !!(window.location && /\/pack\.html$/.test(window.location.pathname));
   // Morceaux d'exemple : leçon AdReel (Backstage) et pages Projets (leur propre bibliothèque, pour le pack et la carte). Pack : pages Projets.
   const listRows = table => {
@@ -255,6 +280,10 @@
     // Atelier vidéo (21/10 : l'outil de capture a quitté la page du pack pour l'atelier, ouvert dans le Backstage).
     const packPage = onAtelierPage();
     // Atelier, leçon « Versioning » : le pack « Joris » (et « Footsteps » à ajouter dans le Versioning) ; la leçon AdReel (Backstage) garde « Music City ».
+    // Leçon « Les pas » (14/11, versioning-pas) : montage Joris déjà prêt ; le pack « Joris » a « Stone Walk » (la passe), le pack « Footsteps » « Concrete Walk » (la version).
+    if (packPage && lessonParam() === 'versioning-pas' && table === 'tracks') return DEMO_TRACKS_PAS;
+    if (packPage && lessonParam() === 'versioning-pas' && table === 'sfx_library') return DEMO_SFX_PAS;
+    if (packPage && lessonParam() === 'versioning-pas' && table === 'packs') return DEMO_PACKS_PAS;
     if (packPage && lessonParam() === 'versioning' && table === 'tracks') return DEMO_TRACKS_JORIS;
     if (packPage && lessonParam() === 'versioning' && table === 'sfx_library') return DEMO_SFX_JORIS;
     if (packPage && lessonParam() === 'versioning' && table === 'packs') return DEMO_PACKS_JORIS;

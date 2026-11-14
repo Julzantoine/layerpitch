@@ -243,7 +243,7 @@ function startAtelierLessonIfAsked() {
     document.body.prepend(bar);
     document.body.classList.add('has-preview-banner');
   }
-  if (atelierParams.get('lesson') === 'versioning') {
+  if (['versioning', 'versioning-pas'].includes(atelierParams.get('lesson'))) {
     // Ouverte / fermée : le Backstage cache sa propre bulle pendant que celles de l'atelier sont à l'écran (une seule bulle à la fois).
     setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone'), onOpen: () => atelierTell('lessonOpen'), onClose: () => atelierTell('lessonClose') }).start(), 600);
   }

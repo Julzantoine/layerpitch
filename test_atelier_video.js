@@ -92,7 +92,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('atelier : la version remplace Alt 1 par Alt2 et le drone 1 par le drone 2', /ALT1 = 'bmwb6s3d467w77', ALT2 = 'bmwf5gpcfqqjyd', D1 = 'bmw41gclr2m44q', D2 = 'bmw3ds8idckeds'/.test(al) && /sel\.value === ALT2/.test(al) && /sel\.value === D2/.test(al));
   check('atelier : la vidéo de la leçon est la copie muette de Joris', /tuto\/Joris\/joris-gameplay-muette\.mp4/.test(al));
   const dc = read('api/demo-client.js');
-  check('atelier (leçon) : pack Joris seulement dans la leçon Versioning, sans les pas (leçon à part)', /id: 'p-joris', title: 'Joris'/.test(dc) && /lessonParam\(\) === 'versioning' && table === 'packs'/.test(dc) && !/p-footsteps/.test(dc));
+  check('atelier (leçon) : pack Joris dans la leçon Versioning (sans les pas) ; « Footsteps » seulement dans la leçon « Les pas »', /id: 'p-joris', title: 'Joris'/.test(dc) && /lessonParam\(\) === 'versioning' && table === 'packs'\) return DEMO_PACKS_JORIS/.test(dc) && /lessonParam\(\) === 'versioning-pas' && table === 'packs'\) return DEMO_PACKS_PAS/.test(dc) && !/DEMO_PACKS_JORIS = [^\n]*p-footsteps/.test(dc));
   check('atelier : la prise s’arrête toute seule à la fin de la vidéo, sans déborder', /videoEl\.addEventListener\('ended', \(\) => \{ if \(videoCaptureState\) recordBtn\.click\(\); \}\)/.test(read('atelier.html')) && /Number\.isFinite\(dur\) \? dur : Infinity/.test(read('atelier.html')));
   check('pack Music City : glaçons et verre (leçons AdReel et « Jouer en direct »)', /\['sfx-glacons', 'sfx-verre'\]\.includes\(x\.id\)/.test(read('api/demo-client.js')));
   check('frise sans capture : morceaux du pack proposés, bouton « Écouter le montage »', /handTrackIds/.test(read('atelier.html')) && /id="videoCaptureListenBtn"/.test(read('atelier.html')));
@@ -108,7 +108,15 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   // 05/11 : la partie « bloc vidéo d'un AdReel » est sa propre leçon, juste après.
   const lva = src43.slice(src43.indexOf("{ id: 'versioning-adreel'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning-adreel'")));
   check('leçon « Montrer les versions dans un AdReel » : juste après, bloc vidéo, versions, nouvelle version', src43.indexOf("{ id: 'versioning-adreel'") > src43.indexOf("{ id: 'versioning'") && /\[data-role="versionSelect"\]/.test(lva) && /\[data-role="versionNew"\]/.test(lva) && /reload: true/.test(lva)
-    && [...lva.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && /\['versioning', 'versioning-adreel'\]\.includes\(lessonParam\(\)\)/.test(read('api/demo-client.js')));
+    && [...lva.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && /\['versioning', 'versioning-adreel', 'versioning-pas'\]\.includes\(lessonParam\(\)\)/.test(read('api/demo-client.js')));
+  // Leçon « Les pas » (14/11) : montage Joris déjà prêt, passe additive « Stone Walk », version « Concrete Walk » via le pack « Footsteps ».
+  const lvp = src43.slice(src43.indexOf("{ id: 'versioning-pas'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning-pas'")));
+  const pasKeys = [...(al.slice(al.indexOf('const stepsPas'), al.indexOf('const stepsVersioning'))).matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
+  check('leçon « Les pas » : entrée Backstage (admin seulement, rechargement), mêmes étapes jusqu’à l’atelier, textes FR/EN', /adminOnly: true/.test(lvp) && /reload: true/.test(lvp) && /atelierLessonFinished/.test(lvp)
+    && [...lvp.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && pasKeys.length > 20 && pasKeys.every(k => has(k)) && /'versioning-pas'/.test(read('layerpitch-tuto.js')));
+  check('leçon « Les pas » : montage prêt chargé à l’ouverture de la vidéo, ≥ 10 pas, fusion, pack Footsteps, Stone → Concrete', /__lpTutoMontageId = 'cap-joris-pas'/.test(al) && /__lpTutoMontageId/.test(read('src/atelier/19-bouton-de-capture.js'))
+    && /stepsN >= 10/.test(al) && /button\[data-v="merge"\]/.test(al) && /removePack"\]\[data-pack="\$\{FOOT_PACK\}"/.test(al) && /sel\.value === CONCRETE/.test(al) && /id: 'cap-joris-pas'/.test(dc) && /CAPTURES\.set\(PAS_CAPTURE\.id/.test(dc)
+    && /DEMO_SFX_PAS = \[sfxPas\(SFX_STONE, 'Stone Walk'/.test(dc) && /packPas\('p-footsteps', 'Footsteps', \[\], \[SFX_CONCRETE\]\)/.test(dc));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));
 

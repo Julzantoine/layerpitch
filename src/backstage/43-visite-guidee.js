@@ -1269,6 +1269,18 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvaEndTitle', textKey: 'lvaEndText', final: true },
   ] },
+  // Leçon « Jouer des pas sur un montage » (14/11, ?tuto&lesson=versioning-pas) : le montage de Joris (leçon Versioning) est DÉJÀ PRÊT ; passe additive en direct (« Stone Walk » à la souris,
+  // au moins 10 pas), puis version qui ajoute le pack « Footsteps » et passe les pas en « Concrete Walk ». Même parcours que Versioning jusqu'à l'atelier (atelier-lecons.js fait le reste).
+  { id: 'versioning-pas', theme: 'preprod', public: true, adminOnly: true, reload: true, titleKey: 'lvpTitle', descKey: 'lvpDesc', steps: [
+    { titleKey: 'lvpWelcomeTitle', textKey: 'lvpWelcomeText' },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
+      done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]:not([hidden])', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+      done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
+    { selector: '#videoAtelierFullBtn', titleKey: 'lvFullTitle', textKey: 'lvFullText', done: () => document.body.classList.contains('video-atelier-full') },
+    { selector: '#videoAtelierFrame', titleKey: 'lvpInAtelierTitle', textKey: 'lvpInAtelierText', done: () => atelierLessonFinished },
+    { titleKey: 'lvpEndTitle', textKey: 'lvpEndText', final: true },
+  ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
   // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images

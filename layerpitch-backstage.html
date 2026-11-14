@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794681228348">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794693205405">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2355,20 +2355,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794681228348"></script>
-<script src="layerpitch-i18n.js?v=1794681228348"></script>
-<script src="layerpitch-import-engine.js?v=1794681228348"></script>
-<script src="layerpitch-appearance.js?v=1794681228348"></script>
-<script src="layerpitch-font-picker.js?v=1794681228348"></script>
-<script src="layerpitch-album-shared.js?v=1794681228348"></script>
-<script src="layerpitch-album-editor.js?v=1794681228348"></script>
-<script src="layerpitch-shell.js?v=1794681228348"></script>
-<script src="layerpitch-social-icons.js?v=1794681228348"></script>
-<script src="layerpitch-notify.js?v=1794681228348"></script>
-<script src="layerpitch-guide.js?v=1794681228348"></script>
-<script src="layerpitch-lesson-previews.js?v=1794681228348"></script>
-<script src="layerpitch-help.js?v=1794681228348"></script>
-<script src="player.js?v=1794681228348"></script>
+<script src="layerpitch-tuto.js?v=1794693205405"></script>
+<script src="layerpitch-i18n.js?v=1794693205405"></script>
+<script src="layerpitch-import-engine.js?v=1794693205405"></script>
+<script src="layerpitch-appearance.js?v=1794693205405"></script>
+<script src="layerpitch-font-picker.js?v=1794693205405"></script>
+<script src="layerpitch-album-shared.js?v=1794693205405"></script>
+<script src="layerpitch-album-editor.js?v=1794693205405"></script>
+<script src="layerpitch-shell.js?v=1794693205405"></script>
+<script src="layerpitch-social-icons.js?v=1794693205405"></script>
+<script src="layerpitch-notify.js?v=1794693205405"></script>
+<script src="layerpitch-guide.js?v=1794693205405"></script>
+<script src="layerpitch-lesson-previews.js?v=1794693205405"></script>
+<script src="layerpitch-help.js?v=1794693205405"></script>
+<script src="player.js?v=1794693205405"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -18476,6 +18476,18 @@ const LESSONS = [
     // Explication seulement : dans un vrai compte, ce bouton rouvre l'atelier sur ce montage.
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvaEndTitle', textKey: 'lvaEndText', final: true },
+  ] },
+  // Leçon « Jouer des pas sur un montage » (14/11, ?tuto&lesson=versioning-pas) : le montage de Joris (leçon Versioning) est DÉJÀ PRÊT ; passe additive en direct (« Stone Walk » à la souris,
+  // au moins 10 pas), puis version qui ajoute le pack « Footsteps » et passe les pas en « Concrete Walk ». Même parcours que Versioning jusqu'à l'atelier (atelier-lecons.js fait le reste).
+  { id: 'versioning-pas', theme: 'preprod', public: true, adminOnly: true, reload: true, titleKey: 'lvpTitle', descKey: 'lvpDesc', steps: [
+    { titleKey: 'lvpWelcomeTitle', textKey: 'lvpWelcomeText' },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
+      done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]:not([hidden])', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+      done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
+    { selector: '#videoAtelierFullBtn', titleKey: 'lvFullTitle', textKey: 'lvFullText', done: () => document.body.classList.contains('video-atelier-full') },
+    { selector: '#videoAtelierFrame', titleKey: 'lvpInAtelierTitle', textKey: 'lvpInAtelierText', done: () => atelierLessonFinished },
+    { titleKey: 'lvpEndTitle', textKey: 'lvpEndText', final: true },
   ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
