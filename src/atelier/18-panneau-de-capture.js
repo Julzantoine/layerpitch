@@ -758,7 +758,7 @@ function openCapturePanel(file, opts) {
   async function altExportState(key) {
     if (!key || key === '') {
       const b = baseState();
-      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: tr('altOriginal') };
+      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: origName() };
     }
     if (key === activeAltId) return { events: lastEvents, laneOverrides, laneLayout, name: (altList().find(v => v.id === key) || {}).title || key };
     const v = altList().find(x => x.id === key);
@@ -773,7 +773,7 @@ function openCapturePanel(file, opts) {
     const alts = altList();
     exportAltBox.hidden = alts.length === 0;
     exportAltBox.innerHTML = alts.length ? `<div class="video-test-dialog-title">${esc(tr('altExportWhich'))}</div>`
-      + [{ id: '', label: tr('altOriginal') }].concat(alts.map((v, i) => ({ id: v.id, label: altName(v, i) })))
+      + [{ id: '', label: origName() }].concat(alts.map((v, i) => ({ id: v.id, label: altName(v, i) })))
           .map(o => `<label class="atelier-export-opt"><input type="checkbox" data-alt-export="${esc(o.id)}" ${o.id === (activeAltId || '') ? 'checked' : ''}> ${esc(o.label)}</label>`).join('') : '';
     exportDialog.showModal();
   });
@@ -885,6 +885,7 @@ function openCapturePanel(file, opts) {
     try { await autosaveRunning; } finally { autosaveRunning = null; }
   }
   titleInput.addEventListener('input', scheduleAutosave);
+  titleInput.addEventListener('input', () => { if (typeof renderAltSelect === 'function') renderAltSelect(); }); // le menu des versions montre le nom de la version n° 1 en direct
   // Un seul nom : renommer le montage renomme aussi sa vidéo muette dans la bibliothèque vidéo (« <nom> — montage »), à la sortie du champ.
   titleInput.addEventListener('change', async () => {
     try {
@@ -939,11 +940,10 @@ function openCapturePanel(file, opts) {
       updateEverywhereBtn.disabled = false; setExportButtonsDisabled(lastEvents.length === 0);
     }
   });
-  // Dans le Backstage, le bouton global publie : le bouton et sa case disparaissent, un seul geste reste (« Sauvegarder / publier »).
-  if (hostPublishes || !captureCanSave) {
-    updateEverywhereBtn.hidden = true;
-    document.getElementById('videoCaptureKeepOldLabel').hidden = true;
-  }
+  // Dans le Backstage, le bouton global « Sauvegarder / publier » publie aussi, mais l'étape « Publier » garde son propre bouton (13/11, retour de
+  // Jules-Antoine : « pas clair » sans). Doublon voulu ; seule la case « garder l'ancien » reste cachée.
+  if (hostPublishes || !captureCanSave) document.getElementById('videoCaptureKeepOldLabel').hidden = true;
+  if (!captureCanSave) updateEverywhereBtn.hidden = true;
   // Appelée par 20-demarrage-atelier.js quand le Backstage demande de terminer le montage ; 'none' : rien à publier.
   window.__lpFinishMontage = async () => {
     setExportButtonsDisabled(true);
@@ -1093,6 +1093,8 @@ function openCapturePanel(file, opts) {
   const altSelect = document.getElementById('videoAltSelect');
   let altBusy = false; // une opération sur les versions alternatives en cours (voir le menu plus bas)
   const altList = () => (versioning && versioning.alternatives ? versioning.alternatives.list() : []);
+  // La version n° 1 porte le nom du montage : le renommer la renomme partout (menu, export, AdReels, Projets, relecture).
+  const origName = () => (baseState().title || '').trim() || tr('altOriginal');
   const altName = (v, i) => v.title || tr('altDefaultName').replace('{n}', String(i + 2));
   function renderAltSelect() {
     if (!altSelect) return;
@@ -1101,7 +1103,7 @@ function openCapturePanel(file, opts) {
     const grp = document.getElementById('videoAltGroup'); if (grp) grp.hidden = !on; // le groupe (cadre + libellé) n'apparaît qu'avec le menu des versions
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
-    altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
+    altSelect.innerHTML = `<option value="">${esc(origName())}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
       + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__delete">${esc(tr('altDelete'))}</option>` : '');
     const pl = document.getElementById('videoAltPropagate'); if (pl) pl.hidden = altList().length === 0;
     const rb = document.getElementById('videoAltRefBtn'); if (rb) rb.hidden = altList().length === 0;
@@ -1172,7 +1174,7 @@ function openCapturePanel(file, opts) {
     if (!versioning || videoCaptureState) return;
     const alts = altList();
     const sources = [];
-    if (activeAltId) sources.push({ id: '', label: tr('altOriginal') });
+    if (activeAltId) sources.push({ id: '', label: origName() });
     alts.forEach((v, i) => { if (v.id !== activeAltId) sources.push({ id: v.id, label: altName(v, i) }); });
     if (!sources.length) return;
     const esc = window.LayerPlayerCore.escapeHtml;
