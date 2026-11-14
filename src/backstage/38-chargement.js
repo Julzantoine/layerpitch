@@ -131,7 +131,7 @@ async function loadData(silent) {
           descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
           nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
             targetId: opt.targetId, label: opt.label || '',
-            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
+            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, fadeOutBeat: opt.transition.fadeOutBeat, nextInBeat: opt.transition.nextInBeat, duration: opt.transition.duration, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
             fxActions: opt.fxActions || null
           })) : null,
           alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
@@ -174,7 +174,7 @@ async function loadData(silent) {
             transition: l.transition ? {
               label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
               bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-              bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+              bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
               remoteFile: l.transition.file || null, originalFileName: l.transition.originalFileName || null, pendingFile: null,
               fx: l.transition.fx || null
             } : null,

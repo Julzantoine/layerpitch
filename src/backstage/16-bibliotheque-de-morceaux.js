@@ -488,7 +488,7 @@ function buildPreviewTrack(track) {
   const mapTransition = (item) => {
     const m = mapBlockWithBars(item);
     if (!m) return null;
-    return { ...m, durationUnit: (item && item.durationUnit) || null, bpm: item && item.bpm, beatsPerBar: item && item.beatsPerBar, durationSeconds: item && item.durationSeconds };
+    return { ...m, durationUnit: (item && item.durationUnit) || null, bpm: item && item.bpm, beatsPerBar: item && item.beatsPerBar, durationSeconds: item && item.durationSeconds, fadeOutBeat: item && item.fadeOutBeat, nextInBeat: item && item.nextInBeat };
   };
   return {
     id: 'preview-' + track.id,
@@ -568,7 +568,7 @@ function buildPreviewTrack(track) {
         transition: l.transition ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
           ...mapItem(l.transition)
         } : null,
         fx: l.fx || null,

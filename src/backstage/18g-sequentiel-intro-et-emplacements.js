@@ -206,6 +206,8 @@
               ${opt.transition ? `
                 <div data-role="transitionFileCtrl" style="margin-top:6px;margin-bottom:6px"></div>
                 <div class="hint-inline">${tr('transitionHint')}</div>
+                ${flagOpen('transition_timeline') ? `<div data-role="transitionTimelineHost" style="margin-top:10px"></div>
+                <div class="hint-inline">${tr('transitionTimelineHint')}</div>` : ''}
                 ${!hasTransitionFile ? `<div class="hint-inline" style="color:#b45309">${tr('noTransitionFileWarning')}</div>` : ''}
                 <div class="row" style="margin-top:6px">
                   <div><label>${tr('branchLabelOverrideLabel')}</label><input type="text" placeholder="${tr('transitionNamePlaceholder')}" data-branch-transition-field="label" data-ti="${ti}" data-si="${si}" data-bi="${bi}" value="${escapeAttr(opt.transition.label)}"></div>
@@ -249,12 +251,15 @@
             branchOptionsHost.appendChild(wrap);
             if (opt.transition) {
               wireCollapsibleBlockToggle(wrap.querySelector('[data-role="transDescToggle"]'), wrap.querySelector('[data-role="transDescBody"]'), `transDesc:${ti}:${si}:${bi}`);
+              const trnTlHost = wrap.querySelector('[data-role="transitionTimelineHost"]');
+              if (trnTlHost) trnTlHost.appendChild(buildTransitionTimelineEl(opt.transition, slot, track));
               const ctrlHost = wrap.querySelector('[data-role="transitionFileCtrl"]');
               ctrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
               wireFileControl(ctrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
                 () => opt.transition.pendingFile, () => opt.transition.remoteFile,
                 f => {
                   opt.transition.pendingFile = f;
+                  opt.transition.duration = null; // nouveau fichier : la frise relit sa durée
                   applySeqTransitionFileNameHints(opt.transition, f);
                   hasUnsavedEdits = true;
                   if (!opt.transition.label || !opt.transition.label.trim()) opt.transition.label = titleFromFilename(f.name);

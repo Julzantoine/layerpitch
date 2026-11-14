@@ -3852,6 +3852,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   let embrAutoReturnTimeout = null; // minuterie de retour auto d'une boucle PAIRE (différent de embrDetourTimeout, qui concerne les boucles courtes)
   let embrEndLoopBtnEl = null; // bouton "Mettre fin à la boucle" inséré dynamiquement pendant un détour en mode "en boucle jusqu'à un bouton"
   let embrIntroLockTimeout = null; // verrouillage des boutons pendant le segment Départ→Entrée de la référence au tout premier lancement (29/08) -- voir playEmbrVertical()
+  let embrTransitionDuckTimeout = null; // début différé du fondu de la boucle quittée (point « Entrée » de la transition, 14/11)
   let embrPendingTransitionSwitchTimeout = null; // bascule réelle en attente le temps qu'un fichier de transition finisse de jouer (29/08, voir performEmbrSwitch) -- distinct de embrPendingSwitchTimeout (quantification), les deux peuvent s'enchaîner
   let currentGainNodes = []; // moteur quantifié : gains de la génération la plus récente, par couche (contrôle d'intensité en direct)
   let schedulerTimer = null;
@@ -4886,7 +4887,15 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
     applyFxActions(opt && opt.fxActions); // triggers d'effets liés à cette bascule (23/09)
     const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
-    const transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
+    let transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
+    // Points de la transition (14/11) : « Fondu » = temps du fichier où le bloc quitté commence à s'effacer, « Boucle » = temps où le
+    // bloc suivant entre (la durée de la transition devient ce point). Absents : comportement d'origine.
+    let transitionFadeDelaySec = 0;
+    if (transitionBuf && opt.transition) {
+      const trSpb = seqTransitionTiming(track, opt.transition, sourceSlot).secondsPerBeat;
+      if (opt.transition.nextInBeat > 0) transitionDurationSec = Math.min(opt.transition.nextInBeat * trSpb, transitionBuf.duration);
+      if (opt.transition.fadeOutBeat > 0) transitionFadeDelaySec = Math.min(opt.transition.fadeOutBeat * trSpb, transitionDurationSec != null ? transitionDurationSec : Infinity);
+    }
     // Trois styles de coupure : "hard" (fin nette), "fade" (fondu court fixe, 0.15s — même durée que les
     // autres fondus courts du morceau, solo/muet, embranchement-vertical), "custom" (durée choisie par le
     // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
@@ -4897,12 +4906,14 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     seqPendingCut = { hard: cutStyle === 'hard', fadeSec: cutStyle === 'hard' ? 0 : fadeOutSec };
     if (fromInfo.gainNode) {
       const g = fromInfo.gainNode;
+      const fadeAt = now + transitionFadeDelaySec; // 0 sans point « Fondu » : au moment de la coupure, comme avant
       g.gain.cancelScheduledValues(now);
       if (cutStyle === 'hard') {
-        g.gain.setValueAtTime(0, now);
+        g.gain.setValueAtTime(transitionFadeDelaySec > 0 ? g.gain.value : 0, now);
+        if (transitionFadeDelaySec > 0) g.gain.setValueAtTime(0, fadeAt);
       } else {
-        g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime(0, now + fadeOutSec);
+        g.gain.setValueAtTime(g.gain.value, fadeAt);
+        g.gain.linearRampToValueAtTime(0, fadeAt + fadeOutSec);
       }
     }
     // Le scheduler normal programme jusqu'à 1s à l'avance (voir seqSchedulerTick) : au moment d'une coupure,
@@ -5665,6 +5676,27 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
   // -- un repli par mesures y donnerait une durée arbitraire (potentiellement plusieurs secondes de silence
   // sur la cible) plutôt que la durée réelle du fichier déposé.
   function embrTransitionDurationSecFor(loopDef, sourceLoopDef, buf) { return embrTransitionDurationSec(track, loopDef, sourceLoopDef, buf ? buf.duration : 0); }
+  // Points de la transition (14/11, retour d'Hugo : « elle ne tombe pas en rythme ») : « Entrée » = temps du fichier à partir duquel la boucle
+  // quittée commence son fondu ; « Sortie » = temps à partir duquel la boucle suivante s'enclenche. Absents : comportement d'origine
+  // (fondu dès le début du fichier, boucle suivante à la fin de la durée de la transition). Tempo = celui de la transition, sinon de la boucle
+  // quittée, sinon du morceau (seqTransitionTiming). Temps réels (vitesse du morceau comprise).
+  function embrTransitionPlan(loopDef, sourceLoopDef, buf) {
+    const tr = loopDef && loopDef.transition;
+    let transDelay = buf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, buf) / trackPitchRatio : 0;
+    let fadeOutDelay = 0;
+    if (tr && buf) {
+      const spb = seqTransitionTiming(track, tr, sourceLoopDef).secondsPerBeat;
+      if (tr.nextInBeat > 0) transDelay = Math.min(tr.nextInBeat * spb, buf.duration) / trackPitchRatio;
+      if (tr.fadeOutBeat > 0) fadeOutDelay = Math.min(tr.fadeOutBeat * spb / trackPitchRatio, transDelay);
+    }
+    return { transDelay, fadeOutDelay };
+  }
+  // Fondu de la boucle quittée : tout de suite, ou au point « Entrée » de la transition. Annulé si une autre bascule arrive entre-temps.
+  function scheduleEmbrSourceDuck(fadeOutDelay, sourceIdx, sourceLoopDef) {
+    if (embrTransitionDuckTimeout) { clearTimeout(embrTransitionDuckTimeout); embrTransitionDuckTimeout = null; }
+    if (!(fadeOutDelay > 0.001)) { duckEmbrSourceLoop(sourceIdx, sourceLoopDef); return; }
+    embrTransitionDuckTimeout = setTimeout(() => { embrTransitionDuckTimeout = null; if (playing) duckEmbrSourceLoop(sourceIdx, sourceLoopDef); }, fadeOutDelay * 1000);
+  }
   // Joue le fichier de transition (24/08) de la boucle CIBLE, s'il en existe un -- en overlay, superposé au
   // fondu de coupure plutôt qu'inséré séquentiellement entre les deux boucles (bien plus simple à
   // synchroniser correctement, et suffisant pour l'usage visé : un whoosh/une texture qui accompagne la
@@ -5826,7 +5858,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (!picker || !buf || !(durationSec > 0)) return;
     const row = document.createElement('div');
     row.className = 'embr-transition-row';
-    row.innerHTML = '<canvas class="embr-wave-bg"></canvas><canvas class="embr-wave-fg"></canvas>';
+    row.innerHTML = '<canvas class="embr-wave-bg"></canvas><canvas class="embr-wave-fg"></canvas><span class="embr-transition-label">' + escapeHtml(t('embrTransitionOverlayLabel')) + '</span>';
     picker.appendChild(row);
     embrTransitionRowEl = row;
     const bg = row.querySelector('.embr-wave-bg'), fg = row.querySelector('.embr-wave-fg');
@@ -6096,6 +6128,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     if (embrAutoReturnTimeout) { clearTimeout(embrAutoReturnTimeout); embrAutoReturnTimeout = null; }
     if (embrPendingSwitchTimeout) { clearTimeout(embrPendingSwitchTimeout); embrPendingSwitchTimeout = null; }
     if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
+    if (embrTransitionDuckTimeout) { clearTimeout(embrTransitionDuckTimeout); embrTransitionDuckTimeout = null; }
     if (embrIntroLockTimeout) { clearTimeout(embrIntroLockTimeout); embrIntroLockTimeout = null; }
     removeEmbrEndLoopButton();
     removeEmbrDetourWaveRow();
@@ -6215,6 +6248,7 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     // là, embrActiveLoopIdx reste sur l'ancienne boucle, donc le planificateur continue de la régénérer
     // normalement, sans connaître ni se soucier de la bascule en attente).
     if (embrPendingTransitionSwitchTimeout) { clearTimeout(embrPendingTransitionSwitchTimeout); embrPendingTransitionSwitchTimeout = null; }
+    if (embrTransitionDuckTimeout) { clearTimeout(embrTransitionDuckTimeout); embrTransitionDuckTimeout = null; }
     // Une transition affichée pour cette bascule annulée n'a plus lieu d'être -- sans ce retrait
     // inconditionnel, un nouveau choix SANS transition propre laisserait l'ancienne ligne affichée
     // indéfiniment (showEmbrTransitionOverlay() ne serait alors jamais rappelée pour la nettoyer).
@@ -6234,8 +6268,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       // transition terminée, exactement comme une coupure immédiate ordinaire à cet instant-là -- jamais de
       // gain différé en parallèle du planificateur périodique.
       const transBuf = embrTransitionBuffers[idx];
-      const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) / trackPitchRatio : 0; // temps réel (la transition joue aussi à trackPitchRatio)
-      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
+      const { transDelay, fadeOutDelay } = embrTransitionPlan(loopDef, sourceLoopDef, transBuf); // temps réel (la transition joue aussi à trackPitchRatio)
+      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); scheduleEmbrSourceDuck(fadeOutDelay, embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const doSwitch = () => withEmbrKey(swKey, swParent, () => {
         removeEmbrTransitionOverlay();
@@ -6272,8 +6306,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       // géré le cas d'un détour précédent juste au-dessus) ducke immédiatement sur son propre fondu de
       // sortie plutôt que de continuer à plein volume jusqu'au démarrage réel du détour.
       const transBuf = embrTransitionBuffers[idx];
-      const transDelay = transBuf ? embrTransitionDurationSecFor(loopDef, sourceLoopDef, transBuf) / trackPitchRatio : 0; // temps réel (la transition joue aussi à trackPitchRatio)
-      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); duckEmbrSourceLoop(embrActiveLoopIdx, sourceLoopDef); }
+      const { transDelay, fadeOutDelay } = embrTransitionPlan(loopDef, sourceLoopDef, transBuf); // temps réel (la transition joue aussi à trackPitchRatio)
+      if (transBuf) { playEmbrTransitionIfAny(idx, ctx.currentTime); scheduleEmbrSourceDuck(fadeOutDelay, embrActiveLoopIdx, sourceLoopDef); }
       if (transBuf) showEmbrTransitionOverlay(embrActiveLoopIdx, idx, transBuf, transDelay);
       const startDetour = () => withEmbrKey(swKey, swParent, () => {
         removeEmbrTransitionOverlay();
