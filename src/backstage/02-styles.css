@@ -1243,8 +1243,9 @@
   .home-news-item small { color: var(--text-dimmer); font-size: 10px; }
   .home-quick-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 12px; cursor: pointer; }
   .home-quick-row small { display: block; color: var(--text-dimmer); font-size: 10px; }
-  .home-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .home-seg button { border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
+  .home-quick-row > span:first-child { min-width: 0; }
+  .home-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .home-seg button { white-space: nowrap; border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
   .home-seg button.on { background: var(--accent-soft); color: var(--accent); }
   .nav-user-hidden { display: none !important; }
   /* Interface simple / avancée (14/11) : les éléments data-adv sont masqués en interface simple ; repère « N options avancées masquées » à la fin de la zone. */
