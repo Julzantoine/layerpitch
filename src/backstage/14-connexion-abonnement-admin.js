@@ -141,6 +141,9 @@ async function loadMyEntitlements() {
   const nf = {};
   (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; });
   myFlags = nf;
+  // Les droits arrivent parfois APRÈS l'ouverture de l'onglet Vidéo (11/11, retour de Jules-Antoine : « Atelier » au lieu des projets) :
+  // la colonne des projets se remet alors d'accord avec le vrai droit et charge la liste.
+  try { if (typeof preloadVideoProjectList === 'function' && document.getElementById('videoCols')) preloadVideoProjectList(); } catch (e) { /* onglet Vidéo pas prêt */ }
 }
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
@@ -412,6 +415,7 @@ function initInboxBellUi() {
   });
   bellBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    if (typeof homeBellIntercept === 'function' && homeBellIntercept()) return; // Accueil ouvert : la cloche mène à la boîte aux lettres de l'Accueil (48-accueil.js)
     const willOpen = dropdown.hidden;
     if (!willOpen) { closeMenu(); return; }
     dropdown.hidden = false;

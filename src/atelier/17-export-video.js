@@ -28,7 +28,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
   // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
   // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
-  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: exportOptions.trackMix });
   const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
   const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));
@@ -76,7 +76,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
   // libre, vendor/fonts/).
   onProgress(tr('captureFetchFont'));
-  await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
+  await ffmpeg.writeFile('font.ttf', (await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href)).slice()); // copie : writeFile transfère les octets (cache partagé)
   // Plafonné à 720p (16 septembre, retour direct : un export de 3 min prenait ~10 min -- cet export
   // encodait la vidéo source à sa résolution d'origine, souvent 1080p+, SANS le plafond déjà appliqué
   // côté bibliothèque vidéo -- voir compressVideoForLibrary dans layerpitch-backstage.html). Le
@@ -88,11 +88,25 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // libellés à la même hauteur les rendrait illisibles.
   // Incrustations : la même liste d'étiquettes que celle rangée avec la vidéo pour les pages publiques (buildCaptureCues, 21/10).
   const esc = t => String(t).replace(/['\\:]/g, '');
-  for (const c of buildCaptureCues(events, laneOverrides)) {
+  // Musique et Sfx au même endroit : bas à droite, chacun sous un petit libellé (les Sfx se placent au-dessus des lignes de musique actives).
+  const allCues = buildCaptureCues(events, laneOverrides);
+  const capDt = (txt, x, y, when) => `drawtext=fontfile=font.ttf:text='${txt}':x=${x}:y=${y}:fontsize=12:fontcolor=white@0.7:${when}`;
+  for (const c of allCues) {
+    if (c.kind === 'credit') continue;
     const when = `enable='between(t,${c.start},${c.end})'`;
-    if (c.style === 'layer') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56-${c.row * 30}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
-    else if (c.style === 'window') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
-    else if (c.style === 'flash') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text.toUpperCase())} !':x=24:y=24:fontsize=26:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+    if (c.style === 'layer') {
+      const y = `h-56-${c.row * 44}`;
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=${y}:fontsize=22:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+      drawtexts.push(capDt('MUSIC', 'w-tw-24', `${y}-18`, when));
+    } else if (c.style === 'window') {
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=h-56:fontsize=26:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=8:${when}`);
+      drawtexts.push(capDt('MUSIC', 'w-tw-24', 'h-56-20', when));
+    } else if (c.style === 'flash') {
+      const below = allCues.filter(o => o.kind === 'state' && o.start < c.end && o.end > c.start).length;
+      const y = `h-56-${Math.max(1, below) * 44 + 8}`;
+      drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=w-tw-24:y=${y}:fontsize=22:fontcolor=0xffaa55:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
+      drawtexts.push(capDt('SFX', 'w-tw-24', `${y}-18`, when));
+    }
     else if (c.style === 'fx') drawtexts.push(`drawtext=fontfile=font.ttf:text='${esc(c.text)}':x=24:y=${64 + c.row * 30}:fontsize=22:fontcolor=0xc9a0ff:box=1:boxcolor=0x000000AA:boxborderw=6:${when}`);
   }
   // Filigrane "powered by LayerPitch" (Rookie/Warrior, voir tout en haut de la fonction) -- permanent,

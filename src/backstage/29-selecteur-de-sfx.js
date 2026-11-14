@@ -181,7 +181,7 @@ function buildVideoCard(block) {
             <label>${tr('videoMontageSelectLabel')}</label>
             <select data-role="montageSelect" data-i="${i}">
               <option value="">${tr('videoMontageSelectPlaceholder')}</option>
-              ${choices.map(x => `<option value="${escapeAttr(x.capture.id)}" ${v.montageId === x.capture.id ? 'selected' : ''}>${escapeAttr(x.capture.title || tr('videoVersioningUntitled'))}</option>`).join('')}
+              ${choices.map(x => `<option value="${escapeAttr(x.capture.id)}" ${v.montageId === x.capture.id ? 'selected' : ''}>${escapeAttr(x.capture.title || (x.capture.videoFilename || '').replace(/\.[^.]+$/, '') || tr('videoVersioningUntitled'))}</option>`).join('')}
             </select>
             ${montageIdx && !choices.length ? `<div class="hint-inline">${tr('videoMontageSelectEmpty')}</div>` : ''}
           </div>

@@ -10,7 +10,8 @@ function renderCollections() {
     el.className = 'list-block';
     const collCollapsed = collapsedCollectionIds.has(coll.id);
     if (!collectionSelectedEntry.has(coll.id)) collectionSelectedEntry.set(coll.id, 'content');
-    const entrySel = collectionSelectedEntry.get(coll.id);
+    // Interface simple (14/11) : l'entrée « Apparence » est avancée ; masquée, on retombe sur « Présentation ».
+    const entrySel = (collectionSelectedEntry.get(coll.id) === 'appearance' && uiSimpleActive()) ? 'presentation' : collectionSelectedEntry.get(coll.id);
     el.innerHTML = `
       <div class="list-block-head">
         <div class="list-block-head-left">
@@ -34,7 +35,7 @@ function renderCollections() {
     }
     collMasterHost.appendChild(collMasterItem('presentation', `<div class="seq-master-item-label">${tr('sectionPresentation')}</div>`));
     collMasterHost.appendChild(collMasterItem('content', `<div class="seq-master-item-label">${tr('trackSectionContent')}</div>`));
-    collMasterHost.appendChild(collMasterItem('appearance', `<div class="seq-master-item-label">${tr('sectionAppearance')}</div>`));
+    { const advItem = collMasterItem('appearance', `<div class="seq-master-item-label">${tr('sectionAppearance')}</div>`); advItem.setAttribute('data-adv', ''); collMasterHost.appendChild(advItem); }
     collMasterHost.appendChild(collMasterItem('distribution', `<div class="seq-master-item-label">${tr('sectionDistribution')}</div>`));
 
     const detailEl = document.createElement('div');

@@ -21,7 +21,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
   // Porte d'entrée : réservée aux admins sur la page du pack, même quand le tutoriel public est ouvert.
   const tuto = read('layerpitch-tuto.js');
-  check('porte du tutoriel : « live-play » réservée aux admins', /const ADMIN_ONLY_LESSONS = \['live-play'\];/.test(tuto) && /\|\| lessonAdminOnly\(\)\) && !\(await adminGate\(\)\)/.test(tuto));
+  check('porte du tutoriel : « live-play » réservée aux admins', /const ADMIN_ONLY_LESSONS = \['live-play', 'versioning', 'versioning-adreel', 'pj-annotate'\];/.test(tuto) && /\|\| lessonAdminOnly\(\)\) && !\(await adminGate\(\)\)/.test(tuto));
 
   // Page du pack : la leçon n'est chargée que pour elle ; la vidéo muette est proposée dans « Tester en jeu ».
   const pack = read('pack.html');

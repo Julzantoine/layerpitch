@@ -62,10 +62,45 @@ window.addEventListener('message', async e => {
     const client = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
     if (!client) return;
     atelierFillPackSelect(document.getElementById('atelierPackSelect'), await atelierPackChoices(client), packId);
+    // Pack publié entre-temps (11/11, retour de Jules-Antoine : « j'ai ajouté un morceau au pack, il n'apparaît pas ») : les morceaux étaient lus
+    // une seule fois à l'ouverture. Si le pack a été republié, l'atelier se recharge sur le même projet, après avoir enregistré ce qui était en
+    // cours ; jamais pendant une prise.
+    if (lastResolvedOwnerId && window.__lpPackPublishedAt) {
+      const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+      if (fresh && fresh.publishedAt && fresh.publishedAt !== window.__lpPackPublishedAt) {
+        if (window.__lpAtelierBusy && window.__lpAtelierBusy()) return; // prise en cours : on ne touche à rien, la page se rechargera au prochain passage
+        try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { return; } // l'enregistrement a échoué : on ne recharge pas, rien ne doit se perdre
+        location.reload();
+      }
+    }
   } catch (err) {
     console.error('LayerPitch — atelier vidéo, mise à jour des packs :', err);
   } finally {
     atelierPacksRefreshing = false;
+  }
+});
+
+// « ↻ » dans l'en-tête du panneau (13/11, admin) : relire le pack publié sans attendre un message du Backstage (retour de Jules-Antoine : un
+// morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
+// que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
+let atelierRefreshing = false;
+document.addEventListener('click', async ev => {
+  const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
+  if (!btn || atelierRefreshing) return;
+  atelierRefreshing = true; btn.disabled = true;
+  const N = window.LayerPitchNotify;
+  try {
+    if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
+    if (!lastResolvedOwnerId) { location.reload(); return; }
+    const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+    if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
+    try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
+    location.reload();
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, actualisation :', err);
+    N.error(tr('loadError'));
+  } finally {
+    atelierRefreshing = false; btn.disabled = false;
   }
 });
 
@@ -109,7 +144,12 @@ async function init() {
       return;
     }
     atelierFillPackSelect(select, choices, packId);
-    row.hidden = false;
+    // Ouvert sur un projet vidéo (09/11, &montage=<id> depuis le Backstage) : le pack est celui du projet, choisi dans le Backstage -- ni liste de packs
+    // ni phrase « choisis le pack » ici. Tutoriel : parcours guidé inchangé.
+    const inProject = atelierParams.has('montage') && !atelierParams.has('tuto');
+    row.hidden = inProject;
+    const introEl = document.querySelector('.atelier-intro');
+    if (introEl) introEl.hidden = inProject;
     if (!select.dataset.bound) {
       select.dataset.bound = '1';
       select.addEventListener('change', () => {
@@ -130,6 +170,7 @@ async function init() {
     if (!owner) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     lastResolvedOwnerId = owner.owner_id;
     const data = await window.LayerPitchSiteData.loadSiteDataFromPostgres(owner.owner_id);
+    window.__lpPackPublishedAt = data.publishedAt || null;
     const pack = (data.packs || []).find(p => p.id === packId);
     if (!pack) { atelierEmpty(container, escapeHtml(tr('packNotFound'))); return; }
     // Référence pour la capture (trackId/sfxId -> fichier réel, voir exportCaptureVideo) ; composerName : crédit compositeur de l'export.

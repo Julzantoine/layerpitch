@@ -85,7 +85,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   click(q('[data-rg-btn="ok"]'));
   const t1 = lib()[before];
   check('morceau créé (brouillon dans la bibliothèque), mode vertical', lib().length === before + 1 && t1.mode === 'vertical' && t1.title === 'Goute donc ma hache pour voir');
-  check('3 couches, une par fichier, libellés sans tempo/mesures', t1.layers.length === 3 && t1.layers[0].label === '#1.BattleLoop LowIntensity' && t1.layers.every(l => l.pendingFile));
+  check('3 couches, une par fichier, libellés sans tempo/mesures', t1.layers.length === 3 && t1.layers[0].label === '#1.BattleLoop_LowIntensity' && t1.layers.every(l => l.pendingFile));
   check('rien d\'en ligne : fichiers en attente seulement', t1.layers.every(l => !l.remoteFile));
   check('le morceau créé est sélectionné', window.eval('manageLibrarySelectedId') === t1.id);
   const hintsOverlay = q('.vrs-batch-overlay');

@@ -8,9 +8,9 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1794674469163">
+<link rel="stylesheet" href="player.css?v=1794681228348">
 <!-- Styles des blocs et de la page : fichier commun avec les vitrines de Projet (reel.css, 28/09). -->
-<link rel="stylesheet" href="reel.css?v=1794674469163">
+<link rel="stylesheet" href="reel.css?v=1794681228348">
 <script>
   // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
   // dans pack.html.
@@ -95,12 +95,12 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794674469163"></script>
-<script src="public-page.js?v=1794674469163"></script>
-<script src="player.js?v=1794674469163"></script>
-<script src="layerpitch-social-icons.js?v=1794674469163"></script>
-<script src="layerpitch-video-versions.js?v=1794674469163"></script>
-<script src="reel.js?v=1794674469163"></script>
+<script src="layerpitch-i18n.js?v=1794681228348"></script>
+<script src="public-page.js?v=1794681228348"></script>
+<script src="player.js?v=1794681228348"></script>
+<script src="layerpitch-social-icons.js?v=1794681228348"></script>
+<script src="layerpitch-video-versions.js?v=1794681228348"></script>
+<script src="reel.js?v=1794681228348"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -130,6 +130,8 @@ function resolveImageUrl(file) {
 // l'AdReel "main" de secours existe presque toujours, donc l'erreur ne se voit que sur un AdReel dont
 // l'id n'existe pas chez lui, d'où le symptôme trompeur "seul le AdReel principal marche".
 const composerHandleFromUrl = new URLSearchParams(location.search).get('u');
+// Lu par le lecteur (adReelFromParam) pour les liens vers un pack : une fois l'adresse jolie remise en place, ?u= a disparu de location.search.
+window.__lpComposerHandle = composerHandleFromUrl;
 // Nom d'AdReel dans l'adresse (/<nom>/<adreel>, 27/09 -- traduit en s= par 404.html). Capturé avant la remise en
 // place de l'adresse ci-dessous, comme le nom du compositeur.
 const adReelSlugFromUrl = new URLSearchParams(location.search).get('s');
@@ -518,6 +520,6 @@ document.addEventListener('keydown', e => {
 
 window.addEventListener('load', init);
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794674469163"></script>
+<script src="layerpitch-preview-tuto.js?v=1794681228348"></script>
 </body>
 </html>

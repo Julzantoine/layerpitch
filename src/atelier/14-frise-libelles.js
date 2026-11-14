@@ -120,7 +120,7 @@ function describeCaptureEvent(e, laneOverrides) {
 // mais sous forme de liste : [{ start, end, text, kind: 'state' | 'stinger' | 'fx', row, style }]. Rangées avec la vidéo exportée (migration
 // 20261021020000), elles s'affichent en direct dans le lecteur des pages publiques (étiquette sur la vidéo), sans réencoder l'image.
 // style : 'layer' (calque, une ligne par calque) ou 'window' (boucle, emplacement, section : une seule ligne) -- utilisé par l'export complet.
-function buildCaptureCues(events, laneOverrides) {
+function buildCaptureCues(events, laneOverrides, creditName) {
   laneOverrides = laneOverrides || {};
   const r3 = x => Math.round(x * 1000) / 1000;
   const cues = [];
@@ -154,5 +154,7 @@ function buildCaptureCues(events, laneOverrides) {
     const ti = Math.max(0, list.findIndex(d => d.id === fs.detail.triggerId));
     cues.push({ start: fs.t, end: fs.t + fs.detail.duration, kind: 'fx', style: 'fx', row: ti, text: 'FX ' + ((list[ti] && list[ti].label) || 'FX') });
   });
+  // Crédit compositeur (case cochée) : étiquette permanente, affichée en haut à droite par le lecteur public.
+  if (creditName) cues.push({ start: 0, end: 86400, kind: 'credit', style: 'credit', row: 0, text: creditName });
   return cues.map(c => Object.assign(c, { start: r3(c.start), end: r3(c.end) })).sort((a, b) => a.start - b.start);
 }

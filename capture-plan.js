@@ -272,7 +272,21 @@
 
   // Repères liés à une bascule d'embranchement (sa clé k et, de proche en proche, les bascules qu'elle a armées) : ils
   // suivent le bloc quand on le déplace, et disparaissent avec lui.
+  // Bloc de calque (vertical / statique) qui est le PREMIER départ de son morceau : les repères de l'écoute enregistrée
+  // (démarrage, générations, arrêt de fin) le suivent. Sinon la musique reste calée sur l'ancien départ -- elle entre
+  // alors au milieu du fichier au nouvel endroit, et le bloc déplacé est « couvert » par l'ancienne écoute (07/11).
+  function linkedSegmentMarks(events, e) {
+    const trackId = e.detail && e.detail.trackId;
+    const EPS = 0.05;
+    const segs = events.filter(o => o.name === 'layer_segment' && o.detail.trackId === trackId);
+    if (segs.some(o => o !== e && o.t <= e.t + EPS)) return []; // un autre calque joue déjà (ou démarre en même temps) : l'écoute reste son repère
+    const end = e.t + (e.detail.duration || 0);
+    return events.filter(o => o !== e && o.detail && o.detail.trackId === trackId && (
+      ((o.name === 'layer_run' || o.name === 'layer_gen' || o.name === 'track_play') && o.t >= e.t - EPS && o.t < end - EPS) ||
+      (o.name === 'voices_stop' && !o.detail.scope && Math.abs(o.t - end) <= EPS)));
+  }
   function linkedMarks(events, e) {
+    if (e && e.name === 'layer_segment') return linkedSegmentMarks(events, e);
     if (!e || e.name !== 'embr_loop_select' || !e.detail.k) return [];
     const keys = new Set([e.detail.k]);
     let grew = true;
@@ -353,6 +367,29 @@
       const own = stops.filter(e => e.detail.trackId === v.track.id && e.t > v.start + 1e-6);
       const f = v.track.mode === 'static' ? own[0] : own.find(e => Math.abs(v.stop - e.t) <= STOP_MATCH_SEC);
       if (f && f.detail.fadeSec > 0) fadeVoiceOut(v, v.track.mode === 'static' ? v.stop : f.t, f.detail.fadeSec);
+    });
+  }
+
+  // Mix PAR MORCEAU du montage (13/11, demande de Jules-Antoine : M / S / volume dans l'en-tête de piste de la frise, comme Logic).
+  // mix = { [idMorceau]: { mute?, solo?, vol? (0..1, 1 = inchangé) } }, rangé dans lane_layout.mix de la version. Dès qu'un morceau est
+  // en solo, tous ceux qui ne le sont pas se taisent ; sinon muet = 0. Les Sfx ne sont pas des morceaux : ils ne sont pas touchés.
+  // Le gain de chaque voix du morceau est multiplié (valeur initiale et chaque point d'automation : le mélange reste linéaire).
+  function trackMixFactor(mix, id) {
+    const ids = Object.keys(mix || {});
+    const m = (mix && mix[id]) || {};
+    const vol = m.vol == null ? 1 : Math.min(1, Math.max(0, Number(m.vol)));
+    if (ids.some(k => mix[k] && mix[k].solo)) return m.solo ? vol : 0;
+    return m.mute ? 0 : vol;
+  }
+  function applyTrackMix(voices, mix) {
+    if (!mix || !Object.keys(mix).length) return;
+    voices.forEach(v => {
+      const id = v.track && v.track.id;
+      if (!id) return;
+      const f = trackMixFactor(mix, id);
+      if (f === 1) return;
+      const g = v.gain || { init: 1, auto: [['set', v.start, 1]] };
+      v.gain = { init: g.init * f, auto: g.auto.map(a => [a[0], a[1], a[2] * f]) };
     });
   }
 
@@ -645,6 +682,7 @@
     });
 
     applyStopFades(voices, events);
+    applyTrackMix(voices, opts.trackMix);
     const plan = {
       total, voices, sfxHits, duckHits: master,
       headEvents: events.filter(e => e.name === 'head_turn').map(e => ({ t: e.t, yaw: e.detail.yaw })),
@@ -668,6 +706,6 @@
     resolveSeqAlternative, resolveSeqTransition, resolveVRSection,
     buildSeqTimelineWindows, buildVRTimelineWindows, buildEmbrTimelineWindows,
     materializeLayerSegments, materializeEmbrSwitches, syncSliderIntensityLayers, intensitySliderOf, materializeCaptureExtras, materialize, decimateHeadTurns, decimateSliderKeys,
-    linkedMarks, captureTotal, envAt, automation, mixTimeline, buildPlan
+    linkedMarks, captureTotal, envAt, automation, mixTimeline, trackMixFactor, applyTrackMix, buildPlan
   };
 })();

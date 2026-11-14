@@ -41,7 +41,7 @@ const path = require('path');
   if (host) {
     drop(host, [fakeFile('#1_WetDarkCave_120bpm.wav')]);
     const labelInput = q('input[data-slot-field="label"][data-ti="0"][data-si="0"]');
-    check('le slot est sélectionné et nommé d\'après le fichier (jeton bpm retiré)', !!labelInput && labelInput.value === '#1 WetDarkCave');
+    check('le slot est sélectionné et nommé d\'après le fichier (jeton bpm retiré)', !!labelInput && labelInput.value === '#1_WetDarkCave');
     const bpmInput = q('input[data-slot-field="bpm"][data-ti="0"][data-si="0"]');
     check('le bpm détecté dans le nom du fichier est bien repris dans le champ dédié', !!bpmInput && bpmInput.value === '120');
   }
