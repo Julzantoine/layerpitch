@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794652532592">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794653935998">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1266,6 +1266,8 @@
   /* Interface simple / avancée (14/11) : les éléments data-adv sont masqués en interface simple ; repère « N options avancées masquées » à la fin de la zone. */
   body.lp-ui-simple [data-adv] { display: none !important; }
   .lp-adv-hint { margin: 10px 0 4px; font-size: 11px; color: var(--text-dimmer); }
+  @keyframes lp-adv-flash { 0%, 100% { box-shadow: none; } 20%, 70% { box-shadow: 0 0 0 3px var(--accent-soft, #e6eef8), 0 0 0 4px var(--accent, #2f80c0); } }
+  .lp-adv-flash { animation: lp-adv-flash 1.8s ease; border-radius: 6px; }
   .lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: var(--accent, #2f80c0); cursor: pointer; text-decoration: underline; }
 
   .home-menu { margin-top: 8px; font-size: 12px; }
@@ -2349,19 +2351,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794652532592"></script>
-<script src="layerpitch-i18n.js?v=1794652532592"></script>
-<script src="layerpitch-import-engine.js?v=1794652532592"></script>
-<script src="layerpitch-appearance.js?v=1794652532592"></script>
-<script src="layerpitch-album-shared.js?v=1794652532592"></script>
-<script src="layerpitch-album-editor.js?v=1794652532592"></script>
-<script src="layerpitch-shell.js?v=1794652532592"></script>
-<script src="layerpitch-social-icons.js?v=1794652532592"></script>
-<script src="layerpitch-notify.js?v=1794652532592"></script>
-<script src="layerpitch-guide.js?v=1794652532592"></script>
-<script src="layerpitch-lesson-previews.js?v=1794652532592"></script>
-<script src="layerpitch-help.js?v=1794652532592"></script>
-<script src="player.js?v=1794652532592"></script>
+<script src="layerpitch-tuto.js?v=1794653935998"></script>
+<script src="layerpitch-i18n.js?v=1794653935998"></script>
+<script src="layerpitch-import-engine.js?v=1794653935998"></script>
+<script src="layerpitch-appearance.js?v=1794653935998"></script>
+<script src="layerpitch-album-shared.js?v=1794653935998"></script>
+<script src="layerpitch-album-editor.js?v=1794653935998"></script>
+<script src="layerpitch-shell.js?v=1794653935998"></script>
+<script src="layerpitch-social-icons.js?v=1794653935998"></script>
+<script src="layerpitch-notify.js?v=1794653935998"></script>
+<script src="layerpitch-guide.js?v=1794653935998"></script>
+<script src="layerpitch-lesson-previews.js?v=1794653935998"></script>
+<script src="layerpitch-help.js?v=1794653935998"></script>
+<script src="player.js?v=1794653935998"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -18863,7 +18865,41 @@ function quickSearchItems() {
       quickSearchScrollTo('albumsContainer', i);
     } }));
   }
+  // Interface simple (14/11) : les réglages masqués restent trouvables. Choisir l'un d'eux passe en interface avancée, ouvre son
+  // onglet et l'amène à l'écran (il clignote un instant). On ne propose que ceux qui sont dans la page à ce moment-là.
+  if (typeof uiSimpleActive === 'function' && uiSimpleActive()) {
+    const seen = new Set();
+    document.querySelectorAll('.backstage-content [data-adv]').forEach(el => {
+      if (el.parentElement && el.parentElement.closest('[data-adv]')) return;
+      const panel = el.closest('.backstage-panel');
+      const lab = quickSearchAdvLabel(el);
+      if (!lab || !panel) return;
+      const key = (panel.dataset.panel || '') + '|' + lab;
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ kind: 'setting', label: lab, run: () => {
+        setUiAdvanced(true);
+        if (panel.dataset.panel) openTab(panel.dataset.panel);
+        setTimeout(() => {
+          if (!el.isConnected) return;
+          if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          el.classList.add('lp-adv-flash');
+          setTimeout(() => el.classList.remove('lp-adv-flash'), 1800);
+        }, 80);
+      } });
+    });
+  }
   return items;
+}
+// Nom d'un élément avancé : son bouton, son libellé, son titre de zone, sinon le début de son texte.
+function quickSearchAdvLabel(el) {
+  let txt = '';
+  if (el.matches('button, summary')) txt = el.textContent;
+  else {
+    const h = el.querySelector('.seq-master-item-label, label, legend, summary, .nav-section-label, .an-card-title, h3, button');
+    txt = (h || el).textContent;
+  }
+  return String(txt || '').replace(/\s+/g, ' ').trim().slice(0, 70);
 }
 // Classement : début du nom, puis début d'un mot, puis n'importe où ; à égalité, l'ordre des listes est gardé.
 function quickSearchFilter(query) {
@@ -19793,6 +19829,13 @@ function applyUiLevel() {
   // Vidéo : « Relecture client » et « Réglages » sont avancés ; si on y était, retour sur l'Atelier.
   if (uiSimpleActive() && typeof videoView !== 'undefined' && (videoView === 'review' || videoView === 'settings') && typeof setVideoView === 'function') setVideoView('atelier');
   refreshAdvancedHints();
+  pushUiLevelToAtelier();
+}
+// L'Atelier vidéo est une page à part dans un cadre : on lui dit le niveau (il masque ses propres éléments avancés).
+function pushUiLevelToAtelier() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.contentWindow) return;
+  try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'uiLevel', simple: uiSimpleActive() }, location.origin); } catch (e) { /* cadre pas prêt : il sera prévenu à son chargement */ }
 }
 // Choisit le niveau (true = avancée) : mémorisé sur le compte (et ce navigateur), appliqué tout de suite.
 function setUiAdvanced(advanced) {
@@ -19814,6 +19857,13 @@ function syncUiLevel() {
   uiAdvObserver = new MutationObserver(() => { if (document.body.classList.contains('lp-ui-simple')) scheduleAdvancedHints(); });
   const root = document.querySelector('.backstage-content') || document.body;
   uiAdvObserver.observe(root, { childList: true, subtree: true });
+  const atelierFrame = document.getElementById('videoAtelierFrame');
+  if (atelierFrame) atelierFrame.addEventListener('load', pushUiLevelToAtelier);
+  // « Afficher » du repère de l'Atelier : on passe en avancée.
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.type !== 'uiAdvanced') return;
+    setUiAdvanced(true);
+  });
   document.addEventListener('click', e => {
     const btn = e.target.closest && e.target.closest('.lp-adv-show');
     if (btn) { e.preventDefault(); setUiAdvanced(true); }

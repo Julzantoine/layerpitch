@@ -56,6 +56,13 @@ function applyUiLevel() {
   // Vidéo : « Relecture client » et « Réglages » sont avancés ; si on y était, retour sur l'Atelier.
   if (uiSimpleActive() && typeof videoView !== 'undefined' && (videoView === 'review' || videoView === 'settings') && typeof setVideoView === 'function') setVideoView('atelier');
   refreshAdvancedHints();
+  pushUiLevelToAtelier();
+}
+// L'Atelier vidéo est une page à part dans un cadre : on lui dit le niveau (il masque ses propres éléments avancés).
+function pushUiLevelToAtelier() {
+  const frame = document.getElementById('videoAtelierFrame');
+  if (!frame || !frame.contentWindow) return;
+  try { frame.contentWindow.postMessage({ source: 'lp-backstage', type: 'uiLevel', simple: uiSimpleActive() }, location.origin); } catch (e) { /* cadre pas prêt : il sera prévenu à son chargement */ }
 }
 // Choisit le niveau (true = avancée) : mémorisé sur le compte (et ce navigateur), appliqué tout de suite.
 function setUiAdvanced(advanced) {
@@ -77,6 +84,13 @@ function syncUiLevel() {
   uiAdvObserver = new MutationObserver(() => { if (document.body.classList.contains('lp-ui-simple')) scheduleAdvancedHints(); });
   const root = document.querySelector('.backstage-content') || document.body;
   uiAdvObserver.observe(root, { childList: true, subtree: true });
+  const atelierFrame = document.getElementById('videoAtelierFrame');
+  if (atelierFrame) atelierFrame.addEventListener('load', pushUiLevelToAtelier);
+  // « Afficher » du repère de l'Atelier : on passe en avancée.
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-atelier' || e.data.type !== 'uiAdvanced') return;
+    setUiAdvanced(true);
+  });
   document.addEventListener('click', e => {
     const btn = e.target.closest && e.target.closest('.lp-adv-show');
     if (btn) { e.preventDefault(); setUiAdvanced(true); }

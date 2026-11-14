@@ -1250,6 +1250,8 @@
   /* Interface simple / avancée (14/11) : les éléments data-adv sont masqués en interface simple ; repère « N options avancées masquées » à la fin de la zone. */
   body.lp-ui-simple [data-adv] { display: none !important; }
   .lp-adv-hint { margin: 10px 0 4px; font-size: 11px; color: var(--text-dimmer); }
+  @keyframes lp-adv-flash { 0%, 100% { box-shadow: none; } 20%, 70% { box-shadow: 0 0 0 3px var(--accent-soft, #e6eef8), 0 0 0 4px var(--accent, #2f80c0); } }
+  .lp-adv-flash { animation: lp-adv-flash 1.8s ease; border-radius: 6px; }
   .lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: var(--accent, #2f80c0); cursor: pointer; text-decoration: underline; }
 
   .home-menu { margin-top: 8px; font-size: 12px; }

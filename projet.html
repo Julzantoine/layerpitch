@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794652532592">
-<link rel="stylesheet" href="player.css?v=1794652532592">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794653935998">
+<link rel="stylesheet" href="player.css?v=1794653935998">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -195,6 +195,10 @@
   .task-link { font-size: 11.5px; padding: 2px 8px; }
   .sec-dialog .task-form label { display: block; margin: 10px 0 4px; font-size: 12.5px; }
   .sec-dialog .task-form input, .sec-dialog .task-form select, .sec-dialog .task-form textarea { width: 100%; box-sizing: border-box; }
+/* Interface simple / avancée (14/11) */
+body.lp-ui-simple [data-adv] { display: none !important; }
+.lp-adv-hint { margin: 12px 0 4px; font-size: 11px; opacity: .75; }
+.lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: #2f80c0; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -204,29 +208,29 @@
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794652532592"></script>
-<script src="layerpitch-notify.js?v=1794652532592"></script>
-<script src="player.js?v=1794652532592"></script>
-<script src="api/supabase-client.js?v=1794652532592"></script>
-<script src="api/auth.js?v=1794652532592"></script>
-<script src="layerpitch-appearance.js?v=1794652532592"></script>
-<script src="layerpitch-shell.js?v=1794652532592"></script>
-<script src="api/tracks.js?v=1794652532592"></script>
-<script src="api/packs.js?v=1794652532592"></script>
-<script src="api/albums.js?v=1794652532592"></script>
-<script src="api/studio.js?v=1794652532592"></script>
-<script src="api/adreels.js?v=1794652532592"></script>
-<script src="api/demo-client.js?v=1794652532592"></script>
-<script src="api/demo-projects.js?v=1794652532592"></script>
-<script src="layerpitch-tuto.js?v=1794652532592"></script>
-<script src="layerpitch-guide.js?v=1794652532592"></script>
-<script src="layerpitch-lesson-previews.js?v=1794652532592"></script>
-<script src="projet-lecons.js?v=1794652532592"></script>
-<script src="layerpitch-video-versions.js?v=1794652532592"></script>
-<script src="api/projects.js?v=1794652532592"></script>
-<script src="api/sfx.js?v=1794652532592"></script>
-<script src="projet-carte-audio.js?v=1794652532592"></script>
-<script src="projet-carte.js?v=1794652532592"></script>
+<script src="layerpitch-i18n.js?v=1794653935998"></script>
+<script src="layerpitch-notify.js?v=1794653935998"></script>
+<script src="player.js?v=1794653935998"></script>
+<script src="api/supabase-client.js?v=1794653935998"></script>
+<script src="api/auth.js?v=1794653935998"></script>
+<script src="layerpitch-appearance.js?v=1794653935998"></script>
+<script src="layerpitch-shell.js?v=1794653935998"></script>
+<script src="api/tracks.js?v=1794653935998"></script>
+<script src="api/packs.js?v=1794653935998"></script>
+<script src="api/albums.js?v=1794653935998"></script>
+<script src="api/studio.js?v=1794653935998"></script>
+<script src="api/adreels.js?v=1794653935998"></script>
+<script src="api/demo-client.js?v=1794653935998"></script>
+<script src="api/demo-projects.js?v=1794653935998"></script>
+<script src="layerpitch-tuto.js?v=1794653935998"></script>
+<script src="layerpitch-guide.js?v=1794653935998"></script>
+<script src="layerpitch-lesson-previews.js?v=1794653935998"></script>
+<script src="projet-lecons.js?v=1794653935998"></script>
+<script src="layerpitch-video-versions.js?v=1794653935998"></script>
+<script src="api/projects.js?v=1794653935998"></script>
+<script src="api/sfx.js?v=1794653935998"></script>
+<script src="projet-carte-audio.js?v=1794653935998"></script>
+<script src="projet-carte.js?v=1794653935998"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -759,6 +763,7 @@ async function load() {
   S.myComposerId = composer.composerId || null;
   await loadSections();
   await loadTasks();
+  await loadUiLevel();
   const ap = await PJ.appearance(projectId); S.appearance = ap.error ? null : (ap.data || {}); applyProjectAppearance(); // null = pas ouvert
   S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
@@ -821,7 +826,64 @@ function renderPresence() {
 // ---- Rendu ----
 const TABS = ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
 // « Tâches » n'apparaît que si son feu vert est ouvert pour ce compte (S.tasks rempli, voir loadTasks).
-const visibleTabs = () => TABS.filter(t => t !== 'tasks' || S.tasks);
+const visibleTabs = () => TABS.filter(t => (t !== 'tasks' || S.tasks) && !(t === 'activity' && S.uiSimple));
+
+// ---- Interface simple / avancée (14/11, feu vert simple_advanced_ui) ----
+// Même choix que le Backstage (home_prefs.ui_advanced du compte, repli dans ce navigateur) ; niveau de départ : simple. Les éléments portant
+// data-adv sont masqués en simple (classe lp-ui-simple sur <body>), l'onglet Activité aussi ; un repère « N options avancées masquées · Afficher »
+// passe en avancée. Pas actif en démonstration ni dans le tutoriel. Classement : layerpitch-docs/2026-11-14-interface-simple-avancee-cadrage.md
+S.uiSimple = false;
+const UI_PREFS_LOCAL = 'lp_home_prefs_v1';
+async function loadUiLevel() {
+  S.uiSimple = false;
+  if (!DEMO && !TUTO && window.LayerPitchStudio && window.LayerPitchStudio.myFeatureFlags) {
+    try {
+      const f = await window.LayerPitchStudio.myFeatureFlags();
+      if (f.flags && f.flags.simple_advanced_ui) {
+        let prefs = {}; try { prefs = JSON.parse(localStorage.getItem(UI_PREFS_LOCAL) || '{}') || {}; } catch (e) { /* stockage indisponible */ }
+        const { data } = await window.LayerPitchSupabaseClient.getClient().from('profiles').select('home_prefs').maybeSingle();
+        if (data && data.home_prefs) prefs = Object.assign({}, prefs, data.home_prefs);
+        S.uiSimple = !prefs.ui_advanced;
+      }
+    } catch (e) { S.uiSimple = false; }
+  }
+  applyUiLevel();
+}
+function applyUiLevel() {
+  document.body.classList.toggle('lp-ui-simple', !!S.uiSimple);
+  if (S.uiSimple && S.tab === 'activity') S.tab = 'board';
+  refreshAdvHint();
+}
+let advObserver = null, advRaf = 0;
+function refreshAdvHint() {
+  if (advObserver) advObserver.disconnect();
+  try {
+    document.querySelectorAll('.lp-adv-hint').forEach(h => h.remove());
+    const panel = document.getElementById('panel');
+    if (S.uiSimple && panel) {
+      const n = 1 + [...document.querySelectorAll('[data-adv]')].filter(el => !(el.parentElement && el.parentElement.closest('[data-adv]'))
+        && (el.textContent.trim() || el.querySelector('input, select, textarea, button'))).length; // 1 = l'onglet Activité
+      const hint = document.createElement('div');
+      hint.className = 'lp-adv-hint';
+      hint.innerHTML = '<span></span> <button type="button" class="lp-adv-show"></button>';
+      hint.querySelector('span').textContent = tr(n > 1 ? 'uiAdvHintMany' : 'uiAdvHintOne').replace('{n}', String(n));
+      hint.querySelector('button').textContent = tr('uiAdvShow');
+      hint.querySelector('button').onclick = showAdvanced;
+      panel.appendChild(hint);
+    }
+  } finally {
+    const ws = document.getElementById('ws');
+    if (advObserver && ws) advObserver.observe(ws, { childList: true, subtree: true });
+  }
+}
+async function showAdvanced() {
+  S.uiSimple = false;
+  try { const cur = JSON.parse(localStorage.getItem(UI_PREFS_LOCAL) || '{}') || {}; cur.ui_advanced = true; localStorage.setItem(UI_PREFS_LOCAL, JSON.stringify(cur)); } catch (e) { /* stockage indisponible */ }
+  try { await window.LayerPitchSupabaseClient.getClient().rpc('set_my_home_prefs', { p: { ui_advanced: true } }); } catch (e) { /* le choix reste dans ce navigateur */ }
+  applyUiLevel();
+  render();
+}
+advObserver = new MutationObserver(() => { if (!S.uiSimple || advRaf) return; advRaf = requestAnimationFrame(() => { advRaf = 0; refreshAdvHint(); }); });
 function render() {
   const p = S.project;
   if (SOLO_MAP) { content.innerHTML = `<div id="panel" style="min-width:0"></div>`; renderPanel(); return; }
@@ -831,7 +893,7 @@ function render() {
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
-        ${DEMO || S.appearance == null ? '' : `<button class="btn" id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
+        ${DEMO || S.appearance == null ? '' : `<button class="btn" data-adv id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
         ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
@@ -1080,7 +1142,7 @@ function renderSectionChat(aside) {
         ${attachmentsHtml(m)}
         ${m.attachments && m.attachments.length ? `<div class="meta">${esc(tr('chanFiled', { title: x.title }))}</div>` : ''}
         ${rangeBarHtml(m, rangeItems(m), a => !!(a && a.id && S.secPins.some(k => k.sectionId === S.chan && k.assetId === a.id)))}
-        ${m.mine || S.project.role === 'admin' || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine || S.project.role === 'admin' ? `<button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
+        ${m.mine || S.project.role === 'admin' || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-adv data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine || S.project.role === 'admin' ? `<button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr('chanEmpty', { title: x.title }))}</div>`}</div>
     <div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -1141,7 +1203,7 @@ function renderChat() {
         ${m.body ? `<div class="bubble-body">${linkifyText(m.body)}</div>` : ''}
         ${attachmentsHtml(m)}
         ${rangeBarHtml(m, rangeItems(m))}
-        ${m.mine || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine ? `<button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
+        ${m.mine || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-adv data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine ? `<button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr(S.query ? 'noSearchResult' : 'noMessages'))}</div>`}</div>
     ${S.query ? '' : `<div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -2285,7 +2347,7 @@ function taskRowHtml(t) {
       ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ''}
       <div class="task-meta">${who ? `<span class="pill">👤 ${esc(who)}</span>` : ''}
         ${t.dueDate ? `<span class="pill${late ? ' overdue' : ''}">📅 ${esc(fmtDue(t.dueDate))}${late ? ' · ' + esc(tr('taskOverdue')) : ''}</span>` : ''}
-        ${t.link ? (link ? `<button class="btn task-link" type="button" data-tasklink>${esc(link)}</button>` : `<span class="meta">🔗 ${esc(tr('taskLinkGone'))}</span>`) : ''}
+        ${t.link ? (link ? `<button class="btn task-link" type="button" data-adv data-tasklink>${esc(link)}</button>` : `<span class="meta">🔗 ${esc(tr('taskLinkGone'))}</span>`) : ''}
         ${t.done && t.doneByEmail ? `<span class="meta">${esc(tr('taskDoneBy', { email: t.doneByEmail }))}</span>` : ''}</div></div></div>`;
 }
 async function renderTasks(panel) {
@@ -2300,14 +2362,14 @@ async function renderTasks(panel) {
     const loose = todo.filter(t => !t.sectionId || !secById(t.sectionId));
     if (loose.length) groups.push({ id: '', title: tr('secNone'), items: loose });
   } else groups = [{ id: null, title: null, items: todo }];
-  const secOpts = S.sections ? `<select id="taskSec" style="width:auto">
+  const secOpts = S.sections ? `<select id="taskSec" data-adv style="width:auto">
       <option value="all"${S.sel === 'all' ? ' selected' : ''}>${esc(tr('taskSectionAll'))}</option>
       ${secFlat().map(x => `<option value="${esc(x.id)}"${S.sel === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}
       <option value="none"${S.sel === 'none' ? ' selected' : ''}>${esc(tr('secNone'))}</option></select>` : '';
   panel.innerHTML = `<div class="card"><h2>${esc(tr('tab_tasks'))}</h2><p class="hint">${esc(tr('tasksIntro'))}</p>
     <div class="bar">${secOpts}<label class="choice" style="margin:0"><input type="checkbox" id="taskMine" ${S.taskMine ? 'checked' : ''}> ${esc(tr('taskFilterMine'))}</label></div>
     <div class="task-add"><input type="text" id="taskNew" maxlength="200" placeholder="${esc(tr('taskAddPlaceholder'))}"><button class="btn primary" id="taskAddBtn" type="button">${esc(tr('taskAdd'))}</button><button class="icon-btn" id="taskMoreBtn" type="button" title="${esc(tr('taskNewTitle'))}">⋯</button></div>
-    ${todo.length ? groups.map(g => `<div class="task-group">${g.title ? `<h3>${esc(g.title)}</h3>` : ''}<div data-taskgroup="${esc(g.id == null ? '*' : g.id)}">${g.items.map(taskRowHtml).join('')}</div></div>`).join('')
+    ${todo.length ? groups.map(g => `<div class="task-group">${g.title ? `<h3 data-adv>${esc(g.title)}</h3>` : ''}<div data-taskgroup="${esc(g.id == null ? '*' : g.id)}">${g.items.map(taskRowHtml).join('')}</div></div>`).join('')
       : `<div class="empty">${esc(tr(S.tasks.length ? 'taskEmptyFiltered' : 'taskEmpty'))}</div>`}
     ${done.length ? `<div class="task-group"><h3><button class="btn" id="taskDoneToggle" type="button" aria-expanded="${S.taskShowDone}">${S.taskShowDone ? '▾' : '▸'} ${esc(tr('taskShowDone', { n: done.length }))}</button></h3>
       ${S.taskShowDone ? done.map(taskRowHtml).join('') : ''}</div>` : ''}</div>`;
@@ -2359,7 +2421,7 @@ async function openTaskDialog(task, prefill) {
     <label for="tDue">${esc(tr('taskFieldDue'))}</label><input type="date" id="tDue" value="${esc(t.dueDate || '')}">
     ${flat.length ? `<label for="tSec">${esc(tr('taskFieldSection'))}</label><select id="tSec"><option value="">${esc(tr('secNone'))}</option>
       ${flat.map(x => `<option value="${esc(x.id)}"${t.sectionId === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}</select>` : ''}
-    ${types.length > 1 || linkType ? `<label for="tLinkType">${esc(tr('taskFieldLink'))}</label><select id="tLinkType">${types.map(([v, k]) => `<option value="${v}"${linkType === v ? ' selected' : ''}>${esc(tr(k))}</option>`).join('')}</select>
+    ${types.length > 1 || linkType ? `<label for="tLinkType" data-adv>${esc(tr('taskFieldLink'))}</label><select id="tLinkType" data-adv>${types.map(([v, k]) => `<option value="${v}"${linkType === v ? ' selected' : ''}>${esc(tr(k))}</option>`).join('')}</select>
       <div id="tLinkPick"></div>` : ''}
   </div><div class="bar" style="margin-top:14px">${task && task.canDelete ? `<button class="btn danger" type="button" data-x="del">${esc(tr('taskDelete'))}</button>` : ''}
     <span style="flex:1"></span><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
