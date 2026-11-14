@@ -210,6 +210,7 @@
 <script src="api/supabase-client.js?v=1794652532592"></script>
 <script src="api/auth.js?v=1794652532592"></script>
 <script src="layerpitch-appearance.js?v=1794652532592"></script>
+<script src="layerpitch-font-picker.js"></script>
 <script src="layerpitch-shell.js?v=1794652532592"></script>
 <script src="api/tracks.js?v=1794652532592"></script>
 <script src="api/packs.js?v=1794652532592"></script>
@@ -1995,6 +1996,17 @@ async function renderMusic(panel) {
 const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links', 'contact'];
 const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video'], photo: ['image'], packs: ['pack'] };
 const VITRINE_FONTS = ['default', 'google:Space Grotesk', 'google:Fraunces', 'google:Zilla Slab', 'google:Manrope', 'google:Playfair Display', 'google:DM Serif Display', 'google:JetBrains Mono'];
+// Aperçu : chaque police s'affiche dans sa propre police dans les menus (une seule feuille Google Fonts, display=swap).
+// Le menu déroulant natif ignore la police des options : layerpitch-font-picker.js ouvre un menu maison à la place.
+const fontOptStyle = f => f === 'default' ? '' : ` style="font-family:'${esc(f.replace('google:', ''))}'"`;
+function ensureVitrineFontPreviews() {
+  if (document.getElementById('vitrineFontPreviews')) return;
+  const l = document.createElement('link');
+  l.id = 'vitrineFontPreviews'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?' + VITRINE_FONTS.filter(f => f !== 'default').map(f => 'family=' + f.replace('google:', '').replace(/ /g, '+')).join('&') + '&display=swap';
+  document.head.appendChild(l);
+}
+ensureVitrineFontPreviews();
 const vitrineUrl = v => v.audience === 'publisher'
   ? (v.secretToken ? `${location.origin}/vitrine/${encodeURIComponent(v.slug)}?k=${encodeURIComponent(v.secretToken)}` : '') // le lien secret porte aussi le nom du jeu
   : `${location.origin}/vitrine/${encodeURIComponent(v.slug)}`;
@@ -2098,7 +2110,7 @@ async function renderVitrineEditor(panel) {
     <div class="card"><h2>${esc(tr('vitrineAppearance'))}</h2>
       ${S.myAdReels && S.myAdReels.length ? `<div class="bar"><select id="vFromReel" style="flex:1 1 200px"><option value="">${esc(tr('copyAppearanceFrom'))}</option>${S.myAdReels.map(a => `<option value="${esc(a.id)}">${esc(a.label || a.id)}</option>`).join('')}</select><span class="meta">${esc(tr('copyAppearanceHint'))}</span></div>` : ''}
       <div style="display:flex;flex-wrap:wrap;gap:4px 18px">${color('bgColor', 'themeBg', '#f5f6f8')}${color('titleColor', 'themeTitle', '#24262b')}${color('contentColor', 'themeText', '#24262b')}${color('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
-      <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
+      <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${fontOptStyle(f)}${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
       <label class="choice" style="margin-top:10px"><input type="checkbox" id="vSep" ${t.separator && t.separator.visible ? 'checked' : ''}> ${esc(tr('themeSeparators'))}</label>
       <label>${esc(tr('vitrineBgImage'))}</label><div class="bar"><select id="vBg" style="flex:1 1 200px"><option value="">${esc(tr('none'))}</option>${images.map(a => `<option value="${esc(a.id)}"${v.bgAssetId === a.id ? ' selected' : ''}>${esc(assetTitle(a))}</option>`).join('')}</select>
         <label style="display:flex;align-items:center;gap:6px;margin:0">${esc(tr('bgOpacity'))}<input type="range" id="vBgOp" min="0.05" max="1" step="0.05" value="${esc(t.bgImageOpacity != null ? t.bgImageOpacity : 0.35)}" style="width:120px"></label></div>
@@ -2170,7 +2182,7 @@ function blockAppearanceHtml(b) {
   return `<details style="margin-top:8px"${Object.keys(ap).length ? ' open' : ''}><summary class="meta" style="cursor:pointer">🎨 ${esc(tr('blockAppearance'))}</summary>
     <div style="display:flex;flex-wrap:wrap;gap:0 16px">${row('bgColor', 'themeBg', '#ffffff')}${row('titleColor', 'themeTitle', '#24262b')}${row('contentColor', 'themeText', '#24262b')}${row('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
     <label class="choice" style="margin:4px 0"><input type="checkbox" data-apon="font" ${ap.font ? 'checked' : ''}> ${esc(tr('themeFont'))}
-      <select data-ap="font" style="max-width:200px">${VITRINE_FONTS.filter(f => f !== 'default').map(f => `<option value="${esc(f)}"${ap.font === f ? ' selected' : ''}>${esc(f.replace('google:', ''))}</option>`).join('')}</select></label></details>`;
+      <select data-ap="font" style="max-width:200px">${VITRINE_FONTS.filter(f => f !== 'default').map(f => `<option value="${esc(f)}"${fontOptStyle(f)}${ap.font === f ? ' selected' : ''}>${esc(f.replace('google:', ''))}</option>`).join('')}</select></label></details>`;
 }
 function renderVitrineBlocks(panel) {
   const v = S.vitrineDraft;
