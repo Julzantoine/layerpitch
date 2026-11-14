@@ -115,7 +115,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('leçon « Les pas » : entrée Backstage (admin seulement, rechargement), mêmes étapes jusqu’à l’atelier, textes FR/EN', /adminOnly: true/.test(lvp) && /reload: true/.test(lvp) && /atelierLessonFinished/.test(lvp)
     && [...lvp.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && pasKeys.length > 20 && pasKeys.every(k => has(k)) && /'versioning-pas'/.test(read('layerpitch-tuto.js')));
   check('leçon « Les pas » : montage prêt chargé à l’ouverture de la vidéo, ≥ 10 pas, fusion, pack Footsteps, Stone → Concrete', /__lpTutoMontageId = 'cap-joris-pas'/.test(al) && /__lpTutoMontageId/.test(read('src/atelier/19-bouton-de-capture.js'))
-    && /stepsN >= 10/.test(al) && /button\[data-v="merge"\]/.test(al) && /removePack"\]\[data-pack="\$\{FOOT_PACK\}"/.test(al) && /sel\.value === CONCRETE/.test(al) && /id: 'cap-joris-pas'/.test(dc) && /CAPTURES\.set\(PAS_CAPTURE\.id/.test(dc)
+    && /stepsN >= 10/.test(al) && /videoCaptureAdditiveCheckbox/.test(al) && /removePack"\]\[data-pack="\$\{FOOT_PACK\}"/.test(al) && /sel\.value === CONCRETE/.test(al) && /id: 'cap-joris-pas'/.test(dc) && /CAPTURES\.set\(PAS_CAPTURE\.id/.test(dc)
     && /DEMO_SFX_PAS = \[sfxPas\(SFX_STONE, 'Stone Walk'/.test(dc) && /packPas\('p-footsteps', 'Footsteps', \[\], \[SFX_CONCRETE\]\)/.test(dc));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));

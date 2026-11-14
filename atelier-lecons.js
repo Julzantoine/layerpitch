@@ -9,7 +9,7 @@
  * Dynamic Edition Alt 1 » (3 couches, entrées au départ / photocopieuse / couloir, toutes arrêtées à l'ascenseur), le bruit d'ascenseur, puis « Drone Urbex#1_Joris » à la sortie d'ascenseur ;
  * 3) la version : « Alt 1 » devient « Alt2 » (même mode, trois couches) et le drone n°1 le drone n°2. Rien n'est enregistré (faux serveur api/demo-client.js).
  * Leçon à part « Les pas » (?lesson=versioning-pas, 14/11) : le montage ci-dessus est DÉJÀ PRÊT (chargé d'office à l'ouverture de la vidéo, api/demo-client.js) ; passe additive
- * (Enregistrer → Fusionner) où l'on joue « Stone Walk » à la souris à chaque pas, jusqu'à l'ascenseur (≥ 10 pas), écoute, puis une version qui ajoute le pack « Footsteps » et
+ * (case « Passe additive », puis Démarrer la capture) où l'on joue « Stone Walk » à la souris à chaque pas, jusqu'à l'ascenseur (≥ 10 pas), écoute, puis une version qui ajoute le pack « Footsteps » et
  * remplace « Stone Walk » par « Concrete Walk ». Pas de touche du clavier : le lecteur n'en a pas pour les Sfx (à dire à Jules-Antoine).
  * Moteur partagé layerpitch-guide.js.
  */
@@ -57,7 +57,6 @@
     let stepsN = 0, wasRec = false;
     if (PAS && document.addEventListener) document.addEventListener('click', ev => { const b = stoneBtn(); if (b && recording() && ev.target.closest && ev.target.closest('.sfx-row-wrapper') === b.closest('.sfx-row-wrapper') && ev.target.closest('[data-role="playBtn"]')) stepsN++; }, true);
     const sfxSel = id => document.querySelector(`#videoCaptureVersioning select[data-sfx="${id}"]`);
-    const mergeBtn = () => document.querySelector('dialog.video-test-dialog button[data-v="merge"]');
     const stepsPas = [
       { titleKey: 'pvWelcomeTitle', textKey: 'pvpWelcomeText' },
       { selector: '#atelierPackSelect', titleKey: 'pvPackTitle', textKey: 'pvPackText', done: () => !!($('#atelierPackSelect') && $('#atelierPackSelect').value) },
@@ -65,8 +64,8 @@
       { selector: '#videoCaptureDropzone', titleKey: 'pvVideoTitle', textKey: 'pvpVideoText', done: () => !!$('#videoCaptureEl') && markerTimes().length >= 4,
         drops: ready() ? [{ kind: 'file', label: KIT.video.label, url: KIT.video.url, name: KIT.video.name }] : [] },
       { selector: '#videoCaptureTimeline', titleKey: 'pvpReadyTitle', textKey: 'pvpReadyText' },
-      { selector: '#videoCaptureRecordBtn', titleKey: 'pvpRecordTitle', textKey: 'pvpRecordText', done: () => !!mergeBtn() || recording() },
-      { selector: () => mergeBtn() || $('#videoCaptureRecordBtn'), titleKey: 'pvpMergeTitle', textKey: 'pvpMergeText', done: () => { if (recording() && !wasRec) { wasRec = true; stepsN = 0; } return recording(); } },
+      { selector: '#videoCaptureAdditiveLabel', titleKey: 'pvpMergeTitle', textKey: 'pvpMergeText', done: () => { const c = $('#videoCaptureAdditiveCheckbox'); return !!(c && c.checked); } },
+      { selector: '#videoCaptureRecordBtn', titleKey: 'pvpRecordTitle', textKey: 'pvpRecordText', done: () => { if (recording() && !wasRec) { wasRec = true; stepsN = 0; } return recording(); } },
       { selector: () => stoneBtn() || $('#videoCaptureRecordBtn'), titleKey: 'pvpStepsTitle', textKey: 'pvpStepsText', done: () => stepsN >= 10 },
       { selector: '#videoCaptureRecordBtn', titleKey: 'pvpStopTitle', textKey: 'pvpStopText', done: () => !recording() },
       { selector: '#videoCaptureListenBtn', titleKey: 'pvHearTitle', textKey: 'pvpHearText', clickDone: true },
