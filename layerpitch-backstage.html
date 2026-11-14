@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794672148825">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794681418078">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -843,6 +843,7 @@
   .embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
   .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
   .embr-transition-row .embr-wave-fg, .embr-detour-wave-row .embr-wave-fg { opacity: 1; }
+  .embr-transition-label { position: absolute; left: 6px; top: 2px; z-index: 1; padding: 0 4px; border-radius: 3px; background: var(--bg-card); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; pointer-events: none; }
 
   .loop-count-block { margin-top: 14px; }
   .loop-count-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--section-label-color, var(--accent)); margin-bottom: 6px; }
@@ -2355,19 +2356,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794672148825"></script>
-<script src="layerpitch-i18n.js?v=1794672148825"></script>
-<script src="layerpitch-import-engine.js?v=1794672148825"></script>
-<script src="layerpitch-appearance.js?v=1794672148825"></script>
-<script src="layerpitch-album-shared.js?v=1794672148825"></script>
-<script src="layerpitch-album-editor.js?v=1794672148825"></script>
-<script src="layerpitch-shell.js?v=1794672148825"></script>
-<script src="layerpitch-social-icons.js?v=1794672148825"></script>
-<script src="layerpitch-notify.js?v=1794672148825"></script>
-<script src="layerpitch-guide.js?v=1794672148825"></script>
-<script src="layerpitch-lesson-previews.js?v=1794672148825"></script>
-<script src="layerpitch-help.js?v=1794672148825"></script>
-<script src="player.js?v=1794672148825"></script>
+<script src="layerpitch-tuto.js?v=1794681418078"></script>
+<script src="layerpitch-i18n.js?v=1794681418078"></script>
+<script src="layerpitch-import-engine.js?v=1794681418078"></script>
+<script src="layerpitch-appearance.js?v=1794681418078"></script>
+<script src="layerpitch-album-shared.js?v=1794681418078"></script>
+<script src="layerpitch-album-editor.js?v=1794681418078"></script>
+<script src="layerpitch-shell.js?v=1794681418078"></script>
+<script src="layerpitch-social-icons.js?v=1794681418078"></script>
+<script src="layerpitch-notify.js?v=1794681418078"></script>
+<script src="layerpitch-guide.js?v=1794681418078"></script>
+<script src="layerpitch-lesson-previews.js?v=1794681418078"></script>
+<script src="layerpitch-help.js?v=1794681418078"></script>
+<script src="player.js?v=1794681418078"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -6798,7 +6799,7 @@ function buildPreviewTrack(track) {
   const mapTransition = (item) => {
     const m = mapBlockWithBars(item);
     if (!m) return null;
-    return { ...m, durationUnit: (item && item.durationUnit) || null, bpm: item && item.bpm, beatsPerBar: item && item.beatsPerBar, durationSeconds: item && item.durationSeconds };
+    return { ...m, durationUnit: (item && item.durationUnit) || null, bpm: item && item.bpm, beatsPerBar: item && item.beatsPerBar, durationSeconds: item && item.durationSeconds, fadeOutBeat: item && item.fadeOutBeat, nextInBeat: item && item.nextInBeat };
   };
   return {
     id: 'preview-' + track.id,
@@ -6878,7 +6879,7 @@ function buildPreviewTrack(track) {
         transition: l.transition ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
           ...mapItem(l.transition)
         } : null,
         fx: l.fx || null,
@@ -7731,6 +7732,122 @@ function seekOpenPreview(cardEl, timeSec, totalDuration) {
   });
 }
 
+
+// Frise d'une transition (embranchement vertical : boucle cible ; séquentiel : embranchement d'un emplacement) (14/11, retour d'Hugo : la transition ne tombait pas en rythme).
+// Deux repères glissables, aimantés au temps, posés sur la grille de temps/mesures du fichier de transition :
+//   - Fondu  (transition.fadeOutBeat) : temps à partir duquel la boucle quittée commence son fondu de sortie ;
+//   - Boucle (transition.nextInBeat)  : temps à partir duquel la boucle suivante s'enclenche.
+// Absents (null) : comportement d'origine -- fondu dès le début du fichier, boucle suivante à la fin de la durée de la transition.
+// La durée du fichier (transition.duration) est lue au besoin, une seule fois par fichier.
+const transitionDurationProbed = new WeakSet();
+function buildTransitionTimelineEl(trn, tempoOwner, track) {
+  const wrap = document.createElement('div');
+  wrap.className = 'loop-timeline';
+  const bpm = trn.bpm || tempoOwner.bpm || track.bpm || 120;
+  const beatsPerBar = trn.beatsPerBar || tempoOwner.beatsPerBar || track.beatsPerBar || 4;
+  const spb = 60 / bpm;
+  if (!trn.duration) {
+    wrap.innerHTML = `<div class="loop-timeline-placeholder">${tr('chooseFileFirstHint')}</div>`;
+    if (!transitionDurationProbed.has(trn) && (trn.pendingFile || (trn.remoteFile && typeof fetch === 'function'))) {
+      transitionDurationProbed.add(trn);
+      const getFile = trn.pendingFile
+        ? Promise.resolve(trn.pendingFile)
+        : fetch(previewMediaBase(track, `${MEDIA_BASE}audio/${track.id}/`) + trn.remoteFile).then(r => r.blob());
+      getFile.then(f => probeAudioDuration(f)).then(d => { if (d > 0) { trn.duration = d; renderLibrary(); } }).catch(() => {});
+    }
+    return wrap;
+  }
+  const totalBeats = Math.max(1, Math.round(trn.duration / spb));
+  let fadeBeat = Math.max(0, Math.min(trn.fadeOutBeat || 0, totalBeats));
+  let nextBeat = Math.max(fadeBeat, Math.min(trn.nextInBeat > 0 ? trn.nextInBeat : totalBeats, totalBeats));
+
+  const ruler = document.createElement('div');
+  ruler.className = 'loop-timeline-ruler';
+  wrap.appendChild(ruler);
+  const legend = document.createElement('div');
+  legend.className = 'loop-timeline-legend';
+  legend.innerHTML = `
+    <span><i style="background:rgba(0,0,0,0.18)"></i>${tr('transitionZoneBefore')}</span>
+    <span><i style="background:rgba(181,121,15,0.5)"></i>${tr('transitionZoneFade')}</span>
+    <span><i style="background:rgba(47,128,192,0.5)"></i>${tr('transitionZoneAfter')}</span>
+  `;
+  wrap.appendChild(legend);
+  const summary = document.createElement('div');
+  summary.className = 'hint-inline';
+  summary.style.marginTop = '4px';
+  wrap.appendChild(summary);
+
+  const beatToPct = b => (b / totalBeats) * 100;
+  const pctToBeat = pct => Math.round((pct / 100) * totalBeats);
+  const formatBeat = b => tr('measureBeatFormat', { bar: Math.floor(b / beatsPerBar) + 1, beat: (b % beatsPerBar) + 1 });
+
+  const labelEvery = totalBeats > 64 ? beatsPerBar * 4 : (totalBeats > 32 ? beatsPerBar * 2 : beatsPerBar);
+  for (let b = 0; b <= totalBeats; b++) {
+    const isBar = b % beatsPerBar === 0;
+    const tick = document.createElement('div');
+    tick.className = 'loop-timeline-tick' + (isBar ? ' bar' : '');
+    tick.style.left = beatToPct(b) + '%';
+    tick.style.height = isBar ? '100%' : '40%';
+    ruler.appendChild(tick);
+    if (isBar && b % labelEvery === 0) {
+      const lbl = document.createElement('div');
+      lbl.className = 'loop-timeline-tick-label';
+      lbl.style.left = beatToPct(b) + '%';
+      lbl.textContent = (b / beatsPerBar) + 1;
+      ruler.appendChild(lbl);
+    }
+  }
+  [['intro', 0, fadeBeat], ['outro', fadeBeat, nextBeat], ['loop', nextBeat, totalBeats]].forEach(([kind, from, to]) => {
+    const z = document.createElement('div');
+    z.className = 'loop-timeline-zone ' + kind;
+    z.style.left = beatToPct(from) + '%';
+    z.style.width = (beatToPct(to) - beatToPct(from)) + '%';
+    ruler.appendChild(z);
+  });
+
+  function addHandle(kind, beat, label, field) {
+    const h = document.createElement('div');
+    h.className = 'loop-timeline-handle ' + kind;
+    h.style.left = beatToPct(beat) + '%';
+    const flag = document.createElement('div');
+    flag.className = 'loop-timeline-handle-flag';
+    flag.textContent = label;
+    h.appendChild(flag);
+    ruler.appendChild(h);
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { h.setPointerCapture(e.pointerId); } catch (err) {}
+      const rect = ruler.getBoundingClientRect();
+      const onMove = ev => {
+        const pct = Math.max(0, Math.min(100, ((ev.clientX - rect.left) / rect.width) * 100));
+        let v = pctToBeat(pct);
+        v = field === 'fadeOutBeat' ? Math.max(0, Math.min(v, nextBeat)) : Math.max(fadeBeat, Math.min(v, totalBeats));
+        h.style.left = beatToPct(v) + '%';
+        flag.textContent = formatBeat(v);
+        h.dataset.pendingBeat = v;
+      };
+      const onUp = () => {
+        ruler.removeEventListener('pointermove', onMove);
+        ruler.removeEventListener('pointerup', onUp);
+        const v = h.dataset.pendingBeat !== undefined ? parseInt(h.dataset.pendingBeat, 10) : beat;
+        // Valeur par défaut (début / fin du fichier) = champ absent : retombe sur le comportement d'origine.
+        if (field === 'fadeOutBeat') trn.fadeOutBeat = v > 0 ? v : null;
+        else trn.nextInBeat = v < totalBeats ? v : null;
+        hasUnsavedEdits = true;
+        renderLibrary();
+        if (blockTracksRefresh) blockTracksRefresh();
+        packTracksRefreshers.forEach(fn => fn());
+      };
+      ruler.addEventListener('pointermove', onMove);
+      ruler.addEventListener('pointerup', onUp);
+    });
+  }
+  addHandle('start', fadeBeat, tr('transitionFadeHandleLabel'), 'fadeOutBeat');
+  addHandle('loopin', nextBeat, tr('transitionNextHandleLabel'), 'nextInBeat');
+  summary.textContent = tr('transitionTimelineSummary', { fade: formatBeat(fadeBeat), next: formatBeat(nextBeat), fadeSec: (fadeBeat * spb).toFixed(2), nextSec: (nextBeat * spb).toFixed(2) });
+  return wrap;
+}
 function renderLibrary() {
   // Stoppe proprement tout aperçu audio en cours avant de reconstruire le DOM (sinon le son continuerait "orphelin").
   activePreviewIds.forEach(id => document.dispatchEvent(new CustomEvent('stop-track', { detail: id })));
@@ -8306,6 +8423,8 @@ function renderLibrary() {
                 <div data-role="embrTransitionFileCtrl" style="margin-top:8px"></div>
                 <label style="margin-top:8px">${tr('branchLabelOverrideLabel')}</label>
                 <input type="text" placeholder="${tr('transitionNamePlaceholder')}" data-embr-loop-field="transitionLabel" data-ti="${ti}" data-li="${li}" value="${escapeAttr(loop.transition.label)}">
+                ${flagOpen('transition_timeline') ? `<div data-role="embrTransitionTimelineHost" style="margin-top:10px"></div>
+                <div class="hint-inline">${tr('transitionTimelineHint')}</div>` : ''}
                 <div style="margin-top:8px">
                   <label data-help="transitionDurationUnit">${tr('transitionDurationUnitLabel')}</label>
                   <select data-embr-transition-field="durationUnit" data-ti="${ti}" data-li="${li}">
@@ -8372,11 +8491,16 @@ function renderLibrary() {
                 () => loop.transition.pendingFile, () => loop.transition.remoteFile,
                 f => {
                   loop.transition.pendingFile = f;
+                  loop.transition.duration = null; // nouveau fichier : la frise de la transition relit sa durée
                   hasUnsavedEdits = true;
                   if (!loop.transition.label || !loop.transition.label.trim()) loop.transition.label = titleFromFilename(f.name);
                   renderLibrary();
                 }, () => loop.transition.originalFileName);
             }
+          }
+          if (loop.transition) {
+            const trnTlHost = loopEl.querySelector('[data-role="embrTransitionTimelineHost"]');
+            if (trnTlHost) trnTlHost.appendChild(buildTransitionTimelineEl(loop.transition, loop, track));
           }
           if (loop.isInitial) {
             // Points de boucle (Départ/Entrée/Sortie) de la boucle de référence (24/08) -- réutilise tel
@@ -8827,6 +8951,8 @@ function renderLibrary() {
               ${opt.transition ? `
                 <div data-role="transitionFileCtrl" style="margin-top:6px;margin-bottom:6px"></div>
                 <div class="hint-inline">${tr('transitionHint')}</div>
+                ${flagOpen('transition_timeline') ? `<div data-role="transitionTimelineHost" style="margin-top:10px"></div>
+                <div class="hint-inline">${tr('transitionTimelineHint')}</div>` : ''}
                 ${!hasTransitionFile ? `<div class="hint-inline" style="color:#b45309">${tr('noTransitionFileWarning')}</div>` : ''}
                 <div class="row" style="margin-top:6px">
                   <div><label>${tr('branchLabelOverrideLabel')}</label><input type="text" placeholder="${tr('transitionNamePlaceholder')}" data-branch-transition-field="label" data-ti="${ti}" data-si="${si}" data-bi="${bi}" value="${escapeAttr(opt.transition.label)}"></div>
@@ -8870,12 +8996,15 @@ function renderLibrary() {
             branchOptionsHost.appendChild(wrap);
             if (opt.transition) {
               wireCollapsibleBlockToggle(wrap.querySelector('[data-role="transDescToggle"]'), wrap.querySelector('[data-role="transDescBody"]'), `transDesc:${ti}:${si}:${bi}`);
+              const trnTlHost = wrap.querySelector('[data-role="transitionTimelineHost"]');
+              if (trnTlHost) trnTlHost.appendChild(buildTransitionTimelineEl(opt.transition, slot, track));
               const ctrlHost = wrap.querySelector('[data-role="transitionFileCtrl"]');
               ctrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
               wireFileControl(ctrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
                 () => opt.transition.pendingFile, () => opt.transition.remoteFile,
                 f => {
                   opt.transition.pendingFile = f;
+                  opt.transition.duration = null; // nouveau fichier : la frise relit sa durée
                   applySeqTransitionFileNameHints(opt.transition, f);
                   hasUnsavedEdits = true;
                   if (!opt.transition.label || !opt.transition.label.trim()) opt.transition.label = titleFromFilename(f.name);
@@ -14875,7 +15004,7 @@ async function loadData(silent) {
           descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
           nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
             targetId: opt.targetId, label: opt.label || '',
-            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
+            transition: opt.transition ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, fadeOutBeat: opt.transition.fadeOutBeat, nextInBeat: opt.transition.nextInBeat, duration: opt.transition.duration, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, remoteFile: opt.transition.file || null, originalFileName: opt.transition.originalFileName || null, pendingFile: null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
             fxActions: opt.fxActions || null
           })) : null,
           alternatives: (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, remoteFile: a.file || null, originalFileName: a.originalFileName || null, pendingFile: null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
@@ -14918,7 +15047,7 @@ async function loadData(silent) {
             transition: l.transition ? {
               label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
               bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-              bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+              bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
               remoteFile: l.transition.file || null, originalFileName: l.transition.originalFileName || null, pendingFile: null,
               fx: l.transition.fx || null
             } : null,
@@ -16549,7 +16678,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, fadeOutBeat: opt.transition.fadeOutBeat, nextInBeat: opt.transition.nextInBeat, duration: opt.transition.duration, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
           fxActions: opt.fxActions || null
         })) : null,
         alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
@@ -16570,7 +16699,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         transition: (l.transition && (l.transition.remoteFile || l.transition.pendingFile)) ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null,
           fx: l.transition.fx || null
         } : null,
