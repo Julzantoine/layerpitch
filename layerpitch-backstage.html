@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794609164179">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794611060151">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -377,6 +377,11 @@
     padding: 7px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit;
   }
   .nav-item[hidden] { display: none; }
+  /* Accueil : l'entrée la plus visible du menu (bleue, plus grande), pour qu'on la retrouve d'un coup d'œil. */
+  .nav-item.nav-home-btn { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-size: 15px; font-weight: 600; padding-top: 11px; padding-bottom: 11px; margin-bottom: 10px; }
+  .nav-home-btn .nav-icon { width: 20px; height: 20px; }
+  .nav-item.nav-home-btn:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
+  .nav-item.nav-home-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   a.nav-item { text-decoration: none; box-sizing: border-box; }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #24262b; color: #fff; }
@@ -1198,6 +1203,12 @@
   .home-need-lesson.is-done { color: var(--seq-map-success); }
   .home-card { background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .home-fold { background: none; border: none; color: var(--text-dimmer); cursor: pointer; font-size: 12px; padding: 0 4px 0 0; line-height: 1; }
+  .home-fold:hover { color: var(--text); }
+  .home-card-head .home-sub, .home-card-head .home-count { margin-left: auto; }
+  .home-card.is-collapsed .home-card-body, .home-question.is-collapsed .home-card-body { display: none; }
+  .is-collapsed > .home-card-head { margin-bottom: 0; }
+  .home-question .home-card-head h2 { margin-bottom: 0; }
   .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
   .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
@@ -1258,7 +1269,8 @@
   /* Aide contextuelle coupée (Réglages rapides) : petits textes sous les champs masqués, hors Accueil ; les avertissements (classe .hint-keep ou rouge) restent. */
   body.lp-help-off .backstage-content .hint-inline:not(.hint-keep):not(.lp-example-notice),
   body.lp-help-off .backstage-content .hint:not(.hint-keep) { display: none; }
-  body.lp-help-off #homePanel .hint, body.lp-help-off #homePanel .hint-inline { display: revert; }
+  body.lp-help-off .backstage-content .sub:not(#themeConflictMessage):not(.hint-keep), body.lp-help-off .sub[data-i18n="introText"] { display: none; }
+  body.lp-help-off #homePanel .hint, body.lp-help-off #homePanel .hint-inline, body.lp-help-off #homePanel .sub { display: revert; }
   @media (max-width: 720px) {
     .home-learn-pop { position: fixed; inset: 0; width: auto; max-width: none; border-radius: 0; overflow-y: auto; z-index: 9000; }
     .home-choices .btn { flex: 1 1 100%; }
@@ -2327,19 +2339,19 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794609164179"></script>
-<script src="layerpitch-i18n.js?v=1794609164179"></script>
-<script src="layerpitch-import-engine.js?v=1794609164179"></script>
-<script src="layerpitch-appearance.js?v=1794609164179"></script>
-<script src="layerpitch-album-shared.js?v=1794609164179"></script>
-<script src="layerpitch-album-editor.js?v=1794609164179"></script>
-<script src="layerpitch-shell.js?v=1794609164179"></script>
-<script src="layerpitch-social-icons.js?v=1794609164179"></script>
-<script src="layerpitch-notify.js?v=1794609164179"></script>
-<script src="layerpitch-guide.js?v=1794609164179"></script>
-<script src="layerpitch-lesson-previews.js?v=1794609164179"></script>
-<script src="layerpitch-help.js?v=1794609164179"></script>
-<script src="player.js?v=1794609164179"></script>
+<script src="layerpitch-tuto.js?v=1794611060151"></script>
+<script src="layerpitch-i18n.js?v=1794611060151"></script>
+<script src="layerpitch-import-engine.js?v=1794611060151"></script>
+<script src="layerpitch-appearance.js?v=1794611060151"></script>
+<script src="layerpitch-album-shared.js?v=1794611060151"></script>
+<script src="layerpitch-album-editor.js?v=1794611060151"></script>
+<script src="layerpitch-shell.js?v=1794611060151"></script>
+<script src="layerpitch-social-icons.js?v=1794611060151"></script>
+<script src="layerpitch-notify.js?v=1794611060151"></script>
+<script src="layerpitch-guide.js?v=1794611060151"></script>
+<script src="layerpitch-lesson-previews.js?v=1794611060151"></script>
+<script src="layerpitch-help.js?v=1794611060151"></script>
+<script src="player.js?v=1794611060151"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19306,6 +19318,21 @@ let homeInboxWired = false;
 let homeMailAll = false;
 let homeLearnOpen = false;
 let homeSellOpen = false;
+// Cartes repliées (par personne, dans ce navigateur) : on garde juste le titre.
+const HOME_COLLAPSE_KEY = 'lp_home_collapsed_v1';
+function homeCollapsedSet() { try { return new Set(JSON.parse(localStorage.getItem(HOME_COLLAPSE_KEY) || '[]')); } catch (e) { return new Set(); } }
+function homeIsCollapsed(id) { return homeCollapsedSet().has(id); }
+function homeToggleCollapse(id) {
+  const set = homeCollapsedSet();
+  if (set.has(id)) set.delete(id); else set.add(id);
+  try { localStorage.setItem(HOME_COLLAPSE_KEY, JSON.stringify([...set])); } catch (e) { /* stockage indisponible */ }
+  renderHome();
+}
+function homeFoldBtn(id) {
+  const c = homeIsCollapsed(id);
+  const label = tr(c ? 'homeUnfold' : 'homeFold');
+  return `<button class="home-fold" type="button" data-home-fold="${escapeAttr(id)}" aria-expanded="${!c}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${c ? '▸' : '▾'}</button>`;
+}
 let homeActivity = { state: 'idle', overview: null, at: 0 };
 let homeArrivalDone = false;
 let homeAppearanceHost = null;
@@ -19409,7 +19436,7 @@ async function loadHomeActivity() {
 function homeLessonOk(l) { return !!l && lessonsAccessOpen() && lessonOpenToMe(l) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
 function homeNeedLessons(need) { return need.lessons.map(id => LESSONS.find(l => l.id === id)).filter(homeLessonOk); }
 function homeCard(cls, title, body, extra) {
-  return `<section class="home-card ${cls}"><div class="home-card-head"><h3>${escapeHtml(title)}</h3>${extra || ''}</div>${body}</section>`;
+  return `<section class="home-card ${cls}${homeIsCollapsed(cls) ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn(cls)}<h3>${escapeHtml(title)}</h3>${extra || ''}</div><div class="home-card-body">${body}</div></section>`;
 }
 function homeRemindersHtml() {
   const rows = [];
@@ -19424,7 +19451,7 @@ function homeQuestionHtml() {
   const albumsOk = !!document.getElementById('navItemAlbums') && !document.getElementById('navItemAlbums').hidden;
   const sellPop = `<div class="home-learn-pop home-sell-pop" role="dialog" aria-label="${escapeAttr(tr('homeSellTitle'))}"><div class="home-learn-head"><strong>${escapeHtml(tr('homeSellTitle'))}</strong><button class="home-x" type="button" data-home-do="learn-close" aria-label="${escapeAttr(tr('homeLearnClose'))}">×</button></div><button type="button" class="home-sell-opt" data-home-do="sell-packs"><b>${escapeHtml(tr('homeSellPacks'))}</b><small>${escapeHtml(tr('homeSellPacksHint'))}</small></button>${albumsOk ? `<button type="button" class="home-sell-opt" data-home-do="sell-albums"><b>${escapeHtml(tr('homeSellAlbums'))}</b><small>${escapeHtml(tr('homeSellAlbumsHint'))}</small></button>` : ''}</div>`;
   const sell = `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="sell" aria-haspopup="true" aria-expanded="${homeSellOpen}">${escapeHtml(tr('homeDoSell'))}</button>${homeSellOpen ? sellPop : ''}</span>`;
-  return `<section class="home-question"><h2>${escapeHtml(tr('homeQuestion'))}</h2><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></section>`;
+  return `<section class="home-question${homeIsCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn('home-question')}<h2>${escapeHtml(tr('homeQuestion'))}</h2></div><div class="home-card-body"><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></div></section>`;
 }
 function homeLearnHtml() {
   const done = lessonsDone();
@@ -19448,7 +19475,7 @@ function homeMailHtml() {
       <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
   const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
-  return `<section class="home-card home-mail" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div>${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</section>`;
+  return `<section class="home-card home-mail${homeIsCollapsed('home-mail') ? ' is-collapsed' : ''}" id="homeMail"><div class="home-card-head">${homeFoldBtn('home-mail')}<h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div><div class="home-card-body">${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</div></section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
@@ -19571,6 +19598,8 @@ function homeDo(act) {
   const root = document.getElementById('homeRoot');
   if (!root) return;
   root.addEventListener('click', e => {
+    const fold = e.target.closest('[data-home-fold]');
+    if (fold) { homeToggleCollapse(fold.dataset.homeFold); return; }
     const lesson = e.target.closest('[data-home-lesson]');
     if (lesson && !lesson.disabled) { homeLearnOpen = false; trackBackstageEvent('home_lesson', { id: lesson.dataset.homeLesson }); openLessonFromMenu(lesson.dataset.homeLesson); renderHome(); return; }
     const recent = e.target.closest('[data-home-recent]');

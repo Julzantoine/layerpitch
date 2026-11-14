@@ -361,6 +361,11 @@
     padding: 7px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit;
   }
   .nav-item[hidden] { display: none; }
+  /* Accueil : l'entrée la plus visible du menu (bleue, plus grande), pour qu'on la retrouve d'un coup d'œil. */
+  .nav-item.nav-home-btn { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-size: 15px; font-weight: 600; padding-top: 11px; padding-bottom: 11px; margin-bottom: 10px; }
+  .nav-home-btn .nav-icon { width: 20px; height: 20px; }
+  .nav-item.nav-home-btn:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
+  .nav-item.nav-home-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   a.nav-item { text-decoration: none; box-sizing: border-box; }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #24262b; color: #fff; }
@@ -1182,6 +1187,12 @@
   .home-need-lesson.is-done { color: var(--seq-map-success); }
   .home-card { background: var(--bg-card); border: 1px solid var(--border); border: 1px solid color-mix(in srgb, var(--text) 18%, transparent); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 18px rgba(0,0,0,.10); }
   .home-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .home-fold { background: none; border: none; color: var(--text-dimmer); cursor: pointer; font-size: 12px; padding: 0 4px 0 0; line-height: 1; }
+  .home-fold:hover { color: var(--text); }
+  .home-card-head .home-sub, .home-card-head .home-count { margin-left: auto; }
+  .home-card.is-collapsed .home-card-body, .home-question.is-collapsed .home-card-body { display: none; }
+  .is-collapsed > .home-card-head { margin-bottom: 0; }
+  .home-question .home-card-head h2 { margin-bottom: 0; }
   .home-card-head h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dimmer); }
   .home-count, .home-sub { font-size: 11px; color: var(--text-dimmer); }
   .home-count { background: #e5484d; color: #fff; border-radius: 9px; padding: 0 7px; line-height: 16px; font-weight: 600; margin-right: auto; margin-left: 6px; }
@@ -1242,7 +1253,8 @@
   /* Aide contextuelle coupée (Réglages rapides) : petits textes sous les champs masqués, hors Accueil ; les avertissements (classe .hint-keep ou rouge) restent. */
   body.lp-help-off .backstage-content .hint-inline:not(.hint-keep):not(.lp-example-notice),
   body.lp-help-off .backstage-content .hint:not(.hint-keep) { display: none; }
-  body.lp-help-off #homePanel .hint, body.lp-help-off #homePanel .hint-inline { display: revert; }
+  body.lp-help-off .backstage-content .sub:not(#themeConflictMessage):not(.hint-keep), body.lp-help-off .sub[data-i18n="introText"] { display: none; }
+  body.lp-help-off #homePanel .hint, body.lp-help-off #homePanel .hint-inline, body.lp-help-off #homePanel .sub { display: revert; }
   @media (max-width: 720px) {
     .home-learn-pop { position: fixed; inset: 0; width: auto; max-width: none; border-radius: 0; overflow-y: auto; z-index: 9000; }
     .home-choices .btn { flex: 1 1 100%; }

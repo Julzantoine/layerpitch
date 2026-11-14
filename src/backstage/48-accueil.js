@@ -22,6 +22,21 @@ let homeInboxWired = false;
 let homeMailAll = false;
 let homeLearnOpen = false;
 let homeSellOpen = false;
+// Cartes repliées (par personne, dans ce navigateur) : on garde juste le titre.
+const HOME_COLLAPSE_KEY = 'lp_home_collapsed_v1';
+function homeCollapsedSet() { try { return new Set(JSON.parse(localStorage.getItem(HOME_COLLAPSE_KEY) || '[]')); } catch (e) { return new Set(); } }
+function homeIsCollapsed(id) { return homeCollapsedSet().has(id); }
+function homeToggleCollapse(id) {
+  const set = homeCollapsedSet();
+  if (set.has(id)) set.delete(id); else set.add(id);
+  try { localStorage.setItem(HOME_COLLAPSE_KEY, JSON.stringify([...set])); } catch (e) { /* stockage indisponible */ }
+  renderHome();
+}
+function homeFoldBtn(id) {
+  const c = homeIsCollapsed(id);
+  const label = tr(c ? 'homeUnfold' : 'homeFold');
+  return `<button class="home-fold" type="button" data-home-fold="${escapeAttr(id)}" aria-expanded="${!c}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${c ? '▸' : '▾'}</button>`;
+}
 let homeActivity = { state: 'idle', overview: null, at: 0 };
 let homeArrivalDone = false;
 let homeAppearanceHost = null;
@@ -125,7 +140,7 @@ async function loadHomeActivity() {
 function homeLessonOk(l) { return !!l && lessonsAccessOpen() && lessonOpenToMe(l) && !l.soon && !(l.needs && !flagOpen(l.needs)); }
 function homeNeedLessons(need) { return need.lessons.map(id => LESSONS.find(l => l.id === id)).filter(homeLessonOk); }
 function homeCard(cls, title, body, extra) {
-  return `<section class="home-card ${cls}"><div class="home-card-head"><h3>${escapeHtml(title)}</h3>${extra || ''}</div>${body}</section>`;
+  return `<section class="home-card ${cls}${homeIsCollapsed(cls) ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn(cls)}<h3>${escapeHtml(title)}</h3>${extra || ''}</div><div class="home-card-body">${body}</div></section>`;
 }
 function homeRemindersHtml() {
   const rows = [];
@@ -140,7 +155,7 @@ function homeQuestionHtml() {
   const albumsOk = !!document.getElementById('navItemAlbums') && !document.getElementById('navItemAlbums').hidden;
   const sellPop = `<div class="home-learn-pop home-sell-pop" role="dialog" aria-label="${escapeAttr(tr('homeSellTitle'))}"><div class="home-learn-head"><strong>${escapeHtml(tr('homeSellTitle'))}</strong><button class="home-x" type="button" data-home-do="learn-close" aria-label="${escapeAttr(tr('homeLearnClose'))}">×</button></div><button type="button" class="home-sell-opt" data-home-do="sell-packs"><b>${escapeHtml(tr('homeSellPacks'))}</b><small>${escapeHtml(tr('homeSellPacksHint'))}</small></button>${albumsOk ? `<button type="button" class="home-sell-opt" data-home-do="sell-albums"><b>${escapeHtml(tr('homeSellAlbums'))}</b><small>${escapeHtml(tr('homeSellAlbumsHint'))}</small></button>` : ''}</div>`;
   const sell = `<span class="home-learn-wrap"><button class="btn" type="button" data-home-do="sell" aria-haspopup="true" aria-expanded="${homeSellOpen}">${escapeHtml(tr('homeDoSell'))}</button>${homeSellOpen ? sellPop : ''}</span>`;
-  return `<section class="home-question"><h2>${escapeHtml(tr('homeQuestion'))}</h2><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></section>`;
+  return `<section class="home-question${homeIsCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head">${homeFoldBtn('home-question')}<h2>${escapeHtml(tr('homeQuestion'))}</h2></div><div class="home-card-body"><div class="home-choices">${btn('import', 'homeDoImport')}${btn('sfx', 'homeDoSfx')}${btn('video', 'homeDoVideo')}${btn('share', 'homeDoShare')}${btn('team', 'homeDoTeam')}${sell}${btn('tour', 'homeDoTour')}${learn}</div></div></section>`;
 }
 function homeLearnHtml() {
   const done = lessonsDone();
@@ -164,7 +179,7 @@ function homeMailHtml() {
       <span class="home-mail-body"><span class="home-mail-line"><span class="home-mail-title">${escapeHtml(it.title)}</span><span class="home-mail-time">${formatRelativeTime(it.createdAt)}</span></span><span class="home-mail-text">${escapeHtmlLinkify(it.text || '')}</span></span>
     </${it.href ? 'a' : 'div'}>`).join('');
   const more = items.length > 3 ? `<button class="home-link" type="button" data-home-do="mail-toggle">${escapeHtml(tr(homeMailAll ? 'homeMailLess' : 'homeMailMore'))}</button>` : '';
-  return `<section class="home-card home-mail" id="homeMail"><div class="home-card-head"><h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div>${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</section>`;
+  return `<section class="home-card home-mail${homeIsCollapsed('home-mail') ? ' is-collapsed' : ''}" id="homeMail"><div class="home-card-head">${homeFoldBtn('home-mail')}<h3>${escapeHtml(tr('homeMailTitle'))}</h3>${head}</div><div class="home-card-body">${rows || `<div class="home-empty">${escapeHtml(tr('homeMailEmpty'))}</div>`}${more}</div></section>`;
 }
 function homeContinueHtml() {
   const list = (homePrefs && homePrefs.recent) || [];
@@ -287,6 +302,8 @@ function homeDo(act) {
   const root = document.getElementById('homeRoot');
   if (!root) return;
   root.addEventListener('click', e => {
+    const fold = e.target.closest('[data-home-fold]');
+    if (fold) { homeToggleCollapse(fold.dataset.homeFold); return; }
     const lesson = e.target.closest('[data-home-lesson]');
     if (lesson && !lesson.disabled) { homeLearnOpen = false; trackBackstageEvent('home_lesson', { id: lesson.dataset.homeLesson }); openLessonFromMenu(lesson.dataset.homeLesson); renderHome(); return; }
     const recent = e.target.closest('[data-home-recent]');
