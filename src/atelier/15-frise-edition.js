@@ -383,7 +383,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         blocksHtml += `<div class="vct-block vct-fx vct-fx-cut" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.4) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}"></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Curseurs de paramètre (24/09) : une piste par curseur, un point-clé par valeur enregistrée (déplaçable, valeur
     // éditable dans le détail, ajout d'un clic). Rejoués à l'export par le moteur du lecteur.
@@ -394,7 +394,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         blocksHtml += `<div class="vct-block vct-slider" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.value * 100)}%"><span class="vct-block-label">${Math.round(e.detail.value * 100)}%</span></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Arrêts (05/11, fondu à l'arrêt) : chaque arrêt du morceau, avec son fondu dessiné en pente -- un clic ouvre le détail pour régler
     // la durée du fondu. Ni déplaçable ni supprimable ici : la fin des blocs, elle, se règle sur les blocs eux-mêmes.
@@ -425,7 +425,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       blocksHtml += `<div class="vct-block vct-head" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.yaw)}°"><span class="vct-block-label">${Math.round(e.detail.yaw)}°</span></div>`;
     });
     const addAttrs = editable ? ` data-addable="head"` : '';
-    const headLane = `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
+    const headLane = `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
     lanesHtml += renderGroup('head:', tr('captureHeadGroup'), 'vct-track-group-head', headLane);
   }
 
@@ -1037,7 +1037,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
       ${e.name === 'head_turn' ? `<input type="number" step="1" min="-180" max="180" value="${Math.round(e.detail.yaw)}" class="video-capture-event-yaw" title="${tr('captureYawInputTitle')}">` : ''}
       ${e.name === 'fx_slider' ? `<input type="number" step="1" min="0" max="100" value="${Math.round(e.detail.value * 100)}" class="video-capture-event-slidervalue" title="${tr('captureSliderValueTitle')}">` : ''}
-      ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
+      ${isSfx ? `<label class="video-capture-duck-label" data-adv title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
       <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
     `;
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {

@@ -28,7 +28,7 @@
  * écrite ; autre zone -> un vrai événement « drop » (text/plain + text/uri-list) lui est envoyé, que la page traite comme
  * un dépôt de lien ou de texte ordinaire. `host.onDrop(step, drop, target)` (facultatif) reprend la main à la place.
  * `selector` peut être une fonction qui renvoie l'élément visé (cible calculée à chaque instant).
- * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson }]` — un gros bouton par choix ; un clic termine la
+ * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson } ou { labelKey, action }]` — un gros bouton par choix (`action` : host.choiceAction(action)) ; un clic termine la
  * bulle en cours puis lance la leçon `lesson` (host.startLesson). Sert à la fin de la visite guidée (host.startChoice(id) si la page le fournit, sinon host.startLesson).
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
  *            keepTrack, arrow: {bar, labelKey?, point?} } — voir les leçons du Backstage pour des exemples.
@@ -370,7 +370,7 @@
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
-      ${step.choices && step.choices.length ? `<div class="tour-choices">${step.choices.map(c => `<button class="btn btn-primary" type="button" data-tour="choice" data-lesson="${esc(c.lesson)}">${esc(tr(c.labelKey))}</button>`).join('')}</div>` : ''}
+      ${step.choices && step.choices.length ? `<div class="tour-choices">${step.choices.map(c => `<button class="btn btn-primary" type="button" data-tour="choice" data-lesson="${esc(c.lesson || '')}" data-action="${esc(c.action || '')}">${esc(tr(c.labelKey))}</button>`).join('')}</div>` : ''}
       ${adminHtml}
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${esc(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
@@ -400,7 +400,7 @@
           card.querySelector('[data-tour="adm-jump"]').onclick = () => { guide.autoRunning = false; go(parseInt(tsel.value, 10) - guide.index); };
           card.querySelector('[data-tour="adm-auto"]').onclick = () => autoTo(parseInt(tsel.value, 10));
         }
-        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; finish(); const go = host.startChoice || host.startLesson; if (go) go(id); }; });
+        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; const action = b.dataset.action; finish(); if (action) { if (host.choiceAction) host.choiceAction(action); return; } const go = host.startChoice || host.startLesson; if (go) go(id); }; });
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
         wireDrops(card, step);

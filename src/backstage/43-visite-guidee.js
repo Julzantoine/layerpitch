@@ -4,12 +4,21 @@
 // l'instant. Menu « Tutoriel » (leçons) dans la barre du haut, à côté de la cloche et du compte : feu vert séparé « in_app_lessons ».
 const TOUR_DONE_STORAGE = 'layerpitch_tour_done_v1';
 const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
+// Étapes de l'Accueil (14/11) : `home: true` = zone de la page d'Accueil ; l'étape ouvre l'onglet Accueil avant de s'afficher, et n'existe que
+// si l'Accueil est ouvert pour la personne (feu vert « home_dashboard », jamais en mode tutoriel). Ordre = celui du menu, de haut en bas.
+const openHomeForTour = () => { if (typeof openTab === 'function') openTab('home'); };
 const TOUR_STEPS = [
-  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
-  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
+  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText', enter: () => { if (homeOpen()) openHomeForTour(); } },
+  { selector: '.nav-item[data-tab="home"]', titleKey: 'tourHomeTitle', textKey: 'tourHomeText', home: true, enter: openHomeForTour },
+  { selector: '.home-question', titleKey: 'tourHomeQuestionTitle', textKey: 'tourHomeQuestionText', home: true, enter: openHomeForTour },
+  { selector: '#homeMail', titleKey: 'tourHomeMailTitle', textKey: 'tourHomeMailText', home: true, enter: openHomeForTour },
+  { selector: '.home-essentials', titleKey: 'tourHomeEssentialsTitle', textKey: 'tourHomeEssentialsText', home: true, enter: openHomeForTour },
+  { selector: '.home-activity', titleKey: 'tourHomeActivityTitle', textKey: 'tourHomeActivityText', home: true, enter: openHomeForTour },
+  { selector: '.home-quick', titleKey: 'tourHomeQuickTitle', textKey: 'tourHomeQuickText', home: true, enter: openHomeForTour },
   { selector: '.sidebar-adreel-group', titleKey: 'tourAdreelTitle', textKey: 'tourAdreelText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
+  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'tourSfxTitle', textKey: 'tourSfxText' },
   { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'tourVideoTitle', textKey: 'tourVideoText', hideIf: () => { const b = document.getElementById('navVideoLibraryBadge'); return !!b && !b.hidden; } },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
@@ -1313,8 +1322,9 @@ const GUIDE = window.LayerPitchGuide.create({
   // Choix de fin de visite : dans le vrai compte, la leçon s'ouvre dans une nouvelle fenêtre (compte fictif), comme depuis le menu « Tutoriel ».
   startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
-  onTourDone: tourMarkDone,
-  onClose: () => { hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
+  onTourDone: () => { if (!sectionTourOpen) tourMarkDone(); }, // une mini-visite de section (43a-visites-de-section.js) ne vaut pas « visite générale faite »
+  choiceAction: action => { if (action.startsWith('example:')) sectionTourRunExample(action.slice(8)); },
+  onClose: () => { sectionTourOpen = false; hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -1388,7 +1398,7 @@ function startBackstageTour() {
   // Questions de profil (4/11) : leur présence en fin de visite dépend des réponses déjà enregistrées, lues une fois.
   if (profileQuizOpen() && myOnboardingProfile === undefined && !tourProfileWaited) { tourProfileWaited = true; loadMyOnboardingProfile().then(startBackstageTour); return; }
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
-  const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
+  const steps = TOUR_STEPS.filter(s => s.home ? homeOpen() && (!s.selector || document.querySelector(s.selector)) : (!s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
   const choice = tourFinalStep(); // questions de profil / tes essentiels, ou le double choix d'avant (46-questions-de-profil.js)
   openGuide('tour', choice ? steps.concat(choice) : steps);
 }

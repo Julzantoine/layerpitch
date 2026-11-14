@@ -822,6 +822,7 @@
   .vert-layer-btn:not(.active) .vert-wave-bg { opacity: 0.55; }
   .vert-wave-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.03em; z-index: 1; padding: 0 8px; pointer-events: none; }
   .vert-layer-rows.is-slider-driven .vert-layer-btn { cursor: default; }
+  .intensity-picker.is-slider-driven .embr-wave-btn { cursor: default; }
   @keyframes embrWaveFill { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
   .embr-transition-row { position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--accent); background: var(--bg-card); box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 3; }
   .embr-detour-wave-row { position: relative; display: block; width: 100%; height: var(--embr-row-h, 34px); border-radius: 4px; overflow: hidden; margin-top: 4px; border: 1px solid var(--accent); }
@@ -1243,13 +1244,18 @@
   .home-news-item small { color: var(--text-dimmer); font-size: 10px; }
   .home-quick-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 12px; cursor: pointer; }
   .home-quick-row small { display: block; color: var(--text-dimmer); font-size: 10px; }
-  .home-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .home-seg button { border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
+  .home-quick-row > span:first-child { min-width: 0; }
+  .home-quick-row, .home-quick-row b { color: var(--text); }
+  .home-quick-row b { font-weight: 600; }
+  .home-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .home-seg button { white-space: nowrap; border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
   .home-seg button.on { background: var(--accent-soft); color: var(--accent); }
   .nav-user-hidden { display: none !important; }
   /* Interface simple / avancée (14/11) : les éléments data-adv sont masqués en interface simple ; repère « N options avancées masquées » à la fin de la zone. */
   body.lp-ui-simple [data-adv] { display: none !important; }
   .lp-adv-hint { margin: 10px 0 4px; font-size: 11px; color: var(--text-dimmer); }
+  @keyframes lp-adv-flash { 0%, 100% { box-shadow: none; } 20%, 70% { box-shadow: 0 0 0 3px var(--accent-soft, #e6eef8), 0 0 0 4px var(--accent, #2f80c0); } }
+  .lp-adv-flash { animation: lp-adv-flash 1.8s ease; border-radius: 6px; }
   .lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: var(--accent, #2f80c0); cursor: pointer; text-decoration: underline; }
 
   .home-menu { margin-top: 8px; font-size: 12px; }

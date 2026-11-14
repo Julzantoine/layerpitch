@@ -708,7 +708,8 @@
     }
   }
   embrLoopBtns.forEach(btn => {
-    btn.addEventListener('click', () => { if (btn.dataset.dragged) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
+    // Un curseur pilote les boucles : un clic ne bascule plus (le curseur décide), il sert seulement à placer la tête de lecture.
+    btn.addEventListener('click', () => { if (btn.dataset.dragged || btn.closest('.is-slider-driven')) return; selectEmbrLoop(parseInt(btn.dataset.loopIdx, 10)); });
   });
   // Cliquer/glisser sur la forme d'onde de la boucle EN COURS (gabarit riche uniquement) déplace la tête
   // de lecture -- même principe que les blocs séquentiels : position affichée en direct pendant le
@@ -744,7 +745,7 @@
     btn.addEventListener('pointerdown', (e) => {
       if (!isSeekable()) return;
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-      if (idx === embrActiveLoopIdx) { dragging = true; showFraction(fractionFromEvent(e)); }
+      if (idx === embrActiveLoopIdx || btn.closest('.is-slider-driven')) { dragging = true; showFraction(fractionFromEvent(e)); }
       else { pending = true; startX = e.clientX; }
     });
     btn.addEventListener('pointermove', (e) => {
