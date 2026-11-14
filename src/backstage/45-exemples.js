@@ -21,8 +21,8 @@ function hasAnyExample() {
 
 // Ajout au chargement : une seule tentative par ouverture de page ; le serveur décide (feu vert, déjà fait, langue).
 // examplesSeedPromise : les questions de profil (46) attendent la fin de l'ajout, pour ne pas s'ouvrir avant son message.
-let examplesSeedTried = false;
-let examplesSeedPromise = null;
+var examplesSeedTried = false; // « var » : lu très tôt par fetchSiteData si la page démarre dans un état inattendu
+var examplesSeedPromise = null;
 function seedMyExamplesIfNeeded() {
   if (examplesSeedTried || isTutoMode()) return examplesSeedPromise || Promise.resolve();
   examplesSeedTried = true;
