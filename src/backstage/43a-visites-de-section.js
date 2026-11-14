@@ -13,7 +13,7 @@ var SECTION_TOURS = {
   appearance: { key: 'stAppearance', lesson: 'appearance', example: 'adreel', zones: [['#appLang', 'Lang'], ['#appSlug', 'Slug'], ['#appAccessMode', 'Access']] },
   library: { key: 'stLibrary', lesson: 'static', example: 'library', zones: [['#libraryFolderDrop', 'Drop'], ['#btnAddLibraryTrack', 'Add', '#libraryFolderDrop'], ['#libraryMaster', 'List'], ['example:#libraryMaster', 'Example']] },
   sfxLibrary: { key: 'stSfx', lesson: 'sfx', example: 'sfx', zones: [['#sfxLibraryDrop', 'Drop'], ['#btnAddSfx', 'Add', '#sfxLibraryDrop'], ['#sfxLibraryMaster', 'List'], ['example:#sfxLibraryMaster', 'Example']] },
-  videoLibrary: { key: 'stVideo', lesson: 'upload', zones: [['#videoLibraryDropzone', 'Drop'], ['#videoProjectNewBtn', 'Project']] },
+  videoLibrary: { key: 'stVideo', lesson: 'versioning', zones: [['.video-col-section[data-fold-key="library"]', 'Lib'], ['#videoLibraryDropzone', 'Drop'], ['.video-col-section[data-fold-key="projects"]', 'Project'], ['#videoColNav||#videoColList', 'Sections']] },
   packs: { key: 'stPacks', lesson: 'pack', example: 'pack', zones: [['#btnAddPack', 'Add'], ['#packsContainer', 'List']] },
   analytics: { key: 'stAnalytics', lesson: 'tracking', zones: [['#analyticsPresets', 'Period']] },
 };
@@ -75,8 +75,9 @@ function sectionTourSteps(tab) {
       if (find()) steps.push({ selector: find, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
       return;
     }
-    const el = document.querySelector(selector);
-    if (usable(el)) steps.push({ selector, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
+    // « a||b » : la première cible visible (ex. les sections d'un projet si un projet est ouvert, sinon la colonne de gauche).
+    const pick = selector.split('||').find(sel => usable(document.querySelector(sel)));
+    if (pick) steps.push({ selector: pick, titleKey: def.key + name + 'Title', textKey: def.key + name + 'Text' });
   });
   const lesson = LESSONS.find(l => l.id === def.lesson);
   const choices = [];

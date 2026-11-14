@@ -26,7 +26,7 @@ tabs.forEach(([, tab, key, lesson, example, zones]) => {
     if (example) check(tab + ' : bouton « explorer l’exemple » en ' + lang, d[key + 'Explore']);
     [...zones.matchAll(/\['([^']+)', '(\w+)'(?:, '[^']+')?\]/g)].forEach(([, , name]) => check(tab + ' : zone ' + name + ' en ' + lang, d[key + name + 'Title'] && d[key + name + 'Text']));
   });
-  [...zones.matchAll(/\['([^']+)', '(\w+)'(?:, '[^']+')?\]/g)].map(m => [m[0], m[1].replace(/^example:/, '')]).forEach(([, sel]) => check('zone présente dans la page : ' + sel, page.includes('id="' + sel.slice(1) + '"') || (sel.startsWith('.') && page.includes(sel.slice(1)))));
+  [...zones.matchAll(/\['([^']+)', '(\w+)'(?:, '[^']+')?\]/g)].map(m => [m[0], m[1].replace(/^example:/, '')]).forEach(([, sel]) => check('zone présente dans la page : ' + sel, sel.split('||').every(one => { one = one.split('[')[0]; return page.includes('id="' + one.slice(1) + '"') || (one.startsWith('.') && page.includes(one.slice(1))); })));
 });
 ['fr', 'en'].forEach(lang => {
   const d = I18N[lang].backstage;
