@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794674432098">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794674898805">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2355,19 +2355,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794674432098"></script>
-<script src="layerpitch-i18n.js?v=1794674432098"></script>
-<script src="layerpitch-import-engine.js?v=1794674432098"></script>
-<script src="layerpitch-appearance.js?v=1794674432098"></script>
-<script src="layerpitch-album-shared.js?v=1794674432098"></script>
-<script src="layerpitch-album-editor.js?v=1794674432098"></script>
-<script src="layerpitch-shell.js?v=1794674432098"></script>
-<script src="layerpitch-social-icons.js?v=1794674432098"></script>
-<script src="layerpitch-notify.js?v=1794674432098"></script>
-<script src="layerpitch-guide.js?v=1794674432098"></script>
-<script src="layerpitch-lesson-previews.js?v=1794674432098"></script>
-<script src="layerpitch-help.js?v=1794674432098"></script>
-<script src="player.js?v=1794674432098"></script>
+<script src="layerpitch-tuto.js?v=1794674898805"></script>
+<script src="layerpitch-i18n.js?v=1794674898805"></script>
+<script src="layerpitch-import-engine.js?v=1794674898805"></script>
+<script src="layerpitch-appearance.js?v=1794674898805"></script>
+<script src="layerpitch-font-picker.js?v=1794674898805"></script>
+<script src="layerpitch-album-shared.js?v=1794674898805"></script>
+<script src="layerpitch-album-editor.js?v=1794674898805"></script>
+<script src="layerpitch-shell.js?v=1794674898805"></script>
+<script src="layerpitch-social-icons.js?v=1794674898805"></script>
+<script src="layerpitch-notify.js?v=1794674898805"></script>
+<script src="layerpitch-guide.js?v=1794674898805"></script>
+<script src="layerpitch-lesson-previews.js?v=1794674898805"></script>
+<script src="layerpitch-help.js?v=1794674898805"></script>
+<script src="player.js?v=1794674898805"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -16134,7 +16135,7 @@ function loadVideoVersioningIndex(force) {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
-      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: (c.title || '').trim() || tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });

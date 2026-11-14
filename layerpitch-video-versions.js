@@ -48,7 +48,8 @@
     const montage = await (opts.load || loadMontage)(opts.montageId);
     if (!montage || !Array.isArray(montage.versions) || !montage.versions.length) return null;
     const hidden = new Set(opts.hidden || []);
-    const versions = montage.versions.filter(v => v.url && !hidden.has(v.key));
+    // La version d'origine porte le nom du montage (renommer le montage la renomme partout).
+    const versions = montage.versions.filter(v => v.url && !hidden.has(v.key)).map(v => (v.key === 'original' && montage.title) ? Object.assign({}, v, { title: montage.title }) : v);
     if (!versions.length) return null;
     // Vidéo muette une fois + un son par version (migration 20261021040000) : une version 'audio' se joue sur l'image muette du
     // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
@@ -193,7 +194,7 @@
       select = bar.querySelector('select');
       versions.forEach(v => {
         const o = document.createElement('option');
-        o.value = v.key; o.textContent = v.key === 'original' ? tr('videoVersionOriginal') : (v.title || tr('videoVersionUntitled'));
+        o.value = v.key; o.textContent = v.key === 'original' ? (v.title || tr('videoVersionOriginal')) : (v.title || tr('videoVersionUntitled'));
         if (v === current) o.selected = true;
         select.appendChild(o);
       });

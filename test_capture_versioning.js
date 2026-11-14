@@ -181,7 +181,7 @@ const path = require('path');
   host.querySelector('[data-act="rvRefresh"]').click(); await tick(); await tick(); await tick();
   const boxTxt = host.querySelector('.vcv-review-box').textContent;
   check('relecture : remarques listées avec auteur, instant, version et nombre à traiter', boxTxt.includes('Drone trop fort') && boxTxt.includes('Camille') && boxTxt.includes('0:12') && boxTxt.includes('1 à traiter'));
-  check('relecture : drapeaux envoyés à la frise (instant, auteur, version, traité)', reviewMarks.length === 2 && reviewMarks.some(m => m.id === 'c1' && m.t === 12.5 && m.author === 'Camille' && !m.resolved && m.versionTitle) && reviewMarks.some(m => m.id === 'c2' && m.resolved && m.versionTitle === tr('versioningReviewOriginal')));
+  check('relecture : drapeaux envoyés à la frise (instant, auteur, version, traité)', reviewMarks.length === 2 && reviewMarks.some(m => m.id === 'c1' && m.t === 12.5 && m.author === 'Camille' && !m.resolved && m.versionTitle) && reviewMarks.some(m => m.id === 'c2' && m.resolved && m.versionTitle === 'Trailer'));
   host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvSeek"]').click();
   check('relecture : clic sur l\'instant -> la vidéo saute', Math.abs(ctx.videoEl.currentTime - 12.5) < 0.01 || ctx.videoEl.currentTime === 0 /* jsdom ne simule pas la lecture */);
   host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvReply"]').click(); await tick();
