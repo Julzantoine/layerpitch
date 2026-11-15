@@ -134,7 +134,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -259,7 +259,7 @@
 </header>
 
 <section class="demo wrap">
-  <p>With an AdReel (Adaptive Reel), you present music that isn't linear: state changes, branching, intensity shifts, random pools. The studio that receives your AdReel gets to play with your compositions and understand what the music can bring to their game. Share an AdReel with a simple link and let the magic happen.</p>
+  <p>From pitch to OST, LayerPitch supports your adaptive music. Present it with an AdReel (Adaptive Reel), test it on the studio's gameplay, work together on the moodboard and the music map, then sell your assets and interactive OSTs.</p>
   <!-- Access behavior actually verified 09/06 (private window): this page loads with no account.
        Cloudflare Access was removed from layerpitch-backstage.html on 09/07
        (docs/infrastructure.md, Partie C) -- only admin.html still sits behind that wall. -->
@@ -289,14 +289,14 @@
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">What changes</span>
+  <span class="eyebrow">Present and test</span>
   <ul class="features">
     <li>
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
       <span><strong>5 adaptive playback modes</strong><span class="desc">Loopable static, vertical layering, randomized layering, branching sequential, random sequential.</span></span>
     </li>
     <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
       <span><strong>Live control</strong><span class="desc">The studio that receives your AdReel plays with the music, adjusting intensity, muting layers, exploring the branches themselves. It's simple, visual, and fascinating.</span></span>
     </li>
     <li>
@@ -304,23 +304,76 @@
       <span><strong>Just a link</strong><span class="desc">No installation. It opens like a web page.</span></span>
     </li>
     <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
       <span><strong>Fully customizable</strong><span class="desc">Every AdReel can be styled entirely to your image, or to the studio you're targeting.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+      <span><strong>Spatialized Sfx</strong><span class="desc">Stingers you can trigger over the music, to help players picture the game's sound world.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span><strong>Follow-up on every send</strong><span class="desc">Who opened it, which layers were tested, for how long. Reach out at the right time, while it's still fresh.</span></span>
     </li>
   </ul>
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">The follow-up</span>
-  <div class="tracking-box">
-    <p class="lede" style="margin:0;">During the pitch phase, once it's sent, you're not left guessing. Every AdReel sends you the info that matters: who opened it, which layers were tested, how long your contact stayed on the page. No more wondering whether the studio actually played with the music or just skimmed the page. A link opened this morning is a follow-up that lands at exactly the right time, all that's left is to reach out while it's still fresh.</p>
-  </div>
+  <span class="eyebrow">Work with the studio</span>
+  <ul class="features">
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+      <span><strong>Shared moodboard</strong><span class="desc">Gather references, images, videos, notes and tracks to set the sound direction before composing.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
+      <span><strong>Interactive music map</strong><span class="desc">A level map where the music changes from zone to zone.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span><strong>Chat and timestamped comments</strong><span class="desc">Talk and comment directly on the music, at the exact moment.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span>
+      <span><strong>Showcases</strong><span class="desc">A presentation site for the game, for the public or to pitch publishers.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></span>
+      <span><strong>Video versioning</strong><span class="desc">In a few clicks, send your client several different pieces of music over a gameplay video.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+      <span><strong>Composers directory</strong><span class="desc">Studios find you and listen in one click.</span></span>
+    </li>
+  </ul>
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">Sell</span>
+  <ul class="features">
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1"/></svg></span>
+      <span><strong>Audio asset sales</strong><span class="desc">For smaller budgets… Offer your music and sfx packs with a listening page you can share with a simple link.</span></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+      <span><strong>Interactive OST sales</strong><span class="desc">The real original soundtracks of your games, in their interactive version. Once the game is out, showcase its music and sell it as an album.</span></span>
+    </li>
+  </ul>
 </section>
 
 <section class="block wrap">
   <span class="eyebrow">Coming soon</span>
-  <p>During preproduction, work together on the moodboard to set a clear creative direction and save back-and-forth, time (and money!) later on. Use the video versioning tool to quickly test which music, triggers, or SFX work best for the level that was just built. No more pulling out the big guns and sharing a build for every test.</p>
-  <p>Before the game ships, sell audio asset packs. Once it's out, put its music to work and sell an Adaptive OST!</p>
+  <ul class="features">
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14M3 14l4 4 4-4M17 20V6M13 10l4-4 4 4"/></svg></span>
+      <span><strong>Wwise / FMOD project import and export</strong></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></span>
+      <span><strong>Plug an AI into the platform</strong></span>
+    </li>
+  </ul>
 </section>
 
 <section class="block wrap">
