@@ -135,7 +135,7 @@ window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'shop', crumbs:
 // ---- Barre du site pour les visiteurs sans compte (06/10, demande de Jules-Antoine : « pas de bouton de retour ») ----
 // SITE_NAV_LIVE : tant que les nouvelles pages de la landing (compositeurs, studios, À propos, FAQ) ne sont pas en ligne, seul le logo (retour à
 // la landing actuelle) est proposé : les autres liens renverraient une page introuvable. À passer à true le jour de la bascule.
-const SITE_NAV_LIVE = false;
+const SITE_NAV_LIVE = true;
 (async function visitorBar() {
   const { session } = await window.LayerPitchAuth.getSession();
   if (session) return;
