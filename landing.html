@@ -374,6 +374,19 @@
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
+  // Origine du lien (utm_source / utm_medium / utm_campaign) : retenue pour la visite (sessionStorage),
+  // envoyée avec le formulaire pour savoir quel clip ou quel post amène l'inscription.
+  function lpOrigin() {
+    const out = {};
+    try {
+      const p = new URLSearchParams(location.search);
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach((k) => { const v = p.get(k); if (v) out[k] = v.slice(0, 80); });
+      if (Object.keys(out).length) sessionStorage.setItem('lp_origin', JSON.stringify(out));
+      else Object.assign(out, JSON.parse(sessionStorage.getItem('lp_origin') || '{}'));
+    } catch (e) {}
+    return out;
+  }
+  lpOrigin();
   // Mêmes valeurs publiques que api/supabase-client.js (clé "publishable", pas un secret) --
   // fetch() brut plutôt que le SDK complet, cette page est hébergée sur un domaine séparé
   // (www.layerpitch.com) sans le reste des scripts api/*.js de l'app.
@@ -397,7 +410,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr', message: form.message.value.trim() || null }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr', message: form.message.value.trim() || null, ...lpOrigin() }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });

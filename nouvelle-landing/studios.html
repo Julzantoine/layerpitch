@@ -343,6 +343,19 @@
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
+  // Origine du lien (utm_source / utm_medium / utm_campaign) : retenue pour la visite (sessionStorage),
+  // envoyée avec le formulaire pour savoir quel clip ou quel post amène l'inscription.
+  function lpOrigin() {
+    const out = {};
+    try {
+      const p = new URLSearchParams(location.search);
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach((k) => { const v = p.get(k); if (v) out[k] = v.slice(0, 80); });
+      if (Object.keys(out).length) sessionStorage.setItem('lp_origin', JSON.stringify(out));
+      else Object.assign(out, JSON.parse(sessionStorage.getItem('lp_origin') || '{}'));
+    } catch (e) {}
+    return out;
+  }
+  lpOrigin();
   // Même point d'entrée que la landing actuelle (clé « publishable », pas un secret). La demande part avec l'intention « studio ».
   const LAYERPITCH_SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
   const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
@@ -355,7 +368,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'studio', lang: 'fr', message: form.message.value.trim() }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'studio', lang: 'fr', message: form.message.value.trim(), ...lpOrigin() }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: 'studio' });
