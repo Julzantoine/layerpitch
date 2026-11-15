@@ -136,7 +136,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -146,6 +146,13 @@
   .feature-icon svg { width: 16px; height: 16px; }
   ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
   ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+  /* Cartes compactes : le titre seul au repos, le détail se déploie au survol ou au clavier ; sur écran tactile (pas de survol), tout reste affiché. */
+  ul.features li { transition: border-color .15s, box-shadow .15s; }
+  ul.features li span.desc { display: block; max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+  ul.features li:hover span.desc, ul.features li:focus-within span.desc, ul.features li:focus span.desc { max-height: 260px; opacity: 1; margin-top: 4px; }
+  ul.features li:hover, ul.features li:focus-within, ul.features li:focus { border-color: var(--accent); box-shadow: var(--shadow-card); outline: none; }
+  @media (hover: none) { ul.features li span.desc { max-height: none; opacity: 1; margin-top: 4px; } }
+  @media (prefers-reduced-motion: reduce) { ul.features li, ul.features li span.desc { transition: none; } }
 
   .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
   .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
@@ -286,31 +293,31 @@
 <section class="block wrap">
   <span class="eyebrow">Ce que ça change</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
       <span><strong>Un Moodboard partagé</strong><span class="desc">Réunissez références, images, vidéos, notes et morceaux, et construisez la direction sonore avec votre compositeur ou sound designer avant la production. Une ligne claire dès le début, c'est autant de retours évités plus tard.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
       <span><strong>Une map musicale interactive</strong><span class="desc">En quelques clics, construisez votre niveau, glissez de la musique dans chaque élément et baladez-vous. Le parcours musical du joueur n'a jamais été aussi simple à concevoir.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>
       <span><strong>Des vitrines</strong><span class="desc">Créez autant de vitrines que vous voulez pour votre jeu. Personnalisez-les selon les éditeurs ou les types de publics. Ajoutez-y de la musique interactive, mais aussi des vidéos, de l'artwork et, bien sûr… votre lien Steam !</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6M21 19c0-2-1.5-3.6-4-4.5"/></svg></span>
       <span><strong>Des collaborateurs, au même endroit</strong><span class="desc">Invitez compositeurs, sound designers et membres de l'équipe dans le Projet : discussion, notes sur les morceaux et les vidéos, fichiers centralisés. Fini de chercher qui a la dernière version.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></span>
       <span><strong>Testez sans sortir un build</strong><span class="desc">Le versionning vidéo permet d'essayer rapidement quelle musique, quels triggers et quels SFX fonctionnent sur le niveau qui vient d'être construit. Plus besoin de partager un build à chaque test.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11L21 7H6"/></svg></span>
       <span><strong>Pas de budget ? Achetez la musique du jeu</strong><span class="desc">Achetez des packs d’assets audio et de musique interactive, et échangez directement avec le compositeur.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3"/></svg></span>
       <span><strong>Valorisez votre OST</strong><span class="desc">Vous avez travaillé avec un compositeur sur une OST originale ? Valorisez-la et vendez-la sous forme adaptative.</span></span>
     </li>

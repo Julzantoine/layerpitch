@@ -136,7 +136,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -146,6 +146,13 @@
   .feature-icon svg { width: 16px; height: 16px; }
   ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
   ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+  /* Cartes compactes : le titre seul au repos, le détail se déploie au survol ou au clavier ; sur écran tactile (pas de survol), tout reste affiché. */
+  ul.features li { transition: border-color .15s, box-shadow .15s; }
+  ul.features li span.desc { display: block; max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+  ul.features li:hover span.desc, ul.features li:focus-within span.desc, ul.features li:focus span.desc { max-height: 260px; opacity: 1; margin-top: 4px; }
+  ul.features li:hover, ul.features li:focus-within, ul.features li:focus { border-color: var(--accent); box-shadow: var(--shadow-card); outline: none; }
+  @media (hover: none) { ul.features li span.desc { max-height: none; opacity: 1; margin-top: 4px; } }
+  @media (prefers-reduced-motion: reduce) { ul.features li, ul.features li span.desc { transition: none; } }
 
   .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
   .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
@@ -293,27 +300,27 @@
 <section class="block wrap">
   <span class="eyebrow">Présenter et tester</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
       <span><strong>5 modes de lecture adaptative</strong><span class="desc">Statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement, séquentiel aléatoire.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
       <span><strong>Contrôle en direct</strong><span class="desc">Le studio qui reçoit votre AdReel joue avec la musique en ajustant l'intensité, en coupant des couches, en explorant les embranchements lui-même. C'est simple, visuel et fascinant.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-1"/><path d="M15 12a4 4 0 0 1-4 4H7a4 4 0 0 1 0-8h1"/></svg></span>
       <span><strong>Un lien, point barre</strong><span class="desc">Aucune installation. Ça s'ouvre comme une page web.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
       <span><strong>Sur-mesure, jusqu'au bout</strong><span class="desc">Chaque AdReel se personnalise entièrement, à votre image ou à celle du studio visé.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
       <span><strong>Sfx spatialisés</strong><span class="desc">Des stingers déclenchables par-dessus la musique, pour aider à se projeter dans l'univers sonore du jeu.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
       <span><strong>Le suivi de chaque envoi</strong><span class="desc">Qui a ouvert, quelles couches ont été testées, combien de temps. Relancez au bon moment, pendant que c'est chaud.</span></span>
     </li>
@@ -323,27 +330,27 @@
 <section class="block wrap">
   <span class="eyebrow">Travailler avec le studio</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
       <span><strong>Moodboard partagé</strong><span class="desc">Réunissez références, images, vidéos, notes et morceaux pour fixer la direction sonore avant de composer.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
       <span><strong>Carte musicale interactive</strong><span class="desc">Une carte de niveau où la musique change de zone en zone.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
       <span><strong>Tchat et commentaires horodatés</strong><span class="desc">Échangez et commentez directement sur la musique, à l'instant précis.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span>
       <span><strong>Vitrines</strong><span class="desc">Créez autant de vitrines que vous voulez pour votre jeu. Personnalisez-les selon les éditeurs ou les types de publics. Ajoutez-y de la musique interactive, mais aussi des vidéos, de l'artwork et, bien sûr… votre lien Steam !</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></span>
       <span><strong>Versioning vidéo</strong><span class="desc">En quelques clics, envoyez à votre client plusieurs musiques différentes sur une vidéo de gameplay.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
       <span><strong>Annuaire des compositeurs</strong><span class="desc">Les studios vous trouvent et vous écoutent en un clic.</span></span>
     </li>
@@ -353,11 +360,11 @@
 <section class="block wrap">
   <span class="eyebrow">Vendre</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1"/></svg></span>
       <span><strong>Vente d'assets audio</strong><span class="desc">Pour les plus petits budgets… Proposez vos packs de musique et de sfx avec une page d'écoute partageable par un simple lien.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></span>
       <span><strong>Vente d'OST interactives</strong><span class="desc">Les vraies OST originales de vos jeux, dans leur version interactive. Une fois le jeu sorti, valorisez sa musique et vendez-la en album.</span></span>
     </li>

@@ -136,7 +136,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -146,6 +146,13 @@
   .feature-icon svg { width: 16px; height: 16px; }
   ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
   ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+  /* Cartes compactes : le titre seul au repos, le détail se déploie au survol ou au clavier ; sur écran tactile (pas de survol), tout reste affiché. */
+  ul.features li { transition: border-color .15s, box-shadow .15s; }
+  ul.features li span.desc { display: block; max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+  ul.features li:hover span.desc, ul.features li:focus-within span.desc, ul.features li:focus span.desc { max-height: 260px; opacity: 1; margin-top: 4px; }
+  ul.features li:hover, ul.features li:focus-within, ul.features li:focus { border-color: var(--accent); box-shadow: var(--shadow-card); outline: none; }
+  @media (hover: none) { ul.features li span.desc { max-height: none; opacity: 1; margin-top: 4px; } }
+  @media (prefers-reduced-motion: reduce) { ul.features li, ul.features li span.desc { transition: none; } }
 
   .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
   .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
@@ -286,31 +293,31 @@
 <section class="block wrap">
   <span class="eyebrow">What changes</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
       <span><strong>A shared Moodboard</strong><span class="desc">Gather references, images, videos, notes and tracks, and build the sound direction with your composer or sound designer before production. A clear line from the start means fewer revisions later.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
       <span><strong>An interactive music map</strong><span class="desc">In a few clicks, build your level, drop music into each element and take a walk through it. The player's musical journey has never been this easy to design.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>
       <span><strong>Showcases</strong><span class="desc">Create as many showcases as you want for your game. Customize them for each publisher or type of audience. Add interactive music, but also videos, artwork and, of course… your Steam link!</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6M21 19c0-2-1.5-3.6-4-4.5"/></svg></span>
       <span><strong>Collaborators, in one place</strong><span class="desc">Invite composers, sound designers and team members into the Project: discussion, notes on tracks and videos, centralized files. No more hunting for the latest version.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></span>
       <span><strong>Test without shipping a build</strong><span class="desc">Video versioning lets you quickly try which music, triggers and SFX work on the level you just built. No more sharing a build for every test.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11L21 7H6"/></svg></span>
       <span><strong>No budget? Buy the music for your game</strong><span class="desc">Buy packs of audio assets and interactive music, and talk directly with the composer.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3"/></svg></span>
       <span><strong>Make the most of your OST</strong><span class="desc">Did you work with a composer on an original OST? Showcase it and sell it in its adaptive form.</span></span>
     </li>
