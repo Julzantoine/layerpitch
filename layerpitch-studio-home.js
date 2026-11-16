@@ -143,6 +143,7 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
   let inboxItems = null, inboxWired = false, mailAll = false;
   let activity = { state: 'idle', visits: 0, hasVitrine: false };
   let learnOpen = false;
+  let montages = null, credits = null; // 3 derniers montages vidéo du studio, solde de crédits (idées reprises de l'Accueil du 14/11)
 
   const client = () => window.LayerPitchSupabaseClient.getClient();
   const PJ = () => window.LayerPitchProjects;
@@ -185,6 +186,17 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
     } catch (e) { projects = []; }
     projectsLoaded = true;
     if (!chat.projectId || !projects.some(p => p.id === chat.projectId)) chat.projectId = projects.length ? projects[0].id : null;
+  }
+  async function loadExtras() {
+    try {
+      const [caps, cred] = await Promise.all([
+        Promise.resolve(client().rpc('list_my_video_captures', { p_pack_id: null, p_studio: true })).catch(() => ({})),
+        Promise.resolve(window.LayerPitchStudio ? window.LayerPitchStudio.myCredits() : {}).catch(() => ({})),
+      ]);
+      montages = (caps.data || []).slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 3);
+      credits = cred.credits || null;
+    } catch (e) { montages = montages || []; }
+    render();
   }
   async function loadChat() {
     chat.loaded = false; chat.messages = []; chat.error = '';
@@ -242,7 +254,7 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
     const map = p ? projUrl(p.id, 'map') : 'projets.html?lang=' + ctx.lang;
     const tasks = p ? projUrl(p.id, 'tasks') : null;
     const learnPop = learnOpen ? `<div class="home-learn-pop" role="dialog" aria-label="${esc(tr('home_learnTitle'))}"><div class="home-learn-head"><strong>${esc(tr('home_learnTitle'))}</strong><button class="home-x" type="button" data-act="learn-close" aria-label="${esc(tr('home_learnClose'))}">×</button></div>${learnRows()}</div>` : '';
-    const body = `<div class="home-choices">${go('projets.html?lang=' + ctx.lang, 'home_doCreate')}${go('projets.html?lang=' + ctx.lang, 'home_doResume')}${go(board, 'home_doBoard')}${go(map, 'home_doMap')}${tasks ? go(tasks, 'home_doTasks') : ''}${go('studio.html?tab=video&lang=' + ctx.lang, 'home_doVideo')}<span class="home-learn-wrap"><button class="btn" type="button" data-act="learn" aria-haspopup="true" aria-expanded="${learnOpen}">${esc(tr('home_doLearn'))}</button>${learnPop}</span></div>`;
+    const body = `<div class="home-choices">${go('projets.html?lang=' + ctx.lang, 'home_doCreate')}${go('projets.html?lang=' + ctx.lang, 'home_doResume')}${go(board, 'home_doBoard')}${go(map, 'home_doMap')}${tasks ? go(tasks, 'home_doTasks') : ''}${go('studio.html?tab=video&lang=' + ctx.lang, 'home_doVideo')}${go('shop.html?tab=assets&lang=' + ctx.lang, 'home_doCatalog')}${go('studio.html?tab=library&lang=' + ctx.lang, 'home_doLibrary')}${go('studio.html?tab=custom&lang=' + ctx.lang, 'home_doCustom')}${go('studio.html?tab=team&lang=' + ctx.lang, 'home_doTeam')}${ctx.flags && ctx.flags.sell_albums ? go('studio.html?tab=albums&lang=' + ctx.lang, 'home_doAlbums') : ''}<span class="home-learn-wrap"><button class="btn" type="button" data-act="learn" aria-haspopup="true" aria-expanded="${learnOpen}">${esc(tr('home_doLearn'))}</button>${learnPop}</span></div>`;
     return `<section class="home-question${isCollapsed('home-question') ? ' is-collapsed' : ''}"><div class="home-card-head"><h2>${esc(tr('home_question'))}</h2>${foldBtn('home-question')}</div><div class="home-card-body">${body}</div></section>`;
   }
   function learnRows() {
@@ -292,14 +304,18 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
     return card('home-mail', tr('home_mailTitle'), (rows || `<div class="home-empty">${esc(tr('home_mailEmpty'))}</div>`) + more, extra, 'home-mail');
   }
   function continueHtml() {
-    const rows = projects.slice(0, 3).map(p => `<a class="home-recent-item" href="${esc(projUrl(p.id))}"><span class="home-recent-ico" aria-hidden="true">▦</span><span class="home-recent-title">${esc(p.title)}</span><small>${esc(tr('home_kindProject'))}</small></a>`).join('');
+    // Les 3 derniers éléments touchés : projets (dernier message ou modification) et montages vidéo, du plus récent au plus ancien.
+    const items = projects.map(p => ({ at: p.lastAt || p.updatedAt, html: `<a class="home-recent-item" href="${esc(projUrl(p.id))}"><span class="home-recent-ico" aria-hidden="true">▦</span><span class="home-recent-title">${esc(p.title)}</span><small>${esc(tr('home_kindProject'))}</small></a>` }))
+      .concat((montages || []).map(c => ({ at: c.updatedAt, html: `<button type="button" class="home-recent-item" data-montage="${esc(c.id)}" data-pack="${esc(c.packId)}"><span class="home-recent-ico" aria-hidden="true">▶</span><span class="home-recent-title">${esc(c.title || tr('sv_untitled'))}</span><small>${esc(tr('home_kindMontage'))}</small></button>` })))
+      .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 3);
+    const rows = items.map(i => i.html).join('');
     return card('home-continue', tr('home_continueTitle'), rows ? `<div class="home-recent">${rows}</div>` : `<div class="home-empty">${esc(tr('home_continueEmpty'))}</div>`);
   }
   function teamHtml() {
     const t = ctx.team;
     const used = t && Array.isArray(t.members) ? 1 + t.members.length : 0;
     const body = `<div class="home-quick-row"><span><b>${esc(tr('home_teamPlan'))}</b><small>${esc(ctx.planName || '')}</small></span></div>
-      <div class="home-quick-row"><span><b>${esc(tr('home_teamMembers'))}</b><small>${used ? esc(tr('home_teamCount', { used, max: t.quota == null ? '∞' : t.quota })) : esc(tr('home_teamNone'))}</small></span></div>
+      ${credits ? `<div class="home-quick-row"><span><b>${esc(tr('home_teamCredits'))}</b><small>${esc(tr('home_teamCreditsN', { n: credits.balance }))}</small></span></div>` : ''}<div class="home-quick-row"><span><b>${esc(tr('home_teamMembers'))}</b><small>${used ? esc(tr('home_teamCount', { used, max: t.quota == null ? '∞' : t.quota })) : esc(tr('home_teamNone'))}</small></span></div>
       <div class="home-actions-row"><a class="btn" href="studio.html?tab=team&lang=${ctx.lang}">${esc(tr('home_teamInvite'))}</a><a class="btn" href="studio.html?tab=plan&lang=${ctx.lang}">${esc(tr('home_teamPlanOpen'))}</a></div>`;
     return card('home-team', tr('home_teamTitle'), body);
   }
@@ -350,6 +366,8 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
   function wire() {
     root.addEventListener('click', e => {
       const fold = e.target.closest('[data-fold]'); if (fold) return toggleCollapse(fold.dataset.fold);
+      const montage = e.target.closest('[data-montage]');
+      if (montage) { if (ctx.onOpenMontage) ctx.onOpenMontage(montage.dataset.pack, montage.dataset.montage); return; }
       const theme = e.target.closest('[data-theme]'); if (theme) { window.LayerPitchAppearance.setTheme(theme.dataset.theme); return; }
       const act = e.target.closest('[data-act]');
       if (act) {
@@ -394,6 +412,7 @@ body.lp-help-off #panel:not(.home-root) .hint { display: none; }
     await loadProjects(); render();
     await loadChat(); render();
     loadActivity();
+    loadExtras();
   }
   function unmount() { if (root) root.classList.remove('home-root'); }
   // L'aide coupée vaut pour tout l'espace studio : appelée au chargement de la page, sans afficher l'Accueil.
