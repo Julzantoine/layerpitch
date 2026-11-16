@@ -56,12 +56,14 @@ async function init() {
     if (pack.watermark) {
       const watermarkEl = document.createElement('div');
       watermarkEl.className = 'pack-watermark';
-      watermarkEl.style.backgroundImage = `url('${/^(blob:|data:)/.test(pack.watermark) ? pack.watermark : IMAGES_BASE + pack.watermark}')`;
+      // Sécurité (audit 16/11, B1) : JSON.stringify met l'adresse entre guillemets doubles et échappe `"` et `\` — un
+      // nom d'image ne peut plus sortir de url(…).
+      watermarkEl.style.backgroundImage = `url(${JSON.stringify(/^(blob:|data:)/.test(pack.watermark) ? pack.watermark : IMAGES_BASE + pack.watermark)})`;
       document.body.prepend(watermarkEl);
     }
     container.innerHTML = `
       <div class="pub-section">
-        ${pack.illustration ? `<img class="pack-illustration" src="${/^(blob:|data:)/.test(pack.illustration) ? pack.illustration : IMAGES_BASE + pack.illustration}" alt="">` : `<div class="pack-illustration empty"></div>`}
+        ${pack.illustration ? `<img class="pack-illustration" src="${escapeHtml(/^(blob:|data:)/.test(pack.illustration) ? pack.illustration : IMAGES_BASE + pack.illustration)}" alt="">` : `<div class="pack-illustration empty"></div>`}
         <div class="pack-title">${escapeHtml(pack.title)}</div>
         <div class="pack-presentation">${pickBilingualText(pack.presentationFr, pack.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
       </div>

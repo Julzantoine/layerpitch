@@ -47,7 +47,7 @@ function applyBlockAppearance(el, block, customFonts) {
     while (el.firstChild) inner.appendChild(el.firstChild);
     const bgLayer = document.createElement('div');
     const opacity = (ov.bgImageOpacity != null) ? ov.bgImageOpacity : 1;
-    bgLayer.style.cssText = `position:absolute;inset:0;background-image:url('${resolveImageUrl(ov.bgImage)}');background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
+    bgLayer.style.cssText = `position:absolute;inset:0;background-image:${reelCssUrl(resolveImageUrl(ov.bgImage))};background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
     el.style.position = 'relative';
     el.style.overflow = 'hidden';
     if (!ov.bgColor) { el.style.borderRadius = '10px'; el.style.padding = '28px'; el.style.margin = '12px 0'; }
