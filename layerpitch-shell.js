@@ -626,6 +626,10 @@
       try { sessionStorage.setItem(RESUME_FLAG, '1'); } catch (e) { /* stockage indisponible */ }
       const lastFile = last && last.url ? last.url.split('?')[0] : null;
       const plainEntry = ENTRY_PAGES.includes(file) && !Array.from(params.keys()).some(k => k !== 'lang');
+      // Compte studio sans profil compositeur arrivé sur le Backstage compositeur : renvoi vers l'espace Studio.
+      if (file === 'layerpitch-backstage.html' && plainEntry && window.LayerPitchAuth.getMyLandingSpace) {
+        window.LayerPitchAuth.getMyLandingSpace().then(sp => { if (sp === 'studio') location.replace('studio.html?tab=home' + (params.get('lang') ? '&lang=' + params.get('lang') : '')); }).catch(() => {});
+      }
       if (!done && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
         location.replace(last.url);
         return;
