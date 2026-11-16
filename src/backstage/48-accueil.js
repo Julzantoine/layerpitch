@@ -261,6 +261,9 @@ function homeNewsHtml() {
     : `<div class="home-empty">${escapeHtml(tr('homeNewsEmpty'))}</div>`;
   return homeCard('home-news', tr('homeNewsTitle'), body);
 }
+// Cartes de l'Accueil que la personne peut masquer (« Personnaliser la page d'accueil ») ; Réglages rapides reste toujours là.
+const HOME_CARDS = [['question', 'homeQuestion'], ['mail', 'homeMailTitle'], ['continue', 'homeContinueTitle'], ['essentials', 'homeEssentialsTitle'], ['activity', 'homeActivityTitle'], ['news', 'homeNewsTitle']];
+function homeCardOn(id) { return !((homePrefs && homePrefs.home_cards_hidden) || []).includes(id); }
 function homeQuickHtml() {
   const dark = window.LayerPitchAppearance && window.LayerPitchAppearance.getTheme() === 'dark';
   const helpOn = !(homePrefs && homePrefs.help_off);
@@ -269,7 +272,8 @@ function homeQuickHtml() {
   const uiAdv = !!(homePrefs && homePrefs.ui_advanced);
   const uiLevel = flagOpen('simple_advanced_ui') && !isTutoMode() ? `<div class="home-quick-row"><span><b>${escapeHtml(tr('uiLevelTitle'))}</b><small>${escapeHtml(tr('uiLevelHint'))}</small></span><span class="home-seg"><button type="button" data-home-ui="simple" class="${uiAdv ? '' : 'on'}">${escapeHtml(tr('uiLevelSimple'))}</button><button type="button" data-home-ui="advanced" class="${uiAdv ? 'on' : ''}">${escapeHtml(tr('uiLevelAdvanced'))}</button></span></div>` : '';
   const body = `<label class="home-quick-row"><span><b>${escapeHtml(tr('homeQuickHelp'))}</b><small>${escapeHtml(tr('homeQuickHelpHint'))}</small></span><input type="checkbox" id="homeHelpToggle" ${helpOn ? 'checked' : ''}></label>${uiLevel}${theme}
-    <details class="home-menu"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
+    <details class="home-menu home-cards-pick"><summary>${escapeHtml(tr('homeQuickCards'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickCardsHint'))}</small>${HOME_CARDS.map(c => `<label class="home-menu-row"><input type="checkbox" data-home-card="${c[0]}" ${homeCardOn(c[0]) ? 'checked' : ''}> ${escapeHtml(tr(c[1]))}</label>`).join('')}</details>
+    <details class="home-menu home-menu-side"><summary>${escapeHtml(tr('homeQuickMenu'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMenuHint'))}</small>${homeMenuEntries().map(e => `<label class="home-menu-row"><input type="checkbox" data-home-menu="${escapeAttr(e.key)}" ${((homePrefs && homePrefs.menu_hidden) || []).includes(e.key) ? '' : 'checked'}> ${escapeHtml(e.label)}</label>`).join('')}</details>
     <details class="home-more"><summary>${escapeHtml(tr('homeQuickMore'))}</summary><small class="home-more-hint">${escapeHtml(tr('homeQuickMoreHint'))}</small><div id="homeMoreHost"></div></details>`;
   return homeCard('home-quick', tr('homeQuickTitle'), body);
 }
@@ -278,17 +282,16 @@ function renderHome() {
   if (!root || !homeOpen()) return;
   if (!homePrefs) homePrefs = Object.assign({}, homeLocalPrefs());
   const moreOpen = !!(root.querySelector('.home-more') && root.querySelector('.home-more').open);
-  const menuOpen = !!(root.querySelector('.home-menu') && root.querySelector('.home-menu').open);
+  const openMenus = [...root.querySelectorAll('.home-menu')].map(d => d.open);
   root.innerHTML = `<header class="home-greeting"><h2>${escapeHtml(tr('homeGreeting'))}</h2></header>
-    ${homeRemindersHtml()}${homeQuestionHtml()}${homeMailHtml()}
-    <div class="home-cards">${homeContinueHtml()}${homeEssentialsHtml()}${homeActivityHtml()}${homeNewsHtml()}${homeQuickHtml()}</div>`;
+    ${homeRemindersHtml()}${homeCardOn('question') ? homeQuestionHtml() : ''}${homeCardOn('mail') ? homeMailHtml() : ''}
+    <div class="home-cards">${homeCardOn('continue') ? homeContinueHtml() : ''}${homeCardOn('essentials') ? homeEssentialsHtml() : ''}${homeCardOn('activity') ? homeActivityHtml() : ''}${homeCardOn('news') ? homeNewsHtml() : ''}${homeQuickHtml()}</div>`;
   // Le panneau « Apparence du backstage » (fond, filigrane) vit ici désormais : on le replace dans la carte Réglages rapides.
   const host = document.getElementById('homeMoreHost');
   if (host && homeAppearanceHost) host.appendChild(homeAppearanceHost);
   const more = root.querySelector('.home-more');
   if (more && moreOpen) more.open = true;
-  const menuBox = root.querySelector('.home-menu');
-  if (menuBox && menuOpen) menuBox.open = true;
+  root.querySelectorAll('.home-menu').forEach((d, i) => { if (openMenus[i]) d.open = true; });
   applyHomeMenu();
 }
 
@@ -368,6 +371,11 @@ function homeDo(act) {
     }
   });
   root.addEventListener('change', e => {
+    if (e.target.dataset && e.target.dataset.homeCard) {
+      const hidden = new Set((homePrefs && homePrefs.home_cards_hidden) || []);
+      if (e.target.checked) hidden.delete(e.target.dataset.homeCard); else hidden.add(e.target.dataset.homeCard);
+      homeSavePrefs({ home_cards_hidden: [...hidden] }).then(() => renderHome()); return;
+    }
     if (e.target.dataset && e.target.dataset.homeMenu) {
       const hidden = new Set((homePrefs && homePrefs.menu_hidden) || []);
       if (e.target.checked) hidden.delete(e.target.dataset.homeMenu); else hidden.add(e.target.dataset.homeMenu);

@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794816943161">
-<link rel="stylesheet" href="player.css?v=1794816943161">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794821977550">
+<link rel="stylesheet" href="player.css?v=1794821977550">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794816943161"></script>
-<script src="layerpitch-notify.js?v=1794816943161"></script>
-<script src="player.js?v=1794816943161"></script>
-<script src="api/supabase-client.js?v=1794816943161"></script>
-<script src="api/auth.js?v=1794816943161"></script>
-<script src="layerpitch-appearance.js?v=1794816943161"></script>
-<script src="layerpitch-font-picker.js?v=1794816943161"></script>
-<script src="layerpitch-shell.js?v=1794816943161"></script>
-<script src="api/tracks.js?v=1794816943161"></script>
-<script src="api/packs.js?v=1794816943161"></script>
-<script src="api/albums.js?v=1794816943161"></script>
-<script src="api/studio.js?v=1794816943161"></script>
-<script src="api/adreels.js?v=1794816943161"></script>
-<script src="api/demo-client.js?v=1794816943161"></script>
-<script src="api/demo-projects.js?v=1794816943161"></script>
-<script src="layerpitch-tuto.js?v=1794816943161"></script>
-<script src="layerpitch-guide.js?v=1794816943161"></script>
-<script src="layerpitch-lesson-previews.js?v=1794816943161"></script>
-<script src="projet-lecons.js?v=1794816943161"></script>
-<script src="layerpitch-video-versions.js?v=1794816943161"></script>
-<script src="api/projects.js?v=1794816943161"></script>
-<script src="api/sfx.js?v=1794816943161"></script>
-<script src="projet-carte-audio.js?v=1794816943161"></script>
-<script src="projet-carte.js?v=1794816943161"></script>
+<script src="layerpitch-i18n.js?v=1794821977550"></script>
+<script src="layerpitch-notify.js?v=1794821977550"></script>
+<script src="player.js?v=1794821977550"></script>
+<script src="api/supabase-client.js?v=1794821977550"></script>
+<script src="api/auth.js?v=1794821977550"></script>
+<script src="layerpitch-appearance.js?v=1794821977550"></script>
+<script src="layerpitch-font-picker.js?v=1794821977550"></script>
+<script src="layerpitch-shell.js?v=1794821977550"></script>
+<script src="api/tracks.js?v=1794821977550"></script>
+<script src="api/packs.js?v=1794821977550"></script>
+<script src="api/albums.js?v=1794821977550"></script>
+<script src="api/studio.js?v=1794821977550"></script>
+<script src="api/adreels.js?v=1794821977550"></script>
+<script src="api/demo-client.js?v=1794821977550"></script>
+<script src="api/demo-projects.js?v=1794821977550"></script>
+<script src="layerpitch-tuto.js?v=1794821977550"></script>
+<script src="layerpitch-guide.js?v=1794821977550"></script>
+<script src="layerpitch-lesson-previews.js?v=1794821977550"></script>
+<script src="projet-lecons.js?v=1794821977550"></script>
+<script src="layerpitch-video-versions.js?v=1794821977550"></script>
+<script src="api/projects.js?v=1794821977550"></script>
+<script src="api/sfx.js?v=1794821977550"></script>
+<script src="projet-carte-audio.js?v=1794821977550"></script>
+<script src="projet-carte.js?v=1794821977550"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -290,6 +290,8 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // « Détacher » depuis l'onglet Carte ; pratique sur un deuxième écran). L'onglet d'origine attend qu'elle se ferme.
 const SOLO_MAP = params.get('solo') === 'map' && !DEMO && !TUTO;
 if (SOLO_MAP) { S.tab = 'map'; S.openMapId = params.get('map') || null; document.body.classList.add('solo-map'); }
+// Onglet demandé par l'adresse (?tab=map…) : l'Accueil de l'espace studio y mène directement. Un onglet absent pour ce compte (ex. Tâches fermé) retombe sur le Moodboard.
+if (!SOLO_MAP && ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members'].includes(params.get('tab'))) S.tab = params.get('tab');
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
 const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
@@ -888,6 +890,7 @@ advObserver = new MutationObserver(() => { if (!S.uiSimple || advRaf) return; ad
 function render() {
   const p = S.project;
   if (SOLO_MAP) { content.innerHTML = `<div id="panel" style="min-width:0"></div>`; renderPanel(); return; }
+  if (!visibleTabs().includes(S.tab)) S.tab = 'board'; // onglet demandé mais absent pour ce compte
   content.innerHTML = `
     ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
     ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}

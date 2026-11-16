@@ -93,6 +93,17 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   doc.querySelector('[data-home-menu="library"]').checked = true; doc.querySelector('[data-home-menu="library"]').dispatchEvent(new window.Event('change', { bubbles: true }));
   check('menu : recochée = de retour', !doc.querySelector('.nav-item[data-tab="library"]').classList.contains('nav-user-hidden'));
 
+  // Personnaliser la page d'accueil : cartes masquables, Réglages rapides toujours là.
+  ev("openTab('home');"); await wait();
+  check('cartes : Continuer visible par défaut', !!root().querySelector('.home-continue'));
+  const cardBox = root().querySelector('[data-home-card="continue"]');
+  check('cartes : une case par carte (6), pas pour Réglages rapides', root().querySelectorAll('[data-home-card]').length === 6 && !root().querySelector('[data-home-card="quick"]'));
+  cardBox.checked = false; cardBox.dispatchEvent(new window.Event('change', { bubbles: true })); await wait(60);
+  check('cartes : carte décochée = masquée', !root().querySelector('.home-continue') && !!root().querySelector('.home-quick'));
+  check('cartes : retenu (home_cards_hidden)', JSON.parse(window.localStorage.getItem('lp_home_prefs_v1')).home_cards_hidden.includes('continue'));
+  root().querySelector('[data-home-card="continue"]').checked = true; root().querySelector('[data-home-card="continue"]').dispatchEvent(new window.Event('change', { bubbles: true })); await wait(60);
+  check('cartes : recochée = de retour', !!root().querySelector('.home-continue'));
+
   // Continuer.
   ev("library = [{ id: 't1', title: 'Mon morceau' }]; manageLibrarySelectedId = 't1'; openTab('library'); openTab('home');");
   check('Continuer : le morceau touché est proposé', /Mon morceau/.test(txt()));
