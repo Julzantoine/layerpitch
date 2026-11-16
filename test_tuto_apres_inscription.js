@@ -14,7 +14,7 @@ for (const [file, lang] of Object.entries(pages)) {
 const fn = fs.readFileSync('supabase/functions/submit-access-request/index.ts', 'utf8');
 check('mail : emplacement du tutoriel présent en français et en anglais', (fn.match(/\{\{TUTORIAL\}\}/g) || []).length === 3); // 2 gabarits + le remplacement
 check('mail : tutoriel dans les deux langues', /&amp;lang=fr/.test(fn) && /&amp;lang=en/.test(fn));
-check('mail : pas de tutoriel pour un studio ni depuis le tutoriel', /offerTutorial = v_intent !== 'studio' && !\(v_message && v_message\.startsWith\('Depuis le tutoriel'\)\)/.test(fn));
+check('mail : tutoriel Backstage pour un compositeur, tutoriel Projet pour un studio, aucun depuis le tutoriel', /fromTutorial \? null : \(v_intent === 'studio' \? 'studio' : 'composer'\)/.test(fn) && /projet\.html\?tuto/.test(fn) && (fn.match(/&amp;lang=fr/g) || []).length === 2);
 const guide = fs.readFileSync('layerpitch-guide.js', 'utf8');
 check('mail : le préfixe attendu est bien celui envoyé par le tutoriel', guide.includes("message: 'Depuis le tutoriel"));
 

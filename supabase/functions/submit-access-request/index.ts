@@ -50,14 +50,22 @@ function htmlToText(html: string): string {
     .split('\n').map((l) => l.trim()).join('\n').trim();
 }
 
-// Proposition du tutoriel public (30/10), ajoutée au mail : sans objet pour un studio (les leçons publiques parlent de la musique du
-// compositeur) ni pour qui nous écrit depuis le tutoriel lui-même.
+// Proposition du tutoriel public (30/10), ajoutée au mail : le compositeur reçoit le tutoriel du Backstage ; le studio reçoit le tutoriel
+// du Projet (16/11, les leçons du Backstage parlent de la musique du compositeur) ; personne si la demande vient du tutoriel lui-même.
 const TUTORIAL_URL = 'https://beta.layerpitch.com/layerpitch-backstage.html?tuto';
 const TUTORIAL_COPY: Record<string, string> = {
   fr: `<p>En attendant, tu peux déjà essayer LayerPitch : le tutoriel interactif te guide pas à pas, sans compte et avec des morceaux d'exemple.</p>
         <p><a href="${TUTORIAL_URL}&amp;lang=fr" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Faire le tutoriel</a></p>`,
   en: `<p>In the meantime, you can already try LayerPitch: the interactive tutorial guides you step by step, with no account and with sample tracks.</p>
         <p><a href="${TUTORIAL_URL}&amp;lang=en" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Try the tutorial</a></p>`,
+};
+
+const PROJECT_TUTORIAL_URL = 'https://beta.layerpitch.com/projet.html?tuto';
+const PROJECT_TUTORIAL_COPY: Record<string, string> = {
+  fr: `<p>En attendant, tu peux déjà essayer l'espace Projet : le tutoriel interactif te guide pas à pas sur un projet d'exemple, sans compte.</p>
+        <p><a href="${PROJECT_TUTORIAL_URL}&amp;lang=fr" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Faire le tutoriel Projet</a></p>`,
+  en: `<p>In the meantime, you can already try the Project space: the interactive tutorial guides you step by step on a sample project, with no account.</p>
+        <p><a href="${PROJECT_TUTORIAL_URL}&amp;lang=en" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2f6fe0;color:#ffffff;font-weight:600;text-decoration:none;">Try the Project tutorial</a></p>`,
 };
 
 const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
@@ -81,7 +89,7 @@ const CONFIRMATION_COPY: Record<string, { subject: string; html: string }> = {
   },
 };
 
-async function sendConfirmationEmail(to: string, lang: string, offerTutorial: boolean) {
+async function sendConfirmationEmail(to: string, lang: string, tutorial: 'composer' | 'studio' | null) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const fromAddress = Deno.env.get('RESEND_FROM_ADDRESS');
   if (!apiKey || !fromAddress) {
@@ -91,7 +99,7 @@ async function sendConfirmationEmail(to: string, lang: string, offerTutorial: bo
     return { ok: false, error: 'Secrets Resend non configurés côté Supabase.' };
   }
   const copy = CONFIRMATION_COPY[lang] || CONFIRMATION_COPY.fr;
-  const html = copy.html.replace('{{TUTORIAL}}', offerTutorial ? (TUTORIAL_COPY[lang] || TUTORIAL_COPY.fr) : '');
+  const html = copy.html.replace('{{TUTORIAL}}', tutorial === 'composer' ? (TUTORIAL_COPY[lang] || TUTORIAL_COPY.fr) : tutorial === 'studio' ? (PROJECT_TUTORIAL_COPY[lang] || PROJECT_TUTORIAL_COPY.fr) : '');
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -214,8 +222,8 @@ Deno.serve(async (req) => {
     // Envoyé après l'insertion réussie : la demande est déjà en sécurité côté LayerPitch même si
     // l'email de confirmation échoue (secrets manquants, Resend indisponible) -- jamais perdre une
     // vraie demande pour un souci d'email de courtoisie.
-    const offerTutorial = v_intent !== 'studio' && !(v_message && v_message.startsWith('Depuis le tutoriel'));
-    const emailResult = await sendConfirmationEmail(v_email, v_lang, offerTutorial);
+    const fromTutorial = !!(v_message && v_message.startsWith('Depuis le tutoriel'));
+    const emailResult = await sendConfirmationEmail(v_email, v_lang, fromTutorial ? null : (v_intent === 'studio' ? 'studio' : 'composer'));
     if (!emailResult.ok) {
       console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
     }
