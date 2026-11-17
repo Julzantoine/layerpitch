@@ -381,6 +381,9 @@
     const out = {}, name = String((o && o.altName) || '').trim().slice(0, 60), tr0 = cleanRef(o && o.altTransition);
     if (name) out.altName = name;
     if (tr0) out.altTransition = tr0;
+    // Couche du morceau à couches entendue ici (1, 2, 3…) : la musique continue, seule la couche change. Absent = automatique.
+    const layer = Math.round(Number(o && o.layer));
+    if (layer >= 1 && layer <= 16) out.layer = layer;
     return out;
   }
   // Sous-carte (link) et rayon du cercle de proximité (radius, éléments seulement) : gardés seulement s'ils existent.
@@ -549,6 +552,8 @@
       .lm-now .btn.pending { outline: 2px dashed var(--accent); outline-offset: 1px; }
       .lm-slot { border: 1px dashed var(--border); border-radius: 8px; padding: 8px; margin: 6px 0; } .lm-slot.drop { border-color: var(--accent); background: var(--accent-soft); }
       .lm-slot h4 { margin: 0 0 4px; font-size: 12px; color: var(--text-dim); font-weight: 600; }
+      .lm-folder-head { display: flex; align-items: center; gap: 4px; width: 100%; background: none; border: 0; padding: 5px 2px; margin-top: 4px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text); cursor: pointer; text-align: left; } .lm-folder-head .meta { margin-left: auto; font-weight: 400; }
+      .lm-folder-body { margin-left: 10px; }
       .lm-tabs { display: flex; gap: 4px; margin: 6px 0; } .lm-tabs button { flex: 1; font-size: 11.5px; padding: 4px 6px; }
       .lm-node.here .lm-shape { stroke: var(--accent); stroke-width: 5; } .lm-edge.here .lm-line { stroke: var(--accent); stroke-width: 4.5; }
       .lm-canvas.playing { cursor: pointer; } .lm-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1227,6 +1232,7 @@
           ${ctx.canEdit ? `<button class="btn" type="button" id="lmAltRemove">${esc(tr('map_altRemove'))}</button>` : ''}</div>`;
       } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0;font-size:12px;padding:4px 10px;width:auto;border-style:dashed">＋ ${esc(tr('map_altAdd'))}</button>`;
       if (!isTrans) html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
+      if (!isTrans) html += `<label>${esc(tr('map_layerLabel'))}</label><select id="lmLayer"${dis}><option value="">${esc(tr('map_layerAuto'))}</option>${Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}"${item.layer === i + 1 ? ' selected' : ''}>${esc(tr('map_layerN', { n: i + 1 }))}</option>`).join('')}</select><p class="hint" style="margin:2px 0 8px">${esc(tr('map_layerHint'))}</p>`;
       html += transitionHtml(map, item);
       if (ctx.canEdit) html += `<div class="bar" style="margin-top:10px"><button class="btn danger" id="lmDeleteSel" type="button">${esc(tr(isEdge ? 'map_deleteEdge' : isZone ? 'map_deleteZone' : 'map_deleteNode'))}</button></div>`;
       box.innerHTML = html;
@@ -1234,6 +1240,7 @@
       on('#lmLabel', 'input', e => { item.label = e.target.value; touch(); drawCanvas(); });
       on('#lmNote', 'input', e => { item.note = e.target.value; touch(); });
       box.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { item.color = b.dataset.color; touch(); drawCanvas(); renderInspector(); });
+      on('#lmLayer', 'change', e => { const v = Math.round(Number(e.target.value)); if (v >= 1) item.layer = v; else delete item.layer; touch(); soundsChanged(null); });
       on('#lmKeep', 'change', e => { item.keepMusic = e.target.checked; touch(); drawCanvas(); });
       on('#lmRadius', 'input', e => { setRadius(map, item.id, e.target.value); e.target.previousElementSibling.textContent = tr('map_radius', { r: radiusOf(item) }); drawCanvas(); });
       on('#lmRadius', 'change', () => touch());
@@ -1649,12 +1656,25 @@
       if (!box) return;
       const libs = ctx.libraries || {};
       const kinds = ['track', 'sfx', 'asset'].filter(k => (libs[k] || []).length || k === st.libTab);
-      const list = (libs[st.libTab] || []).filter(x => !st.libQuery || (x.title || '').toLowerCase().includes(st.libQuery.toLowerCase()));
+      const q = (st.libQuery || '').toLowerCase();
+      const folders = ((libs.folders || {})[st.libTab]) || [];
+      const all = libs[st.libTab] || [];
+      const known = new Set(folders.map(f => f.id));
+      const matches = (x, label) => !q || (x.title || '').toLowerCase().includes(q) || (label || '').toLowerCase().includes(q);
+      // Dossiers repliables (comme dans le Backstage) : un dossier est ouvert si on le déplie, ou si la recherche y trouve quelque chose.
+      st.libOpen = st.libOpen || new Set();
+      const row = x => `<div class="lm-sound" draggable="${ctx.canEdit}" data-ref="${esc(JSON.stringify({ kind: x.kind || st.libTab, id: x.id, title: x.title }))}"><span>${(x.kind || st.libTab) === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(x.title)}">${esc(x.title)}</span>${x.hint ? `<span class="meta">${esc(x.hint)}</span>` : ''}</div>`;
+      const groups = folders.map(f => ({ f, items: all.filter(x => x.folderId === f.id && matches(x, f.label)) })).filter(g => g.items.length);
+      const loose = all.filter(x => (!x.folderId || !known.has(x.folderId)) && matches(x));
+      const total = groups.reduce((n, g) => n + g.items.length, 0) + loose.length;
+      const body = groups.map(g => `<div class="lm-folder"><button type="button" class="lm-folder-head" data-lf="${esc(g.f.id)}"><span>${(q || st.libOpen.has(g.f.id)) ? '▾' : '▸'}</span> 📁 ${esc(g.f.label || '')} <span class="meta">${g.items.length}</span></button>${(q || st.libOpen.has(g.f.id)) ? `<div class="lm-folder-body">${g.items.slice(0, 200).map(row).join('')}</div>` : ''}</div>`).join('')
+        + loose.slice(0, 200).map(row).join('');
       box.innerHTML = `<h2>${esc(tr('map_library'))}</h2><p class="hint">${esc(tr('map_libraryHint'))}</p>
         <div class="lm-tabs">${['track', 'sfx', 'asset'].map(k => `<button class="btn${st.libTab === k ? ' primary' : ''}" type="button" data-lt="${k}">${esc(tr('map_lib_' + k))}</button>`).join('')}</div>
         <input type="search" id="lmSearch" placeholder="${esc(tr('map_search'))}" value="${esc(st.libQuery)}">
-        ${list.length ? list.slice(0, 200).map(x => `<div class="lm-sound" draggable="${ctx.canEdit}" data-ref="${esc(JSON.stringify({ kind: st.libTab, id: x.id, title: x.title }))}"><span>${st.libTab === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(x.title)}">${esc(x.title)}</span>${x.hint ? `<span class="meta">${esc(x.hint)}</span>` : ''}</div>`).join('') : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
+        ${total ? body : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
       box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; renderLibrary(); });
+      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); });
       const search = box.querySelector('#lmSearch');
       search.oninput = () => { st.libQuery = search.value; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
       box.querySelectorAll('[data-ref]').forEach(el => {
