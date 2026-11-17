@@ -16,22 +16,26 @@
       music: ['Des morceaux adaptatifs', 'Lance un morceau : ce n’est pas un simple fichier audio. La musique réagit, avec des couches d’intensité que tu peux activer et couper en direct, comme dans un jeu.'],
       branch: ['Des parcours, pas seulement des boucles', 'Certains morceaux s’enchaînent par segments ou par embranchements : en le lançant, tu vois la carte des chemins et tu choisis où la musique part ensuite.'],
       sfx: ['Les bruitages', 'Chaque bruitage se déclenche d’un clic, et peut se jouer par-dessus la musique pour juger de l’ensemble.'],
-      packs: ['Les packs', 'Les morceaux et bruitages sont regroupés en packs, pour les retrouver ensemble.'],
-      video: ['Une vidéo, plusieurs musiques', 'Le compositeur montre son travail en situation, sur des images de jeu. Sous le lecteur, change de version : même vidéo, autre musique.'],
-      bio: ['Qui est derrière la musique', 'Une présentation du compositeur et de quoi le contacter.'],
-      end: ['À toi de jouer', 'Tu as fait le tour. Reviens sur les morceaux et essaie-les à ton rythme. Pour créer ton propre AdReel, demande une invitation sur layerpitch.com.'],
+      packs: ['Les packs', 'Regroupe des morceaux et des bruitages en packs pour les présenter de manière thématique. Tu peux aussi mettre tes packs d’assets audio en vente.'],
+      video: ['La musique sur des vidéos', 'Sur un même gameplay, propose à ton auditeur plusieurs musiques différentes. Il peut passer d’une version à l’autre et reste calé.'],
+      bio: ['Qui est derrière la musique', 'Ta bio, tes réseaux sociaux, ton site, des photos, de la vidéo… LayerPitch te permet d’afficher tous les types d’informations qui te permettront de convaincre un studio de bosser avec toi.'],
+      end: ['À toi de jouer', 'Tu as fait le tour. Tu peux continuer d’explorer ici ou accéder au tutoriel complet. Et si ça te branche, on recrute des bêta-testeurs ;)'],
       btn: 'Visite guidée',
+      bar: 'Ceci est un AdReel de démonstration : vous pouvez tout parcourir, mais rien ne se modifie ici.',
+      cta: 'Demander une invitation',
     },
     en: {
       intro: ['An AdReel: a composer’s page', 'This is the presentation page of a game composer: everything is playable, nothing can be changed. Let’s go through it.'],
       music: ['Adaptive tracks', 'Play a track: it is not a plain audio file. The music reacts, with intensity layers you can switch on and off live, like in a game.'],
       branch: ['Paths, not just loops', 'Some tracks chain through segments or branches: once it plays, you see the map of paths and choose where the music goes next.'],
       sfx: ['Sound effects', 'Each sound effect triggers with a click, and can play over the music so you can judge the whole.'],
-      packs: ['Packs', 'Tracks and sound effects are grouped into packs, to find them together.'],
-      video: ['One video, several scores', 'The composer shows the work in context, on game footage. Under the player, switch version: same video, different music.'],
-      bio: ['Who is behind the music', 'An introduction to the composer and how to get in touch.'],
-      end: ['Your turn', 'That is the tour. Go back to the tracks and try them at your own pace. To create your own AdReel, request an invitation on layerpitch.com.'],
+      packs: ['Packs', 'Group tracks and sound effects into packs to present them by theme. You can also put your audio asset packs up for sale.'],
+      video: ['Music on video', 'On the same gameplay, offer your listener several different pieces of music. They can switch from one version to another and stay in sync.'],
+      bio: ['Who is behind the music', 'Your bio, social networks, website, photos, video… LayerPitch lets you display every kind of information that will help convince a studio to work with you.'],
+      end: ['Your turn', 'That is the tour. You can keep exploring here or go through the full tutorial. And if you are up for it, we are recruiting beta testers ;)'],
       btn: 'Guided tour',
+      bar: 'This is a demo AdReel: you can browse everything, but nothing can be changed here.',
+      cta: 'Request an invitation',
     },
   }[lang];
   const I = window.LAYERPITCH_I18N || { fr: {}, en: {} };
@@ -59,13 +63,23 @@
   ];
   const start = () => G.open('tour', steps, 'section:adreel-demo-tour');
 
+  // Même barre que le Projet de démonstration : texte, « Visite guidée » et « Demander une invitation », en haut de la page.
   function addButton() {
-    if (document.getElementById('lpAdreelTourBtn')) return;
+    if (document.getElementById('lpAdreelDemoBar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'lpAdreelDemoBar';
+    bar.style.cssText = 'position:sticky;top:0;z-index:9000;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin:8px;padding:10px 14px;border-radius:10px;border:1px solid #2f80c0;background:#e6eef8;color:#1c2733;font:13px system-ui,sans-serif;';
+    const msg = document.createElement('span'); msg.textContent = T.bar;
+    const box = document.createElement('span'); box.style.cssText = 'display:inline-flex;gap:8px;flex-wrap:wrap;';
     const b = document.createElement('button');
     b.id = 'lpAdreelTourBtn'; b.type = 'button'; b.textContent = T.btn;
-    b.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:9000;padding:8px 14px;border-radius:20px;border:1px solid #2f80c0;background:#fff;color:#2f80c0;font:600 13px system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)';
+    b.style.cssText = 'padding:6px 14px;border-radius:20px;border:1px solid #d5dbe3;background:#fff;color:#1c2733;font:600 12px system-ui,sans-serif;cursor:pointer;';
     b.onclick = start;
-    document.body.appendChild(b);
+    const a = document.createElement('a');
+    a.href = 'https://layerpitch.com/'; a.textContent = T.cta;
+    a.style.cssText = 'padding:6px 14px;border-radius:20px;background:#2f80c0;color:#fff;font:600 12px system-ui,sans-serif;text-decoration:none;';
+    box.append(b, a); bar.append(msg, box);
+    document.body.insertBefore(bar, document.body.firstChild);
   }
   // Attend que les blocs soient dessinés et que le bandeau cookies soit réglé, puis lance la visite la première fois.
   async function boot() {
