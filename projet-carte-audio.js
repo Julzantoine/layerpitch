@@ -146,7 +146,7 @@
       const viaTr = viaNode ? model.resolveTransition(map, viaNode) : null;
       if (newKey === lastMusicKey && musicVoice) {
         st.music = want.ref; applyLayer(musicVoice, want.role, !want.layer);
-        if (viaTr && viaTr.stinger) load(viaTr.stinger).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
+        if (viaTr && viaTr.stinger) load(Object.assign({}, viaTr.stinger, { oneShot: true })).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
         notify(); return;
       } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
       let tr = viaTr || (want ? want.transition : model.resolveTransition(map, null));
@@ -179,7 +179,7 @@
         if (incoming) applyLayer(incoming, want && want.role); else st.layerLevel = null;
         const sec = Math.max(0, tr.sec || 0);
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
-        if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
+        if (tr.stinger) load(Object.assign({}, tr.stinger, { oneShot: true })).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
         musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && (incoming.sequenceCount || incoming.isReady)) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {
@@ -311,7 +311,7 @@
         if (!cache.has(key)) cache.set(key, env.mountTrackControl(spec.track));
         return cache.get(key);
       }
-      return bufferVoice(spec.url, spec.loop !== false);
+      return bufferVoice(spec.url, spec.loop !== false && !ref.oneShot); // une virgule de transition (stinger) se joue une seule fois
     };
   }
 

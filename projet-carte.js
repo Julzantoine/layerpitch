@@ -249,6 +249,16 @@
   function zonesAt(map, x, y) {
     return (map.zones || []).filter(z => zoneContains(z, x, y)).map(z => ({ z, a: zoneArea(z) })).sort((a, b) => a.a - b.a).map(o => o.z);
   }
+  // « Rester dans les zones » (carte à zones, option cochée) : le personnage ne peut pas quitter l'ensemble des zones. Un pas qui sortirait
+  // est ramené en glissant le long du bord (un axe à la fois), sinon le personnage reste où il est. Sans l'option, ou si le personnage est
+  // déjà hors de toute zone (carte modifiée sous ses pieds), rien n'est bloqué.
+  const inAnyZone = (map, x, y) => (map.zones || []).some(z => zoneContains(z, x, y));
+  function constrainToZones(map, from, to) {
+    if (!map || !map.stayInZones || !hasZones(map) || inAnyZone(map, to.x, to.y) || !inAnyZone(map, from.x, from.y)) return { x: to.x, y: to.y, blocked: false };
+    if (inAnyZone(map, to.x, from.y)) return { x: to.x, y: from.y, blocked: true };
+    if (inAnyZone(map, from.x, to.y)) return { x: from.x, y: to.y, blocked: true };
+    return { x: from.x, y: from.y, blocked: true };
+  }
   function moveZone(z, dx, dy) {
     if (z.shape === 'poly') z.points.forEach(p => { p.x = Math.round(p.x + dx); p.y = Math.round(p.y + dy); });
     else { z.x = Math.round(z.x + dx); z.y = Math.round(z.y + dy); }
@@ -431,6 +441,7 @@
     });
     map.roomTone = cleanRef(raw && raw.roomTone);
     if (raw && Number.isFinite(Number(raw.roomToneDb))) map.roomToneDb = Math.max(-60, Math.min(0, Number(raw.roomToneDb)));
+    if (raw && raw.stayInZones === true) map.stayInZones = true; // absent = la balade peut sortir des zones (cartes d'avant)
     map.roomDuckDb = raw && Number.isFinite(Number(raw.roomDuckDb)) ? Math.max(0, Math.min(40, Number(raw.roomDuckDb))) : 0; // baisse du fond quand une musique joue (0 = aucune)
     const dt = cleanTransition(raw && raw.defaults && raw.defaults.transition) || {};
     delete dt.stinger;
@@ -510,7 +521,7 @@
     // Monde ouvert et sous-cartes (27/10)
     ZONE_SHAPES, ZONE_COLORS, MODE_PRESETS, DEFAULT_RADIUS, DEFAULT_SPEED, targetOf, zoneById, modeById, addZone, addPolyZone, removeZone, zoneArea, zoneBounds, zoneCenter, zoneContains, zonesAt,
     moveZone, resizeZone, moveZonePoint, insertZonePoint, removeZonePoint, hasZones, hasCircle, radiusOf, setRadius, circlesAt, modesOf, addMode, nextModePreset, removeMode, speedOf,
-    governorAt, roomAt, setLink, linkAt, trailEnter };
+    governorAt, roomAt, setLink, linkAt, trailEnter, constrainToZones };
 
   // ---------------------------------------------------------------- Éditeur
   const STYLE_ID = 'lpLevelMapStyle';
@@ -1365,6 +1376,7 @@
           <div class="lm-row"><select id="lmDefStyle"${dis}>${optionsHtml(TRANSITION_STYLES, d.style, 'map_style_')}</select><input type="number" id="lmDefSec" min="0" max="30" step="0.5" value="${d.sec}"${dis} aria-label="${esc(tr('map_seconds'))}"> <span class="meta">${esc(tr('map_seconds'))}</span></div>
           <div class="lm-row" style="margin-top:6px"><select id="lmDefSync"${dis} aria-label="${esc(tr('map_sync'))}">${optionsHtml(SYNCS, d.sync, 'map_sync_')}</select></div>
           <p class="hint" style="margin-top:6px">${esc(tr('map_syncHint'))}</p></div></div>
+        ${hasZones(map) ? `<label class="choice" style="display:flex;gap:6px;align-items:flex-start;margin-top:12px"><input type="checkbox" id="lmStay" ${map.stayInZones ? 'checked' : ''}${dis} style="width:auto;margin-top:3px"> <span>${esc(tr('map_stayInZones'))}<span class="hint" style="display:block;margin:2px 0 0">${esc(tr('map_stayInZonesHint'))}</span></span></label>` : ''}
         <div class="lm-set" style="margin-top:12px">${backgroundSettingsHtml(map)}${modesSettingsHtml(map)}</div>`;
       wireOpenWorldSettings(box, map);
       if (!ctx.canEdit) return;
@@ -1384,6 +1396,8 @@
       db.oninput = () => { map.roomToneDb = Number(db.value); box.querySelector('#lmRoomDb').previousElementSibling.textContent = tr('map_roomToneDb', { db: map.roomToneDb }); if (audio) audio.refreshRoomLevel(); touch(); };
       const duck = box.querySelector('#lmRoomDuck');
       duck.oninput = () => { map.roomDuckDb = Number(duck.value); duck.previousElementSibling.textContent = tr('map_roomDuckDb', { db: map.roomDuckDb }); if (audio) audio.refreshRoomLevel(); touch(); };
+      const stay = box.querySelector('#lmStay');
+      if (stay) stay.onchange = () => { if (stay.checked) map.stayInZones = true; else delete map.stayInZones; touch(); };
       const setDef = (k, v) => { map.defaults.transition = Object.assign({}, map.defaults.transition, { [k]: v }); touch(); renderInspector(); };
       box.querySelector('#lmDefStyle').onchange = e => setDef('style', e.target.value);
       box.querySelector('#lmDefSec').onchange = e => setDef('sec', Math.max(0, Math.min(30, Number(e.target.value) || 0)));
@@ -1591,7 +1605,11 @@
         if (walkKeys.size) { if (walkKeys.has('up')) dy--; if (walkKeys.has('down')) dy++; if (walkKeys.has('left')) dx--; if (walkKeys.has('right')) dx++; }
         else if (st.dest) { dx = st.dest.x - a.x; dy = st.dest.y - a.y; const d = Math.hypot(dx, dy); if (d <= step) { a.x = st.dest.x; a.y = st.dest.y; st.dest = null; dx = dy = 0; drawCanvas(); } }
         const len = Math.hypot(dx, dy);
-        if (len) { a.x += (dx / len) * step; a.y += (dy / len) * step; }
+        if (len) {
+          const r = constrainToZones(map, a, { x: a.x + (dx / len) * step, y: a.y + (dy / len) * step });
+          a.x = r.x; a.y = r.y;
+          if (r.blocked && st.dest && Math.hypot(st.dest.x - a.x, st.dest.y - a.y) > 1) { const r2 = constrainToZones(map, a, { x: st.dest.x, y: st.dest.y }); if (r2.blocked && r2.x === a.x && r2.y === a.y) { st.dest = null; drawCanvas(); } }
+        }
         const el = host.querySelector('#lmAvatar'); if (el) el.setAttribute('transform', `translate(${a.x} ${a.y}) scale(${1 / st.view.k})`);
         if (keepAvatarVisible(false)) drawCanvas();
         followHere(false);
