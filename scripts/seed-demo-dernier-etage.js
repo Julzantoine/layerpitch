@@ -47,6 +47,7 @@ const NOTES = [
   ['Le bourdonnement des néons', 'Une note de fond qui devient peu à peu le vrai thème du niveau.'],
 ];
 // Notes d'ébauche d'une première version du script : retirées du Moodboard si elles y sont encore.
+const HIROSHIMA = 'https://www.youtube.com/watch?v=p9xAjiZo7go'; // référence retirée du Moodboard
 const RETIRED_NOTES = ['Les dossiers partout', 'La photocopieuse', 'Le document à porter', 'L\'ascenseur', 'L\'étage sombre', 'La salle d\'archives',
   'Idée : mélodie qui rassure', 'Idée : texture sans mélodie', 'Le mail non lu'];
 
@@ -55,12 +56,18 @@ const REFS = [
   [STEAM, 'Something Is Wrong sur Steam (Protocol Interactive)', 'Merci à Joris Balzanelli et Samir Bensadoun pour les images de gameplay. Ajoutez le jeu à votre liste de souhaits !'],
   ['https://www.youtube.com/watch?v=aM_HhU_CV44', 'Réf. musicale : Hildur Guðnadóttir, « Bridge of Death » (Chernobyl)', 'Une bande-son faite de sons enregistrés dans une vraie centrale : pas de mélodie, une texture industrielle. Proche de la version B.'],
   ['https://www.youtube.com/watch?v=Z_Cc20I-maM', 'Réf. musicale : Mica Levi, « Love » (Under the Skin)', 'Cordes qui glissent, rien de mélodique à quoi se raccrocher. Le malaise par la texture.'],
-  ['https://www.youtube.com/watch?v=p9xAjiZo7go', 'Réf. musicale : Penderecki, « Threnody to the Victims of Hiroshima »', 'Cinquante-deux cordes en clusters. La référence historique de la peur par le timbre.'],
   ['https://en.wikipedia.org/wiki/Office_at_Night', 'Réf. graphique : Edward Hopper, « Office at Night »', 'Une lumière froide, deux personnes dans un bureau qui ne se parlent pas. Le malaise par le cadrage.'],
   ['https://en.wikipedia.org/wiki/Severance_(TV_series)', 'Réf. graphique : Severance', 'Couloirs blancs sans fin, mobilier de bureau, aucune fenêtre : l\'entreprise comme labyrinthe.'],
   ['https://en.wikipedia.org/wiki/Control_(video_game)', 'Réf. jeu vidéo : Control', 'Une administration brutaliste où le bureau devient un lieu irrationnel.'],
   ['https://en.wikipedia.org/wiki/Playtime_(film)', 'Réf. graphique : Playtime (Jacques Tati)', 'Des bureaux en cubicules, géométrie froide, personnes perdues dans l\'espace.'],
 ];
+
+// Pack de démo : un NOUVEAU pack qui réutilise les mêmes morceaux et Sfx que le pack « Joris » (rien n'est copié : modifier un morceau
+// ici le modifie aussi dans « Joris »). On y ajoute « Dynamic Edition Alt2 » (version B de la vidéo), absent du pack d'origine.
+const PACK_ID = 'dernier-etage-demo';
+const PACK_TITLE = 'Dernier Etage_Démo';
+const SOURCE_PACK_ID = 'bmw3dygpiyvnq5'; // pack « Joris »
+const EXTRA_TRACK_IDS = ['bmwf5gpcfqqjyd']; // Welcome to the Office Dynamic Edition Alt2
 
 // Carte de niveau fictive (sans musique : le propriétaire dépose ses sons lui-même). Quatre zones : bureau, couloir, archives, salle secrète.
 const MAP_TITLE = 'Niveau 1 : le bureau, le couloir, les archives';
@@ -95,6 +102,22 @@ const LEVEL_MAP = {
   defaults: { transition: { style: 'crossfade', sec: 2, sync: 'bar' } },
 };
 
+// Ordre du Moodboard : crédit, vidéo, puis en alternance musique / image / note. [type, clé]
+const MOODBOARD_ORDER = [
+  ['note', 'À propos de cette démo : projet fictif et crédits'],
+  ['montage', MONTAGE_ID],
+  ['url', 'https://www.youtube.com/watch?v=aM_HhU_CV44'],          // musique : Chernobyl
+  ['url', 'https://en.wikipedia.org/wiki/Office_at_Night'],        // image : Hopper
+  ['note', 'Un bureau trop propre'],
+  ['url', 'https://www.youtube.com/watch?v=Z_Cc20I-maM'],          // musique : Under the Skin
+  ['url', 'https://en.wikipedia.org/wiki/Severance_(TV_series)'],  // image : Severance
+  ['note', 'La lampe'],
+  ['url', 'https://en.wikipedia.org/wiki/Control_(video_game)'],   // jeu : Control
+  ['url', 'https://en.wikipedia.org/wiki/Playtime_(film)'],        // image : Playtime
+  ['note', 'Le bourdonnement des néons'],
+  ['url', STEAM],                                                  // remerciement : lien Steam
+];
+
 // [titre, notes, fait ?, section (index ou null)]
 const TASKS = [
   ['Choisir A ou B pour l\'ouverture du jeu', 'Test joueurs jeudi : les deux versions, même vidéo.', false, 1],
@@ -116,7 +139,7 @@ async function seed(q, apply, ownerOverride) {
   };
 
   let [project] = await q(`select id from public.projects where title = $1 and owner_profile_id = $2 and archived_at is null`, [TITLE, uid]);
-  const added = { map: 0, project: 0, sections: 0, messages: 0, notes: 0, tasks: 0, montage: 0 };
+  const added = { pack: 0, packAsset: 0, map: 0, project: 0, sections: 0, messages: 0, notes: 0, tasks: 0, montage: 0 };
   if (!project) {
     added.project = 1;
     if (!apply) { console.log(`À créer : le Projet « ${TITLE} » (aperçu, rien écrit).`); }
@@ -164,7 +187,7 @@ async function seed(q, apply, ownerOverride) {
 
   // Retrait des notes d'ébauche
   if (pid) {
-    const del = await q(`delete from public.project_assets where project_id = $1 and kind = 'note' and title = any($2::text[]) returning id`, [pid, RETIRED_NOTES]);
+    const del = await q(`delete from public.project_assets where project_id = $1 and ((kind = 'note' and title = any($2::text[])) or url = $3) returning id`, [pid, RETIRED_NOTES, HIROSHIMA]);
     if (del.length) console.log(`Notes d'ébauche retirées : ${del.length}.`);
   }
 
@@ -188,12 +211,35 @@ async function seed(q, apply, ownerOverride) {
     }
   }
 
-  // La vidéo en tout premier dans le Moodboard
+  // Ordre du Moodboard
   if (pid && apply) {
-    await q(`update public.project_moodboard_pins set position = (select coalesce(min(position), 0) - 1 from public.project_moodboard_pins where project_id = $1)
-             where project_id = $1 and asset_id = (select id from public.project_assets where project_id = $1 and montage_id = $2)
-               and position > (select min(position) from public.project_moodboard_pins where project_id = $1 and asset_id <> (select id from public.project_assets where project_id = $1 and montage_id = $2))
-             `, [pid, MONTAGE_ID]);
+    for (let i = 0; i < MOODBOARD_ORDER.length; i++) {
+      const [type, key] = MOODBOARD_ORDER[i];
+      const col = type === 'note' ? `kind = 'note' and title` : type === 'montage' ? 'montage_id' : 'url';
+      await q(`update public.project_moodboard_pins set position = $2 where project_id = $1 and asset_id = (select id from public.project_assets where project_id = $1 and ${col} = $3)`, [pid, i, key]);
+    }
+  }
+
+  // Pack de démo (mêmes morceaux que « Joris »), puis posé dans l'onglet Musique du Projet
+  {
+    const [src] = await q(`select bg_color, text_color, font, tags from public.packs where id = $1`, [SOURCE_PACK_ID]);
+    const [exists] = await q(`select id from public.packs where id = $1`, [PACK_ID]);
+    if (!src) throw new Error('Pack « Joris » introuvable. Rien n\'a été écrit.');
+    if (!exists) {
+      added.pack = 1;
+      if (apply) {
+        const tracks = (await q(`select track_id from public.pack_tracks where pack_id = $1 order by position`, [SOURCE_PACK_ID])).map(r => r.track_id);
+        for (const t of EXTRA_TRACK_IDS) if (!tracks.includes(t)) tracks.push(t);
+        const sfx = (await q(`select sfx_id from public.pack_sfx where pack_id = $1 order by position`, [SOURCE_PACK_ID])).map(r => r.sfx_id);
+        await asOwner();
+        await q(`select public.upsert_pack($1::jsonb)`, [JSON.stringify({ id: PACK_ID, title: PACK_TITLE, bgColor: src.bg_color, textColor: src.text_color, font: src.font, tags: src.tags || [], trackIds: tracks, sfxIds: sfx })]);
+      }
+    }
+    if (pid && apply && !await count(`select count(*)::int n from public.project_assets where project_id = $1 and pack_id = $2`, [pid, PACK_ID])) {
+      added.packAsset = 1;
+      await asOwner();
+      await q(`select public.add_project_asset($1, $2::jsonb, false)`, [pid, JSON.stringify({ kind: 'pack', packId: PACK_ID, title: PACK_TITLE, body: 'Les morceaux et Sfx de la scène d\'ouverture : les deux versions de la musique (A avec mélodie, B texturale), les drones et les bruitages.' })]);
+    }
   }
 
   // Carte de niveau fictive
@@ -215,7 +261,7 @@ async function seed(q, apply, ownerOverride) {
     if (done) await q(`update public.project_tasks set done = true, done_at = now(), done_by = $2 where id = $1`, [id, uid]);
   }
 
-  console.log(`${apply ? 'Ajoutés' : 'À ajouter (aperçu, rien écrit)'} : ${added.project} projet, ${added.sections} section(s), ${added.messages} message(s), ${added.notes} note(s), ${added.montage} montage, ${added.map} carte, ${added.tasks} tâche(s).`);
+  console.log(`${apply ? 'Ajoutés' : 'À ajouter (aperçu, rien écrit)'} : ${added.project} projet, ${added.sections} section(s), ${added.messages} message(s), ${added.notes} note(s), ${added.montage} montage, ${added.map} carte, ${added.pack} pack, ${added.tasks} tâche(s).`);
   return { added, projectId: pid };
 }
 
