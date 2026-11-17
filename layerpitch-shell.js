@@ -42,6 +42,7 @@
     team: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
     plan: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
     projects: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+    inviter: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/>',
     invitations: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"/>',
     albums: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>',
     video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/>',
@@ -461,6 +462,8 @@
     // Annuaire des compositeurs (23/10) : feu vert « composer_directory » (admin seulement pendant la bêta).
     if (ctx.flags.composer_directory) common.push({ id: 'directory', icon: 'directory', href: 'annuaire.html' });
     if (ctx.flags.projects) common.push({ id: 'projects', icon: 'projects', href: 'projets.html' });
+    // Page « Inviter » (17/11) : saisie d'e-mails + choix de la destination (Projet ou équipe studio) ; même feu vert que les Projets.
+    if (ctx.flags.projects) common.push({ id: 'inviter', icon: 'inviter', href: 'inviter.html' });
     common.push({ id: 'invitations', icon: 'invitations', href: 'invitation.html', badge: ctx.invitations });
     if (ctx.isAdmin && !(ctx.preview && ctx.preview.hideUnreleased)) common.push({ id: 'albums', icon: 'albums', href: 'mes-albums.html' });
     common.push({ id: 'account', icon: 'account', href: 'mon-compte.html', children: [
