@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794952333662">
-<link rel="stylesheet" href="player.css?v=1794952333662">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794953006785">
+<link rel="stylesheet" href="player.css?v=1794953006785">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794952333662"></script>
-<script src="layerpitch-notify.js?v=1794952333662"></script>
-<script src="player.js?v=1794952333662"></script>
-<script src="api/supabase-client.js?v=1794952333662"></script>
-<script src="api/auth.js?v=1794952333662"></script>
-<script src="layerpitch-appearance.js?v=1794952333662"></script>
-<script src="layerpitch-font-picker.js?v=1794952333662"></script>
-<script src="layerpitch-shell.js?v=1794952333662"></script>
-<script src="api/tracks.js?v=1794952333662"></script>
-<script src="api/packs.js?v=1794952333662"></script>
-<script src="api/albums.js?v=1794952333662"></script>
-<script src="api/studio.js?v=1794952333662"></script>
-<script src="api/adreels.js?v=1794952333662"></script>
-<script src="api/demo-client.js?v=1794952333662"></script>
-<script src="api/demo-projects.js?v=1794952333662"></script>
-<script src="layerpitch-tuto.js?v=1794952333662"></script>
-<script src="layerpitch-guide.js?v=1794952333662"></script>
-<script src="layerpitch-lesson-previews.js?v=1794952333662"></script>
-<script src="projet-lecons.js?v=1794952333662"></script>
-<script src="layerpitch-video-versions.js?v=1794952333662"></script>
-<script src="api/projects.js?v=1794952333662"></script>
-<script src="api/sfx.js?v=1794952333662"></script>
-<script src="projet-carte-audio.js?v=1794952333662"></script>
-<script src="projet-carte.js?v=1794952333662"></script>
+<script src="layerpitch-i18n.js?v=1794953006785"></script>
+<script src="layerpitch-notify.js?v=1794953006785"></script>
+<script src="player.js?v=1794953006785"></script>
+<script src="api/supabase-client.js?v=1794953006785"></script>
+<script src="api/auth.js?v=1794953006785"></script>
+<script src="layerpitch-appearance.js?v=1794953006785"></script>
+<script src="layerpitch-font-picker.js?v=1794953006785"></script>
+<script src="layerpitch-shell.js?v=1794953006785"></script>
+<script src="api/tracks.js?v=1794953006785"></script>
+<script src="api/packs.js?v=1794953006785"></script>
+<script src="api/albums.js?v=1794953006785"></script>
+<script src="api/studio.js?v=1794953006785"></script>
+<script src="api/adreels.js?v=1794953006785"></script>
+<script src="api/demo-client.js?v=1794953006785"></script>
+<script src="api/demo-projects.js?v=1794953006785"></script>
+<script src="layerpitch-tuto.js?v=1794953006785"></script>
+<script src="layerpitch-guide.js?v=1794953006785"></script>
+<script src="layerpitch-lesson-previews.js?v=1794953006785"></script>
+<script src="projet-lecons.js?v=1794953006785"></script>
+<script src="layerpitch-video-versions.js?v=1794953006785"></script>
+<script src="api/projects.js?v=1794953006785"></script>
+<script src="api/sfx.js?v=1794953006785"></script>
+<script src="projet-carte-audio.js?v=1794953006785"></script>
+<script src="projet-carte.js?v=1794953006785"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1962,6 +1962,33 @@ if (SOLO_MAP) window.addEventListener('pagehide', () => {
   try { const m = S.mapView && S.mapView.state; if (window.opener && m && m.current) window.opener.postMessage({ lpMapClosed: m.current }, location.origin); } catch (e) { /* onglet d'origine fermé */ }
 });
 if (!SOLO_MAP) window.addEventListener('message', ev => { if (ev.origin === location.origin && ev.data && ev.data.lpMapClosed) S.openMapId = String(ev.data.lpMapClosed); });
+// Musique des packs partagés au Projet : chaque pack devient un dossier de « Du Projet », avec ses morceaux et ses Sfx
+// (posés sur la carte comme n'importe quel morceau ou Sfx). Un pack introuvable ou illisible est simplement sauté.
+async function sharedPacksLibrary() {
+  const sig = (S.content.packs || []).map(p => p.packId).join(',');
+  if (S.packLibCache && S.packLibCache.sig === sig) return S.packLibCache.out;
+  const out = { items: [], folders: [] };
+  for (const sp of (S.content.packs || [])) {
+    try {
+      let pack = (await LayerPitchPacks.getPack(sp.packId)).pack;
+      // Le faux serveur du tutoriel ne sait pas lire un pack seul : on le retrouve dans la liste.
+      if (!pack) { if (!S.allPacksCache) S.allPacksCache = (await LayerPitchPacks.listPacks()).packs || []; pack = S.allPacksCache.find(x => x.id === sp.packId); }
+      if (!pack) continue;
+      const [tr_, sr] = await Promise.all([
+        pack.trackIds.length ? LayerPitchTracks.listTracksByIds(pack.trackIds) : { tracks: [] },
+        pack.sfxIds.length ? LayerPitchSfx.listSfxByIds(pack.sfxIds) : { sfx: [] },
+      ]);
+      const fid = 'pack:' + sp.packId;
+      const byId = (list, id) => (list || []).find(x => x.id === id);
+      const items = [];
+      pack.trackIds.forEach(id => { const t = byId(tr_.tracks, id); if (t) items.push({ id: t.id, title: t.title, hint: t.mode, kind: 'track', folderId: fid }); });
+      pack.sfxIds.forEach(id => { const x = byId(sr.sfx, id); if (x) items.push({ id: x.id, title: x.title, kind: 'sfx', folderId: fid }); });
+      if (items.length) { out.folders.push({ id: fid, label: sp.title || pack.title }); out.items.push(...items); }
+    } catch (e) { console.warn('pack partagé illisible', sp.packId, e); }
+  }
+  S.packLibCache = { sig, out };
+  return out;
+}
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
@@ -1970,10 +1997,19 @@ async function renderMap(panel) {
   }
   await ensureMyTracks();
   if (!S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
+  // Dossiers du Backstage (Morceaux, Sfx) et musique des packs partagés au Projet (un dossier par pack, dans « Du Projet »).
+  if (S.myComposerId && !S.mapFoldersLoaded) {
+    try {
+      const [tf, sf] = await Promise.all([LayerPitchTracks.listTrackFolders({ ownerId: S.myComposerId }), LayerPitchSfx.listSfxFolders({ ownerId: S.myComposerId })]);
+      S.mapFolders = { track: tf.folders || [], sfx: sf.folders || [] }; S.mapFoldersLoaded = true;
+    } catch (e) { S.mapFolders = { track: [], sfx: [] }; }
+  }
+  const packLib = await sharedPacksLibrary();
   const libraries = {
-    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode })),
-    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title })),
-    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
+    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode, folderId: t.folderId || null })),
+    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title, folderId: x.folderId || null })),
+    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })).concat(packLib.items),
+    folders: { track: (S.mapFolders && S.mapFolders.track) || [], sfx: (S.mapFolders && S.mapFolders.sfx) || [], asset: packLib.folders },
   };
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   S.mapView = null;
