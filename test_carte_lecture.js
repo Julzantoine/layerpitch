@@ -72,6 +72,21 @@ const { JSDOM } = require('jsdom');
     check('fond d\'ambiance : démarre en fondu au niveau de la carte', W.log.includes('track:room start 0') && W.log.some(l => /^track:room level 0\.251 2$/.test(l)));
     check('état : en lecture, position connue', P.state.playing && P.state.position.id === a.id && P.state.music.id === 'intro'); }
 
+  // ---- Baisse du fond d'ambiance pendant la musique
+  { const { m, a } = demoMap(); m.roomTone = T('room'); m.roomToneDb = -12; m.roomDuckDb = 6;
+    const W = world(); const P = A.createPlayer(W.env); P.setMap(m);
+    await P.goTo({ kind: 'node', id: a.id }); await W.advance(3);
+    const roomLv = W.log.filter(l => /^track:room level /.test(l)).map(l => Number(l.split(' ')[2]));
+    check('fond baissé de 6 dB (-12 -> -18 dB) quand une musique joue', Math.abs(roomLv[roomLv.length - 1] - Math.pow(10, -18 / 20)) < 0.001);
+    m.roomDuckDb = 0; P.refreshRoomLevel(); const l2 = W.log.filter(l => /^track:room level /.test(l)).pop();
+    check('baisse à 0 : le fond revient au niveau réglé', Math.abs(Number(l2.split(' ')[2]) - Math.pow(10, -12 / 20)) < 0.001); }
+  { const { m, a } = demoMap(); m.roomTone = T('room'); m.roomToneDb = -12;
+    const W = world(); const P = A.createPlayer(W.env); P.setMap(m);
+    await P.goTo({ kind: 'node', id: a.id }); await W.advance(3);
+    const l = W.log.filter(l => /^track:room level /.test(l)).pop();
+    check('sans réglage de baisse : fond inchangé', Math.abs(Number(l.split(' ')[2]) - Math.pow(10, -12 / 20)) < 0.001); }
+  { const M2 = M; check('normalize : baisse bornée (0 à 40) et 0 par défaut', M2.normalize({ nodes: [], edges: [] }).roomDuckDb === 0 && M2.normalize({ nodes: [], edges: [], roomDuckDb: 99 }).roomDuckDb === 40 && M2.normalize({ nodes: [], edges: [], roomDuckDb: 8 }).roomDuckDb === 8); }
+
   // ---- Fondu enchaîné attendant la mesure
   { const { m, a, e1 } = demoMap();
     const W = world({ 'track:intro': 1.5 }); const P = A.createPlayer(W.env); P.setMap(m);
