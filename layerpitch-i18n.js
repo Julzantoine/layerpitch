@@ -4943,6 +4943,16 @@ window.LAYERPITCH_I18N = {
       inviteSent: "Invitation envoyée.",
       inviteNoEmail: "Invitation enregistrée, mais l'e-mail n'est pas parti ({error}). Lien à transmettre : {link}",
     },
+    tutorials: {
+      pageTitle: "LayerPitch — Tous les tutoriels",
+      h1: "Tous les tutoriels",
+      intro: "Des leçons guidées, directement dans un faux compte LayerPitch : tu peux tout essayer, rien n’est enregistré. Choisis un thème, puis une leçon.",
+      start: "Commencer",
+      doneBadge: "✓ faite",
+      soonBadge: "bientôt",
+      themeSoon: "Ces leçons arrivent bientôt.",
+      home: "Découvrir LayerPitch",
+    },
     shell: {
       navLabel: "Navigation de ton espace",
       sectionComposer: "Compositeur",
@@ -10707,6 +10717,16 @@ window.LAYERPITCH_I18N = {
       inviteFreeHint: "It's free for the invited person, even without a subscription.",
       inviteSent: "Invitation sent.",
       inviteNoEmail: "Invitation saved, but the email was not sent ({error}). Link to pass on: {link}",
+    },
+    tutorials: {
+      pageTitle: "LayerPitch — All tutorials",
+      h1: "All tutorials",
+      intro: "Guided lessons, played inside a fake LayerPitch account: try anything, nothing is saved. Pick a theme, then a lesson.",
+      start: "Start",
+      doneBadge: "✓ done",
+      soonBadge: "soon",
+      themeSoon: "These lessons are coming soon.",
+      home: "Discover LayerPitch",
     },
     shell: {
       navLabel: "Your space navigation",
