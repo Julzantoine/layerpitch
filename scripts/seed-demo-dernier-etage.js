@@ -3,7 +3,7 @@
  * LayerPitch — crée et remplit le Projet de démo « Dernier Étage » (jeu d'horreur psychologique sur le burn-out en entreprise),
  * construit autour du montage vidéo « Short SIW Test #1 » et de sa « Version alternative #2 » (A : avec mélodie, B : purement texturale).
  * Tout est fictif : la discussion (14 messages sous le nom du propriétaire, chacun préfixé par le personnage), 4 sections,
- * 13 notes de Moodboard, 6 tâches. Le montage est posé en objet du Projet (ses versions suivent toutes seules).
+ * 4 notes et 8 références de Moodboard, 6 tâches. Le montage est posé en objet du Projet (ses versions suivent toutes seules).
  * Relançable sans doublon. N'active PAS « Démo publique » : c'est le propriétaire qui l'active.
  *
  * Usage : node scripts/seed-demo-dernier-etage.js            (aperçu : n'écrit rien)
@@ -39,20 +39,27 @@ const MESSAGES = [
 
 const SECTIONS = ['Direction artistique', 'Musique : mélodie ou texture ?', 'Bruitages du bureau', 'Scènes clés'];
 
+// Moodboard : peu de notes, le reste en références (liens). La vidéo est tout en haut.
 const NOTES = [
   ['À propos de cette démo : projet fictif et crédits', CREDIT],
   ['Un bureau trop propre', 'Open space aux lumières froides, moquette grise, écrans allumés. Presque rassurant, avec quelque chose qui sonne faux.'],
-  ['Les dossiers partout', 'Des piles de dossiers sur les bureaux, par terre, contre les murs. Personne ne les range : la charge de travail devenue décor.'],
-  ['La photocopieuse', 'Un son régulier qui rythme la journée. O. y va chercher un document : premier déplacement du joueur.'],
-  ['Le document à porter', 'Une simple feuille à apporter dans un bureau. L\'enjeu est minuscule et pourtant tout pèse.'],
-  ['L\'ascenseur', 'La seule sortie, et elle ne mène nulle part de rassurant. Portes qui s\'ouvrent sur un étage sans lumière.'],
-  ['L\'étage sombre', 'Couloirs vides, lumières éteintes, on déambule sans but. Le bureau sans personnes, comme après le départ de tout le monde.'],
-  ['La salle d\'archives', 'Vide et dans le noir. Des étagères nues. Le moment où O. trouve une lampe, première lumière du niveau.'],
   ['La lampe', 'Objet de jeu et symbole : elle éclaire de moins en moins loin, comme l\'énergie qui s\'épuise.'],
-  ['Idée : mélodie qui rassure', 'Une mélodie douce pendant le bureau : le quotidien qui tient encore. Elle disparaît quand on prend l\'ascenseur.'],
-  ['Idée : texture sans mélodie', 'Pas de mélodie du tout : bourdonnement, souffles, couches qui s\'ajoutent. Inquiétant dès la première seconde.'],
   ['Le bourdonnement des néons', 'Une note de fond qui devient peu à peu le vrai thème du niveau.'],
-  ['Le mail non lu', 'Le compteur de messages qui grossit : à traduire en son plutôt qu\'en image, une notification qui revient.'],
+];
+// Notes d'ébauche d'une première version du script : retirées du Moodboard si elles y sont encore.
+const RETIRED_NOTES = ['Les dossiers partout', 'La photocopieuse', 'Le document à porter', 'L\'ascenseur', 'L\'étage sombre', 'La salle d\'archives',
+  'Idée : mélodie qui rassure', 'Idée : texture sans mélodie', 'Le mail non lu'];
+
+// Références : musicales (YouTube, lisibles dans le Projet) et graphiques / ambiance (pages web).
+const REFS = [
+  [STEAM, 'Something Is Wrong sur Steam (Protocol Interactive)', 'Merci à Joris Balzanelli et Samir Bensadoun pour les images de gameplay. Ajoutez le jeu à votre liste de souhaits !'],
+  ['https://www.youtube.com/watch?v=aM_HhU_CV44', 'Réf. musicale : Hildur Guðnadóttir, « Bridge of Death » (Chernobyl)', 'Une bande-son faite de sons enregistrés dans une vraie centrale : pas de mélodie, une texture industrielle. Proche de la version B.'],
+  ['https://www.youtube.com/watch?v=Z_Cc20I-maM', 'Réf. musicale : Mica Levi, « Love » (Under the Skin)', 'Cordes qui glissent, rien de mélodique à quoi se raccrocher. Le malaise par la texture.'],
+  ['https://www.youtube.com/watch?v=p9xAjiZo7go', 'Réf. musicale : Penderecki, « Threnody to the Victims of Hiroshima »', 'Cinquante-deux cordes en clusters. La référence historique de la peur par le timbre.'],
+  ['https://en.wikipedia.org/wiki/Office_at_Night', 'Réf. graphique : Edward Hopper, « Office at Night »', 'Une lumière froide, deux personnes dans un bureau qui ne se parlent pas. Le malaise par le cadrage.'],
+  ['https://en.wikipedia.org/wiki/Severance_(TV_series)', 'Réf. graphique : Severance', 'Couloirs blancs sans fin, mobilier de bureau, aucune fenêtre : l\'entreprise comme labyrinthe.'],
+  ['https://en.wikipedia.org/wiki/Control_(video_game)', 'Réf. jeu vidéo : Control', 'Une administration brutaliste où le bureau devient un lieu irrationnel.'],
+  ['https://en.wikipedia.org/wiki/Playtime_(film)', 'Réf. graphique : Playtime (Jacques Tati)', 'Des bureaux en cubicules, géométrie froide, personnes perdues dans l\'espace.'],
 ];
 
 // [titre, notes, fait ?, section (index ou null)]
@@ -122,13 +129,19 @@ async function seed(q, apply, ownerOverride) {
     await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'note', title, body })]);
   }
 
-  // Lien Steam du jeu : remercier le studio et inciter à aller voir son jeu
-  if (!await count(`select count(*)::int n from public.project_assets where project_id = $1 and url = $2`, [pid, STEAM])) {
+  // Retrait des notes d'ébauche
+  if (pid) {
+    const del = await q(`delete from public.project_assets where project_id = $1 and kind = 'note' and title = any($2::text[]) returning id`, [pid, RETIRED_NOTES]);
+    if (del.length) console.log(`Notes d'ébauche retirées : ${del.length}.`);
+  }
+
+  // Références musicales et graphiques (dont le lien Steam du jeu)
+  for (const [url, title, body] of REFS) {
+    if (await count(`select count(*)::int n from public.project_assets where project_id = $1 and url = $2`, [pid, url])) continue;
     added.notes++;
-    if (apply) {
-      await asOwner();
-      await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'link', url: STEAM, title: 'Something Is Wrong sur Steam (Protocol Interactive)', body: 'Merci à Joris Balzanelli et Samir Bensadoun pour les images de gameplay. Ajoutez le jeu à votre liste de souhaits !' })]);
-    }
+    if (!apply) continue;
+    await asOwner();
+    await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'link', url, title, body })]);
   }
 
   // Le montage vidéo (A et B suivent : les versions sont celles du montage)
@@ -140,6 +153,14 @@ async function seed(q, apply, ownerOverride) {
       const musique = sectionIds[1];
       if (musique) await q(`select public.pin_asset_in_section($1, $2, true)`, [musique, r.id]);
     }
+  }
+
+  // La vidéo en tout premier dans le Moodboard
+  if (pid && apply) {
+    await q(`update public.project_moodboard_pins set position = (select coalesce(min(position), 0) - 1 from public.project_moodboard_pins where project_id = $1)
+             where project_id = $1 and asset_id = (select id from public.project_assets where project_id = $1 and montage_id = $2)
+               and position > (select min(position) from public.project_moodboard_pins where project_id = $1 and asset_id <> (select id from public.project_assets where project_id = $1 and montage_id = $2))
+             `, [pid, MONTAGE_ID]);
   }
 
   // Tâches
