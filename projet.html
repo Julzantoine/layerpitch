@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794954809166">
-<link rel="stylesheet" href="player.css?v=1794954809166">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794956147744">
+<link rel="stylesheet" href="player.css?v=1794956147744">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794954809166"></script>
-<script src="layerpitch-notify.js?v=1794954809166"></script>
-<script src="player.js?v=1794954809166"></script>
-<script src="api/supabase-client.js?v=1794954809166"></script>
-<script src="api/auth.js?v=1794954809166"></script>
-<script src="layerpitch-appearance.js?v=1794954809166"></script>
-<script src="layerpitch-font-picker.js?v=1794954809166"></script>
-<script src="layerpitch-shell.js?v=1794954809166"></script>
-<script src="api/tracks.js?v=1794954809166"></script>
-<script src="api/packs.js?v=1794954809166"></script>
-<script src="api/albums.js?v=1794954809166"></script>
-<script src="api/studio.js?v=1794954809166"></script>
-<script src="api/adreels.js?v=1794954809166"></script>
-<script src="api/demo-client.js?v=1794954809166"></script>
-<script src="api/demo-projects.js?v=1794954809166"></script>
-<script src="layerpitch-tuto.js?v=1794954809166"></script>
-<script src="layerpitch-guide.js?v=1794954809166"></script>
-<script src="layerpitch-lesson-previews.js?v=1794954809166"></script>
-<script src="projet-lecons.js?v=1794954809166"></script>
-<script src="layerpitch-video-versions.js?v=1794954809166"></script>
-<script src="api/projects.js?v=1794954809166"></script>
-<script src="api/sfx.js?v=1794954809166"></script>
-<script src="projet-carte-audio.js?v=1794954809166"></script>
-<script src="projet-carte.js?v=1794954809166"></script>
+<script src="layerpitch-i18n.js?v=1794956147744"></script>
+<script src="layerpitch-notify.js?v=1794956147744"></script>
+<script src="player.js?v=1794956147744"></script>
+<script src="api/supabase-client.js?v=1794956147744"></script>
+<script src="api/auth.js?v=1794956147744"></script>
+<script src="layerpitch-appearance.js?v=1794956147744"></script>
+<script src="layerpitch-font-picker.js?v=1794956147744"></script>
+<script src="layerpitch-shell.js?v=1794956147744"></script>
+<script src="api/tracks.js?v=1794956147744"></script>
+<script src="api/packs.js?v=1794956147744"></script>
+<script src="api/albums.js?v=1794956147744"></script>
+<script src="api/studio.js?v=1794956147744"></script>
+<script src="api/adreels.js?v=1794956147744"></script>
+<script src="api/demo-client.js?v=1794956147744"></script>
+<script src="api/demo-projects.js?v=1794956147744"></script>
+<script src="layerpitch-tuto.js?v=1794956147744"></script>
+<script src="layerpitch-guide.js?v=1794956147744"></script>
+<script src="layerpitch-lesson-previews.js?v=1794956147744"></script>
+<script src="projet-lecons.js?v=1794956147744"></script>
+<script src="layerpitch-video-versions.js?v=1794956147744"></script>
+<script src="api/projects.js?v=1794956147744"></script>
+<script src="api/sfx.js?v=1794956147744"></script>
+<script src="projet-carte-audio.js?v=1794956147744"></script>
+<script src="projet-carte.js?v=1794956147744"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -809,7 +809,7 @@ function joinChannel() {
       }
       else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
       else if (payload.what === 'tasks') { await loadTasks(); if (S.tab === 'tasks' && !document.querySelector('.sec-overlay')) renderPanel(); }
-      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
+      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && (S.mapView.state.dirty || S.mapView.state.maximized))) renderPanel(); } // jamais pendant l'édition ni en plein écran
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
@@ -823,7 +823,21 @@ function markProjectSeen(force) {
   if (!force && Date.now() - lastSeenPush < 30000) return;
   lastSeenPush = Date.now(); PJ.markSeen(projectId);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) markProjectSeen(true); else markProjectSeen(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return markProjectSeen(true);
+  markProjectSeen();
+  refreshAfterReturn();
+});
+// Retour sur la page (après un tour dans le Backstage pour ajouter un morceau à un pack) : on relit tout ce qui vient du compositeur.
+// La carte garde son travail en cours : seule sa bibliothèque est mise à jour, la carte n'est pas remontée.
+async function refreshAfterReturn() {
+  if (!S.project || DEMO || TUTO) return;
+  invalidateComposerCaches();
+  try {
+    if (S.tab === 'map' && S.mapView && S.mapView.setLibraries) S.mapView.setLibraries(await buildMapLibraries());
+    else if (S.tab === 'music' && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) await renderPanel();
+  } catch (e) { console.warn('actualisation au retour', e); }
+}
 window.addEventListener('pagehide', () => markProjectSeen(true));
 function broadcast(what, extra) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: Object.assign({ what }, extra || {}) }); } catch (e) {} }
 function renderPresence() {
@@ -968,6 +982,7 @@ async function renderOpenNotes() {
 async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
+  if (S.lastPanelTab !== S.tab) { S.lastPanelTab = S.tab; invalidateComposerCaches(); } // changer d'onglet = relire les packs et morceaux
   if (S.tab === 'map') return renderMap(panel);
   if (S.tab === 'tasks') return renderTasks(panel);
   // Moodboard / Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
@@ -1311,6 +1326,13 @@ function wireComposer(aside) {
 // Les notes pointent vers l'objet : elles le suivent d'une section à l'autre.
 const assetById = id => (S.content.assets || []).find(a => a.id === id);
 const assetTitle = a => a.title || (a.preview && a.preview.title) || a.trackTitle || a.packTitle || a.albumTitle || a.montageTitle || a.fileName || a.url || '';
+// Tout ce que le Projet lit chez le compositeur (ses packs, morceaux, Sfx, dossiers ; le contenu des packs partagés) est gardé en mémoire
+// pour ne pas tout relire à chaque clic. Quand le contenu a pu changer ailleurs (ajout d'un morceau à un pack dans le Backstage), on
+// vide ces mémoires : c'est le SEUL endroit à compléter si on ajoute une nouvelle lecture de ce genre.
+function invalidateComposerCaches() {
+  S.myPacksLoaded = false; S.myTracksLoaded = false; S.mySfxLoaded = false; S.mapFoldersLoaded = false;
+  S.packLibCache = null; S.allPacksCache = null; S.demoSoundsLoaded = false;
+}
 async function ensureMyPacks() {
   if (S.myPacksLoaded || !S.myComposerId) return;
   const r = await LayerPitchPacks.listPacks({ ownerId: S.myComposerId });
@@ -2002,12 +2024,9 @@ async function ensureDemoPackSounds() {
     if ((pk.sfxIds || []).length) S.mySfx.push(...((await LayerPitchSfx.listSfxByIds(pk.sfxIds)).sfx || []));
   }
 }
-async function renderMap(panel) {
-  const r = await PJ.listMaps(projectId);
-  if (r.error) {
-    panel.innerHTML = `<div class="card"><h2>${esc(tr('map_title'))}</h2><p class="hint">${esc(/pas encore ouverte/.test(r.error) ? tr('map_locked') : tr('errorPrefix', { message: r.error }))}</p></div>`;
-    return;
-  }
+// Bibliothèques de la carte (Morceaux, Sfx, « Du Projet » avec un dossier par pack partagé). Reconstruite à chaque ouverture de la carte et
+// à chaque retour sur la page : un morceau ajouté à un pack (ou au Backstage) apparaît donc sans recharger.
+async function buildMapLibraries() {
   if (DEMO) await ensureDemoPackSounds(); else await ensureMyTracks();
   if (!DEMO && !S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
   // Dossiers du Backstage (Morceaux, Sfx) et musique des packs partagés au Projet (un dossier par pack, dans « Du Projet »).
@@ -2024,6 +2043,15 @@ async function renderMap(panel) {
     asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })).concat(packLib.items),
     folders: { track: (S.mapFolders && S.mapFolders.track) || [], sfx: (S.mapFolders && S.mapFolders.sfx) || [], asset: packLib.folders },
   };
+  return libraries;
+}
+async function renderMap(panel) {
+  const r = await PJ.listMaps(projectId);
+  if (r.error) {
+    panel.innerHTML = `<div class="card"><h2>${esc(tr('map_title'))}</h2><p class="hint">${esc(/pas encore ouverte/.test(r.error) ? tr('map_locked') : tr('errorPrefix', { message: r.error }))}</p></div>`;
+    return;
+  }
+  const libraries = await buildMapLibraries();
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   S.mapView = null;
   if (mapPopupOpen()) return renderMapDetached(panel);
@@ -2031,6 +2059,7 @@ async function renderMap(panel) {
   S.mapView = LayerPitchLevelMap.mount(panel, {
     tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
+    libUi: (S.mapLibUi = S.mapLibUi || { tab: 'track', query: '', open: new Set() }),
     detach: (SOLO_MAP || DEMO) ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
@@ -2102,14 +2131,18 @@ async function renderMusic(panel) {
   };
   if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
   if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
-  panel.querySelectorAll('[data-expandpack]').forEach(b => b.onclick = () => {
-    const box = panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]');
-    const open = box.hidden;
-    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(b.dataset.expandpack)}&lang=${pageLang}" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+  // Pack déplié : mémorisé (S.openPacks), car la page se redessine seule (autre membre, retour sur l'onglet) et le repliait aussitôt.
+  S.openPacks = S.openPacks || new Set();
+  const setPackOpen = (id, open) => {
+    const box = panel.querySelector('[data-packframe="' + id + '"]'), b = panel.querySelector('[data-expandpack="' + id + '"]');
+    if (!box || !b) return;
+    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(id)}&lang=${pageLang}" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
     box.hidden = !open;
     b.setAttribute('aria-expanded', String(open));
     b.textContent = tr(open ? 'collapsePack' : 'expandPack');
-  });
+    if (open) S.openPacks.add(id); else S.openPacks.delete(id);
+  };
+  panel.querySelectorAll('[data-expandpack]').forEach(b => { b.onclick = () => setPackOpen(b.dataset.expandpack, panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]').hidden); if (S.openPacks.has(b.dataset.expandpack)) setPackOpen(b.dataset.expandpack, true); });
   panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
   if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
   panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });

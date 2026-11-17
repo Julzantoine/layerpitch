@@ -636,7 +636,7 @@
     const confirmDlg = ctx.confirm || (m => window.LayerPitchNotify.confirm(m, { okLabel: tr('map_delete'), danger: true }));
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const st = { maps: ctx.maps.map(m => ({ id: m.id, title: m.title, data: normalize(m.data) })), current: null, sel: null, view: { x: 0, y: 0, k: 1 }, connecting: false, linkFrom: null,
-      libTab: 'track', libQuery: '', status: '', dirty: false, play: false, now: null,
+      libTab: (ctx.libUi && ctx.libUi.tab) || 'track', libQuery: (ctx.libUi && ctx.libUi.query) || '', libOpen: (ctx.libUi && ctx.libUi.open) || new Set(), status: '', dirty: false, play: false, now: null,
       // Monde ouvert (27/10) : fil d'Ariane des sous-cartes, forme libre en cours de dessin, réglage de l'image de fond, balade libre.
       trail: [], drawing: null, bgEdit: false, avatar: null, dest: null, modeId: null, freeCombat: false, gov: null };
     st.current = st.maps.length ? (st.maps.some(m => m.id === ctx.openId) ? ctx.openId : st.maps[0].id) : null; // openId : carte à ouvrir d'emblée (lien depuis une section)
@@ -727,7 +727,7 @@
     const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
     function setMaximized(on) {
       if (!!on === !!st.maximized) return;
-      st.maximized = !!on;
+      st.maximized = !!on; st.fsEntered = false;
       host.classList.toggle('lm-max', st.maximized);
       if (st.maximized) {
         const req = host.requestFullscreen || host.webkitRequestFullscreen;
@@ -737,7 +737,12 @@
       const c = host.querySelector('#lmCanvas'); if (c) c.focus();
     }
     // Échap (ou le bouton du navigateur) fait sortir du plein écran : la carte revient à sa place dans la page.
-    const onFsChange = () => { if (st.maximized && fsEl() !== host && !st.leavingFs) { st.maximized = false; host.classList.remove('lm-max'); render(); fit(); } };
+    // Sortie du plein écran = on l'a VU entrer puis disparaître. Un événement « fullscreenchange » qui arrive avant que le navigateur
+    // (Firefox surtout) ait fini d'entrer en plein écran n'est pas une sortie : il refermait la carte aussitôt après le clic.
+    const onFsChange = () => {
+      if (fsEl() === host) { st.fsEntered = true; return; }
+      if (st.maximized && st.fsEntered && !st.leavingFs) { st.fsEntered = false; st.maximized = false; host.classList.remove('lm-max'); render(); fit(); }
+    };
     document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
     function sizeCanvas() {
       const c = host.querySelector('#lmCanvas'); if (!c) return;
@@ -1673,10 +1678,10 @@
         <div class="lm-tabs">${['track', 'sfx', 'asset'].map(k => `<button class="btn${st.libTab === k ? ' primary' : ''}" type="button" data-lt="${k}">${esc(tr('map_lib_' + k))}</button>`).join('')}</div>
         <input type="search" id="lmSearch" placeholder="${esc(tr('map_search'))}" value="${esc(st.libQuery)}">
         ${total ? body : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
-      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; renderLibrary(); });
-      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); });
+      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; if (ctx.libUi) ctx.libUi.tab = st.libTab; renderLibrary(); });
+      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); }); // st.libOpen est le Set de ctx.libUi : l'état survit à un remontage de la carte
       const search = box.querySelector('#lmSearch');
-      search.oninput = () => { st.libQuery = search.value; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
+      search.oninput = () => { st.libQuery = search.value; if (ctx.libUi) ctx.libUi.query = st.libQuery; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
       box.querySelectorAll('[data-ref]').forEach(el => {
         el.addEventListener('dragstart', ev => { ev.dataTransfer.setData('application/x-lp-sound', el.dataset.ref); ev.dataTransfer.effectAllowed = 'copy'; });
         el.addEventListener('click', () => { st.picked = JSON.parse(el.dataset.ref); box.querySelectorAll('.lm-sound').forEach(x => { x.style.outline = x === el ? '2px solid var(--accent)' : ''; }); renderInspector(); renderSettings(); });
@@ -1685,7 +1690,7 @@
 
     render();
     fit();
-    return { flush, state: st, render, audio, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
+    return { flush, state: st, render, audio, setLibraries(libs) { ctx.libraries = libs; renderLibrary(); }, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
       window.removeEventListener('resize', onResize); document.removeEventListener('fullscreenchange', onFsChange); document.removeEventListener('webkitfullscreenchange', onFsChange);
       if (st.maximized) { st.leavingFs = true; host.classList.remove('lm-max'); if (fsEl() === host && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } } };
   }
