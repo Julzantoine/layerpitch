@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794935881877">
-<link rel="stylesheet" href="player.css?v=1794935881877">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794935980088">
+<link rel="stylesheet" href="player.css?v=1794935980088">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794935881877"></script>
-<script src="layerpitch-notify.js?v=1794935881877"></script>
-<script src="player.js?v=1794935881877"></script>
-<script src="api/supabase-client.js?v=1794935881877"></script>
-<script src="api/auth.js?v=1794935881877"></script>
-<script src="layerpitch-appearance.js?v=1794935881877"></script>
-<script src="layerpitch-font-picker.js?v=1794935881877"></script>
-<script src="layerpitch-shell.js?v=1794935881877"></script>
-<script src="api/tracks.js?v=1794935881877"></script>
-<script src="api/packs.js?v=1794935881877"></script>
-<script src="api/albums.js?v=1794935881877"></script>
-<script src="api/studio.js?v=1794935881877"></script>
-<script src="api/adreels.js?v=1794935881877"></script>
-<script src="api/demo-client.js?v=1794935881877"></script>
-<script src="api/demo-projects.js?v=1794935881877"></script>
-<script src="layerpitch-tuto.js?v=1794935881877"></script>
-<script src="layerpitch-guide.js?v=1794935881877"></script>
-<script src="layerpitch-lesson-previews.js?v=1794935881877"></script>
-<script src="projet-lecons.js?v=1794935881877"></script>
-<script src="layerpitch-video-versions.js?v=1794935881877"></script>
-<script src="api/projects.js?v=1794935881877"></script>
-<script src="api/sfx.js?v=1794935881877"></script>
-<script src="projet-carte-audio.js?v=1794935881877"></script>
-<script src="projet-carte.js?v=1794935881877"></script>
+<script src="layerpitch-i18n.js?v=1794935980088"></script>
+<script src="layerpitch-notify.js?v=1794935980088"></script>
+<script src="player.js?v=1794935980088"></script>
+<script src="api/supabase-client.js?v=1794935980088"></script>
+<script src="api/auth.js?v=1794935980088"></script>
+<script src="layerpitch-appearance.js?v=1794935980088"></script>
+<script src="layerpitch-font-picker.js?v=1794935980088"></script>
+<script src="layerpitch-shell.js?v=1794935980088"></script>
+<script src="api/tracks.js?v=1794935980088"></script>
+<script src="api/packs.js?v=1794935980088"></script>
+<script src="api/albums.js?v=1794935980088"></script>
+<script src="api/studio.js?v=1794935980088"></script>
+<script src="api/adreels.js?v=1794935980088"></script>
+<script src="api/demo-client.js?v=1794935980088"></script>
+<script src="api/demo-projects.js?v=1794935980088"></script>
+<script src="layerpitch-tuto.js?v=1794935980088"></script>
+<script src="layerpitch-guide.js?v=1794935980088"></script>
+<script src="layerpitch-lesson-previews.js?v=1794935980088"></script>
+<script src="projet-lecons.js?v=1794935980088"></script>
+<script src="layerpitch-video-versions.js?v=1794935980088"></script>
+<script src="api/projects.js?v=1794935980088"></script>
+<script src="api/sfx.js?v=1794935980088"></script>
+<script src="projet-carte-audio.js?v=1794935980088"></script>
+<script src="projet-carte.js?v=1794935980088"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -2030,8 +2030,9 @@ async function renderMusic(panel) {
   panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
       ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
           <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
-          ${TUTO ? '' : `<a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`}
-          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}</div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
+          ${TUTO ? '' : `<button class="btn" type="button" data-expandpack="${esc(p.packId)}" aria-expanded="false">${esc(tr('expandPack'))}</button><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPackNewTab'))}</a>`}
+          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}
+          <div class="pack-inline" data-packframe="${esc(p.packId)}" hidden style="flex:1 1 100%"></div></div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
       ${S.myPacks.length ? `<label>${esc(tr('bringPack'))}</label><div class="bar"><select id="myPack" style="flex:1 1 200px">${S.myPacks.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select>
         <button class="btn" id="shareBtn" type="button">${esc(tr('sharePack'))}</button>
         ${studioProject ? `<button class="btn" id="offerBtn" type="button" title="${esc(tr('offerHelp'))}">${esc(tr('offerPack'))}</button>` : ''}</div>` : ''}
@@ -2052,6 +2053,14 @@ async function renderMusic(panel) {
   };
   if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
   if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
+  panel.querySelectorAll('[data-expandpack]').forEach(b => b.onclick = () => {
+    const box = panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]');
+    const open = box.hidden;
+    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(b.dataset.expandpack)}&lang=${pageLang}" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    box.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+    b.textContent = tr(open ? 'collapsePack' : 'expandPack');
+  });
   panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
   if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
   panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });
