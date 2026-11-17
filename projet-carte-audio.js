@@ -69,12 +69,15 @@
       return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item), fallback, role: useCombat ? 'combat' : 'explore', layer: item.layer || null };
     }
 
+    // Niveau du fond d'ambiance : le réglage de la carte, baissé de « roomDuckDb » dB tant qu'une musique joue (17/11).
+    const roomGain = () => model.dbToGain((map.roomToneDb || 0) - (musicVoice && st.music ? Math.max(0, Math.min(40, Number(map.roomDuckDb) || 0)) : 0));
+    const applyRoomLevel = sec => { if (roomVoice && map) roomVoice.setLevel(roomGain(), sec); };
     async function setRoom() {
       const item = itemAt(st.position);
       // Balade libre : le fond d'ambiance vient de l'endroit où l'on se tient (cercle, zone), choisi par la page.
       const ref = st.free ? (st.roomOverride || null) : item ? model.resolveRoom(map, item) : (map && map.roomTone) || null;
       const key = model.refKey(ref);
-      if (key === model.refKey(st.room)) { if (roomVoice) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.3); return; }
+      if (key === model.refKey(st.room)) { applyRoomLevel(0.3); return; }
       const my = ++roomSeq;
       const fade = 2;
       const old = roomVoice; st.room = ref;
@@ -83,7 +86,7 @@
       if (!ref) return;
       const v = await load(ref);
       if (my !== roomSeq || !v) return;
-      roomVoice = v; v.start(0); v.setLevel(model.dbToGain(map.roomToneDb), fade);
+      roomVoice = v; v.start(0); v.setLevel(roomGain(), fade);
     }
     let roomSeq = 0;
 
@@ -189,6 +192,7 @@
           if (outgoing && outgoing !== incoming) { outgoing.setLevel(0, sec); stopLater(outgoing, sec); }
           if (incoming) { incoming.start(0); incoming.setLevel(1, outgoing ? sec : Math.min(sec, 1)); } // premier son : fondu d'entrée court
         }
+        applyRoomLevel(Math.max(0.5, Math.min(sec || 1, 3))); // le fond baisse quand une musique arrive, remonte quand elle s'en va
         notify();
       };
       if (at - env.now() > 0.02) { st.pendingAt = at; cancelPending = env.schedule(run, at); notify(); } else await run();
@@ -269,7 +273,7 @@
       },
       async resume() { if (st.position || st.free) { st.playing = true; await enter(); } },
       // Réglage fait pendant l'écoute (niveau du fond d'ambiance).
-      refreshRoomLevel() { if (roomVoice && map) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.2); },
+      refreshRoomLevel() { applyRoomLevel(0.2); },
     };
   }
 
