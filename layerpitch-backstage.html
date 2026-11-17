@@ -288,7 +288,7 @@
   /* Plein écran (05/11) : le cadre couvre la fenêtre, le bouton de sortie flotte en haut à droite. */
   /* Plein écran de l'atelier (07/11) : la barre du haut (Prévisualiser, Sauvegarder / publier, Tutoriel…) reste visible, le cadre prend le reste ; le bouton
      « Quitter » est celui de l'atelier (dans le cadre), Échap marche aussi. */
-  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; }
+  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; border-radius: 0; background: var(--backstage-bg); }
   body.video-atelier-full .video-atelier-frame { position: fixed; inset: 58px 0 0 0; width: 100vw; height: calc(100vh - 58px); min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
   body.video-atelier-full .video-atelier-bar { display: none; }
   body.video-atelier-full { overflow: hidden; }
@@ -944,7 +944,11 @@
      identifié précisément entre les deux — ce commentaire lui-même affirmait alors "max 760px" comme une
      évidence, signe que la régression était déjà en place au moment où ce bloc a été écrit. Restauré à
      min(1400px, 92vw). */
-  .page-top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400; background: var(--backstage-bg); padding: 4px 0 8px; margin: -4px 0 0; }
+  /* Barre du haut collante (17/11, « pas très jolie » avec une image en filigrane : bande opaque aux bords francs) : verre dépoli
+     arrondi, bords alignés sur la barre latérale ; le filigrane transparaît à travers. */
+  .page-top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400;
+    background: color-mix(in srgb, var(--backstage-bg) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+    border-radius: 12px; box-shadow: 0 1px 3px rgba(20,22,28,.08); padding: 8px 12px; margin: -4px 0 0; }
   .global-actions-bar { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
 
   /* Menu compte (icône réglage, en haut à droite -- norme des autres sites : tout ce qui concerne
@@ -1102,7 +1106,7 @@
      le contenu prend toute la largeur ; les rangées de boutons passent à la ligne ; les deux colonnes internes s'empilent. */
   @media (max-width: 720px) {
     body { padding: 12px 12px 70px; }
-    .page-top-row { flex-direction: column; align-items: stretch; gap: 10px; position: static; }
+    .page-top-row { flex-direction: column; align-items: stretch; gap: 10px; position: static; margin: -4px 0 0; }
     .page-top-row h1 { font-size: 18px; }
     .global-actions-bar { flex-wrap: wrap; flex-shrink: 1; gap: 8px; }
     .backstage-layout { flex-direction: column; align-items: stretch; gap: 14px; margin-top: 12px; }
