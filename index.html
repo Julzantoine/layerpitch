@@ -8,9 +8,9 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1794844531548">
+<link rel="stylesheet" href="player.css?v=1794918739492">
 <!-- Styles des blocs et de la page : fichier commun avec les vitrines de Projet (reel.css, 28/09). -->
-<link rel="stylesheet" href="reel.css?v=1794844531548">
+<link rel="stylesheet" href="reel.css?v=1794918739492">
 <script>
   // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
   // dans pack.html.
@@ -94,13 +94,13 @@
 
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
-<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794844531548"></script>
-<script src="public-page.js?v=1794844531548"></script>
-<script src="player.js?v=1794844531548"></script>
-<script src="layerpitch-social-icons.js?v=1794844531548"></script>
-<script src="layerpitch-video-versions.js?v=1794844531548"></script>
-<script src="reel.js?v=1794844531548"></script>
+<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
+<script src="layerpitch-i18n.js?v=1794918739492"></script>
+<script src="public-page.js?v=1794918739492"></script>
+<script src="player.js?v=1794918739492"></script>
+<script src="layerpitch-social-icons.js?v=1794918739492"></script>
+<script src="layerpitch-video-versions.js?v=1794918739492"></script>
+<script src="reel.js?v=1794918739492"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -393,9 +393,12 @@ async function init() {
       socials: data.socials, noAiCertifiedGlobal: data.noAiCertifiedGlobal });
 
     if (!embedMode && (profile.contactUrl || profile.contactEmail)) {
+      // Sécurité (audit 16/11) : site et e-mail viennent du compositeur -- échappés, et le lien ne peut être qu'une adresse
+      // web (« javascript:… » ou autre devient une adresse https:// inoffensive).
+      const contactHref = u => /^https?:\/\//i.test(u) ? u : 'https://' + u;
       document.getElementById('contact').innerHTML = [
-        profile.contactUrl ? `<a href="${profile.contactUrl}" target="_blank">${profile.contactUrl.replace(/^https?:\/\//, '')}</a>` : '',
-        profile.contactEmail ? `<a href="mailto:${profile.contactEmail}">${profile.contactEmail}</a>` : ''
+        profile.contactUrl ? `<a href="${escapeHtml(contactHref(String(profile.contactUrl).trim()))}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(profile.contactUrl).replace(/^https?:\/\//, ''))}</a>` : '',
+        profile.contactEmail ? `<a href="mailto:${escapeHtml(profile.contactEmail)}">${escapeHtml(profile.contactEmail)}</a>` : ''
       ].filter(Boolean).join(' &nbsp;/&nbsp; ');
     }
     // Bouton "Intégrer" public (data.embedAllowed.adreels, liste de morceaux d'AdReel uniquement) : voir le
@@ -520,6 +523,6 @@ document.addEventListener('keydown', e => {
 
 window.addEventListener('load', init);
 </script>
-<script src="layerpitch-preview-tuto.js?v=1794844531548"></script>
+<script src="layerpitch-preview-tuto.js?v=1794918739492"></script>
 </body>
 </html>

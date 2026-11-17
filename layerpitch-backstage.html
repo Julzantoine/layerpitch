@@ -11,8 +11,8 @@
      avant tout autre script ; le paramètre est ensuite retiré de l'adresse, pour qu'un rechargement (bouton FR/EN) ne le réimpose pas.
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
-<script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794844531548">
+<script src="https://unpkg.com/wasm-media-encoders@0.7.0/dist/umd/WasmMediaEncoder.min.js" integrity="sha384-jnL9yi4lELMxvcNwE9FNSNbrTe8Gstx6L6uycidp2ar4UTa3JrZzgbtG2ouao2z6" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794918739492">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2362,21 +2362,21 @@
 
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
-<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794844531548"></script>
-<script src="layerpitch-i18n.js?v=1794844531548"></script>
-<script src="layerpitch-import-engine.js?v=1794844531548"></script>
-<script src="layerpitch-appearance.js?v=1794844531548"></script>
-<script src="layerpitch-font-picker.js?v=1794844531548"></script>
-<script src="layerpitch-album-shared.js?v=1794844531548"></script>
-<script src="layerpitch-album-editor.js?v=1794844531548"></script>
-<script src="layerpitch-shell.js?v=1794844531548"></script>
-<script src="layerpitch-social-icons.js?v=1794844531548"></script>
-<script src="layerpitch-notify.js?v=1794844531548"></script>
-<script src="layerpitch-guide.js?v=1794844531548"></script>
-<script src="layerpitch-lesson-previews.js?v=1794844531548"></script>
-<script src="layerpitch-help.js?v=1794844531548"></script>
-<script src="player.js?v=1794844531548"></script>
+<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
+<script src="layerpitch-tuto.js?v=1794918739492"></script>
+<script src="layerpitch-i18n.js?v=1794918739492"></script>
+<script src="layerpitch-import-engine.js?v=1794918739492"></script>
+<script src="layerpitch-appearance.js?v=1794918739492"></script>
+<script src="layerpitch-font-picker.js?v=1794918739492"></script>
+<script src="layerpitch-album-shared.js?v=1794918739492"></script>
+<script src="layerpitch-album-editor.js?v=1794918739492"></script>
+<script src="layerpitch-shell.js?v=1794918739492"></script>
+<script src="layerpitch-social-icons.js?v=1794918739492"></script>
+<script src="layerpitch-notify.js?v=1794918739492"></script>
+<script src="layerpitch-guide.js?v=1794918739492"></script>
+<script src="layerpitch-lesson-previews.js?v=1794918739492"></script>
+<script src="layerpitch-help.js?v=1794918739492"></script>
+<script src="player.js?v=1794918739492"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2610,6 +2610,9 @@ function loadPostgresReadScripts() {
   return Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
+    // Sécurité (audit 16/11, I3) : empreinte attendue du SDK Supabase (test_cdn_integrity.js vérifie la cohérence).
+    const integrity = { 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js': 'sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O' }[src];
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
@@ -15410,8 +15413,22 @@ document.getElementById('btnView').addEventListener('click', () => {
 /* ---------------- Conversion WAV -> OGG ---------------- */
 // Le niveau sonore n'est plus corrigé fichier par fichier ici : on se contente de MESURER chaque fichier (voir
 // 40a-niveau-sonore-lufs.js), le gain unique du morceau est calculé une fois tous ses fichiers connus (publication).
+// Sécurité (audit 16/11, I3) : la bibliothèque d'encodage télécharge son moteur (ogg.wasm) à part, hors du contrôle
+// d'empreinte de la balise <script>. On le télécharge nous-mêmes, on vérifie son empreinte, puis on le lui donne.
+// Version et empreinte à changer EN MÊME TEMPS que la balise de src/backstage/01-tete.html.
+const OGG_WASM_URL = 'https://unpkg.com/wasm-media-encoders@0.7.0/wasm/ogg.wasm';
+const OGG_WASM_SHA384 = 'ppdbvMbJ0Kpo809cSarkc3X2O26gmL9RXsO8Nd0B/mxVn4pZVoZjjjie2lhcIE8S';
+async function loadVerifiedOggWasm() {
+  const res = await fetch(OGG_WASM_URL);
+  if (!res.ok) throw new Error('Encodeur OGG introuvable (' + res.status + ')');
+  const buf = await res.arrayBuffer();
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-384', buf));
+  let bin = ''; for (let i = 0; i < digest.length; i++) bin += String.fromCharCode(digest[i]);
+  if (btoa(bin) !== OGG_WASM_SHA384) throw new Error('Encodeur OGG refusé : le fichier reçu ne correspond pas à la version attendue');
+  return buf;
+}
 async function wavFileToOgg(file) {
-  if (!oggEncoder) oggEncoder = await WasmMediaEncoder.createOggEncoder();
+  if (!oggEncoder) oggEncoder = await WasmMediaEncoder.createEncoder('audio/ogg', await loadVerifiedOggWasm());
   const arrayBuf = await file.arrayBuffer();
   const actx = new (window.AudioContext || window.webkitAudioContext)();
   const audioBuf = await actx.decodeAudioData(arrayBuf.slice(0));

@@ -68,6 +68,9 @@ function loadPostgresReadScripts() {
   return Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
+    // Sécurité (audit 16/11, I3) : empreinte attendue du SDK Supabase (test_cdn_integrity.js vérifie la cohérence).
+    const integrity = { 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js': 'sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O' }[src];
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));

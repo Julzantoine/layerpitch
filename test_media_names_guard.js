@@ -18,7 +18,7 @@ const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + 
   const adReel = {
     id: 'a', label: 'A', lang: 'fr', trackIds: [], trackOverrides: {},
     testimonials: [{ text: 'Super', author: 'Ana', avatar: EVIL }],
-    profile: { title: 'Piège', logo: EVIL, photo: EVIL, bio: 'Bio', effectivePlan: 'pro', theme: { bgColor: '#101820', bgImage: EVIL_CSS } },
+    profile: { title: 'Piège', logo: EVIL, photo: EVIL, bio: 'Bio', effectivePlan: 'pro', contactUrl: 'javascript:window.__pwned=1//" onmouseover="x', contactEmail: 'a@b.c" onclick="x', theme: { bgColor: '#101820', bgImage: EVIL_CSS } },
     blocks: [
       { id: 'h', type: 'header' }, { id: 'b', type: 'bio' }, { id: 'te', type: 'testimonials' },
       { id: 'p1', type: 'photo', images: [{ file: EVIL }] },
@@ -32,10 +32,12 @@ const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + 
   const out = await render(adReel, extra);
   // Lecture comme le ferait le navigateur : un nom piégé qui serait sorti de son attribut créerait de vrais attributs.
   const { JSDOM } = require('jsdom');
-  const doc = new JSDOM(`<body>${out.blocks}${out.bodyLayers}</body>`).window.document;
+  const doc = new JSDOM(`<body>${out.blocks}${out.bodyLayers}${out.contact}</body>`).window.document;
   const els = [...doc.querySelectorAll('*')];
   check('aucun attribut onerror ajouté par un nom d\'image', !els.some(e => e.hasAttribute('onerror')));
   check('aucun attribut data-x ajouté par un nom d\'image', !els.some(e => e.hasAttribute('data-x')));
+  check('pied de page : lien et e-mail piégés sans attribut ajouté, lien jamais en javascript:',
+    !els.some(e => e.hasAttribute('onmouseover') || e.hasAttribute('onclick')) && [...doc.querySelectorAll('a')].every(a => !/^javascript:/i.test(a.getAttribute('href'))) && doc.querySelectorAll('a[href^="mailto:"]').length === 1);
   const imgs = [...doc.querySelectorAll('img')];
   check('chaque image pointe vers les médias LayerPitch, nom piégé compris tel quel',
     imgs.length > 0 && imgs.every(i => i.getAttribute('src') === 'https://media.layerpitch.com/images/' + EVIL));

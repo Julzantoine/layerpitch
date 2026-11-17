@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794844531548">
-<link rel="stylesheet" href="player.css?v=1794844531548">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794918739492">
+<link rel="stylesheet" href="player.css?v=1794918739492">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -206,32 +206,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
   <div class="top"><div class="presence" id="presence" style="margin-left:auto"></div></div>
   <div id="content"></div>
 </div>
-<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794844531548"></script>
-<script src="layerpitch-notify.js?v=1794844531548"></script>
-<script src="player.js?v=1794844531548"></script>
-<script src="api/supabase-client.js?v=1794844531548"></script>
-<script src="api/auth.js?v=1794844531548"></script>
-<script src="layerpitch-appearance.js?v=1794844531548"></script>
-<script src="layerpitch-font-picker.js?v=1794844531548"></script>
-<script src="layerpitch-shell.js?v=1794844531548"></script>
-<script src="api/tracks.js?v=1794844531548"></script>
-<script src="api/packs.js?v=1794844531548"></script>
-<script src="api/albums.js?v=1794844531548"></script>
-<script src="api/studio.js?v=1794844531548"></script>
-<script src="api/adreels.js?v=1794844531548"></script>
-<script src="api/demo-client.js?v=1794844531548"></script>
-<script src="api/demo-projects.js?v=1794844531548"></script>
-<script src="layerpitch-tuto.js?v=1794844531548"></script>
-<script src="layerpitch-guide.js?v=1794844531548"></script>
-<script src="layerpitch-lesson-previews.js?v=1794844531548"></script>
-<script src="projet-lecons.js?v=1794844531548"></script>
-<script src="layerpitch-video-versions.js?v=1794844531548"></script>
-<script src="api/projects.js?v=1794844531548"></script>
-<script src="api/sfx.js?v=1794844531548"></script>
-<script src="projet-carte-audio.js?v=1794844531548"></script>
-<script src="projet-carte.js?v=1794844531548"></script>
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+<script src="layerpitch-i18n.js?v=1794918739492"></script>
+<script src="layerpitch-notify.js?v=1794918739492"></script>
+<script src="player.js?v=1794918739492"></script>
+<script src="api/supabase-client.js?v=1794918739492"></script>
+<script src="api/auth.js?v=1794918739492"></script>
+<script src="layerpitch-appearance.js?v=1794918739492"></script>
+<script src="layerpitch-font-picker.js?v=1794918739492"></script>
+<script src="layerpitch-shell.js?v=1794918739492"></script>
+<script src="api/tracks.js?v=1794918739492"></script>
+<script src="api/packs.js?v=1794918739492"></script>
+<script src="api/albums.js?v=1794918739492"></script>
+<script src="api/studio.js?v=1794918739492"></script>
+<script src="api/adreels.js?v=1794918739492"></script>
+<script src="api/demo-client.js?v=1794918739492"></script>
+<script src="api/demo-projects.js?v=1794918739492"></script>
+<script src="layerpitch-tuto.js?v=1794918739492"></script>
+<script src="layerpitch-guide.js?v=1794918739492"></script>
+<script src="layerpitch-lesson-previews.js?v=1794918739492"></script>
+<script src="projet-lecons.js?v=1794918739492"></script>
+<script src="layerpitch-video-versions.js?v=1794918739492"></script>
+<script src="api/projects.js?v=1794918739492"></script>
+<script src="api/sfx.js?v=1794918739492"></script>
+<script src="projet-carte-audio.js?v=1794918739492"></script>
+<script src="projet-carte.js?v=1794918739492"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -502,7 +502,7 @@ async function selectionAction(act) {
 let jsZipPromise = null;
 function loadJSZip() {
   if (window.JSZip) return Promise.resolve();
-  if (!jsZipPromise) jsZipPromise = new Promise((res, rej) => { const el = document.createElement('script'); el.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; el.onload = res; el.onerror = () => rej(new Error('JSZip')); document.head.appendChild(el); });
+  if (!jsZipPromise) jsZipPromise = new Promise((res, rej) => { const el = document.createElement('script'); el.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; el.integrity = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG'; el.crossOrigin = 'anonymous'; el.onload = res; el.onerror = () => rej(new Error('JSZip')); document.head.appendChild(el); });
   return jsZipPromise;
 }
 const safeName = t => String(t || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80) || 'sans-titre';
