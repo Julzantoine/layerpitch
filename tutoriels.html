@@ -28,6 +28,20 @@
   .row.is-soon { opacity: .55; }
   .btn { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 13px; white-space: nowrap; }
   a.row:hover .btn { border-color: var(--accent); color: var(--accent); }
+  details.theme { padding: 0; overflow: hidden; }
+  details.theme > summary { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; list-style: none; }
+  details.theme > summary::-webkit-details-marker { display: none; }
+  details.theme > summary:hover { background: #fafbfc; }
+  .sum-main { flex: 1; min-width: 0; }
+  .sum-main b { display: block; font-family: var(--font-title); font-size: 16px; font-weight: 600; }
+  .sum-main small { display: block; font-size: 12.5px; color: var(--text-dim); margin-top: 2px; line-height: 1.5; }
+  .count { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+  .chev { width: 8px; height: 8px; border-right: 2px solid var(--text-dim); border-bottom: 2px solid var(--text-dim); transform: rotate(-45deg); transition: transform .15s; margin: 0 4px; flex: none; }
+  details[open] > summary .chev { transform: rotate(45deg); }
+  details.theme.is-soon { opacity: .75; }
+  .rows { padding: 0 20px 8px; border-top: 1px solid var(--border); }
+  .bar { display: flex; gap: 14px; justify-content: flex-end; margin: 0 0 10px; }
+  .bar button { border: none; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--accent); cursor: pointer; text-decoration: underline; }
   .pill { font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 </style>
 </head>
@@ -37,8 +51,8 @@
   <p class="intro" id="intro"></p>
   <div id="content"></div>
 </div>
-<script src="layerpitch-i18n.js?v=1794955589501"></script>
-<script src="tutoriels.js?v=1794955589501"></script>
+<script src="layerpitch-i18n.js?v=1794956553117"></script>
+<script src="tutoriels.js?v=1794956553117"></script>
 <script>
 // tutoriels.html — page publique qui regroupe toutes les leçons du mode tutoriel (17/11). Jamais derrière une connexion.
 const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
