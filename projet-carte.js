@@ -31,7 +31,7 @@
   // ---------------------------------------------------------------- Modèle (fonctions pures)
   let idSeq = 0;
   const newId = prefix => prefix + Date.now().toString(36) + (idSeq++).toString(36) + Math.random().toString(36).slice(2, 5);
-  const emptyMap = () => ({ nodes: [], edges: [], zones: [], modes: [], background: null, roomTone: null, roomToneDb: DEFAULT_ROOM_DB, defaults: { transition: Object.assign({}, DEFAULT_TRANSITION) } });
+  const emptyMap = () => ({ nodes: [], edges: [], zones: [], modes: [], background: null, roomTone: null, roomToneDb: DEFAULT_ROOM_DB, roomDuckDb: 0, defaults: { transition: Object.assign({}, DEFAULT_TRANSITION) } });
   const nodeById = (map, id) => map.nodes.find(n => n.id === id) || null;
   const edgeById = (map, id) => map.edges.find(e => e.id === id) || null;
   const zoneById = (map, id) => (map.zones || []).find(z => z.id === id) || null;
@@ -431,6 +431,7 @@
     });
     map.roomTone = cleanRef(raw && raw.roomTone);
     if (raw && Number.isFinite(Number(raw.roomToneDb))) map.roomToneDb = Math.max(-60, Math.min(0, Number(raw.roomToneDb)));
+    map.roomDuckDb = raw && Number.isFinite(Number(raw.roomDuckDb)) ? Math.max(0, Math.min(40, Number(raw.roomDuckDb))) : 0; // baisse du fond quand une musique joue (0 = aucune)
     const dt = cleanTransition(raw && raw.defaults && raw.defaults.transition) || {};
     delete dt.stinger;
     map.defaults.transition = Object.assign({}, DEFAULT_TRANSITION, dt);
@@ -1352,7 +1353,9 @@
         <div><label>${esc(tr('map_roomTone'))}</label>
           <div class="lm-slot" id="lmRoomZone">${room ? `<div class="lm-sound"><span>${room.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(room.title)}">${esc(room.title || room.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" id="lmRoomRm" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>` : `<p class="hint" style="margin:0">${esc(tr('map_roomToneEmpty'))}</p>`}</div>
           <label>${esc(tr('map_roomToneDb', { db: map.roomToneDb }))}</label><input type="range" id="lmRoomDb" min="-40" max="0" step="1" value="${map.roomToneDb}"${dis}>
-          <p class="hint">${esc(tr('map_roomToneHint'))}</p></div>
+          <p class="hint">${esc(tr('map_roomToneHint'))}</p>
+          <label>${esc(tr('map_roomDuckDb', { db: map.roomDuckDb }))}</label><input type="range" id="lmRoomDuck" min="0" max="30" step="1" value="${map.roomDuckDb}"${dis}>
+          <p class="hint">${esc(tr('map_roomDuckHint'))}</p></div>
         <div><label>${esc(tr('map_defaultTransition'))}</label>
           <div class="lm-row"><select id="lmDefStyle"${dis}>${optionsHtml(TRANSITION_STYLES, d.style, 'map_style_')}</select><input type="number" id="lmDefSec" min="0" max="30" step="0.5" value="${d.sec}"${dis} aria-label="${esc(tr('map_seconds'))}"> <span class="meta">${esc(tr('map_seconds'))}</span></div>
           <div class="lm-row" style="margin-top:6px"><select id="lmDefSync"${dis} aria-label="${esc(tr('map_sync'))}">${optionsHtml(SYNCS, d.sync, 'map_sync_')}</select></div>
@@ -1374,6 +1377,8 @@
       b.onclick = () => { if (st.picked) setRoom(st.picked); }; zone.appendChild(b);
       const db = box.querySelector('#lmRoomDb');
       db.oninput = () => { map.roomToneDb = Number(db.value); box.querySelector('#lmRoomDb').previousElementSibling.textContent = tr('map_roomToneDb', { db: map.roomToneDb }); if (audio) audio.refreshRoomLevel(); touch(); };
+      const duck = box.querySelector('#lmRoomDuck');
+      duck.oninput = () => { map.roomDuckDb = Number(duck.value); duck.previousElementSibling.textContent = tr('map_roomDuckDb', { db: map.roomDuckDb }); if (audio) audio.refreshRoomLevel(); touch(); };
       const setDef = (k, v) => { map.defaults.transition = Object.assign({}, map.defaults.transition, { [k]: v }); touch(); renderInspector(); };
       box.querySelector('#lmDefStyle').onchange = e => setDef('style', e.target.value);
       box.querySelector('#lmDefSec').onchange = e => setDef('sec', Math.max(0, Math.min(30, Number(e.target.value) || 0)));
