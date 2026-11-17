@@ -128,6 +128,27 @@ const TASKS = [
   ['Préparer la carte du niveau', 'Trois zones : bureau, étage sombre, archives.', false, 0],
 ];
 
+// Vitrines fictives : une publique (joueurs, adresse libre) et une « éditeur » (lien secret, sans compte).
+const VITRINES = [
+  { audience: 'players', title: 'Dernier Étage', subtitle: 'Un jeu d\'horreur psychologique : le burn-out, étage par étage.',
+    blocks: [
+      { type: 'header' },
+      { type: 'text', title: 'Le pitch', align: 'left', content: 'Vous êtes employé(e) dans une tour de bureaux qui ne ferme jamais. Les dossiers s\'empilent, les néons bourdonnent, et chaque étage est un peu plus sombre que le précédent. Il faut monter jusqu\'au dernier étage, là où personne ne va. Un jeu à l\'ambiance lente, où la musique ne dit pas quoi ressentir : elle suit votre fatigue.' },
+      { type: 'packs', packTitle: PACK_TITLE },
+      { type: 'text', title: 'Merci à Protocol Interactive', align: 'left', content: 'Cette vitrine est fictive. Les images de gameplay sont fournies avec l\'aimable autorisation de Protocol Interactive (Joris Balzanelli et Samir Bensadoun), développeurs de « Something Is Wrong », actuellement en développement. Allez voir leur jeu !' },
+      { type: 'links', links: [{ label: 'Something Is Wrong sur Steam', url: STEAM }] },
+    ] },
+  { audience: 'publisher', title: 'Dernier Étage : dossier pour éditeur', subtitle: 'Direction sonore et plan de production',
+    blocks: [
+      { type: 'header' },
+      { type: 'text', title: 'Intention sonore', align: 'left', content: 'Deux pistes testées sur la même scène d\'ouverture : une version avec mélodie, une version purement texturale. Notre recommandation : la texture. Un drone continu, une lampe qui grésille, un bourdonnement de néons qui se resserre quand la batterie baisse. La mélodie est gardée pour un seul moment, quand la lampe s\'allume.' },
+      { type: 'text', title: 'Où on en est', align: 'left', content: 'Scène d\'ouverture montée sur les deux versions. Carte du niveau dessinée (bureau, couloir, archives, salle secrète), musiques à poser. Six tâches ouvertes, dont deux déjà faites.' },
+      { type: 'packs', packTitle: PACK_TITLE },
+      { type: 'links', links: [{ label: 'Something Is Wrong sur Steam (images de gameplay, avec autorisation)', url: STEAM }] },
+      { type: 'contact' },
+    ] },
+];
+
 // q(sql, args) -> lignes. Exporté pour pouvoir tester le script sur la base jetable des tests.
 async function seed(q, apply, ownerOverride) {
   const [mont] = await q(`select c.id, c.title, cp.profile_id as uid from public.video_captures c join public.composer_profiles cp on cp.id = c.owner_id where c.id = $1`, [MONTAGE_ID]);
@@ -249,6 +270,21 @@ async function seed(q, apply, ownerOverride) {
       await asOwner();
       await q(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ title: MAP_TITLE, data: LEVEL_MAP })]);
     }
+  }
+
+  // Vitrines fictives (une publique, une éditeur)
+  for (const v of VITRINES) {
+    if (await count(`select count(*)::int n from public.project_vitrines where project_id = $1 and audience = $2`, [pid, v.audience])) continue;
+    added.vitrines = (added.vitrines || 0) + 1;
+    if (!apply) continue;
+    await asOwner();
+    const packAsset = (await q(`select a.id from public.project_assets a where a.project_id = $1 and a.kind = 'pack' and a.pack_id = $2`, [pid, PACK_ID]))[0];
+    const blocks = v.blocks.map((b, i) => {
+      const o = Object.assign({ id: 'vb' + (i + 1) }, b); delete o.packTitle;
+      if (b.type === 'packs') o.assetIds = packAsset ? [packAsset.id] : [];
+      return o;
+    });
+    await q(`select public.save_project_vitrine($1, $2::jsonb)`, [pid, JSON.stringify({ audience: v.audience, display: 'page', title: v.title, subtitle: v.subtitle, published: true, theme: {}, blocks })]);
   }
 
   // Tâches

@@ -287,6 +287,8 @@
         return next ? { lesson: next, n: i + 1 + 1 } : null;
       },
       startLesson: id => start(id),
+      // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
+      choiceAction: action => { if (action === 'tuto') window.open('./projets.html?tuto&lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
     });
     // Visite du projet d'exemple « Music City » (14/11) : proposée en fin de la visite de la page Projets (projets.html). Onglet par onglet, sans
@@ -302,7 +304,8 @@
       { selector: '#panel', titleKey: 'stPjVideosTitle', textKey: 'stPjVideosText', enter: openTab('videos') },
       { selector: '#panel', titleKey: 'stPjShowcaseTitle', textKey: 'stPjShowcaseText', enter: openTab('showcase') },
       { selector: '#panel', titleKey: 'stPjMembersTitle', textKey: 'stPjMembersText', enter: openTab('members') },
-      { titleKey: 'stEndTitle', textKey: ctx.demo ? 'stPjDemoEndText' : 'stPjEndText', enter: openTab('board'), choices: ctx.demo ? [] : [{ labelKey: 'stLearn', lesson: 'pj-chat' }] },
+      { titleKey: 'stEndTitle', textKey: ctx.demo ? 'stPjDemoEndText' : 'stPjEndText', enter: openTab('board'), choices: ctx.demo ? [{ labelKey: 'stPjDemoLearn', action: 'tuto' }] : [{ labelKey: 'stLearn', lesson: 'pj-chat' }],
+        beta: !!ctx.demo, betaPsKey: 'stPjDemoBetaPs', betaLinkKey: 'stPjDemoBetaLink' },
     ];
     function start(id) {
       const steps = lessons[id];
