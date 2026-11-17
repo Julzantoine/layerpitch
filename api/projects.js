@@ -20,6 +20,7 @@
   const P = {
     // Projet de démonstration public (sans compte, lecture seule) : voir la migration 20260929010000.
     publicDemo: () => rpc('get_public_demo'),
+    publicDemoMaps: () => rpc('get_public_demo_maps'), // cartes de niveau de la démo (migration 20261117010000)
     // Interrupteur « Démo publique » (administrateurs et compte de démo) : { eligible, projectId } et pose / retrait de la marque.
     demoStatus: () => rpc('get_public_demo_status'),
     setDemo: (id, on) => rpc('set_public_demo', { p_project_id: id, p_on: !!on }),

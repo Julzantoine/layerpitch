@@ -293,7 +293,7 @@
     // geste obligatoire ; mêmes bulles que les visites de section du Backstage (kind « tour »), elle finit sur « suivre le tutoriel ».
     const openTab = name => () => { const b = document.querySelector('.tab[data-tab="' + name + '"]'); if (b) b.click(); };
     lessons['pj-tour'] = [
-      { titleKey: 'stPjTourTitle', textKey: 'stPjTourText' },
+      { titleKey: ctx.demo ? 'stPjDemoTourTitle' : 'stPjTourTitle', textKey: ctx.demo ? 'stPjDemoTourText' : 'stPjTourText' },
       { selector: '.tabs', titleKey: 'stPjTabsTitle', textKey: 'stPjTabsText', enter: openTab('board') },
       { selector: '#panel', titleKey: 'stPjBoardTitle', textKey: 'stPjBoardText', enter: openTab('board') },
       { selector: '#chat', titleKey: 'stPjChatTitle', textKey: 'stPjChatText', enter: openTab('board') },
@@ -302,7 +302,7 @@
       { selector: '#panel', titleKey: 'stPjVideosTitle', textKey: 'stPjVideosText', enter: openTab('videos') },
       { selector: '#panel', titleKey: 'stPjShowcaseTitle', textKey: 'stPjShowcaseText', enter: openTab('showcase') },
       { selector: '#panel', titleKey: 'stPjMembersTitle', textKey: 'stPjMembersText', enter: openTab('members') },
-      { titleKey: 'stEndTitle', textKey: 'stPjEndText', enter: openTab('board'), choices: [{ labelKey: 'stLearn', lesson: 'pj-chat' }] },
+      { titleKey: 'stEndTitle', textKey: ctx.demo ? 'stPjDemoEndText' : 'stPjEndText', enter: openTab('board'), choices: ctx.demo ? [] : [{ labelKey: 'stLearn', lesson: 'pj-chat' }] },
     ];
     function start(id) {
       const steps = lessons[id];

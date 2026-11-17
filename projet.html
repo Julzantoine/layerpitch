@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794844531548">
-<link rel="stylesheet" href="player.css?v=1794844531548">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794932654833">
+<link rel="stylesheet" href="player.css?v=1794932654833">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794844531548"></script>
-<script src="layerpitch-notify.js?v=1794844531548"></script>
-<script src="player.js?v=1794844531548"></script>
-<script src="api/supabase-client.js?v=1794844531548"></script>
-<script src="api/auth.js?v=1794844531548"></script>
-<script src="layerpitch-appearance.js?v=1794844531548"></script>
-<script src="layerpitch-font-picker.js?v=1794844531548"></script>
-<script src="layerpitch-shell.js?v=1794844531548"></script>
-<script src="api/tracks.js?v=1794844531548"></script>
-<script src="api/packs.js?v=1794844531548"></script>
-<script src="api/albums.js?v=1794844531548"></script>
-<script src="api/studio.js?v=1794844531548"></script>
-<script src="api/adreels.js?v=1794844531548"></script>
-<script src="api/demo-client.js?v=1794844531548"></script>
-<script src="api/demo-projects.js?v=1794844531548"></script>
-<script src="layerpitch-tuto.js?v=1794844531548"></script>
-<script src="layerpitch-guide.js?v=1794844531548"></script>
-<script src="layerpitch-lesson-previews.js?v=1794844531548"></script>
-<script src="projet-lecons.js?v=1794844531548"></script>
-<script src="layerpitch-video-versions.js?v=1794844531548"></script>
-<script src="api/projects.js?v=1794844531548"></script>
-<script src="api/sfx.js?v=1794844531548"></script>
-<script src="projet-carte-audio.js?v=1794844531548"></script>
-<script src="projet-carte.js?v=1794844531548"></script>
+<script src="layerpitch-i18n.js?v=1794932654833"></script>
+<script src="layerpitch-notify.js?v=1794932654833"></script>
+<script src="player.js?v=1794932654833"></script>
+<script src="api/supabase-client.js?v=1794932654833"></script>
+<script src="api/auth.js?v=1794932654833"></script>
+<script src="layerpitch-appearance.js?v=1794932654833"></script>
+<script src="layerpitch-font-picker.js?v=1794932654833"></script>
+<script src="layerpitch-shell.js?v=1794932654833"></script>
+<script src="api/tracks.js?v=1794932654833"></script>
+<script src="api/packs.js?v=1794932654833"></script>
+<script src="api/albums.js?v=1794932654833"></script>
+<script src="api/studio.js?v=1794932654833"></script>
+<script src="api/adreels.js?v=1794932654833"></script>
+<script src="api/demo-client.js?v=1794932654833"></script>
+<script src="api/demo-projects.js?v=1794932654833"></script>
+<script src="layerpitch-tuto.js?v=1794932654833"></script>
+<script src="layerpitch-guide.js?v=1794932654833"></script>
+<script src="layerpitch-lesson-previews.js?v=1794932654833"></script>
+<script src="projet-lecons.js?v=1794932654833"></script>
+<script src="layerpitch-video-versions.js?v=1794932654833"></script>
+<script src="api/projects.js?v=1794932654833"></script>
+<script src="api/sfx.js?v=1794932654833"></script>
+<script src="projet-carte-audio.js?v=1794932654833"></script>
+<script src="projet-carte.js?v=1794932654833"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -271,6 +271,7 @@ function demoProjects() {
   const reads = {
     get: async () => ({ data: S.demoProject, error: null }),
     content: async () => ({ data: S.demo.content, error: null }),
+    listMaps: async () => ({ data: S.demo.maps || [], error: null }),
     messages: async () => ({ data: (S.demo.messages || []).map(names), error: null }),
     activity: async () => ({ data: (S.demo.activity || []).map(names), error: null }),
     annotations: async (id, tt, tid) => ({ data: (S.demo.annotations || []).filter(n => (!tt || n.targetType === tt) && (!tid || n.targetId === tid)).map(names), error: null }),
@@ -294,7 +295,7 @@ if (SOLO_MAP) { S.tab = 'map'; S.openMapId = params.get('map') || null; document
 if (!SOLO_MAP && ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members'].includes(params.get('tab'))) S.tab = params.get('tab');
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
-const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
+const TUTO_LESSONS = Object.assign({ started: false }, (TUTO || DEMO) ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $, demo: DEMO }) : { list: [], start: () => false });
 // Les leçons se lancent depuis le menu des tutos (?lesson=…) ; exposées pour les tests, qui les enchaînent sur une seule page.
 if (TUTO) window.LayerPitchTutoLessons = TUTO_LESSONS;
 // ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « Sans section » ----
@@ -743,13 +744,16 @@ async function fileUrl(fileId) {
 async function loadDemo() {
   let d = null;
   if (params.get('demo') === 'fixture') { try { d = await (await fetch('./test-fixtures/public-demo.json')).json(); } catch (e) {} } // aperçu local, sans base
-  else { const r = await realPJ.publicDemo(); d = r.data; }
+  else { const r = await realPJ.publicDemo(); d = r.data; if (d) { const m = await realPJ.publicDemoMaps(); d.maps = m.data || []; } }
   if (!d) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('demoUnavailable'))}</p></div>`; return; }
   S.demo = d; S.me = { id: 'demo', email: '' };
   S.demoProject = Object.assign({}, d.project, { role: 'viewer', archived: false, members: (d.members || []).map(m => ({ email: m.name, status: 'active', source: 'guest', role: m.role, me: false })) });
   S.project = S.demoProject; S.content = d.content || { assets: [], moodboard: [], packs: [], albums: [] };
   document.title = tr('pageTitleProject', { title: S.project.title });
   await loadMessages(); computeUnread(); render();
+  // Visite guidée proposée d'emblée à la première ouverture (puis relançable par le bouton du bandeau).
+  let seen = false; try { seen = localStorage.getItem('layerpitch_demo_tour_seen_v1') === '1'; localStorage.setItem('layerpitch_demo_tour_seen_v1', '1'); } catch (e) { /* stockage indisponible */ }
+  if (!seen && !params.get('tab')) setTimeout(() => TUTO_LESSONS.start('pj-tour'), 500);
 }
 async function load() {
   if (DEMO) return loadDemo();
@@ -893,7 +897,7 @@ function render() {
   if (!visibleTabs().includes(S.tab)) S.tab = 'board'; // onglet demandé mais absent pour ce compte
   content.innerHTML = `
     ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
-    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
+    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><span><button class="btn" type="button" id="demoTourBtn">${esc(tr('demoTour'))}</button> <a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></span></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
@@ -929,7 +933,7 @@ function render() {
   };
   renderPanel();
   renderChat();
-  if (DEMO) lockDemo();
+  if (DEMO) { lockDemo(); const tb = $('demoTourBtn'); if (tb) tb.onclick = () => TUTO_LESSONS.start('pj-tour'); }
 }
 // Notes non résolues de tout le Projet (clic sur le compteur à côté du titre) : sur quoi, qui, quoi, et « Voir » qui mène
 // à l'objet (onglet Vidéos, Images ou Moodboard, notes ouvertes).
@@ -1976,7 +1980,7 @@ async function renderMap(panel) {
   if (mapPopupOpen()) return renderMapDetached(panel);
   const openId = S.openMapId, openNode = S.openMapNode; S.openMapId = null; S.openMapNode = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
+    tr, canEdit: !DEMO, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
     detach: SOLO_MAP ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
