@@ -62,6 +62,39 @@ const REFS = [
   ['https://en.wikipedia.org/wiki/Playtime_(film)', 'Réf. graphique : Playtime (Jacques Tati)', 'Des bureaux en cubicules, géométrie froide, personnes perdues dans l\'espace.'],
 ];
 
+// Carte de niveau fictive (sans musique : le propriétaire dépose ses sons lui-même). Quatre zones : bureau, couloir, archives, salle secrète.
+const MAP_TITLE = 'Niveau 1 : le bureau, le couloir, les archives';
+const S0 = () => ({ main: [], combat: [], room: [] });
+const zone = (id, label, note, x, y, w, h, color) => ({ id, label, note, shape: 'rect', x, y, w, h, points: [], color, keepMusic: false, sounds: S0(), transition: null, link: null });
+const node = (id, type, label, x, y, note) => Object.assign({ id, type, label, x, y, note: note || '', sounds: S0(), transition: null }, type === 'quest' ? { side: false, anchor: null } : {});
+const edge = (id, from, to, label) => ({ id, from, to, label: label || '', enemy: false, sounds: S0(), transition: null });
+const LEVEL_MAP = {
+  nodes: [
+    node('poste', 'start', 'Poste de travail', 90, 250, 'O. commence ici, au milieu des piles de dossiers.'),
+    node('photocop', 'place', 'Photocopieuse', 230, 130, 'Le son régulier qui rythme la journée. O. y prend un document.'),
+    node('bureauchef', 'place', 'Bureau où apporter le document', 290, 250, 'Le petit enjeu qui fait tout peser.'),
+    node('ascenseur', 'place', 'Ascenseur', 385, 200, 'Seule sortie. À l\'ouverture des portes, la musique du bureau s\'arrête.'),
+    node('couloir', 'place', 'Couloir sombre', 500, 200, 'On déambule, lumières éteintes. Un seul drone.'),
+    node('archives', 'place', 'Salle d\'archives', 740, 200, 'Vide et dans le noir. Des étagères nues.'),
+    node('lampe', 'treasure', 'La lampe', 830, 120, 'Première lumière du niveau. Elle éclaire de moins en moins loin.'),
+    node('porte', 'place', 'Porte dissimulée', 800, 330, 'Derrière la dernière étagère, une porte qu\'on n\'avait pas vue.'),
+    node('secrete', 'place', 'Salle secrète', 780, 440, 'Ce que le bureau ne montre pas.'),
+  ],
+  edges: [
+    edge('e1', 'poste', 'photocop'), edge('e2', 'photocop', 'bureauchef'), edge('e3', 'bureauchef', 'ascenseur'),
+    edge('e4', 'ascenseur', 'couloir'), edge('e5', 'couloir', 'archives'), edge('e6', 'archives', 'lampe'),
+    edge('e7', 'archives', 'porte'), edge('e8', 'porte', 'secrete'),
+  ],
+  zones: [
+    zone('z-bureau', 'Bureau', 'Open space, lumières froides, piles de dossiers partout.', 40, 60, 360, 260, '#2f80c0'),
+    zone('z-couloir', 'Couloir', 'L\'étage sombre où l\'on déambule.', 410, 150, 220, 100, '#5f6b7a'),
+    zone('z-archives', 'Salle d\'archives', 'Vide et dans le noir.', 640, 60, 260, 270, '#b8862e'),
+    zone('z-secrete', 'Salle secrète', 'Accessible seulement depuis les archives.', 680, 360, 200, 170, '#7a5cc0'),
+  ],
+  modes: [], background: null, roomTone: null, roomToneDb: -14,
+  defaults: { transition: { style: 'crossfade', sec: 2, sync: 'bar' } },
+};
+
 // [titre, notes, fait ?, section (index ou null)]
 const TASKS = [
   ['Choisir A ou B pour l\'ouverture du jeu', 'Test joueurs jeudi : les deux versions, même vidéo.', false, 1],
@@ -83,7 +116,7 @@ async function seed(q, apply, ownerOverride) {
   };
 
   let [project] = await q(`select id from public.projects where title = $1 and owner_profile_id = $2 and archived_at is null`, [TITLE, uid]);
-  const added = { project: 0, sections: 0, messages: 0, notes: 0, tasks: 0, montage: 0 };
+  const added = { map: 0, project: 0, sections: 0, messages: 0, notes: 0, tasks: 0, montage: 0 };
   if (!project) {
     added.project = 1;
     if (!apply) { console.log(`À créer : le Projet « ${TITLE} » (aperçu, rien écrit).`); }
@@ -163,6 +196,15 @@ async function seed(q, apply, ownerOverride) {
              `, [pid, MONTAGE_ID]);
   }
 
+  // Carte de niveau fictive
+  if (!await count(`select count(*)::int n from public.project_maps where project_id = $1 and title = $2`, [pid, MAP_TITLE])) {
+    added.map = 1;
+    if (apply) {
+      await asOwner();
+      await q(`select public.save_project_map($1, $2::jsonb)`, [pid, JSON.stringify({ title: MAP_TITLE, data: LEVEL_MAP })]);
+    }
+  }
+
   // Tâches
   for (const [title, notes, done, sec] of TASKS) {
     if (await count(`select count(*)::int n from public.project_tasks where project_id = $1 and title = $2`, [pid, title])) continue;
@@ -173,7 +215,7 @@ async function seed(q, apply, ownerOverride) {
     if (done) await q(`update public.project_tasks set done = true, done_at = now(), done_by = $2 where id = $1`, [id, uid]);
   }
 
-  console.log(`${apply ? 'Ajoutés' : 'À ajouter (aperçu, rien écrit)'} : ${added.project} projet, ${added.sections} section(s), ${added.messages} message(s), ${added.notes} note(s), ${added.montage} montage, ${added.tasks} tâche(s).`);
+  console.log(`${apply ? 'Ajoutés' : 'À ajouter (aperçu, rien écrit)'} : ${added.project} projet, ${added.sections} section(s), ${added.messages} message(s), ${added.notes} note(s), ${added.montage} montage, ${added.map} carte, ${added.tasks} tâche(s).`);
   return { added, projectId: pid };
 }
 
