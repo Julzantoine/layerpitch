@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BROUILLON PRIVÉ (29 septembre) : page « Compositeurs & sound designers » du nouveau site, issue de landing.html.
-     À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
-<meta name="robots" content="noindex, nofollow">
 <!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
 <link rel="canonical" href="https://www.layerpitch.com/compositeurs">
 <link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/compositeurs">
@@ -139,7 +136,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -149,6 +146,13 @@
   .feature-icon svg { width: 16px; height: 16px; }
   ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
   ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+  /* Cartes compactes : le titre seul au repos, le détail se déploie au survol ou au clavier ; sur écran tactile (pas de survol), tout reste affiché. */
+  ul.features li { transition: border-color .15s, box-shadow .15s; }
+  ul.features li span.desc { display: block; max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+  ul.features li:hover span.desc, ul.features li:focus-within span.desc, ul.features li:focus span.desc { max-height: 260px; opacity: 1; margin-top: 4px; }
+  ul.features li:hover, ul.features li:focus-within, ul.features li:focus { border-color: var(--accent); box-shadow: var(--shadow-card); outline: none; }
+  @media (hover: none) { ul.features li span.desc { max-height: none; opacity: 1; margin-top: 4px; } }
+  @media (prefers-reduced-motion: reduce) { ul.features li, ul.features li span.desc { transition: none; } }
 
   .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
   .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
@@ -264,28 +268,11 @@
 </header>
 
 <section class="demo wrap">
-  <p>Avec un AdReel (Adaptive Reel), vous présentez de la musique qui n'est pas linéaire : changement d'état, embranchements, changement d'intensité, pools aléatoires. Le studio qui reçoit l'AdReel peut jouer avec vos compositions et comprendre ce que la musique peut apporter à son jeu. Partagez un AdReel avec un simple lien et laissez la magie opérer.</p>
+  <p>Du pitch à l'OST, LayerPitch accompagne votre musique adaptative. Présentez-la avec un AdReel (Adaptive Reel), testez-la sur le gameplay du studio, travaillez ensemble sur le moodboard et la carte musicale, puis vendez vos assets et vos OST interactives.</p>
   <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
        charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
        7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
   <a class="btn btn-primary" href="https://beta.layerpitch.com/?adreel=demo-fr" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Manipulez un AdReel vous-même →</a>
-</section>
-
-<section class="proof wrap">
-  <div class="proof-grid">
-    <div class="testimonial">
-      <p>"The branching music system really has the ability to wow someone!"</p>
-      <cite>Michael W.</cite> <span class="role">— compositeur de jeu vidéo / enseignant en MA Composition for Video Game</span>
-    </div>
-    <div class="testimonial">
-      <p>"That's genuinely cool for game composers' reel!"</p>
-      <cite>Giorgio V.</cite> <span class="role">— Audio Director / enseignant en MA Sound Design for Video Games</span>
-    </div>
-    <div class="testimonial">
-      <p>"C'est la première fois que je vois un outil de présentation de musique interactive comme ça."</p>
-      <cite>William R.</cite> <span class="role">— doctorant en ludomusicologie</span>
-    </div>
-  </div>
 </section>
 
 <section class="block wrap">
@@ -294,38 +281,91 @@
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">Ce que ça change</span>
+  <span class="eyebrow">Présenter et tester</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18V8M9 18V4M14 18v-9M19 18v-6"/></svg></span>
       <span><strong>5 modes de lecture adaptative</strong><span class="desc">Statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement, séquentiel aléatoire.</span></span>
     </li>
-    <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
+    <li tabindex="0">
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M12 3v3M12 18v3M4.5 12h3M16.5 12h3"/></svg></span>
       <span><strong>Contrôle en direct</strong><span class="desc">Le studio qui reçoit votre AdReel joue avec la musique en ajustant l'intensité, en coupant des couches, en explorant les embranchements lui-même. C'est simple, visuel et fascinant.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 1 4-4h4a4 4 0 0 1 0 8h-1"/><path d="M15 12a4 4 0 0 1-4 4H7a4 4 0 0 1 0-8h1"/></svg></span>
       <span><strong>Un lien, point barre</strong><span class="desc">Aucune installation. Ça s'ouvre comme une page web.</span></span>
     </li>
-    <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
+    <li tabindex="0">
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.5L20 10l-4.4 3.6L17 19l-5-3.2L7 19l1.4-5.4L4 10l5.6-1.5z"/></svg></span>
       <span><strong>Sur-mesure, jusqu'au bout</strong><span class="desc">Chaque AdReel se personnalise entièrement, à votre image ou à celle du studio visé.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+      <span><strong>Sfx spatialisés</strong><span class="desc">Des stingers déclenchables par-dessus la musique, pour aider à se projeter dans l'univers sonore du jeu.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span><strong>Le suivi de chaque envoi</strong><span class="desc">Qui a ouvert, quelles couches ont été testées, combien de temps. Relancez au bon moment, pendant que c'est chaud.</span></span>
     </li>
   </ul>
 </section>
 
 <section class="block wrap">
-  <span class="eyebrow">Le suivi</span>
-  <div class="tracking-box">
-    <p class="lede" style="margin:0;">En phase de pitch, après l'envoi, vous n'êtes plus dans le flou. Chaque AdReel vous fait remonter les infos qui vont bien : qui a ouvert, quelles couches ont été testées, combien de temps votre interlocuteur est-il resté sur la page. Fini de deviner si le studio a vraiment joué avec la musique ou juste zappé la page. Un lien ouvert ce matin, c'est une relance qui tombe pile au bon moment, il n'y a plus qu'à relancer pendant que c'est chaud.</p>
-  </div>
+  <span class="eyebrow">Travailler avec le studio</span>
+  <ul class="features">
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+      <span><strong>Moodboard partagé</strong><span class="desc">Réunissez références, images, vidéos, notes et morceaux pour fixer la direction sonore avant de composer.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
+      <span><strong>Carte musicale interactive</strong><span class="desc">En quelques clics, construisez votre niveau, glissez de la musique dans chaque élément et baladez-vous. Le parcours musical du joueur n'a jamais été aussi simple à concevoir.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span><strong>Tchat et commentaires horodatés</strong><span class="desc">Échangez et commentez directement sur la musique, à l'instant précis.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span>
+      <span><strong>Vitrines</strong><span class="desc">Créez autant de vitrines que vous voulez pour votre jeu. Personnalisez-les selon les éditeurs ou les types de publics. Ajoutez-y de la musique interactive, mais aussi des vidéos, de l'artwork et, bien sûr… votre lien Steam !</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></span>
+      <span><strong>Versioning vidéo</strong><span class="desc">En quelques clics, envoyez à votre client plusieurs musiques différentes sur une vidéo de gameplay.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+      <span><strong>Annuaire des compositeurs</strong><span class="desc">Les studios vous trouvent et vous écoutent en un clic.</span></span>
+    </li>
+  </ul>
+</section>
+
+<section class="block wrap">
+  <span class="eyebrow">Vendre</span>
+  <ul class="features">
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1"/></svg></span>
+      <span><strong>Vente d'assets audio</strong><span class="desc">Pour les plus petits budgets… Proposez vos packs de musique et de sfx avec une page d'écoute partageable par un simple lien.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+      <span><strong>Vente d'OST interactives</strong><span class="desc">Les vraies OST originales de vos jeux, dans leur version interactive. Une fois le jeu sorti, valorisez sa musique et vendez-la en album.</span></span>
+    </li>
+  </ul>
 </section>
 
 <section class="block wrap">
   <span class="eyebrow">Et bientôt</span>
-  <p>En phase de préprod, travaillez à plusieurs sur le moodboard pour tracer une ligne directrice claire et économiser ainsi des allers-retours, du temps (et de l'argent !) lors des phases ultérieures. Utilisez l'outil de versioning vidéo pour tester rapidement quelle musique/triggers/sfx marchent le mieux pour le niveau qui vient d'être construit. Plus besoin de sortir la grosse armada et de partager un build à chaque test.</p>
-  <p>Avant la sortie du jeu, vendez des packs d'assets audio. Une fois le jeu sorti, valorisez sa musique et vendez une Adaptive OST !</p>
+  <ul class="features">
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14M3 14l4 4 4-4M17 20V6M13 10l4-4 4 4"/></svg></span>
+      <span><strong>Import et export de projets Wwise / FMOD</strong></span>
+    </li>
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></span>
+      <span><strong>Brancher une IA sur la plateforme</strong></span>
+    </li>
+  </ul>
 </section>
 
 <section class="block wrap">
@@ -360,7 +400,7 @@
     </form>
     <div class="cta-note">Pas de spam, pas d'engagement.</div>
   </section>
-  <footer>LayerPitch — musique interactive pour vos pitchs de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
+  <footer>LayerPitch, une suite d'outils autour de la musique adaptative pour les compositeurs et les studios de développement de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
 </div>
 
 <dialog class="tuto-popup" id="tutoPopup" aria-labelledby="tutoPopupTitle">
@@ -374,6 +414,19 @@
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
+  // Origine du lien (utm_source / utm_medium / utm_campaign) : retenue pour la visite (sessionStorage),
+  // envoyée avec le formulaire pour savoir quel clip ou quel post amène l'inscription.
+  function lpOrigin() {
+    const out = {};
+    try {
+      const p = new URLSearchParams(location.search);
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach((k) => { const v = p.get(k); if (v) out[k] = v.slice(0, 80); });
+      if (Object.keys(out).length) sessionStorage.setItem('lp_origin', JSON.stringify(out));
+      else Object.assign(out, JSON.parse(sessionStorage.getItem('lp_origin') || '{}'));
+    } catch (e) {}
+    return out;
+  }
+  lpOrigin();
   // Mêmes valeurs publiques que api/supabase-client.js (clé "publishable", pas un secret) --
   // fetch() brut plutôt que le SDK complet, cette page est hébergée sur un domaine séparé
   // (www.layerpitch.com) sans le reste des scripts api/*.js de l'app.
@@ -397,7 +450,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr', message: form.message.value.trim() || null }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: intentField.value, lang: 'fr', message: form.message.value.trim() || null, ...lpOrigin() }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: intentField.value });

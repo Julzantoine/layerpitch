@@ -28,7 +28,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   check('version par défaut choisie par l’auteur', video.getAttribute('src') === 'https://m/v2.mp4');
   check('étiquette affichée sur la vidéo', /Musique 2 : couches/.test(wrap.querySelector('.lp-video-cue').textContent));
   const sel = w.document.querySelector('.lp-video-versions select');
-  check('menu sous la vidéo : versions proposées, version cachée absente', !!sel && [...sel.options].map(o => o.value).join() === 'original,ver2' && sel.options[0].textContent === 'Musique d’origine');
+  check('menu sous la vidéo : versions proposées, version cachée absente, la version d’origine porte le nom du montage', !!sel && [...sel.options].map(o => o.value).join() === 'original,ver2' && sel.options[0].textContent === 'T');
   sel.value = 'original'; sel.dispatchEvent(new w.Event('change'));
   check('changement de version : nouvelle vidéo', video.getAttribute('src') === 'https://m/v1.mp4');
   t = 0; video.dispatchEvent(new w.Event('loadedmetadata'));

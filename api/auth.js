@@ -198,6 +198,15 @@
     return { studioId: data, error: null };
   }
 
+  // Espace d'arrivée après connexion : 'studio' si le compte a un studio (le sien ou celui de son équipe) et
+  // aucun profil compositeur ; 'composer' sinon (comportement historique). Sert à ne pas envoyer un compte
+  // studio sur le Backstage compositeur.
+  async function getMyLandingSpace() {
+    const [c, st] = await Promise.all([getMyComposerId(), getMyStudioId()]);
+    if (st && st.studioId && !(c && c.composerId)) return 'studio';
+    return 'composer';
+  }
+
   // profiles.onboarding_completed (docs/infrastructure.md, chantier "flux d'inscription") —
   // lecture directe sur la table, pas de RPC nécessaire (policy RLS "own profile" déjà en place,
   // supabase/migrations/20260831102636_rls_policies.sql).
@@ -289,7 +298,7 @@
   window.LayerPitchAuth = { getAssistantStatus, createAssistantToken, revokeAssistantToken, getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
-    getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
+    getMyStudioId, getMyLandingSpace, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
     suspendAccount, reinstateAccount, markAdminMessagesSeen,
     describeFunctionError,
   };

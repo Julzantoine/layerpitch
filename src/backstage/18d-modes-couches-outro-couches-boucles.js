@@ -5,7 +5,7 @@
             <label>${tr('nameFieldLabel')}</label><input type="text" data-field="outroLabel" data-ti="${ti}" value="${escapeAttr(track.outro.label)}">
             <div class="hint-inline">${tr('outroSectionLabel')}</div>
             <div class="hint-inline">${tr('noOutroHint')}</div>
-            <div style="margin-top:8px">
+            <div style="margin-top:8px" data-adv>
               ${collapsibleBlockToggleHtml(`outroDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'vrsOutroDescToggle', 'stageDescription')}
               <div class="list-block-body${expandedAltPoolKeys.has(`outroDesc:${ti}`) ? '' : ' collapsed'}" data-role="vrsOutroDescBody" style="margin-top:8px">
                 <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -132,6 +132,8 @@
                 <div data-role="embrTransitionFileCtrl" style="margin-top:8px"></div>
                 <label style="margin-top:8px">${tr('branchLabelOverrideLabel')}</label>
                 <input type="text" placeholder="${tr('transitionNamePlaceholder')}" data-embr-loop-field="transitionLabel" data-ti="${ti}" data-li="${li}" value="${escapeAttr(loop.transition.label)}">
+                ${flagOpen('transition_timeline') ? `<div data-role="embrTransitionTimelineHost" style="margin-top:10px"></div>
+                <div class="hint-inline">${tr('transitionTimelineHint')}</div>` : ''}
                 <div style="margin-top:8px">
                   <label data-help="transitionDurationUnit">${tr('transitionDurationUnitLabel')}</label>
                   <select data-embr-transition-field="durationUnit" data-ti="${ti}" data-li="${li}">
@@ -198,11 +200,16 @@
                 () => loop.transition.pendingFile, () => loop.transition.remoteFile,
                 f => {
                   loop.transition.pendingFile = f;
+                  loop.transition.duration = null; // nouveau fichier : la frise de la transition relit sa durée
                   hasUnsavedEdits = true;
                   if (!loop.transition.label || !loop.transition.label.trim()) loop.transition.label = titleFromFilename(f.name);
                   renderLibrary();
                 }, () => loop.transition.originalFileName);
             }
+          }
+          if (loop.transition) {
+            const trnTlHost = loopEl.querySelector('[data-role="embrTransitionTimelineHost"]');
+            if (trnTlHost) trnTlHost.appendChild(buildTransitionTimelineEl(loop.transition, loop, track));
           }
           if (loop.isInitial) {
             // Points de boucle (Départ/Entrée/Sortie) de la boucle de référence (24/08) -- réutilise tel
@@ -273,7 +280,7 @@
           row.innerHTML = `
             <div data-role="layerFileCtrl"></div>
             <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('layerLabelPlaceholder')}" data-field="label" data-ti="${ti}" data-li="${li}" value="${escapeAttr(layer.label)}">
-            ${layerFxHtml(layer, ti, li)}
+            ${advHtml(layerFxHtml(layer, ti, li))}
           `;
           modeDetailHost.appendChild(row);
           const ctrlHost = row.querySelector('[data-role="layerFileCtrl"]');

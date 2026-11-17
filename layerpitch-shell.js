@@ -33,6 +33,7 @@
 
   // Icônes au trait (même esprit que la barre du Backstage).
   const ICONS = {
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h4v-6h4v6h4V10"/>',
     backstage: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     sales: '<path d="M17 5.5A7 7 0 1 0 17 18.5M3 10h10M3 14h10"/>',
     purchases: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>',
@@ -232,6 +233,7 @@
     const parts = [];
     if (u.newMessages) parts.push(tr('inboxMessages', { n: u.newMessages }));
     if (u.addressedNotes) parts.push(tr('inboxNotes', { n: u.addressedNotes }));
+    if (u.assignedTasks) parts.push(tr('inboxTasks', { n: u.assignedTasks })); // tâches qui te sont assignées (4/11)
     if (u.changes) parts.push(tr('inboxChanges', { n: u.changes }));
     const c = (u.lastChanges || [])[0];
     const detail = u.lastMessage && (!c || u.lastMessage.createdAt >= c.createdAt)
@@ -442,6 +444,7 @@
     }
     if (ctx.studioId) {
       const studio = studioSpace ? [
+        ...(ctx.flags.studio_home ? [{ id: 'studio.home', icon: 'home', href: 'studio.html?tab=home' }] : []),
         { id: 'studio.library', icon: 'purchases', href: 'studio.html?tab=library' },
         { id: 'studio.custom', icon: 'custom', href: 'studio.html?tab=custom' },
         // Vidéos du studio (21/10) : montages, versions vidéo et bibliothèque vidéo de l'équipe (migration 20261021060000).
@@ -452,7 +455,7 @@
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
       ];
       // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
-      if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
+      if (studioSpace && ctx.flags.sell_albums) studio.splice(Math.max(0, studio.findIndex(i => i.id === 'studio.team')), 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
       if (!ctx.composerId) studio.push({ id: 'account.sales', icon: 'sales', href: 'mon-compte.html?section=sales', label: 'salesStudio' });
       sections.push({ label: 'sectionStudio', items: studio });
     }
@@ -626,6 +629,10 @@
       try { sessionStorage.setItem(RESUME_FLAG, '1'); } catch (e) { /* stockage indisponible */ }
       const lastFile = last && last.url ? last.url.split('?')[0] : null;
       const plainEntry = ENTRY_PAGES.includes(file) && !Array.from(params.keys()).some(k => k !== 'lang');
+      // Compte studio sans profil compositeur arrivé sur le Backstage compositeur : renvoi vers l'espace Studio.
+      if (file === 'layerpitch-backstage.html' && plainEntry && window.LayerPitchAuth.getMyLandingSpace) {
+        window.LayerPitchAuth.getMyLandingSpace().then(sp => { if (sp === 'studio') location.replace('studio.html?tab=home' + (params.get('lang') ? '&lang=' + params.get('lang') : '')); }).catch(() => {});
+      }
       if (!done && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
         location.replace(last.url);
         return;

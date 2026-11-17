@@ -61,6 +61,12 @@
   layer.id = 'lpWatermarkLayer';
   document.body.insertBefore(layer, document.body.firstChild);
 
+  // Couleur de fond de la page quand aucune couleur perso n'est posée (celle de sa feuille de style), pour l'afficher dans le sélecteur.
+  function defaultBg() {
+    const cs = getComputedStyle(html);
+    const v = (cs.getPropertyValue('--backstage-bg') || cs.getPropertyValue('--bg') || '').trim();
+    return /^#[0-9a-f]{6}$/i.test(v) ? v : '#f7f6f3';
+  }
   function getTheme() { return read(KEYS.theme) === 'dark' ? 'dark' : 'light'; }
   // Réglage imposé par une page (apparence d'équipe d'un Projet, 8/10) : { bg, image, opacity, fixed }. Il remplace couleur et image
   // locales tant qu'il est posé, sans toucher aux réglages enregistrés ; le thème Jour / Nuit reste celui de chacun. null = retiré.
@@ -134,12 +140,12 @@
   function mountPanel(host) {
     if (!host) return;
     function draw(errKey) {
-      const dark = getTheme() === 'dark', hasImg = !!read(KEYS.image);
+      const dark = getTheme() === 'dark', hasImg = !!read(KEYS.image), hasBg = !!read(KEYS.bg);
       host.innerHTML = `<div class="lp-ap">
         <label class="lp-ap-label">${esc(tr('appearanceTheme'))}</label>
         <div class="lp-ap-row"><button type="button" data-theme="light" class="${dark ? '' : 'on'}">${esc(tr('appearanceLight'))}</button><button type="button" data-theme="dark" class="${dark ? 'on' : ''}">${esc(tr('appearanceDark'))}</button></div>
         <label class="lp-ap-label">${esc(tr('appearanceBgColor'))}</label>
-        <input type="color" id="lpApBg" value="${esc(read(KEYS.bg) || '#f5f6f8')}" ${dark ? 'disabled' : ''}>
+        <div class="lp-ap-row" style="align-items:center;"><input type="color" id="lpApBg" value="${esc(read(KEYS.bg) || defaultBg())}" ${dark ? 'disabled' : ''}>${hasBg ? `<button type="button" id="lpApBgReset">${esc(tr('appearanceBgReset'))}</button>` : ''}</div>
         <div class="lp-ap-hint">${esc(tr(dark ? 'appearanceBgHintDark' : 'appearanceBgHint'))}</div>
         <label class="lp-ap-label">${esc(tr('appearanceImage'))}</label>
         <div class="lp-ap-row"><button type="button" id="lpApPick">${esc(tr('appearanceImagePick'))}</button>${hasImg ? `<button type="button" id="lpApClear">${esc(tr('appearanceImageClear'))}</button>` : ''}</div>
@@ -152,6 +158,10 @@
       const bg = host.querySelector('#lpApBg');
       // Pendant le choix : appliqué en direct sans redessiner le panneau (sinon le sélecteur de couleur se fermerait).
       bg.oninput = () => { write(KEYS.bg, bg.value); apply(); };
+      // Le bouton « Couleur par défaut » n'apparaît qu'une fois une couleur choisie : on redessine au premier choix (à la fermeture du sélecteur).
+      bg.onchange = () => { if (!host.querySelector('#lpApBgReset')) changed(); };
+      const bgReset = host.querySelector('#lpApBgReset');
+      if (bgReset) bgReset.onclick = () => { drop(KEYS.bg); changed(); };
       host.querySelector('#lpApPick').onclick = () => host.querySelector('#lpApFile').click();
       host.querySelector('#lpApFile').onchange = async e => { const f = e.target.files[0]; if (f) { const err = await saveImage(f); draw(err); } };
       const clear = host.querySelector('#lpApClear');

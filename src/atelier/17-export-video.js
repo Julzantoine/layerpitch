@@ -28,7 +28,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
   // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
   // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
-  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: exportOptions.trackMix });
   const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
   const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));

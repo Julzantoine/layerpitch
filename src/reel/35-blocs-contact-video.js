@@ -91,7 +91,7 @@ function renderVideoBlockItem(container, block) {
 
     const ytId = extractYouTubeId(v.url);
     const thumbUrl = v.thumbnail ? resolveImageUrl(v.thumbnail) : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
-    const bg = thumbUrl ? `background-image:url('${thumbUrl}'); background-size:cover; background-position:center;` : '';
+    const bg = thumbUrl ? `background-image:${reelCssUrl(thumbUrl)}; background-size:cover; background-position:center;` : '';
 
     if (ytId) {
       // Vignette cliquable : la vidéo YouTube ne se charge (iframe) qu'au clic — plus rapide et plus respectueux

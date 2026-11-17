@@ -108,7 +108,7 @@ let openVideoCaptureDialog = () => {};
   // sauvegardée avec le montage (seul son nom), elle se choisit ici -- sur le disque, ou (admin, 26/09) directement dans
   // la bibliothèque vidéo du compositeur, la vidéo d'origine présélectionnée si elle s'y trouve.
   openVideoCaptureDialog = async (montageId) => {
-    pendingMontageId = montageId || null;
+    pendingMontageId = montageId || window.__lpTutoMontageId || null; // __lpTutoMontageId : leçon « Les pas » (atelier-lecons.js), montage déjà prêt à ouvrir avec la vidéo
     pendingMontage = null;
     montageNote.hidden = true;
     libPick.hidden = true;

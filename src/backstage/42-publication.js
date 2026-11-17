@@ -49,7 +49,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, fadeOutBeat: opt.transition.fadeOutBeat, nextInBeat: opt.transition.nextInBeat, duration: opt.transition.duration, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
           fxActions: opt.fxActions || null
         })) : null,
         alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
@@ -70,7 +70,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         transition: (l.transition && (l.transition.remoteFile || l.transition.pendingFile)) ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null,
           fx: l.transition.fx || null
         } : null,
@@ -703,4 +703,5 @@ async function publishAll() {
 }
 
 // Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
-if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();
+// Différé d'un cran (microtâche) : tout le script de la page (fichiers 43 à 48…) doit être lu avant d'ouvrir un onglet, sinon les « const/let » définis plus bas sont inaccessibles (13-14/11).
+if (!new URLSearchParams(location.search).get('tab')) Promise.resolve().then(() => { try { restoreBackstageTab(); } catch (e) { console.error('restoreBackstageTab', e); } });

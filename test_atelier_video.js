@@ -48,7 +48,7 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   vm.createContext(at); vm.runInContext(read('api/demo-client.js'), at);
   const c = at.window.LayerPitchDemoClient;
   const packs = (await c.from('packs').select('*')).data;
-  check('atelier (leçon) : packs « Joris » et « Footsteps » du compositeur fictif, trois morceaux de Joris', packs.map(p => p.id).join() === 'p-joris,p-footsteps' && packs.every(p => p.owner_id === 'demo-composer') && (await c.from('tracks').select('*')).data.length === 3 && (await c.from('sfx_library').select('*')).data.length === 3);
+  check('atelier (leçon) : pack « Joris » du compositeur fictif, quatre morceaux (Alt 1, Alt2, drones 1 et 2) et l’ascenseur', packs.map(p => p.id).join() === 'p-joris' && packs.every(p => p.owner_id === 'demo-composer') && (await c.from('tracks').select('*')).data.length === 4 && (await c.from('sfx_library').select('*')).data.length === 1);
   const ent = (await c.rpc('my_entitlements')).data;
   check('droits de la leçon : enregistrer un montage et versionner', ent.some(e => e.feature === 'test_in_game' && e.level === 'saved') && ent.some(e => e.feature === 'versioning' && e.level === 'saved'));
   check('atelier : aucun montage au départ', (await c.rpc('list_my_video_captures', {})).data.length === 0);
@@ -85,14 +85,14 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   const src43pre = read('src/backstage/43-visite-guidee.js');
   const order = second.opened.map(s => s.titleKey);
   // 07/11 : leçon sur « Joris » : marqueurs d'après l'image -> blocs à la souris (musique 1, ascenseur, musique 2) -> passe additive (pas en temps réel) -> écoute -> nom -> enregistrement -> version.
-  const seq = ['pvVideoTitle', 'pvMark1Title', 'pvMark2Title', 'pvMusic1Title', 'pvMusic1EndTitle', 'pvElevTitle', 'pvMusic2Title', 'pvAdditiveTitle', 'pvRecordTitle', 'pvStepsTitle', 'pvStopTitle', 'pvHearTitle', 'pvNameTitle', 'pvSaveTitle', 'pvNewTitle', 'pvPickTitle', 'pvAddPackTitle', 'pvPickStepsTitle', 'pvListenTitle', 'pvKeepTitle'];
-  check('atelier (Joris) : marqueurs → musique 1 → ascenseur → musique 2 → passe additive (pas) → écoute → nom → version (drone, pack Footsteps, pas stone)',
+  const seq = ['pvVideoTitle', 'pvMarkPhotoTitle', 'pvMarkHallTitle', 'pvMarkElevTitle', 'pvMarkExitTitle', 'pvLayer1Title', 'pvLayer2Title', 'pvLayer3Title', 'pvEndsTitle', 'pvElevTitle', 'pvDroneTitle', 'pvHearTitle', 'pvNameTitle', 'pvSaveTitle', 'pvNewTitle', 'pvPickAltTitle', 'pvPickDroneTitle', 'pvListenTitle', 'pvKeepTitle'];
+  check('atelier (Joris) : 4 marqueurs → 3 couches → arrêt à l’ascenseur → ascenseur → drone → écoute → nom → version (Alt2, drone 2)',
     seq.every((k, i) => order.indexOf(k) >= 0 && (i === 0 || order.indexOf(k) === order.indexOf(seq[i - 1]) + 1)));
   const al = read('atelier-lecons.js');
-  check('atelier : la version demande le drone « urbex » (fichier) à la place du drone « rencontre », et les pas stone', /RENC = 'bmw3ds8idckeds', URBEX = 'bmw41gclr2m44q'/.test(al) && /sel\.value === URBEX/.test(al) && /sel\.value === STONE/.test(al));
+  check('atelier : la version remplace Alt 1 par Alt2 et le drone 1 par le drone 2', /ALT1 = 'bmwb6s3d467w77', ALT2 = 'bmwf5gpcfqqjyd', D1 = 'bmw41gclr2m44q', D2 = 'bmw3ds8idckeds'/.test(al) && /sel\.value === ALT2/.test(al) && /sel\.value === D2/.test(al));
   check('atelier : la vidéo de la leçon est la copie muette de Joris', /tuto\/Joris\/joris-gameplay-muette\.mp4/.test(al));
   const dc = read('api/demo-client.js');
-  check('atelier (leçon) : pack Joris (3 morceaux, ascenseur, pas) et pack Footsteps (Stone Walk), seulement dans la leçon Versioning', /joPack\('p-joris', 'Joris', \['bmw3drvaib1os9', 'bmw41gclr2m44q', 'bmw3ds8idckeds'\], \['bmw3dfcf4ye93a', 'bmw40wgx1bwy7y'\]\)/.test(dc) && /joPack\('p-footsteps', 'Footsteps', \[\], \['bmw3dg2foqzndw'\]\)/.test(dc) && /lessonParam\(\) === 'versioning' && table === 'packs'/.test(dc));
+  check('atelier (leçon) : pack Joris dans la leçon Versioning (sans les pas) ; « Footsteps » seulement dans la leçon « Les pas »', /id: 'p-joris', title: 'Joris'/.test(dc) && /lessonParam\(\) === 'versioning' && table === 'packs'\) return DEMO_PACKS_JORIS/.test(dc) && /lessonParam\(\) === 'versioning-pas' && table === 'packs'\) return DEMO_PACKS_PAS/.test(dc) && !/DEMO_PACKS_JORIS = [^\n]*p-footsteps/.test(dc));
   check('atelier : la prise s’arrête toute seule à la fin de la vidéo, sans déborder', /videoEl\.addEventListener\('ended', \(\) => \{ if \(videoCaptureState\) recordBtn\.click\(\); \}\)/.test(read('atelier.html')) && /Number\.isFinite\(dur\) \? dur : Infinity/.test(read('atelier.html')));
   check('pack Music City : glaçons et verre (leçons AdReel et « Jouer en direct »)', /\['sfx-glacons', 'sfx-verre'\]\.includes\(x\.id\)/.test(read('api/demo-client.js')));
   check('frise sans capture : morceaux du pack proposés, bouton « Écouter le montage »', /handTrackIds/.test(read('atelier.html')) && /id="videoCaptureListenBtn"/.test(read('atelier.html')));
@@ -108,7 +108,15 @@ const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
   // 05/11 : la partie « bloc vidéo d'un AdReel » est sa propre leçon, juste après.
   const lva = src43.slice(src43.indexOf("{ id: 'versioning-adreel'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning-adreel'")));
   check('leçon « Montrer les versions dans un AdReel » : juste après, bloc vidéo, versions, nouvelle version', src43.indexOf("{ id: 'versioning-adreel'") > src43.indexOf("{ id: 'versioning'") && /\[data-role="versionSelect"\]/.test(lva) && /\[data-role="versionNew"\]/.test(lva) && /reload: true/.test(lva)
-    && [...lva.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && /\['versioning', 'versioning-adreel'\]\.includes\(lessonParam\(\)\)/.test(read('api/demo-client.js')));
+    && [...lva.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && /\['versioning', 'versioning-adreel', 'versioning-pas'\]\.includes\(lessonParam\(\)\)/.test(read('api/demo-client.js')));
+  // Leçon « Les pas » (14/11) : montage Joris déjà prêt, passe additive « Stone Walk », version « Concrete Walk » via le pack « Footsteps ».
+  const lvp = src43.slice(src43.indexOf("{ id: 'versioning-pas'"), src43.indexOf('] },', src43.indexOf("{ id: 'versioning-pas'")));
+  const pasKeys = [...(al.slice(al.indexOf('const stepsPas'), al.indexOf('const stepsVersioning'))).matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
+  check('leçon « Les pas » : entrée Backstage (admin seulement, rechargement), mêmes étapes jusqu’à l’atelier, textes FR/EN', /adminOnly: true/.test(lvp) && /reload: true/.test(lvp) && /atelierLessonFinished/.test(lvp)
+    && [...lvp.matchAll(/(?:titleKey|textKey|descKey): '([^']+)'/g)].every(m => has(m[1])) && pasKeys.length > 20 && pasKeys.every(k => has(k)) && /'versioning-pas'/.test(read('layerpitch-tuto.js')));
+  check('leçon « Les pas » : montage prêt chargé à l’ouverture de la vidéo, ≥ 10 pas, fusion, pack Footsteps, Stone → Concrete', /__lpTutoMontageId = 'cap-joris-pas'/.test(al) && /__lpTutoMontageId/.test(read('src/atelier/19-bouton-de-capture.js'))
+    && /stepsN >= 10/.test(al) && /videoCaptureAdditiveCheckbox/.test(al) && /removePack"\]\[data-pack="\$\{FOOT_PACK\}"/.test(al) && /sel\.value === CONCRETE/.test(al) && /id: 'cap-joris-pas'/.test(dc) && /CAPTURES\.set\(PAS_CAPTURE\.id/.test(dc)
+    && /DEMO_SFX_PAS = \[sfxPas\(SFX_STONE, 'Stone Walk'/.test(dc) && /packPas\('p-footsteps', 'Footsteps', \[\], \[SFX_CONCRETE\]\)/.test(dc));
   const bkeys = [...lv.matchAll(/(?:titleKey|textKey): '([^']+)'/g)].map(m => m[1]);
   check('leçon (Backstage) : ' + bkeys.length + ' textes présents en FR et EN', bkeys.every(has));
 

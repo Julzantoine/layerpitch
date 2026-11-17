@@ -1,4 +1,10 @@
 /* ---------------- Blocs ---------------- */
+// Sécurité (audit du 16/11, B1) : un nom d'image vient des données du compositeur, jamais d'une source sûre. Toute
+// adresse d'image collée dans du HTML passe par escapeHtml (sinon un nom contenant `"` sort de l'attribut src et
+// ajoute du code), toute adresse collée dans du CSS passe par reelCssUrl (sinon un `'` sort de url('…')).
+function reelCssUrl(u) {
+  return 'url("' + String(u == null ? '' : u).replace(/[\\"\n\r\f]/g, c => '\\' + c.charCodeAt(0).toString(16) + ' ') + '")';
+}
 function renderHeaderBlock(container, profile) {
   const el = document.createElement('div');
   el.className = 'header';
@@ -8,7 +14,7 @@ function renderHeaderBlock(container, profile) {
   const subtitle = (profile.subtitle != null && profile.subtitle !== '') ? profile.subtitle : (profile.tagline || '');
   const title = profile.title || (profile.logo ? '' : 'LayerPitch');
   el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="${resolveImageUrl(profile.logo)}" alt="${tr('logoAlt')}">` : ''}
+    ${profile.logo ? `<img class="logo-img" src="${escapeHtml(resolveImageUrl(profile.logo))}" alt="${tr('logoAlt')}">` : ''}
     ${title ? `<div class="header-title">${escapeHtml(title)}</div>` : ''}
     ${subtitle ? `<div class="header-subtitle">${escapeHtml(subtitle)}</div>` : ''}
   `;
@@ -18,7 +24,7 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="${resolveImageUrl(profile.photo)}" alt="${tr('photoAlt')}" loading="lazy"></div>`
+    ? `<div class="bio-photo"><img src="${escapeHtml(resolveImageUrl(profile.photo))}" alt="${tr('photoAlt')}" loading="lazy"></div>`
     : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
   const el = section(tr('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`);
   container.appendChild(el);
@@ -31,7 +37,7 @@ function renderBioBlock(container, profile) {
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return;
   const inner = list.map(t => {
-    const avatarHtml = t.avatar ? `<img class="testimonial-avatar" src="${resolveImageUrl(t.avatar)}" alt="" loading="lazy">` : '';
+    const avatarHtml = t.avatar ? `<img class="testimonial-avatar" src="${escapeHtml(resolveImageUrl(t.avatar))}" alt="" loading="lazy">` : '';
     const roleHtml = t.role ? `<span class="testimonial-role">${escapeHtml(t.role)}</span>` : '';
     return `<div class="testimonial">${avatarHtml}<div class="testimonial-body"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite>${roleHtml}</div></div>`;
   }).join('');
@@ -55,9 +61,9 @@ function renderPhotoBlockItem(container, block) {
   const urls = block.images.map(g => resolveImageUrl(g.file));
   const captionHtml = block.caption ? `<div class="photo-block-caption">${escapeHtml(block.caption)}</div>` : '';
   if (block.images.length === 1) {
-    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${urls[0]}" alt="" loading="lazy"></div>${captionHtml}`;
+    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${escapeHtml(urls[0])}" alt="" loading="lazy"></div>${captionHtml}`;
   } else {
-    const imgs = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join('');
+    const imgs = urls.map(u => `<img src="${escapeHtml(u)}" alt="" loading="lazy">`).join('');
     el.innerHTML = `<div class="photo-grid">${imgs}</div>${captionHtml}`;
   }
   container.appendChild(el);
@@ -93,8 +99,9 @@ function renderPacksBlockItem(container, block, packsById) {
   selected.forEach(p => {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
+    a.target = '_blank'; a.rel = 'noopener'; // un pack s'ouvre dans une nouvelle fenêtre : l'AdReel reste là où il est (et la musique continue)
     a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
-    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${escapeHtml(IMAGES_BASE + p.illustration)}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
@@ -115,7 +122,7 @@ function renderCollectionsBlockItem(container, block, collectionsById) {
     // 4 septembre en étendant le correctif "← Retour" aux collections -- sans elle, collection.html
     // ne savait jamais depuis quel AdReel elle avait été ouverte.
     a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
-    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${escapeHtml(IMAGES_BASE + c.illustration)}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);

@@ -171,3 +171,119 @@ function seekOpenPreview(cardEl, timeSec, totalDuration) {
   });
 }
 
+
+// Frise d'une transition (embranchement vertical : boucle cible ; séquentiel : embranchement d'un emplacement) (14/11, retour d'Hugo : la transition ne tombait pas en rythme).
+// Deux repères glissables, aimantés au temps, posés sur la grille de temps/mesures du fichier de transition :
+//   - Fondu  (transition.fadeOutBeat) : temps à partir duquel la boucle quittée commence son fondu de sortie ;
+//   - Boucle (transition.nextInBeat)  : temps à partir duquel la boucle suivante s'enclenche.
+// Absents (null) : comportement d'origine -- fondu dès le début du fichier, boucle suivante à la fin de la durée de la transition.
+// La durée du fichier (transition.duration) est lue au besoin, une seule fois par fichier.
+const transitionDurationProbed = new WeakSet();
+function buildTransitionTimelineEl(trn, tempoOwner, track) {
+  const wrap = document.createElement('div');
+  wrap.className = 'loop-timeline';
+  const bpm = trn.bpm || tempoOwner.bpm || track.bpm || 120;
+  const beatsPerBar = trn.beatsPerBar || tempoOwner.beatsPerBar || track.beatsPerBar || 4;
+  const spb = 60 / bpm;
+  if (!trn.duration) {
+    wrap.innerHTML = `<div class="loop-timeline-placeholder">${tr('chooseFileFirstHint')}</div>`;
+    if (!transitionDurationProbed.has(trn) && (trn.pendingFile || (trn.remoteFile && typeof fetch === 'function'))) {
+      transitionDurationProbed.add(trn);
+      const getFile = trn.pendingFile
+        ? Promise.resolve(trn.pendingFile)
+        : fetch(previewMediaBase(track, `${MEDIA_BASE}audio/${track.id}/`) + trn.remoteFile).then(r => r.blob());
+      getFile.then(f => probeAudioDuration(f)).then(d => { if (d > 0) { trn.duration = d; renderLibrary(); } }).catch(() => {});
+    }
+    return wrap;
+  }
+  const totalBeats = Math.max(1, Math.round(trn.duration / spb));
+  let fadeBeat = Math.max(0, Math.min(trn.fadeOutBeat || 0, totalBeats));
+  let nextBeat = Math.max(fadeBeat, Math.min(trn.nextInBeat > 0 ? trn.nextInBeat : totalBeats, totalBeats));
+
+  const ruler = document.createElement('div');
+  ruler.className = 'loop-timeline-ruler';
+  wrap.appendChild(ruler);
+  const legend = document.createElement('div');
+  legend.className = 'loop-timeline-legend';
+  legend.innerHTML = `
+    <span><i style="background:rgba(0,0,0,0.18)"></i>${tr('transitionZoneBefore')}</span>
+    <span><i style="background:rgba(181,121,15,0.5)"></i>${tr('transitionZoneFade')}</span>
+    <span><i style="background:rgba(47,128,192,0.5)"></i>${tr('transitionZoneAfter')}</span>
+  `;
+  wrap.appendChild(legend);
+  const summary = document.createElement('div');
+  summary.className = 'hint-inline';
+  summary.style.marginTop = '4px';
+  wrap.appendChild(summary);
+
+  const beatToPct = b => (b / totalBeats) * 100;
+  const pctToBeat = pct => Math.round((pct / 100) * totalBeats);
+  const formatBeat = b => tr('measureBeatFormat', { bar: Math.floor(b / beatsPerBar) + 1, beat: (b % beatsPerBar) + 1 });
+
+  const labelEvery = totalBeats > 64 ? beatsPerBar * 4 : (totalBeats > 32 ? beatsPerBar * 2 : beatsPerBar);
+  for (let b = 0; b <= totalBeats; b++) {
+    const isBar = b % beatsPerBar === 0;
+    const tick = document.createElement('div');
+    tick.className = 'loop-timeline-tick' + (isBar ? ' bar' : '');
+    tick.style.left = beatToPct(b) + '%';
+    tick.style.height = isBar ? '100%' : '40%';
+    ruler.appendChild(tick);
+    if (isBar && b % labelEvery === 0) {
+      const lbl = document.createElement('div');
+      lbl.className = 'loop-timeline-tick-label';
+      lbl.style.left = beatToPct(b) + '%';
+      lbl.textContent = (b / beatsPerBar) + 1;
+      ruler.appendChild(lbl);
+    }
+  }
+  [['intro', 0, fadeBeat], ['outro', fadeBeat, nextBeat], ['loop', nextBeat, totalBeats]].forEach(([kind, from, to]) => {
+    const z = document.createElement('div');
+    z.className = 'loop-timeline-zone ' + kind;
+    z.style.left = beatToPct(from) + '%';
+    z.style.width = (beatToPct(to) - beatToPct(from)) + '%';
+    ruler.appendChild(z);
+  });
+
+  function addHandle(kind, beat, label, field) {
+    const h = document.createElement('div');
+    h.className = 'loop-timeline-handle ' + kind;
+    h.style.left = beatToPct(beat) + '%';
+    const flag = document.createElement('div');
+    flag.className = 'loop-timeline-handle-flag';
+    flag.textContent = label;
+    h.appendChild(flag);
+    ruler.appendChild(h);
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { h.setPointerCapture(e.pointerId); } catch (err) {}
+      const rect = ruler.getBoundingClientRect();
+      const onMove = ev => {
+        const pct = Math.max(0, Math.min(100, ((ev.clientX - rect.left) / rect.width) * 100));
+        let v = pctToBeat(pct);
+        v = field === 'fadeOutBeat' ? Math.max(0, Math.min(v, nextBeat)) : Math.max(fadeBeat, Math.min(v, totalBeats));
+        h.style.left = beatToPct(v) + '%';
+        flag.textContent = formatBeat(v);
+        h.dataset.pendingBeat = v;
+      };
+      const onUp = () => {
+        ruler.removeEventListener('pointermove', onMove);
+        ruler.removeEventListener('pointerup', onUp);
+        const v = h.dataset.pendingBeat !== undefined ? parseInt(h.dataset.pendingBeat, 10) : beat;
+        // Valeur par défaut (début / fin du fichier) = champ absent : retombe sur le comportement d'origine.
+        if (field === 'fadeOutBeat') trn.fadeOutBeat = v > 0 ? v : null;
+        else trn.nextInBeat = v < totalBeats ? v : null;
+        hasUnsavedEdits = true;
+        renderLibrary();
+        if (blockTracksRefresh) blockTracksRefresh();
+        packTracksRefreshers.forEach(fn => fn());
+      };
+      ruler.addEventListener('pointermove', onMove);
+      ruler.addEventListener('pointerup', onUp);
+    });
+  }
+  addHandle('start', fadeBeat, tr('transitionFadeHandleLabel'), 'fadeOutBeat');
+  addHandle('loopin', nextBeat, tr('transitionNextHandleLabel'), 'nextInBeat');
+  summary.textContent = tr('transitionTimelineSummary', { fade: formatBeat(fadeBeat), next: formatBeat(nextBeat), fadeSec: (fadeBeat * spb).toFixed(2), nextSec: (nextBeat * spb).toFixed(2) });
+  return wrap;
+}

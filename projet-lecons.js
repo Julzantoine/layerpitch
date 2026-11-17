@@ -287,13 +287,31 @@
         return next ? { lesson: next, n: i + 1 + 1 } : null;
       },
       startLesson: id => start(id),
+      // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
+      choiceAction: action => { if (action === 'tuto') window.open('./projets.html?tuto&lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
     });
+    // Visite du projet d'exemple « Music City » (14/11) : proposée en fin de la visite de la page Projets (projets.html). Onglet par onglet, sans
+    // geste obligatoire ; mêmes bulles que les visites de section du Backstage (kind « tour »), elle finit sur « suivre le tutoriel ».
+    const openTab = name => () => { const b = document.querySelector('.tab[data-tab="' + name + '"]'); if (b) b.click(); };
+    lessons['pj-tour'] = [
+      { titleKey: ctx.demo ? 'stPjDemoTourTitle' : 'stPjTourTitle', textKey: ctx.demo ? 'stPjDemoTourText' : 'stPjTourText' },
+      { selector: '.tabs', titleKey: 'stPjTabsTitle', textKey: 'stPjTabsText', enter: openTab('board') },
+      { selector: '#panel', titleKey: 'stPjBoardTitle', textKey: 'stPjBoardText', enter: openTab('board') },
+      { selector: '#chat', titleKey: 'stPjChatTitle', textKey: 'stPjChatText', enter: openTab('board') },
+      { selector: '#panel', titleKey: 'stPjMapTitle', textKey: 'stPjMapText', enter: openTab('map') },
+      { selector: '#panel', titleKey: 'stPjMusicTitle', textKey: 'stPjMusicText', enter: openTab('music') },
+      { selector: '#panel', titleKey: 'stPjVideosTitle', textKey: 'stPjVideosText', enter: openTab('videos') },
+      { selector: '#panel', titleKey: 'stPjShowcaseTitle', textKey: 'stPjShowcaseText', enter: openTab('showcase') },
+      { selector: '#panel', titleKey: 'stPjMembersTitle', textKey: 'stPjMembersText', enter: openTab('members') },
+      { titleKey: 'stEndTitle', textKey: ctx.demo ? 'stPjDemoEndText' : 'stPjEndText', enter: openTab('board'), choices: ctx.demo ? [{ labelKey: 'stPjDemoLearn', action: 'tuto' }] : [{ labelKey: 'stLearn', lesson: 'pj-chat' }],
+        beta: !!ctx.demo, betaPsKey: 'stPjDemoBetaPs', betaLinkKey: 'stPjDemoBetaLink' },
+    ];
     function start(id) {
       const steps = lessons[id];
       const meta = LESSON_LIST.find(l => l.id === id);
       if (!steps || (meta && meta.soon)) return false;
-      G.open('lesson', steps, id);
+      G.open(id === 'pj-tour' ? 'tour' : 'lesson', steps, id === 'pj-tour' ? 'section:project-tour' : id);
       return true;
     }
     return { start, close: () => G.close(), list: LESSON_LIST, guide: G, tr };

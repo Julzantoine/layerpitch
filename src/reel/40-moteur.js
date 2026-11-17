@@ -47,7 +47,7 @@ function reelApplyTheme(theme, separator, container, opts) {
   // du texte, qui n'est jamais affectée par ce réglage. N'existe pas côté preset Free.
   if (theme.bgImage) {
     const bgLayer = document.createElement('div');
-    bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('${resolveImageUrl(theme.bgImage)}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
+    bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:${reelCssUrl(resolveImageUrl(theme.bgImage))};background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
     document.body.appendChild(bgLayer);
   }
 }

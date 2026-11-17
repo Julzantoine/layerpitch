@@ -8,8 +8,8 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="atelierPageTitle">LayerPitch — Atelier vidéo</title>
-<link rel="stylesheet" href="player.css?v=1794589720372">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794589720372">
+<link rel="stylesheet" href="player.css?v=1794953016458">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794953016458">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -37,7 +37,6 @@
   .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
 
   .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
-  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #23262d, #3a3f48); }
 
   .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
   .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }
@@ -302,13 +301,13 @@
   .vct-zoom-val { min-width: 34px; text-align: center; color: #9ab; font-size: 10px; }
   .vct-scroll { overflow-x: auto; overflow-y: hidden; }
   .vct-body { position: relative; }
-  .vct-ruler-corner { position: sticky; left: 0; width: 96px; height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
+  .vct-ruler-corner { position: sticky; left: 0; width: var(--vct-label-w, 96px); height: 16px; margin-bottom: -16px; background: #1a1a1a; z-index: 16; }
   .vct-lane-label, .vct-lane-rename-input { position: sticky; left: 0; z-index: 16; background: #1a1a1a; }
   .vct-playhead::before {
     content: ''; position: absolute; top: -4px; left: -3px; border: 4px solid transparent;
     border-top-color: #ff4444;
   }
-  .vct-ruler { position: relative; height: 16px; margin-left: 96px; }
+  .vct-ruler { position: relative; height: 16px; margin-left: var(--vct-label-w, 96px); }
   .vct-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #333; padding-left: 3px; color: #777; font-size: 9px; white-space: nowrap; }
   .vct-lane { display: flex; align-items: stretch; height: 26px; margin-bottom: 3px; }
   /* Le repère visuel du groupe (bordure + titre) ne doit pas décaler .vct-lane-track, sous peine de ne
@@ -324,11 +323,11 @@
   .vct-track-group-header:hover { color: #fff; }
   .vct-group-chevron { display: inline-block; width: 12px; font-size: 8px; }
   .vct-lane-nested .vct-lane-label { padding-left: 14px; }
-  .vct-lane-label { width: 96px; flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-lane-label { width: var(--vct-label-w, 96px); flex-shrink: 0; display: flex; align-items: center; padding-right: 6px; color: #aaa; font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vct-lane-label[data-lane-kind="layer"] { cursor: text; }
   .vct-lane-label[data-lane-kind="layer"]:hover { color: #fff; text-decoration: underline dotted; }
   .vct-lane-rename-input {
-    width: 96px; flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
+    width: var(--vct-label-w, 96px); flex-shrink: 0; background: #222; border: 1px solid var(--accent); border-radius: 3px;
     color: #fff; font-family: inherit; font-size: 9.5px; padding: 2px 4px;
   }
   .vct-lane-track { position: relative; flex: 1; background: #101010; border-radius: 3px; border: 1px solid #232323; }
@@ -430,7 +429,8 @@
   /* Historique des exports d'un montage (21/10) */
   .video-capture-history { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .video-capture-history[hidden] { display: none; }
-  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  .video-capture-history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #ccc; }
+  .video-capture-history .video-capture-count { color: #999; }
   /* Atelier vidéo (21/10) : en-tête « choisir le pack », ouvert dans un cadre du Backstage (onglet Vidéo) ou de l'espace studio. */
   .atelier-head { margin-bottom: 28px; }
   .atelier-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; margin: 0 0 6px; }
@@ -467,7 +467,7 @@
   /* Marqueurs de la frise (05/11, voir renderCaptureTimeline) : calque aligné sur la règle (même marge de 96px), une ligne pointillée à
      travers les pistes + un fanion nommé sur la règle, seul élément cliquable (le reste laisse passer les clics vers les blocs). */
   .vct-body { position: relative; }
-  .vct-markers { position: absolute; top: 0; bottom: 0; left: 96px; right: 0; pointer-events: none; z-index: 15; }
+  .vct-markers { position: absolute; top: 0; bottom: 0; left: var(--vct-label-w, 96px); right: 0; pointer-events: none; z-index: 15; }
   .vct-marker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #e0c341; }
   .vct-marker-flag {
     position: absolute; top: 0; left: 0; height: 14px; line-height: 14px; max-width: 120px; padding: 0 5px 0 4px;
@@ -572,6 +572,32 @@
   body.atelier-view-versioning .vcv-review-fold { display: none; }
   body.atelier-view-review .vcv-version, body.atelier-view-review .vcv-picked-bar, body.atelier-view-review .vcv-diff,
   body.atelier-view-review #videoCaptureVersioning > .vcv-head, body.atelier-view-review .vcv-review-fold > summary { display: none; }
+
+  /* Remplacer un morceau sur la frise (13/11, admin) : même discrétion que la croix, bleu au survol. */
+  .vct-track-replace { margin-left: 4px; font-size: 12px; }
+  .vct-track-replace:hover { color: #2f80c0; }
+
+  /* En-tête de piste à la Logic (13/11, admin) : nom qui s'abrège, commandes toujours visibles, colonne redimensionnable, menu clic droit. */
+  .vct-lane-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vct-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; }
+  .vct-cbtn { border: 1px solid #3a3a3a; background: #202020; color: #9a9a9a; border-radius: 3px; padding: 0 4px; font-size: 9px; line-height: 14px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .vct-cbtn:hover { color: #fff; border-color: #666; }
+  .vct-cm.on { background: #2f80c0; border-color: #2f80c0; color: #fff; }
+  .vct-cs.on { background: #d8a82a; border-color: #d8a82a; color: #1a1a1a; }
+  .vct-cx:hover { color: #e57373; }
+  .vct-vol { width: 44px; height: 10px; accent-color: #2f80c0; }
+  .vct-col-resize, .vct-col-resize * { cursor: col-resize !important; }
+  .vct-ctx { position: fixed; z-index: 100000; background: #262626; border: 1px solid #444; border-radius: 8px; padding: 4px 0; min-width: 210px; font-size: 12px; color: #ddd; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .vct-ctx-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; padding: 5px 12px; cursor: pointer; font: inherit; }
+  .vct-ctx-item:hover { background: #2f80c0; color: #fff; }
+  .vct-ctx-check { display: inline-block; width: 12px; }
+  .vct-ctx-sep { border-top: 1px solid #3a3a3a; margin: 4px 0; }
+  .vct-ctx-title { padding: 2px 12px; font-size: 10px; color: #888; }
+
+/* Interface simple / avancée (14/11) : le Backstage envoie « uiLevel » ; les éléments data-adv sont masqués en simple. */
+body.lp-ui-simple [data-adv], body.lp-ui-simple .vct-track-group-head { display: none !important; }
+.lp-adv-hint { margin: 10px 12px 6px; font-size: 11px; opacity: .75; }
+.lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: #2f80c0; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -619,17 +645,17 @@
 </dialog>
 
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-i18n.js?v=1794589720372"></script>
-<script src="layerpitch-notify.js?v=1794589720372"></script>
-<script src="public-page.js?v=1794589720372"></script>
-<script src="player.js?v=1794589720372"></script>
-<script src="capture-plan.js?v=1794589720372"></script>
-<script src="capture-render.js?v=1794589720372"></script>
-<script src="capture-retarget.js?v=1794589720372"></script>
-<script src="layerpitch-av-sync.js?v=1794589720372"></script>
-<script src="capture-versioning.js?v=1794589720372"></script>
-<script src="layerpitch-guide.js?v=1794589720372"></script>
-<script src="atelier-lecons.js?v=1794589720372"></script>
+<script src="layerpitch-i18n.js?v=1794953016458"></script>
+<script src="layerpitch-notify.js?v=1794953016458"></script>
+<script src="public-page.js?v=1794953016458"></script>
+<script src="player.js?v=1794953016458"></script>
+<script src="capture-plan.js?v=1794953016458"></script>
+<script src="capture-render.js?v=1794953016458"></script>
+<script src="capture-retarget.js?v=1794953016458"></script>
+<script src="layerpitch-av-sync.js?v=1794953016458"></script>
+<script src="capture-versioning.js?v=1794953016458"></script>
+<script src="layerpitch-guide.js?v=1794953016458"></script>
+<script src="atelier-lecons.js?v=1794953016458"></script>
 <script>
 const { escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle, section } = window.LayerPlayerCore;
 
@@ -1148,7 +1174,7 @@ function positionCapturePlayhead(container, videoEl) {
   const scroller = container.querySelector('.vct-scroll');
   if (scroller && !videoEl.paused) {
     const sr = scroller.getBoundingClientRect(), pr = ph.getBoundingClientRect();
-    if (pr.left > sr.right - 20 || pr.left < sr.left + 96) scroller.scrollLeft += pr.left - (sr.left + 120);
+    if (pr.left > sr.right - 20 || pr.left < sr.left + (container.__vctLabelW || 96)) scroller.scrollLeft += pr.left - (sr.left + (container.__vctLabelW || 96) + 24);
   }
   // Défilée sous la colonne des noms de pistes (collée à gauche, 96 px) : la tête n'y serait visible que par
   // petits tirets rouges dans les interstices entre pistes -> on la cache tant qu'elle est sous cette colonne.
@@ -1175,6 +1201,21 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     container.innerHTML = `<div class="vct-empty">${tr('captureTimelineEmpty')}</div>`;
     return;
   }
+  // En-tête de piste à la Logic (13/11, admin) : colonne des noms redimensionnable (poignée au bord droit), commandes M / S / ⇄ / ✕ toujours visibles,
+  // volume facultatif, clic droit pour choisir les commandes. Largeur et choix gardés dans ce navigateur. Hors admin : colonne de 96 px comme avant.
+  const adminHdr = !!editable && !!window.__lpCaptureIsAdmin;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé : tant pis */ } } };
+  const labelW = adminHdr ? Math.min(420, Math.max(110, container.__vctLabelW || (container.__vctLabelW = store.get('lp.vct.labelW', 170)))) : 96;
+  container.__vctLabelW = labelW;
+  container.style.setProperty('--vct-label-w', labelW + 'px');
+  const comps = Object.assign({ m: true, s: true, replace: true, remove: true, vol: false }, store.get('lp.vct.comps', {}));
+  laneLayout.mix = laneLayout.mix || {};
+  const mixMap = laneLayout.mix;
+  const setMix = (id, patch) => {
+    const m = Object.assign({}, mixMap[id], patch);
+    if (!m.mute) delete m.mute; if (!m.solo) delete m.solo; if (m.vol == null || m.vol >= 1) delete m.vol;
+    if (Object.keys(m).length) mixMap[id] = m; else delete mixMap[id];
+  };
   const rerender = () => renderCaptureTimeline(container, events, editable, onChange, laneOverrides, collapsedGroups, videoEl, markers, laneLayout);
   // Toute retouche passe par ici : la frise est redessinée PUIS l'atelier est prévenu (enregistrement automatique, annuler / rétablir,
   // musique à recalculer). Avant le 12/11, les marqueurs (pose, glisser, nom, instant, effacement) et les noms de pistes ne prévenaient
@@ -1199,10 +1240,10 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const total = Math.max(lastT + 1, 5, ...markers.map(m => m.t + 1), ...(container.__vctReviewMarks || []).map(r => Number(r.t) + 1), (videoEl && Number.isFinite(videoEl.duration)) ? videoEl.duration : 0); // au moins 5s de large à l'écran, + 1s de marge après le dernier événement, et toute la vidéo (05/11 : la tête de lecture doit pouvoir aller partout)
   // Zoom (06/11, demande de Jules-Antoine : caler des départs à l'image près) : la frise est plus large que l'écran, on défile dedans.
   const fullW = Math.max(300, (container.clientWidth || 800) - 20);
-  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - 96));
+  const maxZoom = Math.max(1, 4000 * total / Math.max(200, fullW - labelW));
   const zoom = Math.min(maxZoom, Math.max(1, container.__vctZoom || 1));
   container.__vctZoom = zoom;
-  const pxPerSec = (fullW * zoom - 96) / total;
+  const pxPerSec = (fullW * zoom - labelW) / total;
   const TICK_STEPS = [1 / 30, 1 / 15, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120];
   const tickStep = TICK_STEPS.find(st => st * pxPerSec >= 60) || 120;
   const tickDec = tickStep >= 1 ? 0 : (tickStep < 0.05 ? 2 : (tickStep < 0.1 ? 2 : 1));
@@ -1243,13 +1284,27 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   // cette ligne reste donc visible même repliée (c'est justement le principe d'un résumé replié),
   // seules les pistes enfants (nestedLanesHtml) disparaissent alors.
   // « ✕ » sur le nom d'un morceau (10/11) : retire la piste de CETTE version (ses blocs aussi, après confirmation).
-  const removeTrackBtn = key => (editable && key.indexOf('track:') === 0)
-    ? `<button type="button" class="vct-track-remove" data-remove-track="${window.LayerPlayerCore.escapeHtml(key.slice(6))}" title="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}" aria-label="${window.LayerPlayerCore.escapeHtml(tr('captureTrackRemoveTitle'))}">✕</button>` : '';
+  const escH = x => window.LayerPlayerCore.escapeHtml(x);
+  const removeTrackBtn = key => {
+    if (!(editable && key.indexOf('track:') === 0)) return '';
+    const id = key.slice(6);
+    if (!adminHdr) return `<button type="button" class="vct-track-remove" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>`;
+    const m = mixMap[id] || {};
+    const b = (cls, attr, label, title, on) => `<button type="button" class="vct-cbtn ${cls}${on ? ' on' : ''}" ${attr}="${escH(id)}" title="${escH(title)}" aria-label="${escH(title)}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
+    return `<span class="vct-ctl">`
+      + (comps.m ? b('vct-cm', 'data-mix-m', 'M', tr('captureMixMute'), !!m.mute) : '')
+      + (comps.s ? b('vct-cs', 'data-mix-s', 'S', tr('captureMixSolo'), !!m.solo) : '')
+      + (comps.vol ? `<input type="range" class="vct-vol" data-mix-v="${escH(id)}" min="0" max="100" value="${Math.round((m.vol == null ? 1 : m.vol) * 100)}" title="${escH(tr('captureMixVolume'))}" aria-label="${escH(tr('captureMixVolume'))}">` : '')
+      + (comps.replace && window.LayerCaptureRetarget ? `<button type="button" class="vct-cbtn" data-replace-track="${escH(id)}" title="${escH(tr('captureTrackReplaceTitle'))}" aria-label="${escH(tr('captureTrackReplaceTitle'))}">⇄</button>` : '')
+      + (comps.remove ? `<button type="button" class="vct-cbtn vct-cx" data-remove-track="${escH(id)}" title="${escH(tr('captureTrackRemoveTitle'))}" aria-label="${escH(tr('captureTrackRemoveTitle'))}">✕</button>` : '')
+      + `</span>`;
+  };
+  const nameHtml = label => adminHdr ? `<span class="vct-lane-name">${escH(label)}</span>` : escH(label);
   function renderGroup(key, headerLabel, colorClass, nestedLanesHtml) {
     // Morceau sans couches (une seule piste, 06/11, demande de Jules-Antoine) : l'en-tête et la piste disaient la même chose sur deux lignes.
     // On ne garde que la piste, étiquetée du nom du morceau (plus de repli possible : il n'y a rien à replier).
     if (key.indexOf('track:') === 0 && (nestedLanesHtml.match(/vct-lane-nested/g) || []).length === 1) {
-      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
+      const solo = nestedLanesHtml.replace(/<div class="vct-lane-label"[^>]*>[\s\S]*?<\/div>/, `<div class="vct-lane-label vct-lane-label-solo" data-hdr-key="${escH(key)}" title="${window.LayerPlayerCore.escapeHtml(headerLabel)}">${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>`);
       return `<div class="vct-track-group ${colorClass}">` + solo + `</div>`;
     }
     const collapsed = !!collapsedGroups[key];
@@ -1276,7 +1331,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     }
     const headerRow = `<div class="vct-lane vct-group-summary">` +
       `<div class="vct-lane-label vct-track-group-header" data-group-key="${window.LayerPlayerCore.escapeHtml(key)}">` +
-      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${window.LayerPlayerCore.escapeHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
+      `<span class="vct-group-chevron">${collapsed ? '▸' : '▾'}</span>${nameHtml(headerLabel)}${removeTrackBtn(key)}</div>` +
       `<div class="vct-lane-track">${blockHtml}</div></div>`;
     return `<div class="vct-track-group ${colorClass}">` + headerRow + (collapsed ? '' : nestedLanesHtml) + `</div>`;
   }
@@ -1471,7 +1526,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         blocksHtml += `<div class="vct-block vct-fx vct-fx-cut" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.4) - pct(e.t)}%" title="${window.LayerPlayerCore.escapeHtml(describeCaptureEvent(e, laneOverrides))}"></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxseg" data-add-track-id="${trackId}" data-add-trigger-id="${window.LayerPlayerCore.escapeHtml(d.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(d.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureFxLaneLabel').replace('{label}', d.label || tr('fxTriggerFallbackLabel').replace('{n}', di + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddFxHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Curseurs de paramètre (24/09) : une piste par curseur, un point-clé par valeur enregistrée (déplaçable, valeur
     // éditable dans le détail, ajout d'un clic). Rejoués à l'export par le moteur du lecteur.
@@ -1482,7 +1537,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
         blocksHtml += `<div class="vct-block vct-slider" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.value * 100)}%"><span class="vct-block-label">${Math.round(e.detail.value * 100)}%</span></div>`;
       });
       const addAttrs = editable ? ` data-addable="fxslider" data-add-track-id="${trackId}" data-add-slider-id="${window.LayerPlayerCore.escapeHtml(sl.id)}"` : '';
-      nestedLanesHtml += `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
+      nestedLanesHtml += `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label" title="${window.LayerPlayerCore.escapeHtml(sl.label || '')}">${window.LayerPlayerCore.escapeHtml(tr('captureSliderLaneLabel').replace('{label}', sl.label || tr('fxSliderFallbackLabel').replace('{n}', sliderIdx + 1)))}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddSliderHint') : ''}">${blocksHtml}</div></div>`;
     });
     // Arrêts (05/11, fondu à l'arrêt) : chaque arrêt du morceau, avec son fondu dessiné en pente -- un clic ouvre le détail pour régler
     // la durée du fondu. Ni déplaçable ni supprimable ici : la fin des blocs, elle, se règle sur les blocs eux-mêmes.
@@ -1513,7 +1568,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       blocksHtml += `<div class="vct-block vct-head" data-idx="${idx}" style="left:${pct(e.t)}%;width:${pct(e.t + 0.5) - pct(e.t)}%" title="${Math.round(e.detail.yaw)}°"><span class="vct-block-label">${Math.round(e.detail.yaw)}°</span></div>`;
     });
     const addAttrs = editable ? ` data-addable="head"` : '';
-    const headLane = `<div class="vct-lane vct-lane-nested"><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
+    const headLane = `<div class="vct-lane vct-lane-nested" data-adv><div class="vct-lane-label">${tr('captureHeadLane')}</div><div class="vct-lane-track"${addAttrs} title="${editable ? tr('captureAddHeadHint') : ''}">${blocksHtml}</div></div>`;
     lanesHtml += renderGroup('head:', tr('captureHeadGroup'), 'vct-track-group-head', headLane);
   }
 
@@ -1586,7 +1641,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
   const setZoom = (z, anchorX) => {
     const rr = container.querySelector('.vct-ruler').getBoundingClientRect();
     const sr = scroller.getBoundingClientRect();
-    const ax = anchorX == null ? sr.left + 96 + (sr.width - 96) / 2 : anchorX;
+    const ax = anchorX == null ? sr.left + labelW + (sr.width - labelW) / 2 : anchorX;
     const frac = (ax - rr.left) / rr.width;
     container.__vctZoom = Math.min(maxZoom, Math.max(1, z));
     rerender();
@@ -1602,17 +1657,194 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
     else setZoom(zoom * (k === 'in' ? 2 : 0.5));
   };
   // Retirer une piste : une piste vide disparaît de l'affichage de cette version ; avec des blocs, il faut confirmer (ils sont supprimés, annulable).
-  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', async ev => {
-    ev.stopPropagation(); ev.preventDefault();
+  async function removeTrackById(id) {
     if (videoCaptureState) return;
-    const id = btn.dataset.removeTrack;
     const mine = events.filter(e => e.detail && e.detail.trackId === id);
     if (mine.length && !await window.LayerPitchNotify.confirm(tr('captureTrackRemoveConfirm').replace('{n}', String(mine.length)).replace('{name}', (findCaptureTrack(id) || {}).title || id), { okLabel: tr('captureTrackRemoveOk'), danger: true })) return;
     mine.forEach(e => { const i = events.indexOf(e); if (i >= 0) events.splice(i, 1); });
     const x = laneLayout.extra.indexOf(id); if (x >= 0) laneLayout.extra.splice(x, 1);
     if (laneLayout.hidden.indexOf(id) === -1 && (capturePackLibrary().library || []).some(t => t.id === id)) laneLayout.hidden.push(id);
+    delete mixMap[id];
     changed();
+  }
+  container.querySelectorAll('[data-remove-track]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    removeTrackById(btn.dataset.removeTrack);
   }));
+  // M / S / volume d'un morceau (13/11) : réglages du montage, rangés dans laneLayout.mix, joués à l'écoute et à l'export.
+  container.querySelectorAll('[data-mix-m]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixM; setMix(id, { mute: !(mixMap[id] && mixMap[id].mute) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-s]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    const id = btn.dataset.mixS; setMix(id, { solo: !(mixMap[id] && mixMap[id].solo) }); changed();
+  }));
+  container.querySelectorAll('[data-mix-v]').forEach(inp => {
+    inp.addEventListener('click', ev => ev.stopPropagation());
+    inp.addEventListener('input', () => { setMix(inp.dataset.mixV, { vol: Number(inp.value) / 100 }); inp.title = tr('captureMixVolume') + ' : ' + inp.value + ' %'; });
+    inp.addEventListener('change', () => changed()); // pas de réaffichage pendant le glisser : le curseur serait perdu
+  });
+  // « ⇄ » sur un morceau (13/11, admin seulement) : le remplace par un autre en REJOUANT ses blocs sur le nouveau morceau (même moteur que le
+  // Versioning : capture-retarget.js -- les gestes restent, ils suivent les règles du nouveau morceau). Refusé si la structure diffère.
+  const replaceDurations = window.__lpReplaceDurations = window.__lpReplaceDurations || new Map();
+  async function replaceEnsureDurations(dst) {
+    if (!dst || dst.mode !== 'embranchement-vertical') return;
+    await Promise.all((dst.loops || []).map(async l => {
+      if (!(l.transition && l.transition.file && !l.transition.durationUnit)) return;
+      const key = dst.id + '|' + l.transition.file;
+      if (replaceDurations.has(key)) return;
+      try {
+        const bytes = await fetchAsUint8Array(dst.base + encodeURIComponent(l.transition.file) + (dst.publishedAt ? '?v=' + encodeURIComponent(dst.publishedAt) : ''));
+        const buf = await window.LayerPlayerCore.decodeAudioCompat(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        replaceDurations.set(key, buf.duration);
+      } catch (e) { replaceDurations.set(key, null); }
+    }));
+  }
+  const replaceNoteText = n => {
+    const name = id => { const t = findCaptureTrack(id); return t ? (t.title || id) : String(id || ''); };
+    const key = 'versioningNote_' + n.code;
+    let txt = tr(key); if (txt === key) txt = tr('versioningNote_generic').replace('{code}', n.code);
+    txt = txt.replace('{track}', name(n.trackId)).replace('{to}', name(n.to)).replace('{t}', n.t != null ? n.t.toFixed(1) : '')
+      .replace('{by}', n.by != null ? (n.by > 0 ? '+' : '') + n.by.toFixed(2) : '').replace('{pos}', n.pos != null ? String(n.pos + 1) : '')
+      .replace('{a}', n.a != null ? String(n.a) : '').replace('{b}', n.b != null ? String(n.b) : '');
+    if (n.count > 1) txt += ' ' + tr('versioningNoteCount').replace('{n}', n.count);
+    return txt;
+  };
+  async function replaceTrack(srcId, dstId) {
+    const RT = window.LayerCaptureRetarget;
+    const dst = findCaptureTrack(dstId);
+    await replaceEnsureDurations(dst);
+    const res = RT.retarget(events, { tracks: { [srcId]: { to: dstId } }, sfx: {} }, {
+      findTrack: findCaptureTrack, findSfx: findCaptureSfx,
+      fileDuration: (owner, file) => { const v = replaceDurations.get(owner.id + '|' + file); return v == null ? null : v; },
+    });
+    const blocking = res.notes.filter(n => n.severity === 'block');
+    if (blocking.length) { window.LayerPitchNotify.error(blocking.map(replaceNoteText).join(' · ')); return; }
+    events.splice(0, events.length, ...res.events);
+    // Les pistes : l'ancien morceau disparaît de la frise, le nouveau s'affiche (même logique que « ✕ » et « + Piste »).
+    const x = laneLayout.extra.indexOf(srcId); if (x >= 0) laneLayout.extra.splice(x, 1);
+    if (laneLayout.hidden.indexOf(srcId) === -1 && (capturePackLibrary().library || []).some(t => t.id === srcId)) laneLayout.hidden.push(srcId);
+    if (mixMap[srcId]) { mixMap[dstId] = mixMap[srcId]; delete mixMap[srcId]; } // M / S / volume suivent le nouveau morceau
+    const h = laneLayout.hidden.indexOf(dstId);
+    if (h >= 0) laneLayout.hidden.splice(h, 1);
+    else if (laneLayout.extra.indexOf(dstId) === -1 && handTrackIds.indexOf(dstId) === -1) laneLayout.extra.push(dstId);
+    changed();
+    window.LayerPitchNotify.success(tr('captureTrackReplaced').replace('{from}', (findCaptureTrack(srcId) || {}).title || srcId).replace('{to}', (dst || {}).title || dstId)
+      + (res.notes.length ? '\n' + res.notes.map(replaceNoteText).join('\n') : ''));
+  }
+  function openReplaceDialog(srcId) {
+    if (!editable || videoCaptureState || !window.LayerCaptureRetarget) return;
+    const src = findCaptureTrack(srcId);
+    const L = window.__lpCaptureLibrary || {};
+    const esc = window.LayerPlayerCore.escapeHtml;
+    const used = new Set(events.map(e => e.detail && e.detail.trackId).filter(Boolean));
+    const rows = (L.library || []).filter(t => t.id !== srcId && !used.has(t.id)).map(t => {
+      const cmp = window.LayerCaptureRetarget.compareTracks(src, t);
+      return { t, ok: cmp.compatible, why: cmp.issues.filter(i => i.severity === 'block').map(i => tr('versioningIssue_' + i.code)).join(', ') };
+    });
+    const dlg = document.createElement('dialog');
+    dlg.className = 'video-test-dialog';
+    const body = () => {
+      const q = (dlg.querySelector('#vctRepQuery') || { value: '' }).value.trim().toLowerCase();
+      const match = r => !q || String(r.t.title || r.t.id).toLowerCase().indexOf(q) >= 0;
+      const item = r => r.ok
+        ? `<button type="button" class="vct-add-item" data-rep-id="${esc(r.t.id)}">${esc(r.t.title || r.t.id)}<small>${esc(r.t.mode)}</small></button>`
+        : `<div class="vct-add-item vct-add-item-off" style="opacity:.5;cursor:not-allowed">${esc(r.t.title || r.t.id)}<small>${esc(r.why)}</small></div>`;
+      const ok = rows.filter(r => r.ok && match(r)), off = rows.filter(r => !r.ok && match(r));
+      dlg.querySelector('#vctRepList').innerHTML =
+        (ok.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOk'))}</div>` + ok.map(item).join('') : `<div class="vct-add-none">${esc(tr('captureTrackReplaceNone'))}</div>`)
+        + (off.length ? `<div class="vct-add-group">${esc(tr('captureTrackReplaceOff'))}</div>` + off.map(item).join('') : '');
+    };
+    dlg.innerHTML = `<form method="dialog" class="video-test-form"><div class="video-test-dialog-title">${esc(tr('captureTrackReplaceDialog').replace('{name}', (src || {}).title || srcId))}</div>
+      <input type="search" id="vctRepQuery" class="video-capture-title-input" placeholder="${esc(tr('captureTrackAddSearch'))}" style="width:100%">
+      <div id="vctRepList" class="vct-add-list"></div>
+      <div class="video-test-dialog-actions"><button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button></div></form>`;
+    (container.closest('#videoTestPanel') || document.body).appendChild(dlg);
+    body();
+    dlg.querySelector('#vctRepQuery').addEventListener('input', body);
+    dlg.querySelector('[value="cancel"]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', ev => {
+      const it = ev.target.closest && ev.target.closest('[data-rep-id]');
+      if (!it) return;
+      const id = it.dataset.repId;
+      dlg.close();
+      replaceTrack(srcId, id);
+    });
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
+  }
+  container.querySelectorAll('[data-replace-track]').forEach(btn => btn.addEventListener('click', ev => {
+    ev.stopPropagation(); ev.preventDefault();
+    openReplaceDialog(btn.dataset.replaceTrack);
+  }));
+  // Colonne des noms redimensionnable + menu clic droit (13/11, admin). Écouteurs posés UNE fois sur le conteneur (il survit aux réaffichages) :
+  // ils lisent l'état courant par container.__vctRerender / __vctCtx, remis à jour à chaque affichage.
+  container.__vctRerender = rerender;
+  container.__vctCtx = (ev, key) => {
+    const id = key.slice(6);
+    const doc = ownerDoc;
+    doc.querySelectorAll('.vct-ctx').forEach(m => m.remove());
+    const menu = doc.createElement('div');
+    menu.className = 'vct-ctx';
+    const item = (act, label, checked) => `<button type="button" class="vct-ctx-item" data-act="${act}">${checked == null ? '' : `<span class="vct-ctx-check">${checked ? '✓' : ''}</span>`}${escH(label)}</button>`;
+    menu.innerHTML = (window.LayerCaptureRetarget ? item('replace', tr('captureCtxReplace')) : '') + item('remove', tr('captureCtxRemove'))
+      + `<div class="vct-ctx-sep"></div><div class="vct-ctx-title">${escH(tr('captureCtxComponents'))}</div>`
+      + item('c:m', tr('captureMixMute') + ' (M)', comps.m) + item('c:s', tr('captureMixSolo') + ' (S)', comps.s)
+      + item('c:vol', tr('captureMixVolume'), comps.vol) + item('c:replace', tr('captureCtxReplaceBtn') + ' (⇄)', comps.replace) + item('c:remove', tr('captureCtxRemoveBtn') + ' (✕)', comps.remove);
+    menu.style.left = Math.min(ev.clientX, (ownerWin.innerWidth || 800) - 230) + 'px';
+    menu.style.top = Math.min(ev.clientY, (ownerWin.innerHeight || 600) - 260) + 'px';
+    const close = () => { menu.remove(); doc.removeEventListener('pointerdown', away, true); doc.removeEventListener('keydown', esc, true); };
+    const away = e => { if (!menu.contains(e.target)) close(); };
+    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    menu.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const act = b.dataset.act;
+      if (act.indexOf('c:') === 0) {
+        const k = act.slice(2); comps[k] = !comps[k]; store.set('lp.vct.comps', comps); close(); rerender(); return;
+      }
+      close();
+      if (act === 'replace') openReplaceDialog(id); else if (act === 'remove') removeTrackById(id);
+    });
+    doc.body.appendChild(menu);
+    doc.addEventListener('pointerdown', away, true);
+    doc.addEventListener('keydown', esc, true);
+  };
+  if (adminHdr && !container.__vctHdrBound) {
+    container.__vctHdrBound = true;
+    const onEdge = ev => {
+      const l = ev.target.closest && ev.target.closest('.vct-lane-label, .vct-ruler-corner');
+      if (!l) return false;
+      const r = l.getBoundingClientRect();
+      return ev.clientX >= r.right - 6 && ev.clientX <= r.right + 3;
+    };
+    container.addEventListener('pointermove', ev => { if (!container.__vctResizing) container.classList.toggle('vct-col-resize', onEdge(ev)); });
+    container.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0 || !onEdge(ev)) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, w0 = container.__vctLabelW || 170, d = container.ownerDocument || document;
+      container.__vctResizing = true;
+      const move = e => {
+        const w = Math.min(420, Math.max(110, Math.round(w0 + e.clientX - x0)));
+        container.__vctLabelW = w; container.style.setProperty('--vct-label-w', w + 'px');
+      };
+      const up = () => {
+        d.removeEventListener('pointermove', move); d.removeEventListener('pointerup', up);
+        container.__vctResizing = false;
+        store.set('lp.vct.labelW', container.__vctLabelW);
+        container.__vctRerender && container.__vctRerender(); // zoom et marqueurs recalculés sur la nouvelle largeur
+      };
+      d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
+    }, true);
+    container.addEventListener('contextmenu', ev => {
+      const h = ev.target.closest && ev.target.closest('.vct-lane-label[data-hdr-key], .vct-track-group-header[data-group-key^="track:"]');
+      if (!h || !container.__vctCtx) return;
+      const key = h.dataset.hdrKey || h.dataset.groupKey;
+      if (!key || key.indexOf('track:') !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      container.__vctCtx(ev, key);
+    });
+  }
   // « + Piste » : ajoute un morceau (vide, à poser au double-clic) -- ceux du pack masqués, puis les autres packs, puis le reste de la bibliothèque.
   function openAddTrackDialog() {
     if (!editable || videoCaptureState) return;
@@ -1948,7 +2180,7 @@ function renderCaptureTimeline(container, events, editable, onChange, laneOverri
       ${editableDuration ? `<input type="number" step="0.1" min="0" placeholder="${isSfx ? tr('captureDurationPlaceholder') : ''}" value="${isSfx ? (e.detail.durationOverride ? e.detail.durationOverride.toFixed(2) : '') : e.detail.duration.toFixed(2)}" class="video-capture-event-duration" title="${tr('captureDurationInputTitle')}">` : ''}
       ${e.name === 'head_turn' ? `<input type="number" step="1" min="-180" max="180" value="${Math.round(e.detail.yaw)}" class="video-capture-event-yaw" title="${tr('captureYawInputTitle')}">` : ''}
       ${e.name === 'fx_slider' ? `<input type="number" step="1" min="0" max="100" value="${Math.round(e.detail.value * 100)}" class="video-capture-event-slidervalue" title="${tr('captureSliderValueTitle')}">` : ''}
-      ${isSfx ? `<label class="video-capture-duck-label" title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
+      ${isSfx ? `<label class="video-capture-duck-label" data-adv title="${tr('captureDuckHint')}"><input type="checkbox" class="video-capture-event-duck" ${duckChecked ? 'checked' : ''}> Duck</label>` : ''}
       <button type="button" class="video-capture-event-del" title="${tr('captureDeleteBtn')}" aria-label="${tr('captureDeleteBtn')}">✕</button>
     `;
     detailEl.querySelector('.video-capture-event-time').addEventListener('change', (ev) => {
@@ -2502,7 +2734,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });
@@ -2579,7 +2811,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
   // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
   // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
-  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: exportOptions.trackMix });
   const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
   const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));
@@ -2826,6 +3058,44 @@ window.addEventListener('message', e => {
   if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'atelierZones') return;
   if (typeof window.__lpReloadZones === 'function') window.__lpReloadZones();
 });
+// Interface simple / avancée (14/11, feu vert simple_advanced_ui) : le Backstage décide (feu vert, tutoriel, choix du compte) et nous le dit.
+// Sans message (atelier seul, tutoriel, studio) : tout est affiché. Les éléments data-adv sont masqués par la classe lp-ui-simple sur <body>
+// (règle dans 02b-styles-atelier.css) ; un repère « N options avancées masquées · Afficher » demande au Backstage de passer en avancée.
+let atelierAdvObserver = null, atelierAdvRaf = 0;
+function refreshAtelierAdvHint() {
+  if (atelierAdvObserver) atelierAdvObserver.disconnect();
+  try {
+    document.querySelectorAll('.lp-adv-hint').forEach(h => h.remove());
+    const host = document.getElementById('videoTestPanel');
+    if (host && document.body.classList.contains('lp-ui-simple')) {
+      const n = [...document.querySelectorAll('[data-adv]')].filter(el => !(el.parentElement && el.parentElement.closest('[data-adv]'))
+        && (el.textContent.trim() || el.querySelector('input, select, textarea, button'))).length;
+      if (n) {
+        const hint = document.createElement('div');
+        hint.className = 'lp-adv-hint';
+        hint.innerHTML = `<span></span> <button type="button" class="lp-adv-show"></button>`;
+        hint.querySelector('span').textContent = tr(n > 1 ? 'uiAdvHintMany' : 'uiAdvHintOne').replace('{n}', String(n));
+        hint.querySelector('button').textContent = tr('uiAdvShow');
+        hint.querySelector('button').addEventListener('click', () => { try { window.parent.postMessage({ source: 'lp-atelier', type: 'uiAdvanced' }, location.origin); } catch (err) { /* page d'accueil absente */ } });
+        host.appendChild(hint);
+      }
+    }
+  } finally {
+    if (atelierAdvObserver) atelierAdvObserver.observe(document.body, { childList: true, subtree: true });
+  }
+}
+function setAtelierUiLevel(simple) {
+  document.body.classList.toggle('lp-ui-simple', !!simple);
+  refreshAtelierAdvHint();
+}
+atelierAdvObserver = new MutationObserver(() => {
+  if (!document.body.classList.contains('lp-ui-simple') || atelierAdvRaf) return;
+  atelierAdvRaf = requestAnimationFrame(() => { atelierAdvRaf = 0; refreshAtelierAdvHint(); });
+});
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data || e.data.source !== 'lp-backstage' || e.data.type !== 'uiLevel') return;
+  setAtelierUiLevel(e.data.simple);
+});
 try { const v = new URLSearchParams(location.search).get('view'); if (v) setAtelierView(v); } catch (err) {}
 function toggleAtelierFullscreen() {
   if (atelierHostFull) { window.parent.postMessage({ source: 'lp-atelier', type: 'setFull', on: false }, location.origin); return; }
@@ -2924,7 +3194,8 @@ function openCapturePanel(file, opts) {
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneLeft" title="${tr('atelierZoneLeft')}" aria-label="${tr('atelierZoneLeft')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
           <button type="button" class="video-test-panel-btn atelier-zone-btn active" id="atelierZoneRight" title="${tr('atelierZoneRight')}" aria-label="${tr('atelierZoneRight')}" aria-pressed="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="10.1" y="3.1" width="3.8" height="9.8" fill="currentColor"/></svg></button>
         </span>
-        <button type="button" class="video-test-panel-btn" id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
+        ${window.__lpCaptureIsAdmin ? `<button type="button" class="video-test-panel-btn" id="atelierRefreshBtn" title="${tr('atelierRefreshTitle')}" aria-label="${tr('atelierRefreshTitle')}">↻</button>` : ''}
+        <button type="button" class="video-test-panel-btn" data-adv id="videoCaptureHideImageBtn" title="${tr('captureHideImageBtn')}" aria-label="${tr('captureHideImageBtn')}">▭</button>
         <button type="button" class="video-test-panel-btn atelier-fullscreen-toggle" title="${tr('atelierFullscreenBtn')}" aria-label="${tr('atelierFullscreenBtn')}">⛶</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureDetachBtn" title="${tr('detachBtn')}" aria-label="${tr('detachBtn')}">⤢</button>
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
@@ -2944,8 +3215,8 @@ function openCapturePanel(file, opts) {
       <span class="video-alt-group${window.__lpCaptureIsAdmin ? ' video-alt-group-v2' : ''}" id="videoAltGroup" hidden>
       ${window.__lpCaptureIsAdmin ? `<span class="video-alt-group-label">${tr('altGroupLabel')}</span>` : ''}
       <select class="video-capture-load-select video-alt-select" id="videoAltSelect" hidden title="${tr('altSelectTitle')}" aria-label="${tr('altSelectTitle')}"></select>
-      <button type="button" class="video-capture-download-btn video-alt-link-btn" id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
-      <button type="button" class="video-capture-download-btn" id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
+      <button type="button" class="video-capture-download-btn video-alt-link-btn" data-adv id="videoAltPropagate" hidden aria-pressed="false" title="${tr('altPropagateHelp')}"><span class="video-alt-switch" aria-hidden="true"></span>${window.__lpCaptureIsAdmin ? '' : '&#8644; '}${tr('altPropagateShort')}</button>
+      <button type="button" class="video-capture-download-btn" data-adv id="videoAltRefBtn" hidden title="${tr('altRefHelp')}">${tr(window.__lpCaptureIsAdmin ? 'altRefBtnShort' : 'altRefBtn')}</button>
       </span>
       <label class="video-capture-export-opt" id="videoCaptureAdditiveLabel" title="${tr('captureAdditiveHelp')}" hidden>
         <input type="checkbox" id="videoCaptureAdditiveCheckbox"> ${tr('captureAdditiveLabel')}
@@ -2964,7 +3235,7 @@ function openCapturePanel(file, opts) {
       <button type="button" class="video-capture-download-btn" id="videoCaptureExportBtn" disabled>${tr('captureExportMenuBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureAddToLibraryBtn" hidden>${tr('captureAddToLibraryBtn')}</button>
       <button type="button" class="video-capture-download-btn" id="videoCaptureUpdateEverywhereBtn" title="${tr('captureUpdateEverywhereHelp')}">${tr('captureUpdateEverywhereBtn')}</button>
-      <label class="video-capture-count" id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
+      <label class="video-capture-count" data-adv id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
     <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
@@ -3024,6 +3295,7 @@ function openCapturePanel(file, opts) {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('list_video_export_history', withStudio({ p_capture_id: savedCaptureId }));
     if (error || !data || !data.length) { historyEl.hidden = true; historyEl.innerHTML = ''; return; }
     historyEl.hidden = false;
+    historyEl.setAttribute('data-adv', '');
     historyEl.innerHTML = `<div class="video-capture-count">${tr('captureHistoryTitle')}</div>` + data.map(h => `
       <div class="video-capture-history-row"><span>${new Date(h.createdAt).toLocaleString()}${h.versionId ? ' · ' + tr('captureHistoryVersion') : ' · ' + tr('captureHistoryMontage')}${h.sizeBytes ? ' · ' + (h.sizeBytes / 1048576).toFixed(1) + ' Mo' : ''}</span>
         <a class="video-capture-download-btn" href="${h.url}" target="_blank" rel="noopener">${tr('captureHistoryView')}</a>
@@ -3091,7 +3363,7 @@ function openCapturePanel(file, opts) {
   // à l'autre tant que le panneau reste ouvert (ce sont des repères sur la vidéo, pas sur la musique).
   let timelineMarkers = [];
   // Pistes de la frise propres à cette version (10/11, migration 20261110040000) : { hidden: [morceaux du pack retirés], extra: [morceaux ajoutés] }.
-  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [] });
+  const normLayout = o => ({ hidden: Array.isArray(o && o.hidden) ? o.hidden.slice() : [], extra: Array.isArray(o && o.extra) ? o.extra.slice() : [], mix: (o && o.mix && typeof o.mix === 'object' && !Array.isArray(o.mix)) ? JSON.parse(JSON.stringify(o.mix)) : {} });
   let laneLayout = normLayout(null);
   // Versions alternatives (10/11) : la version affichée dans l'atelier. null = le montage lui-même (version alternative n° 1). Sur une autre version,
   // les variables de travail ci-dessus (événements, noms de pistes, groupes, marqueurs) contiennent SA frise, et le montage est mis de côté dans baseSnap.
@@ -3105,10 +3377,22 @@ function openCapturePanel(file, opts) {
     const box = document.getElementById('videoAltPropagate');
     const linked = !!box && box.getAttribute('aria-pressed') === 'true';
     const deltas = new Map();
-    timelineMarkers.forEach(m => { if (markerMemo.has(m.id) && markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    const added = [], removedIds = new Set();
+    const nowIds = new Set(timelineMarkers.map(m => m.id));
+    timelineMarkers.forEach(m => { if (!markerMemo.has(m.id)) added.push(m); else if (markerMemo.get(m.id) !== m.t) deltas.set(m.id, m.t - markerMemo.get(m.id)); });
+    markerMemo.forEach((t, id) => { if (!nowIds.has(id)) removedIds.add(id); });
     memoMarkers();
-    if (!deltas.size || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
-    const shift = list => { let ch = false; list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } }); if (ch) list.sort((a, b) => a.t - b.t); return ch; };
+    if (!(deltas.size || added.length || removedIds.size) || !linked || !versioning || !versioning.alternatives || historyRestoring) return;
+    // Marqueurs liés : un marqueur posé ou effacé ici l'est aussi dans les autres versions (11/11, retour de Jules-Antoine : posé sur une version, il n'apparaissait pas sur l'autre) ;
+    // un marqueur déplacé est décalé du même écart. Ce qui existe déjà (même identifiant) n'est jamais dupliqué.
+    const shift = list => {
+      let ch = false;
+      if (removedIds.size) { const n = list.length; for (let i = list.length - 1; i >= 0; i--) if (removedIds.has(list[i].id)) list.splice(i, 1); if (list.length !== n) ch = true; }
+      list.forEach(m => { if (deltas.has(m.id)) { m.t = Math.max(0, Math.round((m.t + deltas.get(m.id)) * 1000) / 1000); ch = true; } });
+      added.forEach(m => { if (!list.some(x => x.id === m.id)) { list.push(Object.assign({}, m)); ch = true; } });
+      if (ch) list.sort((a, b) => a.t - b.t);
+      return ch;
+    };
     const alts = versioning.alternatives;
     alts.list().forEach(v => {
       if (v.id === activeAltId || !v.events) return; // une version à l'ancienne n'a pas de marqueurs à elle
@@ -3227,7 +3511,7 @@ function openCapturePanel(file, opts) {
       while (!buffer) {
         const gen = montageGen;
         const b = montageBuffer || await window.LayerCaptureRender.render(
-          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx }).plan,
+          window.LayerCapturePlan.buildPlan(lastEvents, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: laneLayout.mix }).plan,
           { fetchBytes: fetchAsUint8Array, onProgress: (i, n) => { listenBtn.textContent = tr('captureEngineProgress').replace('{i}', i).replace('{n}', n); } });
         if (disposed) return;
         if (gen === montageGen) { montageBuffer = b; buffer = b; }
@@ -3432,7 +3716,7 @@ function openCapturePanel(file, opts) {
         const st = await altExportState(targets[ti]);
         if (!st) continue;
         const prefix = targets.length > 1 ? (ti + 1) + '/' + targets.length + ' — ' : '';
-        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, exportOptions);
+        blob = await exportCaptureVideo(st.events, file, (msg) => { exportStatus.textContent = prefix + msg; }, st.laneOverrides, Object.assign({}, exportOptions, { trackMix: st.laneLayout && st.laneLayout.mix }));
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -3465,8 +3749,8 @@ function openCapturePanel(file, opts) {
       <div class="video-test-dialog-title">${esc(tr('captureExportMenuTitle'))}</div>
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="audio" checked> ${esc(tr('captureExportAudioBtn'))}</label>
       <label class="atelier-export-opt"><input type="radio" name="atelierExportMode" value="copy"> ${esc(tr('captureExportCopyBtn'))}</label>
-      <label class="atelier-export-opt" title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
-      <label class="atelier-export-opt" title="${esc(tr('captureKeepOldHelp'))}"><input type="checkbox" id="atelierExportKeepOld"> ${esc(tr('captureKeepOldLabel'))}</label>
+      <label class="atelier-export-opt" data-adv title="${esc(tr('captureCreditHelp'))}"><input type="checkbox" id="atelierExportCredit"> ${esc(tr('captureCreditLabel'))}</label>
+      <label class="atelier-export-opt" data-adv title="${esc(tr('captureKeepOldHelp'))}"><input type="checkbox" id="atelierExportKeepOld"> ${esc(tr('captureKeepOldLabel'))}</label>
       <div class="video-test-dialog-actions">
         <button type="button" class="video-test-btn-secondary" value="cancel">${esc(tr('cancel'))}</button>
         <button type="submit" class="video-test-btn-primary" value="go">${esc(tr('captureExportGoBtn'))}</button>
@@ -3480,13 +3764,13 @@ function openCapturePanel(file, opts) {
   async function altExportState(key) {
     if (!key || key === '') {
       const b = baseState();
-      return { events: b.events, laneOverrides: b.laneOverrides, name: tr('altOriginal') };
+      return { events: b.events, laneOverrides: b.laneOverrides, laneLayout: b.laneLayout, name: origName() };
     }
-    if (key === activeAltId) return { events: lastEvents, laneOverrides, name: (altList().find(v => v.id === key) || {}).title || key };
+    if (key === activeAltId) return { events: lastEvents, laneOverrides, laneLayout, name: (altList().find(v => v.id === key) || {}).title || key };
     const v = altList().find(x => x.id === key);
     if (!v) return null;
     const mat = await versioning.alternatives.materialize(v);
-    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, name: v.title || key };
+    return { events: mat.events, laneOverrides: v.events ? (v.laneOverrides || {}) : baseState().laneOverrides, laneLayout: v.events ? normLayout(v.laneLayout) : baseState().laneLayout, name: v.title || key };
   }
   exportDialog.querySelector('[value="cancel"]').addEventListener('click', () => exportDialog.close('cancel'));
   exportBtn.addEventListener('click', () => {
@@ -3495,7 +3779,7 @@ function openCapturePanel(file, opts) {
     const alts = altList();
     exportAltBox.hidden = alts.length === 0;
     exportAltBox.innerHTML = alts.length ? `<div class="video-test-dialog-title">${esc(tr('altExportWhich'))}</div>`
-      + [{ id: '', label: tr('altOriginal') }].concat(alts.map((v, i) => ({ id: v.id, label: altName(v, i) })))
+      + [{ id: '', label: origName() }].concat(alts.map((v, i) => ({ id: v.id, label: altName(v, i) })))
           .map(o => `<label class="atelier-export-opt"><input type="checkbox" data-alt-export="${esc(o.id)}" ${o.id === (activeAltId || '') ? 'checked' : ''}> ${esc(o.label)}</label>`).join('') : '';
     exportDialog.showModal();
   });
@@ -3607,6 +3891,7 @@ function openCapturePanel(file, opts) {
     try { await autosaveRunning; } finally { autosaveRunning = null; }
   }
   titleInput.addEventListener('input', scheduleAutosave);
+  titleInput.addEventListener('input', () => { if (typeof renderAltSelect === 'function') renderAltSelect(); }); // le menu des versions montre le nom de la version n° 1 en direct
   // Un seul nom : renommer le montage renomme aussi sa vidéo muette dans la bibliothèque vidéo (« <nom> — montage »), à la sortie du champ.
   titleInput.addEventListener('change', async () => {
     try {
@@ -3661,11 +3946,10 @@ function openCapturePanel(file, opts) {
       updateEverywhereBtn.disabled = false; setExportButtonsDisabled(lastEvents.length === 0);
     }
   });
-  // Dans le Backstage, le bouton global publie : le bouton et sa case disparaissent, un seul geste reste (« Sauvegarder / publier »).
-  if (hostPublishes || !captureCanSave) {
-    updateEverywhereBtn.hidden = true;
-    document.getElementById('videoCaptureKeepOldLabel').hidden = true;
-  }
+  // Dans le Backstage, le bouton global « Sauvegarder / publier » publie aussi, mais l'étape « Publier » garde son propre bouton (13/11, retour de
+  // Jules-Antoine : « pas clair » sans). Doublon voulu ; seule la case « garder l'ancien » reste cachée.
+  if (hostPublishes || !captureCanSave) document.getElementById('videoCaptureKeepOldLabel').hidden = true;
+  if (!captureCanSave) updateEverywhereBtn.hidden = true;
   // Appelée par 20-demarrage-atelier.js quand le Backstage demande de terminer le montage ; 'none' : rien à publier.
   window.__lpFinishMontage = async () => {
     setExportButtonsDisabled(true);
@@ -3815,6 +4099,8 @@ function openCapturePanel(file, opts) {
   const altSelect = document.getElementById('videoAltSelect');
   let altBusy = false; // une opération sur les versions alternatives en cours (voir le menu plus bas)
   const altList = () => (versioning && versioning.alternatives ? versioning.alternatives.list() : []);
+  // La version n° 1 porte le nom du montage : le renommer la renomme partout (menu, export, AdReels, Projets, relecture).
+  const origName = () => (baseState().title || '').trim() || tr('altOriginal');
   const altName = (v, i) => v.title || tr('altDefaultName').replace('{n}', String(i + 2));
   function renderAltSelect() {
     if (!altSelect) return;
@@ -3823,7 +4109,7 @@ function openCapturePanel(file, opts) {
     const grp = document.getElementById('videoAltGroup'); if (grp) grp.hidden = !on; // le groupe (cadre + libellé) n'apparaît qu'avec le menu des versions
     if (!on) return;
     const esc = window.LayerPlayerCore.escapeHtml;
-    altSelect.innerHTML = `<option value="">${esc(tr('altOriginal'))}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
+    altSelect.innerHTML = `<option value="">${esc(origName())}</option>` + altList().map((v, i) => `<option value="${esc(v.id)}">${esc(altName(v, i))}</option>`).join('')
       + `<option disabled>──────────</option><option value="__new">${esc(tr('altNew'))}</option><option value="__rename">${esc(tr('altRename'))}</option>` + (activeAltId ? `<option value="__delete">${esc(tr('altDelete'))}</option>` : '');
     const pl = document.getElementById('videoAltPropagate'); if (pl) pl.hidden = altList().length === 0;
     const rb = document.getElementById('videoAltRefBtn'); if (rb) rb.hidden = altList().length === 0;
@@ -3894,7 +4180,7 @@ function openCapturePanel(file, opts) {
     if (!versioning || videoCaptureState) return;
     const alts = altList();
     const sources = [];
-    if (activeAltId) sources.push({ id: '', label: tr('altOriginal') });
+    if (activeAltId) sources.push({ id: '', label: origName() });
     alts.forEach((v, i) => { if (v.id !== activeAltId) sources.push({ id: v.id, label: altName(v, i) }); });
     if (!sources.length) return;
     const esc = window.LayerPlayerCore.escapeHtml;
@@ -4130,7 +4416,7 @@ let openVideoCaptureDialog = () => {};
   // sauvegardée avec le montage (seul son nom), elle se choisit ici -- sur le disque, ou (admin, 26/09) directement dans
   // la bibliothèque vidéo du compositeur, la vidéo d'origine présélectionnée si elle s'y trouve.
   openVideoCaptureDialog = async (montageId) => {
-    pendingMontageId = montageId || null;
+    pendingMontageId = montageId || window.__lpTutoMontageId || null; // __lpTutoMontageId : leçon « Les pas » (atelier-lecons.js), montage déjà prêt à ouvrir avec la vidéo
     pendingMontage = null;
     montageNote.hidden = true;
     libPick.hidden = true;
@@ -4332,6 +4618,30 @@ window.addEventListener('message', async e => {
   }
 });
 
+// « ↻ » dans l'en-tête du panneau (13/11, admin) : relire le pack publié sans attendre un message du Backstage (retour de Jules-Antoine : un
+// morceau ajouté au pack n'apparaissait pas). Si le pack publié est plus récent : enregistre le montage puis recharge l'atelier ; sinon dit
+// que tout est à jour (ce qui est lu, c'est la dernière PUBLICATION : un morceau ajouté mais pas publié n'y est pas encore).
+let atelierRefreshing = false;
+document.addEventListener('click', async ev => {
+  const btn = ev.target.closest && ev.target.closest('#atelierRefreshBtn');
+  if (!btn || atelierRefreshing) return;
+  atelierRefreshing = true; btn.disabled = true;
+  const N = window.LayerPitchNotify;
+  try {
+    if (window.__lpAtelierBusy && window.__lpAtelierBusy()) { N.info(tr('atelierRefreshBusy')); return; }
+    if (!lastResolvedOwnerId) { location.reload(); return; }
+    const fresh = await window.LayerPitchSiteData.loadSiteDataFromPostgres(lastResolvedOwnerId);
+    if (fresh && fresh.publishedAt && fresh.publishedAt === window.__lpPackPublishedAt) { N.info(tr('atelierRefreshUpToDate')); return; }
+    try { if (window.__lpFlushAutosave) await window.__lpFlushAutosave(); } catch (e) { N.error(tr('atelierRefreshSaveFailed')); return; }
+    location.reload();
+  } catch (err) {
+    console.error('LayerPitch — atelier vidéo, actualisation :', err);
+    N.error(tr('loadError'));
+  } finally {
+    atelierRefreshing = false; btn.disabled = false;
+  }
+});
+
 // « Terminer le montage » (06/11) : le bouton global « Sauvegarder / publier » du Backstage demande à l'atelier de publier le montage ouvert
 // (son, étiquettes), avant d'enregistrer les AdReels qui l'affichent. L'atelier répond tout de suite (finishMontageAck : « je suis là »), puis
 // quand c'est fini (finishMontageResult : none = rien à publier, done = publié, error = échec + raison). Pas de panneau ouvert : none.
@@ -4471,7 +4781,7 @@ function startAtelierLessonIfAsked() {
     document.body.prepend(bar);
     document.body.classList.add('has-preview-banner');
   }
-  if (atelierParams.get('lesson') === 'versioning') {
+  if (['versioning', 'versioning-pas'].includes(atelierParams.get('lesson'))) {
     // Ouverte / fermée : le Backstage cache sa propre bulle pendant que celles de l'atelier sont à l'écran (une seule bulle à la fois).
     setTimeout(() => window.LayerPitchAtelierLessons.init({ lang: currentLang(), onDone: () => atelierTell('lessonDone'), onOpen: () => atelierTell('lessonOpen'), onClose: () => atelierTell('lessonClose') }).start(), 600);
   }

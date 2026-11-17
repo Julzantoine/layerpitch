@@ -61,7 +61,15 @@
     const oi = opt ? sourceSlot.nextOptions.indexOf(opt) : -1;
     applyFxActions(opt && opt.fxActions); // triggers d'effets liés à cette bascule (23/09)
     const transitionBuf = (oi >= 0 && transitionBuffers[sourceSlotIdx]) ? transitionBuffers[sourceSlotIdx][oi] : null;
-    const transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
+    let transitionDurationSec = transitionBuf ? transitionDurationSecFor(opt, sourceSlot) : null;
+    // Points de la transition (14/11) : « Fondu » = temps du fichier où le bloc quitté commence à s'effacer, « Boucle » = temps où le
+    // bloc suivant entre (la durée de la transition devient ce point). Absents : comportement d'origine.
+    let transitionFadeDelaySec = 0;
+    if (transitionBuf && opt.transition) {
+      const trSpb = seqTransitionTiming(track, opt.transition, sourceSlot).secondsPerBeat;
+      if (opt.transition.nextInBeat > 0) transitionDurationSec = Math.min(opt.transition.nextInBeat * trSpb, transitionBuf.duration);
+      if (opt.transition.fadeOutBeat > 0) transitionFadeDelaySec = Math.min(opt.transition.fadeOutBeat * trSpb, transitionDurationSec != null ? transitionDurationSec : Infinity);
+    }
     // Trois styles de coupure : "hard" (fin nette), "fade" (fondu court fixe, 0.15s — même durée que les
     // autres fondus courts du morceau, solo/muet, embranchement-vertical), "custom" (durée choisie par le
     // compositeur, `sourceSlot.customCutFadeSec`, en secondes réelles — pas en mesures, un fondu de sortie
@@ -72,12 +80,14 @@
     seqPendingCut = { hard: cutStyle === 'hard', fadeSec: cutStyle === 'hard' ? 0 : fadeOutSec };
     if (fromInfo.gainNode) {
       const g = fromInfo.gainNode;
+      const fadeAt = now + transitionFadeDelaySec; // 0 sans point « Fondu » : au moment de la coupure, comme avant
       g.gain.cancelScheduledValues(now);
       if (cutStyle === 'hard') {
-        g.gain.setValueAtTime(0, now);
+        g.gain.setValueAtTime(transitionFadeDelaySec > 0 ? g.gain.value : 0, now);
+        if (transitionFadeDelaySec > 0) g.gain.setValueAtTime(0, fadeAt);
       } else {
-        g.gain.setValueAtTime(g.gain.value, now);
-        g.gain.linearRampToValueAtTime(0, now + fadeOutSec);
+        g.gain.setValueAtTime(g.gain.value, fadeAt);
+        g.gain.linearRampToValueAtTime(0, fadeAt + fadeOutSec);
       }
     }
     // Le scheduler normal programme jusqu'à 1s à l'avance (voir seqSchedulerTick) : au moment d'une coupure,
