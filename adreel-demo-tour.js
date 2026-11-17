@@ -80,9 +80,9 @@
     b.id = 'lpAdreelTourBtn'; b.type = 'button'; b.textContent = T.btn;
     b.style.cssText = 'padding:6px 14px;border-radius:20px;border:1px solid #d5dbe3;background:#fff;color:#1c2733;font:600 12px system-ui,sans-serif;cursor:pointer;';
     b.onclick = start;
-    // Même bouton « Tutoriel » que le Projet de démo : le tutoriel complet, dans un nouvel onglet.
+    // Bouton « Tutoriel » : le tutoriel complet du Backstage (AdReels), dans un nouvel onglet.
     const t = document.createElement('a');
-    t.href = './projets.html?tuto&lang=' + lang; t.target = '_blank'; t.rel = 'noopener'; t.textContent = T.tuto;
+    t.href = './layerpitch-backstage.html?tuto&lang=' + lang; t.target = '_blank'; t.rel = 'noopener'; t.textContent = T.tuto;
     t.style.cssText = b.style.cssText + 'text-decoration:none;display:inline-block;';
     const a = document.createElement('a');
     a.href = 'https://layerpitch.com/'; a.textContent = T.cta;
