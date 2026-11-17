@@ -31,6 +31,11 @@
       email,
       options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
     });
+    // Limite anti-abus de Supabase (« you can only request this after N seconds ») : un email vient déjà de
+    // partir il y a moins d'une minute, son lien et son code restent valables. On répond donc « ok » (les pages
+    // affichent alors la case du code) avec rateLimited/waitSeconds, au lieu d'une erreur anglaise sans issue.
+    const wait = error && /only request this after (\d+) seconds?/i.exec(error.message);
+    if (wait) return { ok: true, error: null, rateLimited: true, waitSeconds: parseInt(wait[1], 10) };
     return { ok: !error, error: error ? error.message : null };
   }
 

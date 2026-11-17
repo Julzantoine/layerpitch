@@ -87,11 +87,11 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794844531548"></script>
-<script src="api/supabase-client.js?v=1794844531548"></script>
-<script src="api/auth.js?v=1794844531548"></script>
-<script src="api/subscriptions.js?v=1794844531548"></script>
-<script src="api/access-requests.js?v=1794844531548"></script>
+<script src="layerpitch-i18n.js?v=1794903175712"></script>
+<script src="api/supabase-client.js?v=1794903175712"></script>
+<script src="api/auth.js?v=1794903175712"></script>
+<script src="api/subscriptions.js?v=1794903175712"></script>
+<script src="api/access-requests.js?v=1794903175712"></script>
 <script>
 const urlLang = new URLSearchParams(location.search).get('lang');
 const pageLang = urlLang === 'en' ? 'en' : 'fr';
@@ -173,10 +173,10 @@ async function render() {
       const msg = document.getElementById('msg');
       if (!email) return;
       msg.textContent = '…'; msg.className = 'msg';
-      const { ok, error } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
+      const { ok, error, rateLimited, waitSeconds } = await LayerPitchAuth.signInWithMagicLink(email, window.location.href);
       document.getElementById('codeBox').style.display = ok ? '' : 'none';
       if (ok) {
-        msg.textContent = tr('magicLinkSentMsg');
+        msg.textContent = rateLimited ? tr('magicLinkAlreadySentMsg').replace('{s}', waitSeconds) : tr('magicLinkSentMsg');
         msg.className = 'msg ok';
         return;
       }
