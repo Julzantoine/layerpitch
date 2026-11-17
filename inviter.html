@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">LayerPitch — Inviter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
+    --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6;
+    --accent: #2f80c0; --accent-soft: #e6eef8; --on-accent: #ffffff;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 720px; margin: 0 auto; }
+  a { color: var(--accent); }
+  h1 { font-family: var(--font-title); font-size: 26px; margin: 0 0 6px; }
+  h2 { font-family: var(--font-title); font-size: 16px; margin: 28px 0 8px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
+  .step { font-size: 12px; color: var(--text-dim); margin: 22px 0 6px; }
+  .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); cursor: text; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; padding: 3px 4px 3px 10px; border-radius: 999px; }
+  .chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; }
+  .chips input { flex: 1 1 200px; min-width: 160px; border: 0; outline: 0; font: inherit; background: transparent; color: var(--text); padding: 4px 0; }
+  .choice { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin: 8px 0; cursor: pointer; }
+  .choice input { margin: 0; }
+  .msg { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7; margin-top: 10px; min-height: 1em; overflow-wrap: anywhere; }
+  .msg .err { color: #b5442e; } .msg .ok { color: #2a7; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .row:first-of-type { border-top: 0; }
+  .row-main { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+  .row-sub { font-size: 12px; color: var(--text-dimmer); }
+  .pill { font-family: var(--font-mono); font-size: 10.5px; color: #8a6a1c; background: #fbf1d6; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .empty { color: var(--text-dimmer); padding: 10px 0; }
+</style>
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794954809166">
+</head>
+<body>
+<div class="page">
+  <h1 data-i18n="h1">Inviter des personnes</h1>
+  <p class="hint" data-i18n="intro"></p>
+  <div id="content"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
+<script src="layerpitch-tuto.js?v=1794954809166"></script>
+<script src="layerpitch-i18n.js?v=1794954809166"></script>
+<script src="layerpitch-notify.js?v=1794954809166"></script>
+<script src="api/supabase-client.js?v=1794954809166"></script>
+<script src="api/auth.js?v=1794954809166"></script>
+<script src="layerpitch-appearance.js?v=1794954809166"></script>
+<script src="layerpitch-shell.js?v=1794954809166"></script>
+<script src="api/studio.js?v=1794954809166"></script>
+<script src="api/projects.js?v=1794954809166"></script>
+<script>
+// inviter.html — page centrale « Inviter » (17/11) : on saisit des e-mails, on choisit où les inviter
+// (un ou plusieurs Projets dont on est administrateur, et/ou l'équipe du studio dont on est propriétaire),
+// et on suit les invitations en attente. Aucune règle nouvelle : on rappelle les mêmes fonctions que
+// l'onglet Membres d'un Projet (LayerPitchProjects.invite) et l'onglet Équipe du studio
+// (LayerPitchStudio.inviteTeamMember) ; quotas et droits restent vérifiés côté serveur.
+// Feu vert « projects » : admin seulement pendant la bêta (même porte que la page Projets).
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key, vars) {
+  const I18N = window.LAYERPITCH_I18N || { fr: { shared: {}, inviter: {} }, en: { shared: {}, inviter: {} } };
+  const dict = I18N[pageLang] || I18N.fr, dictFr = I18N.fr;
+  let str = (dict.inviter && dict.inviter[key]) || (dict.shared && dict.shared[key]) || (dictFr.inviter && dictFr.inviter[key]) || (dictFr.shared && dictFr.shared[key]) || key;
+  if (vars) Object.keys(vars).forEach(k => { str = str.split('{' + k + '}').join(vars[k]); });
+  return str;
+}
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = id => document.getElementById(id);
+const content = $('content');
+const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+const errText = e => (e && (e.message || e.error)) ? (e.message || e.error) : String(e);
+const redirect = location.origin + '/invitation.html';
+let emails = [];       // adresses saisies (en minuscules, sans doublon)
+let picked = new Set(); // destinations cochées : « p:<id> » ou « team »
+
+async function render() {
+  const { session } = await LayerPitchAuth.getSession();
+  if (!session) { content.innerHTML = `<p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p>`; return; }
+  const [{ flags }, list, teamRes] = await Promise.all([LayerPitchStudio.myFeatureFlags(), LayerPitchProjects.listMine(), LayerPitchStudio.myTeam()]);
+  if (!flags || !flags.projects) {
+    content.innerHTML = `<h2>${esc(tr('comingSoonTitle'))}</h2><p class="hint">${esc(tr('comingSoonHint'))}</p>`;
+    return;
+  }
+  // Destinations : Projets non archivés dont je suis admin ; équipe studio si j'en suis propriétaire et que le palier l'autorise.
+  const projects = (list.data || []).filter(p => p.role === 'admin' && !p.archived);
+  const team = teamRes && teamRes.team;
+  const canTeam = !!(team && team.isOwner && team.allowed);
+  const details = await Promise.all(projects.map(p => LayerPitchProjects.get(p.id)));
+  const dests = projects.map((p, i) => ({ key: 'p:' + p.id, id: p.id, kind: 'project', label: tr('destProject', { title: p.title }), short: p.title, members: ((details[i].data && details[i].data.members) || []) }));
+  if (canTeam) dests.push({ key: 'team', kind: 'team', label: tr('destTeam'), short: tr('destTeam'), members: team.members || [] });
+  picked = new Set([...picked].filter(k => dests.some(d => d.key === k)));
+  if (dests.length === 1) picked = new Set([dests[0].key]);
+
+  const pendingRows = [];
+  dests.forEach(d => d.members.filter(m => m.status === 'invited' && m.id).forEach(m => pendingRows.push({ d, m })));
+
+  content.innerHTML = `
+    <div class="step">${esc(tr('step1'))}</div>
+    <div class="chips" id="chips"><input type="email" id="emailInput" autocomplete="off" placeholder="${esc(tr('emailsPlaceholder'))}"></div>
+    <p class="hint" style="margin-top:6px">${esc(tr('emailsHint'))}</p>
+    <div class="msg" id="emailMsg"></div>
+    <div class="step">${esc(tr('step2'))}</div>
+    ${dests.length ? dests.map(d => `<label class="choice"><input type="checkbox" data-dest="${esc(d.key)}" ${picked.has(d.key) ? 'checked' : ''}> ${esc(d.label)}</label>`).join('') : `<p class="hint">${esc(tr('noDest'))}</p>`}
+    <div style="margin-top:16px"><button class="btn primary" id="sendBtn" type="button" ${dests.length ? '' : 'disabled'}>${esc(tr('sendBtn'))}</button></div>
+    <div class="msg" id="sendMsg"></div>
+    <h2>${esc(tr('sentTitle'))}</h2>
+    ${pendingRows.length ? pendingRows.map((r, i) => `<div class="row"><div class="row-main">${esc(r.m.email)}<div class="row-sub">${esc(r.d.short)}</div></div>
+        <span class="pill">${esc(tr('pending'))}</span><button class="btn" type="button" data-resend="${i}">${esc(tr('resend'))}</button></div>`).join('') : `<div class="empty">${esc(tr('sentEmpty'))}</div>`}
+    <div class="msg" id="resendMsg"></div>`;
+
+  const chips = $('chips'), input = $('emailInput');
+  const say = (id, html) => { $(id).innerHTML = html; };
+  const drawChips = () => {
+    chips.querySelectorAll('.chip').forEach(c => c.remove());
+    emails.forEach(e => {
+      const c = document.createElement('span'); c.className = 'chip';
+      c.innerHTML = `${esc(e)}<button type="button" aria-label="${esc(tr('removeEmail', { email: e }))}">×</button>`;
+      c.querySelector('button').onclick = () => { emails = emails.filter(x => x !== e); drawChips(); };
+      chips.insertBefore(c, input);
+    });
+  };
+  // Ajoute toutes les adresses d'un texte (collé ou tapé) ; les adresses non valides restent dans le champ avec un message.
+  const addFrom = text => {
+    const bad = [];
+    String(text).split(/[\s,;]+/).map(s => s.trim().replace(/^<|>$/g, '')).filter(Boolean).forEach(tok => {
+      const e = tok.toLowerCase();
+      if (EMAIL_RE.test(e)) { if (!emails.includes(e)) emails.push(e); } else bad.push(tok);
+    });
+    drawChips();
+    say('emailMsg', bad.length ? `<span class="err">${esc(tr('invalidEmail', { email: bad.join(', ') }))}</span>` : '');
+    input.value = bad.join(' ');
+  };
+  chips.onclick = () => input.focus();
+  input.onkeydown = e => {
+    if (['Enter', ',', ';', ' ', 'Tab'].includes(e.key) && input.value.trim()) { e.preventDefault(); addFrom(input.value); }
+    else if (e.key === 'Backspace' && !input.value && emails.length) { emails.pop(); drawChips(); }
+  };
+  input.onpaste = e => { const t = (e.clipboardData || window.clipboardData).getData('text'); if (/[\s,;]/.test(t.trim())) { e.preventDefault(); addFrom(t); } };
+  input.onblur = () => { if (input.value.trim()) addFrom(input.value); };
+  drawChips();
+  content.querySelectorAll('[data-dest]').forEach(cb => cb.onchange = () => { cb.checked ? picked.add(cb.dataset.dest) : picked.delete(cb.dataset.dest); });
+
+  $('sendBtn').onclick = async () => {
+    if (input.value.trim()) addFrom(input.value);
+    if (!emails.length) return say('sendMsg', `<span class="err">${esc(tr('pickEmail'))}</span>`);
+    const chosen = dests.filter(d => picked.has(d.key));
+    if (!chosen.length) return say('sendMsg', `<span class="err">${esc(tr('pickDest'))}</span>`);
+    const btn = $('sendBtn'); btn.disabled = true; say('sendMsg', esc(tr('sending')));
+    const lines = []; let allOk = true;
+    for (const d of chosen) for (const email of emails) {
+      let r;
+      try { r = d.kind === 'team' ? await LayerPitchStudio.inviteTeamMember(email, redirect) : await LayerPitchProjects.invite(d.id, email, redirect); }
+      catch (e) { r = { error: errText(e) }; }
+      if (r.error || r.ok === false) { allOk = false; lines.push(`<div class="err">${esc(tr('resultErr', { email, dest: d.short, error: errText(r.error) }))}</div>`); }
+      else if (r.emailError) { allOk = false; lines.push(`<div class="err">${esc(tr('resultNoEmail', { email, dest: d.short, error: errText(r.emailError), link: r.actionLink || '' }))}</div>`); }
+      else lines.push(`<div class="ok">${esc(tr('resultOk', { email, dest: d.short }))}</div>`);
+    }
+    if (allOk) emails = [];
+    say('sendMsg', lines.join(''));
+    btn.disabled = false;
+    // On rafraîchit la liste des invitations en attente sans effacer le compte rendu.
+    const msg = $('sendMsg').innerHTML;
+    await render(); $('sendMsg').innerHTML = msg;
+  };
+  content.querySelectorAll('[data-resend]').forEach(b => b.onclick = async () => {
+    const { d, m } = pendingRows[Number(b.dataset.resend)];
+    b.disabled = true;
+    const r = d.kind === 'team' ? await LayerPitchStudio.resendTeamInvitation(m.id, redirect) : await LayerPitchProjects.resendInvite(m.id, redirect);
+    const failed = r.error || r.ok === false;
+    const link = (r.data && r.data.actionLink) || r.actionLink || '';
+    say('resendMsg', failed ? `<span class="err">${esc(tr('resultErr', { email: m.email, dest: d.short, error: errText(r.error) + (link ? ' — ' + link : '') }))}</span>` : `<span class="ok">${esc(tr('resent', { email: m.email }))}</span>`);
+    b.disabled = false;
+  });
+}
+window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'inviter', crumbs: [{ label: tr('h1') }] });
+LayerPitchAuth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>
