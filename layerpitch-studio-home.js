@@ -108,8 +108,10 @@
   .home-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .home-seg button { white-space: nowrap; border: none; background: var(--bg); color: var(--text-dim); padding: 3px 10px; font-size: 11px; cursor: pointer; }
   .home-seg button.on { background: var(--accent-soft); color: var(--accent); }
+  @media (max-width: 720px) {
     .home-learn-pop { position: fixed; inset: 0; width: auto; max-width: none; border-radius: 0; overflow-y: auto; z-index: 9000; }
     .home-choices .btn { flex: 1 1 100%; }
+  }
 .home-root a.btn { text-decoration: none; display: inline-block; }
 .home-root .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .home-card-head select { max-width: 60%; }

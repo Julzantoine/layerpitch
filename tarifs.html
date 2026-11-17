@@ -45,7 +45,7 @@
 </head>
 <body>
 <div class="page">
-  <a class="home-link" id="homeLink" href="./landing.html" data-i18n="homeLink">← LayerPitch</a>
+  <a class="home-link" id="homeLink" href="https://www.layerpitch.com/" data-i18n="homeLink">← LayerPitch</a>
   <h1 data-i18n="h1">Tarifs</h1>
   <p class="lead" data-i18n="lead">Un abonnement par profil : compositeur et studio ont chacun leur grille. Écouter les AdReels, les packs et les vitrines reste toujours gratuit, sans compte.</p>
   <div class="switch" role="group"><button type="button" data-period="month" aria-pressed="true" data-i18n="monthly">Mensuel</button><button type="button" data-period="year" aria-pressed="false" data-i18n="yearly">Annuel (2 mois offerts)</button></div>
@@ -58,11 +58,11 @@
   <p class="note" id="status"></p>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794936805326"></script>
-<script src="api/supabase-client.js?v=1794936805326"></script>
-<script src="api/auth.js?v=1794936805326"></script>
-<script src="layerpitch-appearance.js?v=1794936805326"></script>
-<script src="layerpitch-shell.js?v=1794936805326"></script>
+<script src="layerpitch-i18n.js?v=1794953016458"></script>
+<script src="api/supabase-client.js?v=1794953016458"></script>
+<script src="api/auth.js?v=1794953016458"></script>
+<script src="layerpitch-appearance.js?v=1794953016458"></script>
+<script src="layerpitch-shell.js?v=1794953016458"></script>
 <script>
 // tarifs.html — page publique des paliers (chantier profils et permissions, étape 6, 28/09 ; D1, D8, D12-D19, D24-D29).
 // Les chiffres ne sont PAS écrits dans la page : ils sont lus dans la base (tables plans et plan_entitlements, lecture
@@ -76,7 +76,7 @@ function tr(key, vars) {
   return str;
 }
 document.documentElement.lang = pageLang;
-if (pageLang === 'en') document.getElementById('homeLink').href = './landing-en.html';
+if (pageLang === 'en') document.getElementById('homeLink').href = 'https://www.layerpitch.com/en/';
 document.title = tr('pageTitle');
 document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

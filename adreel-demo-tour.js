@@ -18,10 +18,13 @@
       sfx: ['Les bruitages', 'Chaque bruitage se déclenche d’un clic, et peut se jouer par-dessus la musique pour juger de l’ensemble.'],
       packs: ['Les packs', 'Regroupe des morceaux et des bruitages en packs pour les présenter de manière thématique. Tu peux aussi mettre tes packs d’assets audio en vente.'],
       video: ['La musique sur des vidéos', 'Sur un même gameplay, propose à ton auditeur plusieurs musiques différentes. Il peut passer d’une version à l’autre et reste calé.'],
+      ytvideo: ['Ou ta chaîne YouTube', '…mais tu peux aussi simplement afficher les vidéos de ta chaîne YouTube.'],
       bio: ['Qui est derrière la musique', 'Ta bio, tes réseaux sociaux, ton site, des photos, de la vidéo… LayerPitch te permet d’afficher tous les types d’informations qui te permettront de convaincre un studio de bosser avec toi.'],
-      end: ['À toi de jouer', 'Tu as fait le tour. Tu peux continuer d’explorer ici ou accéder au tutoriel complet. Et si ça te branche, on recrute des bêta-testeurs ;)'],
+      end: ['Et maintenant ?', 'Tu as fait le tour de l’AdReel de démonstration. Tu peux maintenant t’y balader seul, ou suivre un tutoriel plus approfondi.'],
       btn: 'Visite guidée',
       bar: 'Ceci est un AdReel de démonstration : vous pouvez tout parcourir, mais rien ne se modifie ici.',
+      tuto: 'Tutoriel',
+      learn: 'Suivre le tutoriel (plus approfondi)',
       cta: 'Demander une invitation',
     },
     en: {
@@ -31,15 +34,19 @@
       sfx: ['Sound effects', 'Each sound effect triggers with a click, and can play over the music so you can judge the whole.'],
       packs: ['Packs', 'Group tracks and sound effects into packs to present them by theme. You can also put your audio asset packs up for sale.'],
       video: ['Music on video', 'On the same gameplay, offer your listener several different pieces of music. They can switch from one version to another and stay in sync.'],
+      ytvideo: ['Or your YouTube channel', '…but you can also simply display the videos from your YouTube channel.'],
       bio: ['Who is behind the music', 'Your bio, social networks, website, photos, video… LayerPitch lets you display every kind of information that will help convince a studio to work with you.'],
-      end: ['Your turn', 'That is the tour. You can keep exploring here or go through the full tutorial. And if you are up for it, we are recruiting beta testers ;)'],
+      end: ['What now?', 'You have been through the demo AdReel. You can now explore it on your own, or follow a more in-depth tutorial.'],
       btn: 'Guided tour',
       bar: 'This is a demo AdReel: you can browse everything, but nothing can be changed here.',
+      tuto: 'Tutorial',
+      learn: 'Follow the tutorial (more in-depth)',
       cta: 'Request an invitation',
     },
   }[lang];
   const I = window.LAYERPITCH_I18N || { fr: {}, en: {} };
   function tr(key, vars) {
+    if (key === 'adt_learn') return T.learn;
     if (key.startsWith('adt_')) { const p = key.slice(4).split('_'); const v = T[p[0]]; return v ? v[p[1] === 'title' ? 0 : 1] : key; }
     let s = null;
     for (const l of [lang, 'fr']) { const zones = I[l] ? Object.values(I[l]) : []; for (const z of zones) { if (z && typeof z === 'object' && z[key] != null) { s = z[key]; break; } } if (s != null) break; }
@@ -50,7 +57,9 @@
   const first = sel => () => document.querySelector(sel);
   const absent = sel => () => !document.querySelector(sel);
   const music = '.track-row-wrapper:not(.sfx-row-wrapper)';
-  const G = window.LayerPitchGuide.create({ tr, textVars: () => ({}) });
+  const G = window.LayerPitchGuide.create({ tr, textVars: () => ({}),
+    // Bouton « Tutoriel » de la fin de visite : même cible que celui de la barre (un seul endroit à changer).
+    choiceAction: action => { const a = document.getElementById('lpAdreelTutoBtn'); if (action === 'tuto' && a) window.open(a.href, '_blank', 'noopener'); } });
   const steps = [
     { titleKey: 'adt_intro_title', textKey: 'adt_intro_text' },
     { selector: first(music), titleKey: 'adt_music_title', textKey: 'adt_music_text', skip: absent(music) },
@@ -58,8 +67,10 @@
     { selector: first('.sfx-row-wrapper'), titleKey: 'adt_sfx_title', textKey: 'adt_sfx_text', skip: absent('.sfx-row-wrapper') },
     { selector: first('.packs-list'), titleKey: 'adt_packs_title', textKey: 'adt_packs_text', skip: absent('.packs-list') },
     { selector: first('.video-item'), titleKey: 'adt_video_title', textKey: 'adt_video_text', skip: absent('.video-item') },
+    { selector: () => document.querySelectorAll('.video-item')[1] || null, titleKey: 'adt_ytvideo_title', textKey: 'adt_ytvideo_text', skip: () => document.querySelectorAll('.video-item').length < 2 },
     { selector: first('.bio'), titleKey: 'adt_bio_title', textKey: 'adt_bio_text', skip: absent('.bio') },
-    { titleKey: 'adt_end_title', textKey: 'adt_end_text', final: true },
+    { titleKey: 'adt_end_title', textKey: 'adt_end_text', final: true, choices: [{ labelKey: 'adt_learn', action: 'tuto' }],
+      beta: true, betaPsKey: 'stPjDemoBetaPs', betaLinkKey: 'stPjDemoBetaLink' },
   ];
   const start = () => G.open('tour', steps, 'section:adreel-demo-tour');
 
@@ -75,10 +86,14 @@
     b.id = 'lpAdreelTourBtn'; b.type = 'button'; b.textContent = T.btn;
     b.style.cssText = 'padding:6px 14px;border-radius:20px;border:1px solid #d5dbe3;background:#fff;color:#1c2733;font:600 12px system-ui,sans-serif;cursor:pointer;';
     b.onclick = start;
+    // Bouton « Tutoriel » : le tutoriel complet du Backstage (AdReels), dans un nouvel onglet.
+    const t = document.createElement('a'); t.id = 'lpAdreelTutoBtn';
+    t.href = './layerpitch-backstage.html?tuto&lang=' + lang; t.target = '_blank'; t.rel = 'noopener'; t.textContent = T.tuto;
+    t.style.cssText = b.style.cssText + 'text-decoration:none;display:inline-block;';
     const a = document.createElement('a');
     a.href = 'https://layerpitch.com/'; a.textContent = T.cta;
     a.style.cssText = 'padding:6px 14px;border-radius:20px;background:#2f80c0;color:#fff;font:600 12px system-ui,sans-serif;text-decoration:none;';
-    box.append(b, a); bar.append(msg, box);
+    box.append(b, t, a); bar.append(msg, box);
     document.body.insertBefore(bar, document.body.firstChild);
   }
   // Attend que les blocs soient dessinés et que le bandeau cookies soit réglé, puis lance la visite la première fois.
