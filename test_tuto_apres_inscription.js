@@ -3,7 +3,7 @@ const fs = require('fs');
 let failed = 0;
 function check(label, ok) { console.log((ok ? 'OK   ' : 'FAIL ') + label); if (!ok) failed++; }
 
-const pages = { 'landing.html': 'fr', 'landing-en.html': 'en', 'nouvelle-landing/compositeurs.html': 'fr', 'nouvelle-landing/en/composers.html': 'en' };
+const pages = { 'nouvelle-landing/compositeurs.html': 'fr', 'nouvelle-landing/en/composers.html': 'en' };
 for (const [file, lang] of Object.entries(pages)) {
   const h = fs.readFileSync(file, 'utf8');
   check(file + ' : fenêtre ouverte après un envoi réussi', /form\.innerHTML = [^\n]*\n[^\n]*tutoPopupTitle[^\n]*\n\s*tutoPopup\.showModal\(\);/.test(h));

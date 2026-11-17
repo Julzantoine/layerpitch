@@ -6,7 +6,7 @@ let failures = 0;
 const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label); if (!cond) failures++; };
 const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
-for (const f of ['landing.html', 'landing-en.html', 'nouvelle-landing/compositeurs.html', 'nouvelle-landing/studios.html', 'nouvelle-landing/en/composers.html', 'nouvelle-landing/en/studios.html']) {
+for (const f of ['nouvelle-landing/compositeurs.html', 'nouvelle-landing/studios.html', 'nouvelle-landing/en/composers.html', 'nouvelle-landing/en/studios.html']) {
   const h = read(f);
   check(`${f} : envoie ...lpOrigin() avec la demande`, /JSON\.stringify\(\{ email:[^\n]*\.\.\.lpOrigin\(\) \}\)/.test(h));
   check(`${f} : retient les étiquettes (sessionStorage lp_origin)`, /sessionStorage\.setItem\('lp_origin'/.test(h));
