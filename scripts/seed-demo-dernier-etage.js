@@ -1,0 +1,185 @@
+#!/usr/bin/env node
+/**
+ * LayerPitch — crée et remplit le Projet de démo « Dernier Étage » (jeu d'horreur psychologique sur le burn-out en entreprise),
+ * construit autour du montage vidéo « Short SIW Test #1 » et de sa « Version alternative #2 » (A : avec mélodie, B : purement texturale).
+ * Tout est fictif : la discussion (14 messages sous le nom du propriétaire, chacun préfixé par le personnage), 4 sections,
+ * 13 notes de Moodboard, 6 tâches. Le montage est posé en objet du Projet (ses versions suivent toutes seules).
+ * Relançable sans doublon. N'active PAS « Démo publique » : c'est le propriétaire qui l'active.
+ *
+ * Usage : node scripts/seed-demo-dernier-etage.js            (aperçu : n'écrit rien)
+ *         node scripts/seed-demo-dernier-etage.js --essai    (fait tout pour de vrai dans une transaction, puis annule : vérifie que ça passe)
+ *         node scripts/seed-demo-dernier-etage.js --apply    (écrit dans la base de .env : SUPABASE_DB_URL)
+ */
+const fs = require('fs');
+const path = require('path');
+
+const TITLE = 'Dernier Étage';
+const STEAM = 'https://store.steampowered.com/app/3895130/Something_is_wrong/';
+const CREDIT = 'Ce Projet est fictif : il a été imaginé pour la démonstration de LayerPitch. Les images de gameplay sont fournies avec l\'aimable autorisation de Protocol Interactive (Joris Balzanelli et Samir Bensadoun), développeurs de « Something Is Wrong », un jeu actuellement en développement. Merci à eux : allez voir leur jeu sur Steam, ' + STEAM + '.';
+const DESCRIPTION = 'Projet fictif : jeu d\'horreur psychologique sur le burn-out en entreprise. Images de gameplay : Protocol Interactive, « Something Is Wrong » (en développement), avec leur aimable autorisation. Steam : ' + STEAM;
+const MONTAGE_ID = '28151565-0d5c-499f-bb58-32467da87ab4'; // capture « Short SIW Test #1 » (version A) ; la version B est « Version alternative #2 »
+
+// Auteurs fictifs : Inès (direction artistique), Karim (game design), Théo (compositeur, le propriétaire du Projet).
+const MESSAGES = [
+  ['10:02', 'Inès', 'Première scène en ligne : O. traverse l\'open space jusqu\'à la photocopieuse, puis monte à l\'étage sombre et finit dans la salle d\'archives. C\'est le montage « Short SIW ».'],
+  ['10:08', 'Karim', 'Je l\'ai vue. Les piles de dossiers partout, ça dit déjà tout : personne ne range, personne ne part. Et la musique ?'],
+  ['10:12', 'Théo', 'J\'ai préparé deux versions de la musique. A : une mélodie douce posée sur les couches. B : aucune mélodie, juste de la texture. Je voulais qu\'on les compare sur la même image.'],
+  ['10:15', 'Inès', 'Dans le bureau, je veux que ça sonne presque normal. Un quotidien qui tient debout, mais un peu trop propre.'],
+  ['10:19', 'Théo', 'C\'est la version A pour la première partie : la mélodie rassure, comme le bureau. Les couches arrivent au fil des déplacements : une quand O. passe à la photocopieuse, une autre quand elle reprend son document.'],
+  ['10:24', 'Karim', 'Et quand elle prend l\'ascenseur ? Je voudrais que le joueur sente qu\'il n\'y a plus de retour en arrière.'],
+  ['10:27', 'Théo', 'Un effet ponctuel à l\'ouverture des portes, et la musique du bureau s\'arrête net. Ensuite un drone seul, pour tout l\'étage sombre.'],
+  ['10:31', 'Inès', 'J\'aime ça. Le silence du bureau qui disparaît, c\'est exactement ce que je veux montrer : le moment où ce n\'est plus le travail, c\'est la tête.'],
+  ['10:36', 'Karim', 'Version B sur la même scène, alors. Sans mélodie, le joueur n\'a plus rien pour se raccrocher, même au bureau. Ça change la lecture.'],
+  ['10:40', 'Théo', 'Oui. A rassure puis lâche. B inquiète dès le premier pas. Je les ai rangées côte à côte dans le montage, tu peux basculer de l\'une à l\'autre.'],
+  ['10:45', 'Inès', 'Dans la salle d\'archives, vide et dans le noir, quand O. trouve la lampe : je ne veux presque rien entendre. Un grésillement, un souffle.'],
+  ['10:49', 'Karim', 'Et la lampe est aussi un objet de jeu : elle éclaire un rayon de plus en plus court, comme le temps qui reste. Je te donnerai une valeur de 0 à 100 pour la batterie.'],
+  ['10:53', 'Théo', 'Parfait : plus la batterie baisse, plus la texture se resserre. Je prépare la carte du niveau avec les trois zones : bureau, étage sombre, archives.'],
+  ['10:58', 'Inès', 'Validé. On garde les deux versions de l\'ouverture pour le test joueurs de jeudi.'],
+];
+
+const SECTIONS = ['Direction artistique', 'Musique : mélodie ou texture ?', 'Bruitages du bureau', 'Scènes clés'];
+
+const NOTES = [
+  ['À propos de cette démo : projet fictif et crédits', CREDIT],
+  ['Un bureau trop propre', 'Open space aux lumières froides, moquette grise, écrans allumés. Presque rassurant, avec quelque chose qui sonne faux.'],
+  ['Les dossiers partout', 'Des piles de dossiers sur les bureaux, par terre, contre les murs. Personne ne les range : la charge de travail devenue décor.'],
+  ['La photocopieuse', 'Un son régulier qui rythme la journée. O. y va chercher un document : premier déplacement du joueur.'],
+  ['Le document à porter', 'Une simple feuille à apporter dans un bureau. L\'enjeu est minuscule et pourtant tout pèse.'],
+  ['L\'ascenseur', 'La seule sortie, et elle ne mène nulle part de rassurant. Portes qui s\'ouvrent sur un étage sans lumière.'],
+  ['L\'étage sombre', 'Couloirs vides, lumières éteintes, on déambule sans but. Le bureau sans personnes, comme après le départ de tout le monde.'],
+  ['La salle d\'archives', 'Vide et dans le noir. Des étagères nues. Le moment où O. trouve une lampe, première lumière du niveau.'],
+  ['La lampe', 'Objet de jeu et symbole : elle éclaire de moins en moins loin, comme l\'énergie qui s\'épuise.'],
+  ['Idée : mélodie qui rassure', 'Une mélodie douce pendant le bureau : le quotidien qui tient encore. Elle disparaît quand on prend l\'ascenseur.'],
+  ['Idée : texture sans mélodie', 'Pas de mélodie du tout : bourdonnement, souffles, couches qui s\'ajoutent. Inquiétant dès la première seconde.'],
+  ['Le bourdonnement des néons', 'Une note de fond qui devient peu à peu le vrai thème du niveau.'],
+  ['Le mail non lu', 'Le compteur de messages qui grossit : à traduire en son plutôt qu\'en image, une notification qui revient.'],
+];
+
+// [titre, notes, fait ?, section (index ou null)]
+const TASKS = [
+  ['Choisir A ou B pour l\'ouverture du jeu', 'Test joueurs jeudi : les deux versions, même vidéo.', false, 1],
+  ['Écrire la version B sur toute la scène du bureau', 'Garder uniquement les textures, aucune mélodie.', true, 1],
+  ['Caler le son de l\'ascenseur', 'À l\'ouverture des portes, couper la musique du bureau.', true, 2],
+  ['Poser le drone de l\'étage sombre', 'Un seul drone sur toute la déambulation.', false, 3],
+  ['Concevoir le son de la lampe', 'Grésillement et souffle ; la texture se resserre quand la batterie baisse.', false, 2],
+  ['Préparer la carte du niveau', 'Trois zones : bureau, étage sombre, archives.', false, 0],
+];
+
+// q(sql, args) -> lignes. Exporté pour pouvoir tester le script sur la base jetable des tests.
+async function seed(q, apply, ownerOverride) {
+  const [mont] = await q(`select c.id, c.title, cp.profile_id as uid from public.video_captures c join public.composer_profiles cp on cp.id = c.owner_id where c.id = $1`, [MONTAGE_ID]);
+  if (!mont) throw new Error('Montage « Short SIW Test #1 » introuvable. Rien n\'a été écrit.');
+  const uid = ownerOverride || mont.uid;
+  const asOwner = async () => {
+    await q(`select set_config('request.jwt.claims', $1, true), set_config('request.jwt.claim.sub', $2, true), set_config('test.uid', $2, true)`,
+      [JSON.stringify({ sub: uid, role: 'authenticated' }), uid]);
+  };
+
+  let [project] = await q(`select id from public.projects where title = $1 and owner_profile_id = $2 and archived_at is null`, [TITLE, uid]);
+  const added = { project: 0, sections: 0, messages: 0, notes: 0, tasks: 0, montage: 0 };
+  if (!project) {
+    added.project = 1;
+    if (!apply) { console.log(`À créer : le Projet « ${TITLE} » (aperçu, rien écrit).`); }
+    else {
+      await asOwner();
+      project = { id: (await q(`select public.create_project($1, $2, false) as id`, [TITLE, DESCRIPTION]))[0].id };
+    }
+  } else console.log(`Projet déjà présent : « ${TITLE} ».`);
+
+  const pid = project && project.id;
+  const count = async (sql, args) => pid ? (await q(sql, args))[0].n : 0;
+
+  // Sections
+  const sectionIds = [];
+  for (const title of SECTIONS) {
+    const [row] = pid ? await q(`select id from public.project_sections where project_id = $1 and title = $2`, [pid, title]) : [];
+    if (row) { sectionIds.push(row.id); continue; }
+    added.sections++;
+    if (!apply) { sectionIds.push(null); continue; }
+    await asOwner();
+    sectionIds.push((await q(`select public.create_project_section($1, $2) as r`, [pid, title]))[0].r.id);
+  }
+
+  // Messages
+  const day = new Date(); day.setDate(day.getDate() - 1);
+  const stamp = hhmm => { const [h, m] = hhmm.split(':'); const d = new Date(day); d.setHours(+h, +m, 0, 0); return d.toISOString(); };
+  for (const [time, who, text] of MESSAGES) {
+    const body = `${who} : ${text}`;
+    if (await count(`select count(*)::int n from public.project_messages where project_id = $1 and body = $2`, [pid, body])) continue;
+    added.messages++;
+    if (!apply) continue;
+    await asOwner();
+    const id = (await q(`select public.post_project_message($1, $2) as id`, [pid, body]))[0].id;
+    await q(`update public.project_messages set created_at = $2 where id = $1`, [id, stamp(time)]);
+  }
+
+  // Notes de Moodboard (épinglées)
+  for (const [title, body] of NOTES) {
+    if (await count(`select count(*)::int n from public.project_assets where project_id = $1 and kind = 'note' and title = $2`, [pid, title])) continue;
+    added.notes++;
+    if (!apply) continue;
+    await asOwner();
+    await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'note', title, body })]);
+  }
+
+  // Lien Steam du jeu : remercier le studio et inciter à aller voir son jeu
+  if (!await count(`select count(*)::int n from public.project_assets where project_id = $1 and url = $2`, [pid, STEAM])) {
+    added.notes++;
+    if (apply) {
+      await asOwner();
+      await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'link', url: STEAM, title: 'Something Is Wrong sur Steam (Protocol Interactive)', body: 'Merci à Joris Balzanelli et Samir Bensadoun pour les images de gameplay. Ajoutez le jeu à votre liste de souhaits !' })]);
+    }
+  }
+
+  // Le montage vidéo (A et B suivent : les versions sont celles du montage)
+  if (!await count(`select count(*)::int n from public.project_assets where project_id = $1 and montage_id = $2`, [pid, MONTAGE_ID])) {
+    added.montage++;
+    if (apply) {
+      await asOwner();
+      const r = (await q(`select public.add_project_asset($1, $2::jsonb, true) as r`, [pid, JSON.stringify({ kind: 'montage', montageId: MONTAGE_ID, title: 'Scène d\'ouverture : version A (mélodie) et version B (texture)', body: 'Le montage « Short SIW » : bureau, photocopieuse, ascenseur, étage sombre, salle d\'archives. Bascule entre la version A, avec mélodie, et la version B, purement texturale. Images de gameplay : Protocol Interactive, « Something Is Wrong » (en développement), avec leur aimable autorisation.' })]))[0].r;
+      const musique = sectionIds[1];
+      if (musique) await q(`select public.pin_asset_in_section($1, $2, true)`, [musique, r.id]);
+    }
+  }
+
+  // Tâches
+  for (const [title, notes, done, sec] of TASKS) {
+    if (await count(`select count(*)::int n from public.project_tasks where project_id = $1 and title = $2`, [pid, title])) continue;
+    added.tasks++;
+    if (!apply) continue;
+    await asOwner();
+    const id = (await q(`select public.create_project_task($1, $2::jsonb) as r`, [pid, JSON.stringify({ title, notes, sectionId: sectionIds[sec] })]))[0].r.id;
+    if (done) await q(`update public.project_tasks set done = true, done_at = now(), done_by = $2 where id = $1`, [id, uid]);
+  }
+
+  console.log(`${apply ? 'Ajoutés' : 'À ajouter (aperçu, rien écrit)'} : ${added.project} projet, ${added.sections} section(s), ${added.messages} message(s), ${added.notes} note(s), ${added.montage} montage, ${added.tasks} tâche(s).`);
+  return { added, projectId: pid };
+}
+
+module.exports = { seed, TITLE, MESSAGES, SECTIONS, NOTES, TASKS, MONTAGE_ID };
+
+if (require.main === module) {
+  (async () => {
+    const envPath = path.join(__dirname, '..', '.env');
+    if (fs.existsSync(envPath)) for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+    }
+    if (!process.env.SUPABASE_DB_URL) { console.error('SUPABASE_DB_URL manquant dans .env'); process.exit(1); }
+    const apply = process.argv.includes('--apply');
+    const essai = process.argv.includes('--essai');
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
+    await c.connect();
+    try {
+      await c.query('begin');
+      await seed(async (sql, args) => (await c.query(sql, args)).rows, apply || essai);
+      await c.query(apply ? 'commit' : 'rollback');
+      if (essai) console.log('Essai terminé : tout est passé, puis tout a été annulé (rien n\'est resté en base).');
+    } catch (e) {
+      await c.query('rollback').catch(() => {});
+      console.error('Erreur : ' + e.message + '\nRien n\'a été écrit.');
+      process.exitCode = 1;
+    } finally { await c.end(); }
+  })();
+}
