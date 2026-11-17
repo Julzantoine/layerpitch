@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794952333662">
-<link rel="stylesheet" href="player.css?v=1794952333662">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1794952426069">
+<link rel="stylesheet" href="player.css?v=1794952426069">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -208,30 +208,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794952333662"></script>
-<script src="layerpitch-notify.js?v=1794952333662"></script>
-<script src="player.js?v=1794952333662"></script>
-<script src="api/supabase-client.js?v=1794952333662"></script>
-<script src="api/auth.js?v=1794952333662"></script>
-<script src="layerpitch-appearance.js?v=1794952333662"></script>
-<script src="layerpitch-font-picker.js?v=1794952333662"></script>
-<script src="layerpitch-shell.js?v=1794952333662"></script>
-<script src="api/tracks.js?v=1794952333662"></script>
-<script src="api/packs.js?v=1794952333662"></script>
-<script src="api/albums.js?v=1794952333662"></script>
-<script src="api/studio.js?v=1794952333662"></script>
-<script src="api/adreels.js?v=1794952333662"></script>
-<script src="api/demo-client.js?v=1794952333662"></script>
-<script src="api/demo-projects.js?v=1794952333662"></script>
-<script src="layerpitch-tuto.js?v=1794952333662"></script>
-<script src="layerpitch-guide.js?v=1794952333662"></script>
-<script src="layerpitch-lesson-previews.js?v=1794952333662"></script>
-<script src="projet-lecons.js?v=1794952333662"></script>
-<script src="layerpitch-video-versions.js?v=1794952333662"></script>
-<script src="api/projects.js?v=1794952333662"></script>
-<script src="api/sfx.js?v=1794952333662"></script>
-<script src="projet-carte-audio.js?v=1794952333662"></script>
-<script src="projet-carte.js?v=1794952333662"></script>
+<script src="layerpitch-i18n.js?v=1794952426069"></script>
+<script src="layerpitch-notify.js?v=1794952426069"></script>
+<script src="player.js?v=1794952426069"></script>
+<script src="api/supabase-client.js?v=1794952426069"></script>
+<script src="api/auth.js?v=1794952426069"></script>
+<script src="layerpitch-appearance.js?v=1794952426069"></script>
+<script src="layerpitch-font-picker.js?v=1794952426069"></script>
+<script src="layerpitch-shell.js?v=1794952426069"></script>
+<script src="api/tracks.js?v=1794952426069"></script>
+<script src="api/packs.js?v=1794952426069"></script>
+<script src="api/albums.js?v=1794952426069"></script>
+<script src="api/studio.js?v=1794952426069"></script>
+<script src="api/adreels.js?v=1794952426069"></script>
+<script src="api/demo-client.js?v=1794952426069"></script>
+<script src="api/demo-projects.js?v=1794952426069"></script>
+<script src="layerpitch-tuto.js?v=1794952426069"></script>
+<script src="layerpitch-guide.js?v=1794952426069"></script>
+<script src="layerpitch-lesson-previews.js?v=1794952426069"></script>
+<script src="projet-lecons.js?v=1794952426069"></script>
+<script src="layerpitch-video-versions.js?v=1794952426069"></script>
+<script src="api/projects.js?v=1794952426069"></script>
+<script src="api/sfx.js?v=1794952426069"></script>
+<script src="projet-carte-audio.js?v=1794952426069"></script>
+<script src="projet-carte.js?v=1794952426069"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -277,6 +277,9 @@ function demoProjects() {
     annotations: async (id, tt, tid) => ({ data: (S.demo.annotations || []).filter(n => (!tt || n.targetType === tt) && (!tid || n.targetId === tid)).map(names), error: null }),
     vitrines: async () => ({ data: (S.demo.vitrines || []).map(v => Object.assign({ audience: 'players', published: true, secretToken: null, blocks: [], theme: {} }, v)), error: null }),
     snapshots: async () => ({ data: [], error: null }),
+    // Carte : on peut la manier et y déposer les sons du pack pour essayer ; rien n'est enregistré (tout reste dans la page).
+    saveMap: async (id, p) => { const ms = S.demo.maps = S.demo.maps || []; const i = ms.findIndex(m => m.id === p.id); if (i >= 0) ms[i] = Object.assign({}, ms[i], p); else ms.push(Object.assign({ id: p.id || 'demo-' + Date.now() }, p)); return { data: { id: p.id || ms[ms.length - 1].id }, error: null }; },
+    deleteMap: async mapId => { S.demo.maps = (S.demo.maps || []).filter(m => m.id !== mapId); return { data: null, error: null }; },
     markRead: async () => ({ data: null, error: null }), markSeen: async () => ({ data: null, error: null }),
     fileUrl: (fileId) => realPJ.fileUrl(fileId),
   };
@@ -1962,14 +1965,24 @@ if (SOLO_MAP) window.addEventListener('pagehide', () => {
   try { const m = S.mapView && S.mapView.state; if (window.opener && m && m.current) window.opener.postMessage({ lpMapClosed: m.current }, location.origin); } catch (e) { /* onglet d'origine fermé */ }
 });
 if (!SOLO_MAP) window.addEventListener('message', ev => { if (ev.origin === location.origin && ev.data && ev.data.lpMapClosed) S.openMapId = String(ev.data.lpMapClosed); });
+// Démo publique : la bibliothèque de la carte propose les morceaux et Sfx des packs partagés du Projet (lisibles sans compte).
+async function ensureDemoPackSounds() {
+  if (S.demoSoundsLoaded) return;
+  S.demoSoundsLoaded = true; S.myTracks = []; S.mySfx = [];
+  for (const k of (S.content.packs || [])) {
+    const pk = (await LayerPitchPacks.getPack(k.packId)).pack; if (!pk) continue;
+    if ((pk.trackIds || []).length) S.myTracks.push(...((await LayerPitchTracks.listTracksByIds(pk.trackIds)).tracks || []));
+    if ((pk.sfxIds || []).length) S.mySfx.push(...((await LayerPitchSfx.listSfxByIds(pk.sfxIds)).sfx || []));
+  }
+}
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
     panel.innerHTML = `<div class="card"><h2>${esc(tr('map_title'))}</h2><p class="hint">${esc(/pas encore ouverte/.test(r.error) ? tr('map_locked') : tr('errorPrefix', { message: r.error }))}</p></div>`;
     return;
   }
-  await ensureMyTracks();
-  if (!S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
+  if (DEMO) await ensureDemoPackSounds(); else await ensureMyTracks();
+  if (!DEMO && !S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
   const libraries = {
     track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode })),
     sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title })),
@@ -1980,9 +1993,9 @@ async function renderMap(panel) {
   if (mapPopupOpen()) return renderMapDetached(panel);
   const openId = S.openMapId, openNode = S.openMapNode; S.openMapId = null; S.openMapNode = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: !DEMO, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
+    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
-    detach: SOLO_MAP ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
+    detach: (SOLO_MAP || DEMO) ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
     uploadSound: async file => {
@@ -2549,7 +2562,7 @@ function lockDemo() {
     const v = ((S.demo && S.demo.vitrines) || []).find(x => a.href.includes('id=' + x.id)); if (!v || !v.slug) return;
     a.href = location.origin + '/vitrine/' + encodeURIComponent(v.slug); a.textContent = tr('demoViewShowcase');
   });
-  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
+  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled && !el.closest('.lm-wrap, .lm-toolbar')) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
 }
 if (DEMO) {
   document.body.classList.add('demo');
