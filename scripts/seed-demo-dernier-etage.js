@@ -265,7 +265,7 @@ async function seed(q, apply, ownerOverride) {
   return { added, projectId: pid };
 }
 
-module.exports = { seed, TITLE, MESSAGES, SECTIONS, NOTES, TASKS, MONTAGE_ID };
+module.exports = { seed, LEVEL_MAP, MAP_TITLE, TITLE, MESSAGES, SECTIONS, NOTES, TASKS, MONTAGE_ID };
 
 if (require.main === module) {
   (async () => {
