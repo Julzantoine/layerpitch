@@ -83,6 +83,7 @@
   }
   .hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 700; font-style: italic; line-height: 1.22; position: relative; }
   .hero .sub { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-dim); margin-top: 20px; position: relative; }
+  .hero .promise { font-family: var(--font-title); font-size: clamp(19px, 3.2vw, 28px); font-weight: 600; line-height: 1.3; color: var(--accent-dark); max-width: 30ch; margin: 36px auto 0; position: relative; }
 
   /* ---- Carte des chemins (remplace l'ancienne forme d'onde) -- reproduction compacte, en
        HTML/SVG plutôt qu'une image, de la carte des chemins du backstage (mode séquentiel à
@@ -216,7 +217,7 @@
 <header class="hero wrap">
   <h1>MP3 vs LayerPitch :<br>épée en bois vs full stuff.</h1>
   <div class="sub">Compositeurs, sound designers : pour avancer dans le game, mieux vaut être équipé.</div>
-  <div class="sub" style="margin-top:10px">Faites entendre votre musique adaptative réagir au jeu : sans intégration, sans middleware.</div>
+  <p class="promise">Faites entendre votre musique adaptative réagir au jeu : sans intégration, sans middleware.</p>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
