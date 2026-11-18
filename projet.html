@@ -1620,6 +1620,7 @@ function mountMontagePlayer(host, a) {
 async function ensureMyMontages() {
   if (S.myMontagesLoaded) return;
   S.myMontagesLoaded = true; S.myMontages = [];
+  if (DEMO) return; // visiteur de la démo : pas de compte, donc pas de montages à lister (évitait deux erreurs 401)
   try {
     // Les miens (compositeur) et ceux de mon studio (montages du studio, 21/10, migration 20261021060000).
     const client = window.LayerPitchSupabaseClient.getClient();
