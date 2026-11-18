@@ -1459,13 +1459,13 @@ function buildTrackRow(track, packsForTrack, globalNoAiCertified, suppressIndivi
         <div class="wwise-graph" data-role="wwiseGraph">
           <svg class="wwise-graph-lines" data-role="wwiseLines"></svg>
           <div class="wwise-col wwise-col-source">
-            <div class="wwise-node wwise-node-source" data-role="wwiseSource">${escapeHtml(track.title || t('trackFallback'))}</div>
+            <div class="wwise-node wwise-node-source" data-role="wwiseSource">${t('introLabel')}</div>
           </div>
           <div class="wwise-col wwise-col-voices">
             ${poolNodes}
           </div>
           <div class="wwise-col wwise-col-bus">
-            <div class="wwise-node wwise-node-bus" data-role="wwiseBus">${t('outputNode')}</div>
+            <div class="wwise-node wwise-node-bus" data-role="wwiseBus">${t('outroLabel')}</div>
           </div>
         </div>
         <div class="actions" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">

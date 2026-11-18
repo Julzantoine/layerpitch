@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795041719033">
-<link rel="stylesheet" href="player.css?v=1795041719033">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795042183651">
+<link rel="stylesheet" href="player.css?v=1795042183651">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -119,6 +119,33 @@
   @media (max-width: 900px) { .sec-layout { grid-template-columns: minmax(0, 1fr); } .sec-nav { position: static; max-height: none; } }
   /* Tableau */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  /* Moodboard : le visuel domine (retour Joris). Grille régulière, visuels recadrés en 4/3, étiquette de catégorie en tête. */
+  .mood-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  .mood-grid .item { padding: 0; gap: 0; overflow: hidden; }
+  .mood-grid .item > :not(.item-visual) { margin-left: 14px; margin-right: 14px; }
+  .mood-grid .item > .item-kind { margin-top: 12px; }
+  .mood-grid .item > .item-title { margin-top: 4px; font-size: 17px; font-weight: 600; }
+  .mood-grid .item > .item-body { margin-top: 4px; }
+  .mood-grid .item > .meta { margin-top: 6px; }
+  .mood-grid .item > .item-actions { margin-top: 10px; margin-bottom: 12px; }
+  .mood-grid .item-visual { margin: 0; }
+  .mood-grid .item-visual img { width: 100%; aspect-ratio: 4 / 3; max-height: none; object-fit: cover; border-radius: 0; display: block; }
+  .mood-grid .item-visual .preview-thumb, .mood-grid .item-visual .lp-montage video { border-radius: 0; }
+  .mood-grid .item-visual .preview-thumb img { aspect-ratio: 4 / 3; max-height: none; }
+  .mood-grid .item-visual .preview-meta { padding: 6px 14px 0; }
+  .mood-grid .item-kind { font-size: 11px; font-weight: 600; color: var(--accent); }
+  .mood-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .mood-filters .f { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); }
+  .mood-filters .f.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mood-grid[data-filter]:not([data-filter="all"]) .drag-handle { display: none; }
+  /* Formulaires d'ajout repliés : le contenu passe avant l'outil (retour Joris). */
+  .add-fold { margin-bottom: 14px; }
+  .add-fold > summary { cursor: pointer; display: inline-block; list-style: none; border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--accent); background: var(--bg-card); }
+  .add-fold > summary::-webkit-details-marker { display: none; }
+  .add-fold[open] > summary { margin-bottom: 10px; }
+  /* Montages vidéo : un lecteur par ligne, grand (retour Joris : « au moins à cette taille »). */
+  .grid.grid-wide { grid-template-columns: minmax(0, 1fr); max-width: 880px; }
+  .grid.grid-wide .item { padding: 16px; gap: 10px; }
   .item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .item.pitch { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
   .item-kind { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); }
@@ -211,32 +238,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1795041719033"></script>
-<script src="layerpitch-notify.js?v=1795041719033"></script>
-<script src="player.js?v=1795041719033"></script>
-<script src="api/supabase-client.js?v=1795041719033"></script>
-<script src="api/auth.js?v=1795041719033"></script>
-<script src="layerpitch-appearance.js?v=1795041719033"></script>
-<script src="layerpitch-font-picker.js?v=1795041719033"></script>
-<script src="layerpitch-help.js?v=1795041719033"></script>
-<script src="layerpitch-help-engine.js?v=1795041719033"></script>
-<script src="layerpitch-shell.js?v=1795041719033"></script>
-<script src="api/tracks.js?v=1795041719033"></script>
-<script src="api/packs.js?v=1795041719033"></script>
-<script src="api/albums.js?v=1795041719033"></script>
-<script src="api/studio.js?v=1795041719033"></script>
-<script src="api/adreels.js?v=1795041719033"></script>
-<script src="api/demo-client.js?v=1795041719033"></script>
-<script src="api/demo-projects.js?v=1795041719033"></script>
-<script src="layerpitch-tuto.js?v=1795041719033"></script>
-<script src="layerpitch-guide.js?v=1795041719033"></script>
-<script src="layerpitch-lesson-previews.js?v=1795041719033"></script>
-<script src="projet-lecons.js?v=1795041719033"></script>
-<script src="layerpitch-video-versions.js?v=1795041719033"></script>
-<script src="api/projects.js?v=1795041719033"></script>
-<script src="api/sfx.js?v=1795041719033"></script>
-<script src="projet-carte-audio.js?v=1795041719033"></script>
-<script src="projet-carte.js?v=1795041719033"></script>
+<script src="layerpitch-i18n.js?v=1795042183651"></script>
+<script src="layerpitch-notify.js?v=1795042183651"></script>
+<script src="player.js?v=1795042183651"></script>
+<script src="api/supabase-client.js?v=1795042183651"></script>
+<script src="api/auth.js?v=1795042183651"></script>
+<script src="layerpitch-appearance.js?v=1795042183651"></script>
+<script src="layerpitch-font-picker.js?v=1795042183651"></script>
+<script src="layerpitch-help.js?v=1795042183651"></script>
+<script src="layerpitch-help-engine.js?v=1795042183651"></script>
+<script src="layerpitch-shell.js?v=1795042183651"></script>
+<script src="api/tracks.js?v=1795042183651"></script>
+<script src="api/packs.js?v=1795042183651"></script>
+<script src="api/albums.js?v=1795042183651"></script>
+<script src="api/studio.js?v=1795042183651"></script>
+<script src="api/adreels.js?v=1795042183651"></script>
+<script src="api/demo-client.js?v=1795042183651"></script>
+<script src="api/demo-projects.js?v=1795042183651"></script>
+<script src="layerpitch-tuto.js?v=1795042183651"></script>
+<script src="layerpitch-guide.js?v=1795042183651"></script>
+<script src="layerpitch-lesson-previews.js?v=1795042183651"></script>
+<script src="projet-lecons.js?v=1795042183651"></script>
+<script src="layerpitch-video-versions.js?v=1795042183651"></script>
+<script src="api/projects.js?v=1795042183651"></script>
+<script src="api/sfx.js?v=1795042183651"></script>
+<script src="projet-carte-audio.js?v=1795042183651"></script>
+<script src="projet-carte.js?v=1795042183651"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1382,7 +1409,8 @@ async function renderBoard(panel) {
       <div class="meta" style="margin-top:6px">${esc(tr('dropHint'))}</div>
       <div class="msg" id="boardMsg"></div>
     </div>
-    <div class="grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
+    ${pins.length > 1 ? `<div class="mood-filters" id="moodFilters">${MOOD_FILTERS.map(k => `<button type="button" class="f${(S.boardFilter || 'all') === k ? ' on' : ''}" data-filter="${k}">${esc(tr('filter' + k[0].toUpperCase() + k.slice(1)))}</button>`).join('')}</div>` : ''}
+    <div class="grid mood-grid" id="grid" data-filter="${esc(S.boardFilter || 'all')}">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
     ${sec ? '' : `<div class="card" style="margin-top:14px">
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
@@ -1411,6 +1439,16 @@ async function renderBoard(panel) {
   renderAddForm();
   const grid = $('grid');
   for (const a of pins) grid.appendChild(await assetCard(a, pins));
+  const applyMoodFilter = () => {
+    const f = S.boardFilter || 'all'; let shown = 0;
+    grid.dataset.filter = f;
+    [...grid.children].forEach(c => { if (!c.dataset.cat) return; const on = f === 'all' || c.dataset.cat === f; c.hidden = !on; if (on) shown++; });
+    grid.querySelector('.mood-none')?.remove();
+    if (!shown && pins.length) grid.insertAdjacentHTML('beforeend', `<div class="empty mood-none" style="grid-column:1/-1">${esc(tr('filterNone'))}</div>`);
+    panel.querySelectorAll('#moodFilters .f').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
+  };
+  panel.querySelectorAll('#moodFilters .f').forEach(b => b.onclick = () => { S.boardFilter = b.dataset.filter; applyMoodFilter(); });
+  applyMoodFilter();
   if (pins.length > 1) {
     grid.dataset.sortable = 'grid';
     makeSortable(grid, async (f, t) => {
@@ -1575,6 +1613,17 @@ function makeSortable(host, onMove) {
   host.addEventListener('dragend', () => { from = -1; clear(); host.classList.remove('is-reordering'); items().forEach(el => { el.classList.remove('dragging'); el.draggable = false; }); });
 }
 function youtubeId(url) { const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/); return m ? m[1] : null; }
+// Catégories du Moodboard (filtres par icône) : musique, images, vidéos, liens, notes et documents.
+const MOOD_FILTERS = ['all', 'music', 'images', 'videos', 'links', 'notes'];
+const MUSIC_PROVIDERS = ['soundcloud', 'spotify', 'deezer', 'bandcamp'];
+function moodCategory(a) {
+  if (a.kind === 'track' || a.kind === 'audio' || a.kind === 'pack') return 'music';
+  if (a.kind === 'image') return 'images';
+  if (a.kind === 'video' || a.kind === 'montage') return 'videos';
+  if (a.kind === 'link') return a.preview && MUSIC_PROVIDERS.includes(a.preview.provider) ? 'music' : a.preview && ['youtube', 'vimeo'].includes(a.preview.provider) ? 'videos' : 'links';
+  return 'notes';
+}
+const MOOD_ICONS = { music: '♪', images: '🖼', videos: '🎬', links: '🔗', notes: '📝' };
 async function assetCard(a, pins) {
   const el = document.createElement('div');
   el.className = 'item' + (a.starred ? ' pitch' : '');
@@ -1588,9 +1637,12 @@ async function assetCard(a, pins) {
   if (a.kind === 'pack') media = `<a class="btn" href="./pack.html?id=${encodeURIComponent(a.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`;
   if (a.kind === 'track') media = `<div data-role="player"></div>`;
   if (a.kind === 'montage') media = montagePlayerHtml();
-  el.innerHTML = `<div class="item-kind">${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
+  const cat = moodCategory(a); el.dataset.cat = cat;
+  // Un visuel (image, miniature, montage) passe en tête de carte ; les lecteurs et boutons restent sous le titre.
+  const visual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
+  el.innerHTML = `${visual ? `<div class="item-visual">${media}</div>` : ''}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
     <div class="item-title">${esc(assetTitle(a))}</div>
-    ${media}
+    ${visual ? '' : media}
     ${a.body ? `<div class="item-body">${esc(a.body)}</div>` : ''}
     <div class="meta">${esc(a.authorEmail || '')}</div>
     <div class="item-actions">
@@ -1743,13 +1795,13 @@ function wireNotes(box, list, refresh) {
 // ---- Images : toutes les images du Projet, d'où qu'elles viennent (Moodboard, discussion, cet onglet) — 28/09 ----
 async function renderImages(panel) {
   const imgs = forSel((S.content.assets || []).filter(a => a.kind === 'image'));
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('imagesTitle'))}</h2><p class="hint">${esc(tr('imagesIntro'))}</p>
+  panel.innerHTML = `${DEMO ? '' : `<details class="add-fold"><summary>${esc(tr('addImageOpen'))}</summary><div class="card"><p class="hint">${esc(tr('imagesIntro'))}</p>
       <div class="bar"><input type="file" id="iFile" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="flex:1 1 240px">
         <label class="choice" style="margin:0"><input type="checkbox" id="iReference"> ${esc(tr('uploadIsReference'))}</label>
         <button class="btn" id="iUploadBtn" type="button">${esc(tr('uploadImages'))}</button></div>
-      <div class="msg" id="iMsg"></div></div>
+      <div class="msg" id="iMsg"></div></div></details>`}
     <div class="grid" id="imgGrid">${imgs.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('noImages'))}</div>`}</div>`;
-  $('iUploadBtn').onclick = async () => {
+  if ($('iUploadBtn')) $('iUploadBtn').onclick = async () => {
     const files = [...$('iFile').files]; if (!files.length) return say('iMsg', tr('chooseFile'));
     $('iUploadBtn').disabled = true;
     for (const f of files) {
@@ -1790,19 +1842,20 @@ async function renderImages(panel) {
 function renderVideos(panel) {
   const vids = forSel((S.content.assets || []).filter(a => a.kind === 'video'));
   const montages = forSel((S.content.assets || []).filter(a => a.kind === 'montage'));
-  panel.innerHTML = `<div class="card">
-      <h2>${esc(tr('videosTitle'))}</h2><p class="hint">${esc(tr('videosIntro'))}</p>
+  // Visiteur de la démo : il ne peut rien ajouter, donc ni formulaire d'ajout ni liste de vidéos vide (retour Joris).
+  panel.innerHTML = `${DEMO ? '' : `<details class="add-fold"><summary>${esc(tr('addVideoOpen'))}</summary><div class="card">
+      <p class="hint">${esc(tr('videosIntro'))}</p>
       <div class="bar"><input type="url" id="vUrl" placeholder="${esc(tr('videoLinkPlaceholder'))}" style="flex:1 1 240px"><button class="btn" id="vLinkBtn" type="button">${esc(tr('addVideoLink'))}</button></div>
       <div class="bar" style="margin-top:8px"><input type="file" id="vFile" accept="video/mp4,video/webm,video/quicktime,.mov" style="flex:1 1 240px"><button class="btn" id="vUploadBtn" type="button">${esc(tr('uploadVideo'))}</button></div>
       <label>${esc(tr('itemTitle'))}</label><input type="text" id="vTitle">
       <div class="msg" id="vMsg"></div>
-    </div>
-    <div class="card">${vids.length ? vids.map(v => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(v.id)}"` : ''}><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
+    </div></details>`}
+    ${DEMO && !vids.length ? '' : `<div class="card">${vids.length ? vids.map(v => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(v.id)}"` : ''}><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
         <button class="btn${S.video && S.video.id === v.id ? ' primary' : ''}" type="button" data-open="${esc(v.id)}">${esc(tr('openVideo'))}</button>
         <button class="btn" type="button" data-pin="${esc(v.id)}">${esc(tr(v.pinned ? 'unpin' : 'pinBtn'))}</button>
         ${secBtn(v, 'btn')}
-        <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>
-    ${montages.length ? `<div class="card"><h2>${esc(tr('montagesTitle'))}</h2><p class="hint">${esc(tr('montagesIntro'))}</p><div class="grid" id="montageGrid"></div></div>` : ''}
+        <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>`}
+    ${montages.length ? `<div class="card"><h2>${esc(tr('montagesTitle'))}</h2><p class="hint">${esc(tr('montagesIntro'))}</p><div class="grid grid-wide" id="montageGrid"></div></div>` : ''}
     <div id="videoStage"></div>`;
   // Montages vidéo du Projet : chacun avec son lecteur à versions (menu + étiquette), comme dans les AdReels.
   const mg = $('montageGrid');
@@ -1823,8 +1876,8 @@ function renderVideos(panel) {
     if (r.data && r.data.existed) window.LayerPitchNotify.info(tr('alreadyInProjectVideo'));
     await reloadContent(); renderVideos(panel); broadcast('content');
   };
-  $('vLinkBtn').onclick = addLink;
-  $('vUploadBtn').onclick = async () => {
+  if ($('vLinkBtn')) $('vLinkBtn').onclick = addLink;
+  if ($('vUploadBtn')) $('vUploadBtn').onclick = async () => {
     const file = $('vFile').files[0]; if (!file) return say('vMsg', tr('chooseFile'));
     $('vUploadBtn').disabled = true; say('vMsg', tr('uploading'), true);
     const up = await uploadOrReuse(file);
@@ -1836,7 +1889,7 @@ function renderVideos(panel) {
   panel.querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { S.video = vids.find(v => v.id === b.dataset.open); await openVideo(); renderVideos(panel); });
   panel.querySelectorAll('[data-pin]').forEach(b => b.onclick = async () => {
     const v = assetById(b.dataset.pin);
-    const r = await PJ.pin(v.id, !v.pinned); if (r.error) return say('vMsg', tr('errorPrefix', { message: r.error }));
+    const r = await PJ.pin(v.id, !v.pinned); if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
     await reloadContent(); renderVideos(panel); broadcast('content');
   });
   panel.querySelectorAll('[data-delvideo]').forEach(b => b.onclick = () => deleteAsset(assetById(b.dataset.delvideo)));
@@ -2119,7 +2172,7 @@ async function renderMusic(panel) {
   const albums = S.content.albums || [];
   const studioProject = S.project.ownerKind === 'studio';
   const musicAssets = forSel((S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio'));
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2>${shared.length ? '' : `<p class="hint">${esc(tr('packsIntro'))}</p>`}
       ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
           <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
           ${TUTO ? '' : `<button class="btn" type="button" data-expandpack="${esc(p.packId)}" aria-expanded="false">${esc(tr('expandPack'))}</button><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPackNewTab'))}</a>`}
@@ -2151,7 +2204,7 @@ async function renderMusic(panel) {
   const setPackOpen = (id, open) => {
     const box = panel.querySelector('[data-packframe="' + id + '"]'), b = panel.querySelector('[data-expandpack="' + id + '"]');
     if (!box || !b) return;
-    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(id)}&lang=${pageLang}" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(id)}&lang=${pageLang}&projet=1" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
     box.hidden = !open;
     b.setAttribute('aria-expanded', String(open));
     b.textContent = tr(open ? 'collapsePack' : 'expandPack');
@@ -2661,8 +2714,11 @@ if (DEMO) {
 }
 if (!projectId) content.innerHTML = `<div class="card"><p class="hint">${esc(tr('noProject'))}</p></div>`;
 else if (DEMO) load();
-else if (TUTO) tutoReady.then(() => LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load().then(() => { const l = params.get('lesson'); if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(l), 400); } }); }));
-else LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load(); });
+else if (TUTO) tutoReady.then(() => LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || !S.project) load().then(() => { const l = params.get('lesson'); if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(l), 400); } }); }));
+// Recharger seulement au premier état de session, ou si la personne connectée change. Chaque page ou cadre qui démarre (le pack
+// de l'onglet Musique est un cadre) rejoue « SIGNED_IN » vers cette page : recharger à chaque fois redessinait l'onglet en boucle
+// (le lecteur se remettait à zéro plusieurs fois par seconde).
+else LayerPitchAuth.onAuthStateChange((event, session) => { const uid = session && session.user && session.user.id; if (event === 'INITIAL_SESSION' || !S.project || (event === 'SIGNED_IN' && uid && S.me && uid !== S.me.id)) load(); });
 </script>
 </body>
 </html>
