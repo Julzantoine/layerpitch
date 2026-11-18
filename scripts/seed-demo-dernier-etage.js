@@ -3,7 +3,7 @@
  * LayerPitch — crée et remplit le Projet de démo « Dernier Étage » (jeu d'horreur psychologique sur le burn-out en entreprise),
  * construit autour du montage vidéo « Short SIW Test #1 » et de sa « Version alternative #2 » (A : avec mélodie, B : purement texturale).
  * Tout est fictif : la discussion (14 messages sous le nom du propriétaire, chacun préfixé par le personnage), 4 sections,
- * 4 notes et 8 références de Moodboard, 6 tâches. Le montage est posé en objet du Projet (ses versions suivent toutes seules).
+ * un Moodboard de 4 objets (note, montage, vidéo YouTube, référence graphique), 6 tâches. Le montage est posé en objet du Projet (ses versions suivent toutes seules).
  * Relançable sans doublon. N'active PAS « Démo publique » : c'est le propriétaire qui l'active.
  *
  * Usage : node scripts/seed-demo-dernier-etage.js            (aperçu : n'écrit rien)
@@ -42,24 +42,20 @@ const SECTIONS = ['Direction artistique', 'Musique : mélodie ou texture ?', 'Br
 // Moodboard : peu de notes, le reste en références (liens). La vidéo est tout en haut.
 const NOTES = [
   ['À propos de cette démo : projet fictif et crédits', CREDIT],
-  ['Un bureau trop propre', 'Open space aux lumières froides, moquette grise, écrans allumés. Presque rassurant, avec quelque chose qui sonne faux.'],
-  ['La lampe', 'Objet de jeu et symbole : elle éclaire de moins en moins loin, comme l\'énergie qui s\'épuise.'],
-  ['Le bourdonnement des néons', 'Une note de fond qui devient peu à peu le vrai thème du niveau.'],
 ];
 // Notes d'ébauche d'une première version du script : retirées du Moodboard si elles y sont encore.
 const HIROSHIMA = 'https://www.youtube.com/watch?v=p9xAjiZo7go'; // référence retirée du Moodboard
 const RETIRED_NOTES = ['Les dossiers partout', 'La photocopieuse', 'Le document à porter', 'L\'ascenseur', 'L\'étage sombre', 'La salle d\'archives',
-  'Idée : mélodie qui rassure', 'Idée : texture sans mélodie', 'Le mail non lu'];
+  'Idée : mélodie qui rassure', 'Idée : texture sans mélodie', 'Le mail non lu',
+  // 18/11 : le Moodboard de démo ne garde que 4 objets (note, montage, vidéo YouTube, référence graphique)
+  'Un bureau trop propre', 'La lampe', 'Le bourdonnement des néons'];
+const RETIRED_URLS = [HIROSHIMA, STEAM, 'https://www.youtube.com/watch?v=Z_Cc20I-maM', 'https://en.wikipedia.org/wiki/Severance_(TV_series)',
+  'https://en.wikipedia.org/wiki/Control_(video_game)', 'https://en.wikipedia.org/wiki/Playtime_(film)'];
 
 // Références : musicales (YouTube, lisibles dans le Projet) et graphiques / ambiance (pages web).
 const REFS = [
-  [STEAM, 'Something Is Wrong sur Steam (Protocol Interactive)', 'Merci à Joris Balzanelli et Samir Bensadoun pour les images de gameplay. Ajoutez le jeu à votre liste de souhaits !'],
   ['https://www.youtube.com/watch?v=aM_HhU_CV44', 'Réf. musicale : Hildur Guðnadóttir, « Bridge of Death » (Chernobyl)', 'Une bande-son faite de sons enregistrés dans une vraie centrale : pas de mélodie, une texture industrielle. Proche de la version B.'],
-  ['https://www.youtube.com/watch?v=Z_Cc20I-maM', 'Réf. musicale : Mica Levi, « Love » (Under the Skin)', 'Cordes qui glissent, rien de mélodique à quoi se raccrocher. Le malaise par la texture.'],
   ['https://en.wikipedia.org/wiki/Office_at_Night', 'Réf. graphique : Edward Hopper, « Office at Night »', 'Une lumière froide, deux personnes dans un bureau qui ne se parlent pas. Le malaise par le cadrage.'],
-  ['https://en.wikipedia.org/wiki/Severance_(TV_series)', 'Réf. graphique : Severance', 'Couloirs blancs sans fin, mobilier de bureau, aucune fenêtre : l\'entreprise comme labyrinthe.'],
-  ['https://en.wikipedia.org/wiki/Control_(video_game)', 'Réf. jeu vidéo : Control', 'Une administration brutaliste où le bureau devient un lieu irrationnel.'],
-  ['https://en.wikipedia.org/wiki/Playtime_(film)', 'Réf. graphique : Playtime (Jacques Tati)', 'Des bureaux en cubicules, géométrie froide, personnes perdues dans l\'espace.'],
 ];
 
 // Pack de démo : un NOUVEAU pack qui réutilise les mêmes morceaux et Sfx que le pack « Joris » (rien n'est copié : modifier un morceau
@@ -108,14 +104,6 @@ const MOODBOARD_ORDER = [
   ['montage', MONTAGE_ID],
   ['url', 'https://www.youtube.com/watch?v=aM_HhU_CV44'],          // musique : Chernobyl
   ['url', 'https://en.wikipedia.org/wiki/Office_at_Night'],        // image : Hopper
-  ['note', 'Un bureau trop propre'],
-  ['url', 'https://www.youtube.com/watch?v=Z_Cc20I-maM'],          // musique : Under the Skin
-  ['url', 'https://en.wikipedia.org/wiki/Severance_(TV_series)'],  // image : Severance
-  ['note', 'La lampe'],
-  ['url', 'https://en.wikipedia.org/wiki/Control_(video_game)'],   // jeu : Control
-  ['url', 'https://en.wikipedia.org/wiki/Playtime_(film)'],        // image : Playtime
-  ['note', 'Le bourdonnement des néons'],
-  ['url', STEAM],                                                  // remerciement : lien Steam
 ];
 
 // [titre, notes, fait ?, section (index ou null)]
@@ -206,9 +194,9 @@ async function seed(q, apply, ownerOverride) {
     await q(`select public.add_project_asset($1, $2::jsonb, true)`, [pid, JSON.stringify({ kind: 'note', title, body })]);
   }
 
-  // Retrait des notes d'ébauche
-  if (pid) {
-    const del = await q(`delete from public.project_assets where project_id = $1 and ((kind = 'note' and title = any($2::text[])) or url = $3) returning id`, [pid, RETIRED_NOTES, HIROSHIMA]);
+  // Retrait des notes d'ébauche (seulement avec --apply : l'aperçu n'écrit rien)
+  if (pid && apply) {
+    const del = await q(`delete from public.project_assets where project_id = $1 and ((kind = 'note' and title = any($2::text[])) or url = any($3::text[])) returning id`, [pid, RETIRED_NOTES, RETIRED_URLS]);
     if (del.length) console.log(`Notes d'ébauche retirées : ${del.length}.`);
   }
 

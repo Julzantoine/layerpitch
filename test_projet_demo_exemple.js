@@ -1,4 +1,4 @@
-// Projet de démonstration copié dans les Projets de chaque bêta-testeur (migration 20261118010000) : feu vert, une seule fois,
+// Projet de démonstration copié dans les Projets de chaque bêta-testeur (migration 20261118020000) : feu vert, une seule fois,
 // copie à soi (compositeur ou studio), références redirigées, rien de lourd copié, vitrines non publiées, jamais la démo publique,
 // hors quota, suppression en un clic sans toucher à la source. Base jetable PGlite. Prérequis : npm install.
 const path = require('path');

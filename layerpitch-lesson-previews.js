@@ -36,18 +36,18 @@
   const CITIES = ['Jazz City', 'Rock City', 'Disco City', 'Synth City'];
   // Carte de niveau de « Music City » : Jazz City (départ) → Rock City (carrefour) → Disco City (niveau 2) / Synth City.
   const mapSvg = (t, o) => {
-    const P = { jazz: [30, 66], rock: [160, 66], disco: [290, 24], synth: [290, 112] }, W = 84, H = 32;
+    // Carte du niveau 1 de « Dernier Étage » (18/11) : bureau → ascenseur → couloir → salle d'archives.
+    const P = { office: [20, 66], lift: [115, 66], hall: [210, 66], archives: [305, 66] }, W = 80, H = 32;
     const c = (k, side) => [P[k][0] + (side ? W : 0), P[k][1] + H / 2];
     const edge = (a, b, on) => { const [x1, y1] = c(a, 1), [x2, y2] = c(b, 0); return curve(x1, y1, x2, y2, { c: on ? 'var(--accent)' : 'var(--text-dim)', w: on ? 3 : 1.6 }); };
     let b = rect(10, 8, 380, 150, 'var(--accent-soft)', { r: 8 });
-    b += edge('jazz', 'rock', o.walk) + edge('rock', 'disco', o.walk) + edge('rock', 'synth', false);
-    [['jazz', 'Jazz City'], ['rock', 'Rock City'], ['disco', 'Disco City'], ['synth', 'Synth City']].forEach(([k, n]) => {
-      const here = o.walk && k === 'disco';
+    b += edge('office', 'lift', o.walk) + edge('lift', 'hall', o.walk) + edge('hall', 'archives', o.walk);
+    [['office', 'Bureau'], ['lift', 'Ascenseur'], ['hall', 'Couloir'], ['archives', 'Archives']].forEach(([k, n]) => {
+      const here = o.walk && k === 'archives';
       b += box(P[k][0], P[k][1], W, H, (o.music ? '♪ ' : '') + n, '', { fs: 8.5, fill: here ? 'var(--accent)' : CARD, tc: here ? CARD : '', bold: here });
     });
-    b += txt(P.jazz[0] + W / 2, P.jazz[1] - 6, t('glMapStart'), { c: 'var(--accent)', bold: true });
-    if (o.note) b += txt(P.disco[0] + W / 2, P.disco[1] + H + 10, t('glMapLevel2'), { fs: 7 });
-    if (o.transition) b += T(232, 90, 22, 14);
+    b += txt(P.office[0] + W / 2, P.office[1] - 6, t('glMapStart'), { c: 'var(--accent)', bold: true });
+    if (o.transition) b += T(94, 75, 22, 14);
     b += txt(200, 172, t(o.walk ? 'glMapWalkLegend' : o.music ? 'glMapMusicLegend' : 'glTransLegendMap'));
     return svg(180, b);
   };
@@ -190,7 +190,7 @@
       + curve(120, 40, 200, 72, { arrow: true }) + curve(120, 120, 200, 88, { arrow: true })
       + rect(204, 40, 186, 84, CARD, { r: 6, stroke: 'var(--accent)' }) + txt(214, 58, t('glProjectMusic'), { a: 'start', c: 'var(--text)', fs: 9, bold: true })
       + [[t('glPmDaniel'), 'Daniel'], [t('glPmMine'), t('glYouCap')]].map(([m, who], i) => play(222, 76 + i * 22) + txt(234, 76 + i * 22, m, { a: 'start', c: 'var(--text)' }) + txt(234, 85 + i * 22, t('glSharedBy', { name: who }), { a: 'start', fs: 6.5 })).join('')),
-    'pj-map-build': t => mapSvg(t, { transition: true, note: true }),
+    'pj-map-build': t => mapSvg(t, { transition: true }),
     'pj-map-music': t => mapSvg(t, { music: true }),
     'pj-map-walk': t => mapSvg(t, { music: true, walk: true }),
   };

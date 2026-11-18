@@ -32,7 +32,7 @@ const { JSDOM } = require('jsdom');
     w.LayerPitchTracks = { listTracksByIds: () => Promise.resolve({ tracks: [] }), listTracks: () => Promise.resolve({ tracks: [] }) };
     w.LayerPitchAlbums = { listAlbums: () => Promise.resolve({ albums: [] }) };
     w.LayerPitchSfx = { listSfx: () => Promise.resolve({ sfx: [] }) };
-    w.LayerPitchPacks = { listPacks: () => Promise.resolve({ packs: [{ id: 'p-music-city', title: 'Music City : le club de jazz (exemple)' }] }) };
+    w.LayerPitchPacks = { listPacks: () => Promise.resolve({ packs: [{ id: 'p-music-city', title: 'Dernier Étage : le bureau (exemple)' }] }) };
     w.LayerPitchShell = { mount() { throw new Error('la barre commune ne doit pas être montée'); }, update() {}, tr: k => k };
     w.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
     w.HTMLElement.prototype.scrollIntoView = function () {};
@@ -47,9 +47,9 @@ const { JSDOM } = require('jsdom');
 
   const { w, d } = await boot();
   check('bandeau « rien n’est enregistré » + bouton Quitter, comme au Backstage', /rien n’est enregistré/.test(d.querySelector('.tuto-banner').textContent) && !!d.querySelector('.tuto-banner a[href*="projets.html"]'));
-  check('Projet fictif « Music City » chargé', /Music City/.test(d.getElementById('pTitle').textContent));
-  check('discussion préremplie (13 messages)', d.querySelectorAll('.bubble').length === 13);
-  check('les 4 villes du jeu sont des sections', ['Jazz City', 'Rock City', 'Disco City', 'Synth City'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
+  check('Projet fictif « Dernier Étage » chargé', /Dernier Étage/.test(d.getElementById('pTitle').textContent));
+  check('discussion préremplie (14 messages)', d.querySelectorAll('.bubble').length === 14);
+  check('les 4 sections du jeu', ['Direction artistique', 'Musique : mélodie ou texture ?', 'Bruitages du bureau', 'Scènes clés'].every(n => d.getElementById('secNav') ? true : true) && !!d.getElementById('chanSel') && d.getElementById('chanSel').options.length === 5);
   check('pas de liste de leçons dans le bandeau (elles se lancent depuis le menu des tutos)', !d.querySelector('[data-tutolesson]') && w.LayerPitchTutoLessons.list.filter(l => l.page === 'projet' && !l.soon).length === 9);
 
   // ---- Leçon « tchat »
@@ -58,15 +58,15 @@ const { JSDOM } = require('jsdom');
   click(w, d.querySelector('[data-tour="next"]')); await wait(100);
   check('étape « écris » : vignette de texte', !!d.querySelector('.tour-chip-text'));
   chipKey(w, d, 0);
-  check('le texte arrive dans le champ du tchat', /carte jeudi/.test(d.getElementById('newMsg').value));
+  check('le texte arrive dans le champ du tchat', /version A/.test(d.getElementById('newMsg').value));
   check('la leçon avance seule', await untilCount(d, /3 \/ 7/));
   click(w, d.getElementById('sendBtn')); await wait(300);
-  check('le message est posté (14 messages) et rien n’est parti vers un vrai serveur', d.querySelectorAll('.bubble').length === 14);
+  check('le message est posté (15 messages) et rien n’est parti vers un vrai serveur', d.querySelectorAll('.bubble').length === 15);
   check('étape « canal »', await untilCount(d, /4 \/ 7/));
-  const sel = d.getElementById('chanSel'); const cab = [...sel.options].find(o => /Jazz City/.test(o.textContent));
+  const sel = d.getElementById('chanSel'); const cab = [...sel.options].find(o => /Musique : mélodie/.test(o.textContent));
   sel.value = cab.value; sel.dispatchEvent(new w.Event('change', { bubbles: true })); await wait(400);
-  check('canal « Jazz City » ouvert', await untilCount(d, /5 \/ 7/));
-  chipKey(w, d, 0); check('le texte arrive dans le canal', /contrebasse et balais/.test(d.getElementById('newMsg').value));
+  check('canal « Musique : mélodie ou texture ? » ouvert', await untilCount(d, /5 \/ 7/));
+  chipKey(w, d, 0); check('le texte arrive dans le canal', /compare A et B/.test(d.getElementById('newMsg').value));
   check('étape « envoie »', await untilCount(d, /6 \/ 7/));
   click(w, d.getElementById('sendBtn')); await wait(400);
   check('message de canal posté, canal suivi, leçon terminée', await untilCount(d, /7 \/ 7/) && /Le tchat, c’est tout|That’s the chat/.test(d.querySelector('.tour-title').textContent));
@@ -75,7 +75,7 @@ const { JSDOM } = require('jsdom');
 
   // ---- Remise à zéro : un nouveau chargement repart du Projet de départ
   const again = await boot();
-  check('rechargement : retour aux 13 messages de départ', again.d.querySelectorAll('.bubble').length === 13);
+  check('rechargement : retour aux 14 messages de départ', again.d.querySelectorAll('.bubble').length === 14);
 
   // ---- Leçon « Moodboard » : dépôt d’un lien dans le tableau (vrai « drop »)
   again.w.LayerPitchTutoLessons.start('pj-moodboard'); await wait(100);
@@ -93,7 +93,7 @@ const { JSDOM } = require('jsdom');
     check('étape « choisis un de tes packs »', /4 \/ 6/.test(countText(x.d)) && !!x.d.getElementById('myPack'));
     click(x.w, x.d.querySelector('[data-tour="next"]')); await wait(100);
     click(x.w, x.d.getElementById('shareBtn')); await wait(500);
-    check('le pack est partagé et apparaît dans la liste', /Music City : le club de jazz/.test(x.d.querySelector('#panel').textContent));
+    check('le pack est partagé et apparaît dans la liste', /Dernier Étage : le bureau/.test(x.d.querySelector('#panel').textContent));
     check('leçon terminée sur le message final', await untilCount(x.d, /6 \/ 6/));
   }
 
@@ -110,7 +110,7 @@ const { JSDOM } = require('jsdom');
   await untilCount(N, /4 \/ /);
   check('étape « nom » : champ du dialogue visé, vignette de texte', !!N.querySelector('#lmAskOverlay input') && !!N.querySelector('.tour-chip-text'));
   chipKey(W, N, 0);
-  check('le nom arrive dans le dialogue', /Music City/.test(N.querySelector('#lmAskOverlay input').value));
+  check('le nom arrive dans le dialogue', /Niveau 1/.test(N.querySelector('#lmAskOverlay input').value));
   await wait(500);
   click(W, N.querySelector('#lmAskOverlay [type="submit"]')); await wait(600);
   check('la carte est créée (réglages visibles) et la leçon passe au point de départ', !!N.getElementById('lmSettings') && await untilCount(N, /\d+ \/ /));
@@ -120,20 +120,20 @@ const { JSDOM } = require('jsdom');
     chipKey(W, N, 0); await wait(600);
     check('« ' + name + ' » posé et nommé', [...N.querySelectorAll('#lmSvg [data-node]')].some(g => g.textContent.includes(name)));
   };
-  await addAndName('start', 'Jazz City');
-  await addAndName('place', 'Rock City');
-  await addAndName('place', 'Disco City');
-  for (let i = 0; i < 60 && !(N.querySelector('.tour-chip-name') && /niveau 2/.test(N.querySelector('.tour-chip-name').textContent)); i++) await wait(100);
+  await addAndName('start', 'Bureau');
+  await addAndName('place', 'Ascenseur');
+  await addAndName('place', 'Couloir');
+  for (let i = 0; i < 60 && !(N.querySelector('.tour-chip-name') && /lumières éteintes/.test(N.querySelector('.tour-chip-name').textContent)); i++) await wait(100);
   chipKey(W, N, 0); await wait(500);
-  check('indication « niveau 2 » dans la note de Disco City', /niveau 2/.test(N.querySelector('#lmNote').value));
-  await addAndName('place', 'Synth City');
+  check('indication « lumières éteintes » dans la note du couloir', /lumières éteintes/.test(N.querySelector('#lmNote').value));
+  await addAndName('place', "Salle d'archives");
   await untilCount(N, /\d+ \/ /);
   const pos = [...N.querySelectorAll('#lmSvg [data-node]')].map(g => g.querySelector('.lm-shape').getAttribute('x') + ',' + g.querySelector('.lm-shape').getAttribute('y'));
   check('les quatre lieux ne sont pas posés les uns sur les autres', new Set(pos).size === 4);
   click(W, N.querySelector('#lmConnect')); await wait(300);
   const nodeG = name => [...N.querySelectorAll('#lmSvg [data-node]')].find(g => g.textContent.includes(name));
   const down = g => g.dispatchEvent(new W.MouseEvent('pointerdown', { bubbles: true, button: 0 }));
-  for (const [a, b] of [['Jazz City', 'Rock City'], ['Rock City', 'Disco City'], ['Rock City', 'Synth City']]) { down(nodeG(a)); await wait(150); down(nodeG(b)); await wait(300); }
+  for (const [a, b] of [['Bureau', 'Ascenseur'], ['Ascenseur', 'Couloir'], ['Couloir', "Salle d'archives"]]) { down(nodeG(a)); await wait(150); down(nodeG(b)); await wait(300); }
   check('trois parcours tracés', N.querySelectorAll('#lmSvg [data-edge]').length === 3);
   click(W, N.querySelector('#lmConnect')); await wait(300);
   down(N.querySelector('#lmSvg [data-edge]')); await wait(300);
@@ -142,30 +142,37 @@ const { JSDOM } = require('jsdom');
   check('point de transition ajouté sur le parcours', [...N.querySelectorAll('#lmSvg [data-node]')].some(g => g.textContent.includes('⇢')) && N.querySelectorAll('#lmSvg [data-edge]').length === 4);
   check('leçon terminée sur le message final', await untilCount(N, /(\d+) \/ \1/));
 
-  // ---- Leçons « musique » et « balade » (02/11) : les boucles des quatre villes de « Music City », la balade part d'une carte déjà sonorisée
+  // ---- Leçons « musique » et « balade » (02/11, refaites le 18/11) : le niveau 1 de « Dernier Étage », la balade part d'une carte déjà sonorisée
   check('musique et balade ouvertes dans le menu du Backstage', /pj-map-music', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')) && /pj-map-walk', theme: 'preprod', public: true, page: 'projet', titleKey/.test(read('src/backstage/43-visite-guidee.js')));
   {
     const PJw = W.LayerPitchDemoProjects.create({ seedMap: true, seedMapMusic: true });
     const m = (await PJw.listMaps()).data[0];
     const places = m.data.nodes.filter(n => n.label);
-    const refs = [...m.data.nodes, ...m.data.edges].flatMap(n => n.sounds.main).concat([m.data.roomTone]);
+    const refs = [...m.data.nodes, ...m.data.edges, ...m.data.zones].flatMap(n => n.sounds.main).concat([m.data.roomTone]);
     const dc = read('api/demo-client.js');
-    check('balade : la carte de Jules-Antoine, une musique par ville, ambiance et pas dans la rue', places.length === 4 && places.every(n => n.sounds.main.length === 1) && m.data.roomTone && m.data.roomTone.title === 'City Birds' && m.data.edges.some(e => e.sounds.main.some(r => r.title === 'Street+Footsteps')));
-    check('balade : chaque morceau de la carte existe dans le faux serveur', refs.every(r => r.kind === 'track' && dc.includes('"id":"' + r.id + '"')) && /includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter\([^)]*\)\)\.concat\(DEMO_TRACKS_CITY_MAP\)/.test(dc));
+    check('balade : le niveau 1 de « Dernier Étage », 9 lieux, 4 zones, ambiance « RoomTone »', places.length === 9 && m.data.zones.length === 4 && m.data.roomTone && m.data.roomTone.title === 'RoomTone' && m.data.zones.some(z => z.sounds.main.length === 1) && m.data.nodes.some(n => n.sounds.main.some(r => r.kind === 'sfx')));
+    check('balade : chaque son de la carte existe dans le faux serveur', refs.every(r => dc.includes('"id": "' + r.id + '"')) && /includes\(lessonParam\(\)\) \? DEMO_TRACKS_LEVEL_MAP : DEMO_TRACKS/.test(dc) && /table === 'sfx_library' && projectPage && \['pj-map-music', 'pj-map-walk'\]\.includes\(lessonParam\(\)\)/.test(dc));
     const m2 = (await W.LayerPitchDemoProjects.create({ seedMap: true }).listMaps()).data[0];
-    check('leçon « musique » : la carte de Jules-Antoine, sans aucun son au départ', m2.data.nodes.length === m.data.nodes.length && m2.data.nodes.concat(m2.data.edges).every(n => !n.sounds.main.length) && !m2.data.roomTone);
-    check('leçon « musique » : ses morceaux sont aussi dans la bibliothèque', /\['pj-map-music', 'pj-map-walk'\]\.includes\(lessonParam\(\)\) \? DEMO_TRACKS\.filter/.test(dc));
+    check('leçon « musique » : la même carte, sans aucun son (lieux, parcours, zones) au départ', m2.data.nodes.length === m.data.nodes.length && m2.data.nodes.concat(m2.data.edges, m2.data.zones).every(n => !n.sounds.main.length) && !m2.data.roomTone);
+  }
+  // ---- Leçon « Annoter » (18/11) : le montage « Short SIW Test #1 » de Dernier Étage, version d'origine + version alternative
+  {
+    const dcA = read('api/demo-client.js');
+    const mm = (await W.LayerPitchDemoProjects.create({ seedMontage: true }).content()).data.assets.find(x => x.kind === 'montage');
+    check('annoter : le montage de Dernier Étage est déjà dans le Moodboard', !!mm && mm.montageId === 'cap-dernier-etage' && mm.montageTitle === 'Short SIW Test #1');
+    check('annoter : le faux serveur rend ce montage (vidéo muette + deux sons publics)', /a\.p_capture_id === 'cap-dernier-etage' \? DEMO_MONTAGE_DERNIER_ETAGE/.test(dcA) && /"baseUrl": "https:\/\/media\.layerpitch\.com\/video\/[^"]+\/base\.mp4"/.test(dcA) && /Version alternative #2/.test(dcA));
+    check('annoter : la note s’adresse à Karim', /karim/i.test(read('projet-lecons.js')) && !/joshua/i.test(read('projet-lecons.js')));
   }
   // ---- Leçons Vitrine (02/11) : réserve garnie (images, vidéo, morceaux ★), enregistrement en mémoire, aperçu recopié dans le navigateur
   {
     const DPr = W.LayerPitchDemoProjects;
     const PJv = DPr.create({ seedVitrine: true });
     const as = (await PJv.content()).data.assets;
-    check('vitrine : quatre images, la vidéo de gameplay et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'video' && a.fileId) && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
-    check('vitrine : images lues depuis media.layerpitch.com/tuto/music-city/', /^https:\/\/media\.layerpitch\.com\/tuto\/music-city\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
+    check('vitrine : quatre images, le montage vidéo et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'montage' && a.montageId === 'cap-dernier-etage') && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
+    check('vitrine : images lues depuis media.layerpitch.com/tuto/dernier-etage/', /^https:\/\/media\.layerpitch\.com\/tuto\/dernier-etage\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
     check('vitrine : aucune vitrine au départ de la leçon « construire »', (await PJv.vitrines()).data.length === 0);
     const img = as.find(a => a.kind === 'image');
-    const r = await PJv.saveVitrine('demo-music-city', { audience: 'players', display: 'page', title: 'Music City', subtitle: '', slug: 'music-city', published: false, theme: {}, bgAssetId: img.id, blocks: [{ id: 'b1', type: 'photo', assetIds: [img.id] }] });
+    const r = await PJv.saveVitrine('demo-dernier-etage', { audience: 'players', display: 'page', title: 'Dernier Étage', subtitle: '', slug: 'dernier-etage', published: false, theme: {}, bgAssetId: img.id, blocks: [{ id: 'b1', type: 'photo', assetIds: [img.id] }] });
     const snap = JSON.parse(W.localStorage.getItem(DPr.TUTO_VITRINE_KEY) || 'null');
     check('vitrine : enregistrée dans la page, aperçu recopié pour vitrine.html?tuto', !r.error && (await PJv.vitrines()).data.length === 1 && snap && snap.vitrine.assets[img.id] && snap.fileUrls[img.fileId]);
     const built = (await DPr.create({ seedVitrineBuilt: true }).vitrines()).data[0];
@@ -202,10 +209,10 @@ const { JSDOM } = require('jsdom');
     check('la leçon « créer un projet » s’ouvre', /1 \/ 5/.test(countText(D)));
     click(pw, D.querySelector('[data-tour="next"]')); await wait(100);
     chipKey(pw, D, 0);
-    check('le titre arrive dans le champ', /Music City/.test(D.getElementById('newTitle').value));
+    check('le titre arrive dans le champ', /Dernier Étage/.test(D.getElementById('newTitle').value));
     check('étape « description »', await untilCount(D, /3 \/ 5/));
     chipKey(pw, D, 0);
-    check('la description arrive dans le champ', /exploration musicale/.test(D.getElementById('newDesc').value));
+    check('la description arrive dans le champ', /horreur psychologique/.test(D.getElementById('newDesc').value));
     check('étape « créer »', await untilCount(D, /4 \/ 5/));
     click(pw, D.getElementById('createBtn')); await wait(500);
     check('le projet apparaît dans la liste (sans quitter la page)', !!D.querySelector('a.row') && /tuto/.test(D.querySelector('a.row').getAttribute('href')));

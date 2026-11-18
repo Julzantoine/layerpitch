@@ -33,7 +33,7 @@ async function seedMyExamplesNow() {
   await seedExampleTracksNow();
   await seedMyDemoProjectNow();
 }
-// Projet de démonstration (18/11, feu vert example_project, migration 20261118010000) : même principe que les exemples, copié une
+// Projet de démonstration (18/11, feu vert example_project, migration 20261118020000) : même principe que les exemples, copié une
 // seule fois dans les Projets du compositeur (le serveur décide : feu vert, accueil terminé, déjà fait). Supprimable d'un clic depuis
 // la liste des Projets ou le Projet lui-même (bouton « Supprimer la démo »).
 async function seedMyDemoProjectNow() {
