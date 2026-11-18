@@ -308,7 +308,7 @@
       },
       startLesson: id => start(id),
       // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
-      choiceAction: action => { if (action === 'tuto') window.open('./projets.html?tuto&lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
+      choiceAction: action => { if (action === 'tuto') window.open('./tutoriels.html?lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
     });
     // Visite du projet d'exemple « Music City » (14/11) : proposée en fin de la visite de la page Projets (projets.html). Onglet par onglet, sans
