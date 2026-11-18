@@ -156,6 +156,8 @@
       window.removeEventListener('resize', render);
       document.removeEventListener('keydown', onKeydown, true);
       document.removeEventListener('click', onClickCapture, true);
+      LOCK_EVENTS.forEach(ev => document.removeEventListener(ev, lockHandler, true));
+      clearTimeout(guide.nudgeTimer);
       const kind = guide.kind;
       // Fermée avant la fin (Quitter, Échap, changement de leçon) : on note jusqu'où la personne est allée.
       if (!guide.finished) track(kind === 'lesson' ? 'lesson_quit' : 'tour_quit', { lesson: guide.lessonId || undefined, step: guide.maxIndex + 1, steps: guide.steps.length });
@@ -164,6 +166,62 @@
       if (host.onClose) host.onClose();
     }
     function onKeydown(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+
+    // ---- Verrou des leçons (18/11, retour d'un testeur) ----
+    // Pendant une leçon, tout geste réel HORS de la zone en surbrillance (et de la bulle) est refusé : sinon la personne clique
+    // partout et dérègle le déroulé. Aussi DANS la zone : sur une étape de dépôt de fichiers (useSample), les boutons d'ajout / de
+    // suppression / de duplication sont refusés (un testeur avait créé des boucles à la main, puis déposé les fichiers : ordre inversé).
+    // Une étape peut préciser `allow` (sélecteurs en plus) et `block` (sélecteurs refusés même dans la zone), ou `free: true`.
+    // Jamais verrouillé : visite guidée (kind 'tour'), étape finale (jeu libre), outils admin, cible introuvable, étape à geste sans cible,
+    // fenêtres modales ouvertes (ex. « Appliquer le tempo »), gestes non réels (isTrusted faux : « Auto » de l'admin, essais).
+    const LOCK_EVENTS = ['pointerdown', 'mousedown', 'click', 'dblclick', 'contextmenu', 'dragstart', 'dragenter', 'dragover', 'drop', 'keydown'];
+    const LOCK_DROP_BLOCK = '[data-action^="add-"], [data-action^="remove-"], [data-action^="duplicate-"], [data-action^="del"]';
+    function lockVerdict(e) { // true = geste refusé
+      if (!guide || guide.kind !== 'lesson' || !(e.isTrusted || window.__lpGuideTrustAll) || guide.autoRunning) return false; // __lpGuideTrustAll : réservé aux tests (jsdom ne sait pas fabriquer d'événement « réel »)
+      if (host.adminTools && host.adminTools()) return false;
+      const step = guide.steps[guide.index];
+      if (!step || step.free || step.final) return false;
+      const t = e.target;
+      const el = t && (t.nodeType === 1 ? t : t.parentElement);
+      if (!el || !el.closest) return false;
+      if (guide.root.contains(el)) return false;
+      if (el.closest('dialog[open], [aria-modal="true"], .vrs-batch-overlay')) return false;
+      if (e.type === 'keydown' && (e.key === 'Escape' || e.key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key))) return false;
+      const target = stepTarget(step);
+      const hasSel = !!step.selector;
+      if (hasSel && (!target || !targetVisible(target))) return false; // cible introuvable : on ne piège pas la personne
+      if (!hasSel && step.done) return false; // étape à geste sans zone désignée : on ne sait pas où se fera le geste
+      let inside = !!(target && target.contains(el));
+      if (!inside && step.allow) inside = [].concat(step.allow).some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } });
+      if (!inside) return true;
+      // Dans la zone : exclusions explicites, et celles des étapes de dépôt de fichiers.
+      const blocks = [].concat(step.block || []);
+      if (step.useSample) {
+        if (blocks.some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } })) return true;
+        if (e.type === 'dragstart') return true; // pas de réorganisation par glisser pendant un dépôt
+        const hit = el.closest(LOCK_DROP_BLOCK);
+        if (hit && hit !== target && !(target && hit.contains(target))) return true;
+        return false;
+      }
+      return blocks.some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } });
+    }
+    function lockHandler(e) {
+      if (!lockVerdict(e)) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (e.type === 'click' || e.type === 'drop' || e.type === 'keydown') lockNudge();
+    }
+    function lockNudge() {
+      if (!guide) return;
+      const card = guide.root.querySelector('.tour-card');
+      if (!card) return;
+      let note = card.querySelector('.tour-locknote');
+      if (!note) { note = document.createElement('div'); note.className = 'tour-locknote'; card.appendChild(note); }
+      note.textContent = tr('lessonLocked');
+      card.classList.remove('is-nudged'); void card.offsetWidth; card.classList.add('is-nudged');
+      clearTimeout(guide.nudgeTimer);
+      guide.nudgeTimer = setTimeout(() => { if (note.parentNode) note.remove(); card.classList.remove('is-nudged'); }, 3000);
+    }
     function onClickCapture(e) {
       if (!guide) return;
       const step = guide.steps[guide.index];
@@ -509,6 +567,7 @@
       if (steps[0].enter) steps[0].enter(guide.ctx);
       window.addEventListener('resize', render);
       document.addEventListener('keydown', onKeydown, true);
+      LOCK_EVENTS.forEach(ev => document.addEventListener(ev, lockHandler, true)); // AVANT onClickCapture : un clic refusé ne compte pas
       document.addEventListener('click', onClickCapture, true);
       render();
       if (kind === 'lesson') guide.timer = setInterval(tick, 250);

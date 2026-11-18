@@ -538,7 +538,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Simple mention (rien à cocher) : volontairement sans zone en surbrillance, qui inciterait à cocher la case.
+    { titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
