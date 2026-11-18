@@ -217,7 +217,7 @@
       if (!card) return;
       let note = card.querySelector('.tour-locknote');
       if (!note) { note = document.createElement('div'); note.className = 'tour-locknote'; card.appendChild(note); }
-      note.textContent = tr('lessonLocked');
+      note.textContent = tr(guide.steps[guide.index].selector ? 'lessonLocked' : 'lessonLockedNoZone'); // étape sans zone désignée (accueil…) : on renvoie vers la bulle
       card.classList.remove('is-nudged'); void card.offsetWidth; card.classList.add('is-nudged');
       clearTimeout(guide.nudgeTimer);
       guide.nudgeTimer = setTimeout(() => { if (note.parentNode) note.remove(); card.classList.remove('is-nudged'); }, 3000);

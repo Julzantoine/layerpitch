@@ -76,3 +76,4 @@ check('à la fermeture (verrou actif), plus aucun verrou', !clickRefused(w, '#ou
 
 if (failures) { console.log('\n' + failures + ' échec(s)'); process.exit(1); }
 console.log('\nTous les tests passent');
+process.exit(0); // les minuteurs des bulles (jsdom) garderaient le processus ouvert
