@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795041067694">
-<link rel="stylesheet" href="player.css?v=1795041067694">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795041289013">
+<link rel="stylesheet" href="player.css?v=1795041289013">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -211,30 +211,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1795041067694"></script>
-<script src="layerpitch-notify.js?v=1795041067694"></script>
-<script src="player.js?v=1795041067694"></script>
-<script src="api/supabase-client.js?v=1795041067694"></script>
-<script src="api/auth.js?v=1795041067694"></script>
-<script src="layerpitch-appearance.js?v=1795041067694"></script>
-<script src="layerpitch-font-picker.js?v=1795041067694"></script>
-<script src="layerpitch-shell.js?v=1795041067694"></script>
-<script src="api/tracks.js?v=1795041067694"></script>
-<script src="api/packs.js?v=1795041067694"></script>
-<script src="api/albums.js?v=1795041067694"></script>
-<script src="api/studio.js?v=1795041067694"></script>
-<script src="api/adreels.js?v=1795041067694"></script>
-<script src="api/demo-client.js?v=1795041067694"></script>
-<script src="api/demo-projects.js?v=1795041067694"></script>
-<script src="layerpitch-tuto.js?v=1795041067694"></script>
-<script src="layerpitch-guide.js?v=1795041067694"></script>
-<script src="layerpitch-lesson-previews.js?v=1795041067694"></script>
-<script src="projet-lecons.js?v=1795041067694"></script>
-<script src="layerpitch-video-versions.js?v=1795041067694"></script>
-<script src="api/projects.js?v=1795041067694"></script>
-<script src="api/sfx.js?v=1795041067694"></script>
-<script src="projet-carte-audio.js?v=1795041067694"></script>
-<script src="projet-carte.js?v=1795041067694"></script>
+<script src="layerpitch-i18n.js?v=1795041289013"></script>
+<script src="layerpitch-notify.js?v=1795041289013"></script>
+<script src="player.js?v=1795041289013"></script>
+<script src="api/supabase-client.js?v=1795041289013"></script>
+<script src="api/auth.js?v=1795041289013"></script>
+<script src="layerpitch-appearance.js?v=1795041289013"></script>
+<script src="layerpitch-font-picker.js?v=1795041289013"></script>
+<script src="layerpitch-help.js?v=1795041289013"></script>
+<script src="layerpitch-help-engine.js?v=1795041289013"></script>
+<script src="layerpitch-shell.js?v=1795041289013"></script>
+<script src="api/tracks.js?v=1795041289013"></script>
+<script src="api/packs.js?v=1795041289013"></script>
+<script src="api/albums.js?v=1795041289013"></script>
+<script src="api/studio.js?v=1795041289013"></script>
+<script src="api/adreels.js?v=1795041289013"></script>
+<script src="api/demo-client.js?v=1795041289013"></script>
+<script src="api/demo-projects.js?v=1795041289013"></script>
+<script src="layerpitch-tuto.js?v=1795041289013"></script>
+<script src="layerpitch-guide.js?v=1795041289013"></script>
+<script src="layerpitch-lesson-previews.js?v=1795041289013"></script>
+<script src="projet-lecons.js?v=1795041289013"></script>
+<script src="layerpitch-video-versions.js?v=1795041289013"></script>
+<script src="api/projects.js?v=1795041289013"></script>
+<script src="api/sfx.js?v=1795041289013"></script>
+<script src="projet-carte-audio.js?v=1795041289013"></script>
+<script src="projet-carte.js?v=1795041289013"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -922,12 +924,12 @@ function render() {
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
-        ${DEMO || S.appearance == null ? '' : `<button class="btn" data-adv id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
-        ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
+        ${DEMO || S.appearance == null ? '' : `<button class="btn" data-adv data-help="projet_appearanceBtn" id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
+        ${DEMO ? '' : `<button class="btn" data-help="projet_editBtn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
-    <div class="tabs" role="tablist">${visibleTabs().map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
+    <div class="tabs" role="tablist">${visibleTabs().map(t => `<button class="tab" role="tab" type="button" data-help="projet_tab_${t}" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
     <div id="openNotesBox"></div>
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
@@ -1366,7 +1368,7 @@ async function renderBoard(panel) {
       <h2>${esc(tr('boardTitle'))}${sec ? ' · ' + esc(secById(sec).title) : ''}</h2>
       <p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>
       <div class="bar">
-        <select id="addKind" style="max-width:240px">
+        <select id="addKind" data-help="projet_addKind" style="max-width:240px">
           <option value="link">${esc(tr('kind_link'))}</option><option value="note">${esc(tr('kind_note'))}</option>
           <option value="upload">${esc(tr('kind_upload'))}</option>
           ${S.myTracks && S.myTracks.length ? `<option value="track">${esc(tr('kind_track'))}</option>` : ''}
@@ -1384,9 +1386,9 @@ async function renderBoard(panel) {
     ${sec ? '' : `<div class="card" style="margin-top:14px">
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
-      <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
+      <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" data-help="projet_snapBtn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
       <div class="bar" style="margin-top:8px"><label for="autoSnap" style="margin:0">${esc(tr('autoSnapLabel'))}</label>
-        <select id="autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
+        <select id="autoSnap" data-help="projet_autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
         <span class="meta">${esc(tr('autoSnapHint'))}</span></div>
       <div id="snapList" class="scroll-list" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
     </div>`}`;
