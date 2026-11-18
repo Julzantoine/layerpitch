@@ -2132,7 +2132,8 @@ async function renderMusic(panel) {
   if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
   if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
   // Pack déplié : mémorisé (S.openPacks), car la page se redessine seule (autre membre, retour sur l'onglet) et le repliait aussitôt.
-  S.openPacks = S.openPacks || new Set();
+  // Dépliés d'office (retour 18/11 : la musique est le cœur du site) ; seul un repli volontaire est mémorisé.
+  S.collapsedPacks = S.collapsedPacks || new Set();
   const setPackOpen = (id, open) => {
     const box = panel.querySelector('[data-packframe="' + id + '"]'), b = panel.querySelector('[data-expandpack="' + id + '"]');
     if (!box || !b) return;
@@ -2140,9 +2141,9 @@ async function renderMusic(panel) {
     box.hidden = !open;
     b.setAttribute('aria-expanded', String(open));
     b.textContent = tr(open ? 'collapsePack' : 'expandPack');
-    if (open) S.openPacks.add(id); else S.openPacks.delete(id);
+    if (open) S.collapsedPacks.delete(id); else S.collapsedPacks.add(id);
   };
-  panel.querySelectorAll('[data-expandpack]').forEach(b => { b.onclick = () => setPackOpen(b.dataset.expandpack, panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]').hidden); if (S.openPacks.has(b.dataset.expandpack)) setPackOpen(b.dataset.expandpack, true); });
+  panel.querySelectorAll('[data-expandpack]').forEach(b => { b.onclick = () => setPackOpen(b.dataset.expandpack, panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]').hidden); if (!TUTO && !S.collapsedPacks.has(b.dataset.expandpack)) setPackOpen(b.dataset.expandpack, true); });
   panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
   if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
   panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });
