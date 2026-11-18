@@ -15,6 +15,9 @@ function currentLang() { return pageLang; }
 // vrai bouton qui ouvre l'AdReel PRINCIPAL du compositeur dans un nouvel onglet (jamais dans
 // l'iframe elle-même, qui resterait minuscule et coincée sur le site tiers).
 const embedMode = new URLSearchParams(location.search).get('embed') === '1';
+// Page affichée dans l'onglet Musique d'un Projet (?projet=1) : mise en page élargie, sur deux colonnes (retour Joris 18/11).
+// Aucun effet sur la page publique, l'intégration externe ni l'atelier (qui n'ont pas ce paramètre).
+if (new URLSearchParams(location.search).get('projet') === '1') document.body.classList.add('in-projet');
 // Texte bilingue (présentation de pack/collection) : montre la version qui correspond à la langue de
 // la page ; si elle n'a jamais été remplie par le compositeur, on préfère montrer l'autre langue plutôt
 // que rien du tout.
