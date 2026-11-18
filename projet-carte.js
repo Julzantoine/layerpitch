@@ -249,6 +249,16 @@
   function zonesAt(map, x, y) {
     return (map.zones || []).filter(z => zoneContains(z, x, y)).map(z => ({ z, a: zoneArea(z) })).sort((a, b) => a.a - b.a).map(o => o.z);
   }
+  // « Rester dans les zones » (carte à zones, option cochée) : le personnage ne peut pas quitter l'ensemble des zones. Un pas qui sortirait
+  // est ramené en glissant le long du bord (un axe à la fois), sinon le personnage reste où il est. Sans l'option, ou si le personnage est
+  // déjà hors de toute zone (carte modifiée sous ses pieds), rien n'est bloqué.
+  const inAnyZone = (map, x, y) => (map.zones || []).some(z => zoneContains(z, x, y));
+  function constrainToZones(map, from, to) {
+    if (!map || !map.stayInZones || !hasZones(map) || inAnyZone(map, to.x, to.y) || !inAnyZone(map, from.x, from.y)) return { x: to.x, y: to.y, blocked: false };
+    if (inAnyZone(map, to.x, from.y)) return { x: to.x, y: from.y, blocked: true };
+    if (inAnyZone(map, from.x, to.y)) return { x: from.x, y: to.y, blocked: true };
+    return { x: from.x, y: from.y, blocked: true };
+  }
   function moveZone(z, dx, dy) {
     if (z.shape === 'poly') z.points.forEach(p => { p.x = Math.round(p.x + dx); p.y = Math.round(p.y + dy); });
     else { z.x = Math.round(z.x + dx); z.y = Math.round(z.y + dy); }
@@ -431,6 +441,7 @@
     });
     map.roomTone = cleanRef(raw && raw.roomTone);
     if (raw && Number.isFinite(Number(raw.roomToneDb))) map.roomToneDb = Math.max(-60, Math.min(0, Number(raw.roomToneDb)));
+    if (raw && raw.stayInZones === true) map.stayInZones = true; // absent = la balade peut sortir des zones (cartes d'avant)
     map.roomDuckDb = raw && Number.isFinite(Number(raw.roomDuckDb)) ? Math.max(0, Math.min(40, Number(raw.roomDuckDb))) : 0; // baisse du fond quand une musique joue (0 = aucune)
     const dt = cleanTransition(raw && raw.defaults && raw.defaults.transition) || {};
     delete dt.stinger;
@@ -510,7 +521,7 @@
     // Monde ouvert et sous-cartes (27/10)
     ZONE_SHAPES, ZONE_COLORS, MODE_PRESETS, DEFAULT_RADIUS, DEFAULT_SPEED, targetOf, zoneById, modeById, addZone, addPolyZone, removeZone, zoneArea, zoneBounds, zoneCenter, zoneContains, zonesAt,
     moveZone, resizeZone, moveZonePoint, insertZonePoint, removeZonePoint, hasZones, hasCircle, radiusOf, setRadius, circlesAt, modesOf, addMode, nextModePreset, removeMode, speedOf,
-    governorAt, roomAt, setLink, linkAt, trailEnter };
+    governorAt, roomAt, setLink, linkAt, trailEnter, constrainToZones };
 
   // ---------------------------------------------------------------- Éditeur
   const STYLE_ID = 'lpLevelMapStyle';
@@ -637,7 +648,7 @@
     const confirmDlg = ctx.confirm || (m => window.LayerPitchNotify.confirm(m, { okLabel: tr('map_delete'), danger: true }));
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const st = { maps: ctx.maps.map(m => ({ id: m.id, title: m.title, data: normalize(m.data) })), current: null, sel: null, view: { x: 0, y: 0, k: 1 }, connecting: false, linkFrom: null,
-      libTab: 'track', libQuery: '', status: '', dirty: false, play: false, now: null,
+      libTab: (ctx.libUi && ctx.libUi.tab) || 'track', libQuery: (ctx.libUi && ctx.libUi.query) || '', libOpen: (ctx.libUi && ctx.libUi.open) || new Set(), status: '', dirty: false, play: false, now: null,
       // Monde ouvert (27/10) : fil d'Ariane des sous-cartes, forme libre en cours de dessin, réglage de l'image de fond, balade libre.
       trail: [], drawing: null, bgEdit: false, avatar: null, dest: null, modeId: null, freeCombat: false, gov: null };
     st.current = st.maps.length ? (st.maps.some(m => m.id === ctx.openId) ? ctx.openId : st.maps[0].id) : null; // openId : carte à ouvrir d'emblée (lien depuis une section)
@@ -728,7 +739,7 @@
     const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
     function setMaximized(on) {
       if (!!on === !!st.maximized) return;
-      st.maximized = !!on;
+      st.maximized = !!on; st.fsEntered = false;
       host.classList.toggle('lm-max', st.maximized);
       if (st.maximized) {
         const req = host.requestFullscreen || host.webkitRequestFullscreen;
@@ -738,7 +749,12 @@
       const c = host.querySelector('#lmCanvas'); if (c) c.focus();
     }
     // Échap (ou le bouton du navigateur) fait sortir du plein écran : la carte revient à sa place dans la page.
-    const onFsChange = () => { if (st.maximized && fsEl() !== host && !st.leavingFs) { st.maximized = false; host.classList.remove('lm-max'); render(); fit(); } };
+    // Sortie du plein écran = on l'a VU entrer puis disparaître. Un événement « fullscreenchange » qui arrive avant que le navigateur
+    // (Firefox surtout) ait fini d'entrer en plein écran n'est pas une sortie : il refermait la carte aussitôt après le clic.
+    const onFsChange = () => {
+      if (fsEl() === host) { st.fsEntered = true; return; }
+      if (st.maximized && st.fsEntered && !st.leavingFs) { st.fsEntered = false; st.maximized = false; host.classList.remove('lm-max'); render(); fit(); }
+    };
     document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
     function sizeCanvas() {
       const c = host.querySelector('#lmCanvas'); if (!c) return;
@@ -1360,6 +1376,7 @@
           <div class="lm-row"><select id="lmDefStyle"${dis}>${optionsHtml(TRANSITION_STYLES, d.style, 'map_style_')}</select><input type="number" id="lmDefSec" min="0" max="30" step="0.5" value="${d.sec}"${dis} aria-label="${esc(tr('map_seconds'))}"> <span class="meta">${esc(tr('map_seconds'))}</span></div>
           <div class="lm-row" style="margin-top:6px"><select id="lmDefSync"${dis} aria-label="${esc(tr('map_sync'))}">${optionsHtml(SYNCS, d.sync, 'map_sync_')}</select></div>
           <p class="hint" style="margin-top:6px">${esc(tr('map_syncHint'))}</p></div></div>
+        ${hasZones(map) ? `<label class="choice" style="display:flex;gap:6px;align-items:flex-start;margin-top:12px"><input type="checkbox" id="lmStay" ${map.stayInZones ? 'checked' : ''}${dis} style="width:auto;margin-top:3px"> <span>${esc(tr('map_stayInZones'))}<span class="hint" style="display:block;margin:2px 0 0">${esc(tr('map_stayInZonesHint'))}</span></span></label>` : ''}
         <div class="lm-set" style="margin-top:12px">${backgroundSettingsHtml(map)}${modesSettingsHtml(map)}</div>`;
       wireOpenWorldSettings(box, map);
       if (!ctx.canEdit) return;
@@ -1379,6 +1396,8 @@
       db.oninput = () => { map.roomToneDb = Number(db.value); box.querySelector('#lmRoomDb').previousElementSibling.textContent = tr('map_roomToneDb', { db: map.roomToneDb }); if (audio) audio.refreshRoomLevel(); touch(); };
       const duck = box.querySelector('#lmRoomDuck');
       duck.oninput = () => { map.roomDuckDb = Number(duck.value); duck.previousElementSibling.textContent = tr('map_roomDuckDb', { db: map.roomDuckDb }); if (audio) audio.refreshRoomLevel(); touch(); };
+      const stay = box.querySelector('#lmStay');
+      if (stay) stay.onchange = () => { if (stay.checked) map.stayInZones = true; else delete map.stayInZones; touch(); };
       const setDef = (k, v) => { map.defaults.transition = Object.assign({}, map.defaults.transition, { [k]: v }); touch(); renderInspector(); };
       box.querySelector('#lmDefStyle').onchange = e => setDef('style', e.target.value);
       box.querySelector('#lmDefSec').onchange = e => setDef('sec', Math.max(0, Math.min(30, Number(e.target.value) || 0)));
@@ -1586,7 +1605,11 @@
         if (walkKeys.size) { if (walkKeys.has('up')) dy--; if (walkKeys.has('down')) dy++; if (walkKeys.has('left')) dx--; if (walkKeys.has('right')) dx++; }
         else if (st.dest) { dx = st.dest.x - a.x; dy = st.dest.y - a.y; const d = Math.hypot(dx, dy); if (d <= step) { a.x = st.dest.x; a.y = st.dest.y; st.dest = null; dx = dy = 0; drawCanvas(); } }
         const len = Math.hypot(dx, dy);
-        if (len) { a.x += (dx / len) * step; a.y += (dy / len) * step; }
+        if (len) {
+          const r = constrainToZones(map, a, { x: a.x + (dx / len) * step, y: a.y + (dy / len) * step });
+          a.x = r.x; a.y = r.y;
+          if (r.blocked && st.dest && Math.hypot(st.dest.x - a.x, st.dest.y - a.y) > 1) { const r2 = constrainToZones(map, a, { x: st.dest.x, y: st.dest.y }); if (r2.blocked && r2.x === a.x && r2.y === a.y) { st.dest = null; drawCanvas(); } }
+        }
         const el = host.querySelector('#lmAvatar'); if (el) el.setAttribute('transform', `translate(${a.x} ${a.y}) scale(${1 / st.view.k})`);
         if (keepAvatarVisible(false)) drawCanvas();
         followHere(false);
@@ -1678,10 +1701,10 @@
         <div class="lm-tabs">${['track', 'sfx', 'asset'].map(k => `<button class="btn${st.libTab === k ? ' primary' : ''}" type="button" data-lt="${k}">${esc(tr('map_lib_' + k))}</button>`).join('')}</div>
         <input type="search" id="lmSearch" placeholder="${esc(tr('map_search'))}" value="${esc(st.libQuery)}">
         ${total ? body : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
-      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; renderLibrary(); });
-      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); });
+      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; if (ctx.libUi) ctx.libUi.tab = st.libTab; renderLibrary(); });
+      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); }); // st.libOpen est le Set de ctx.libUi : l'état survit à un remontage de la carte
       const search = box.querySelector('#lmSearch');
-      search.oninput = () => { st.libQuery = search.value; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
+      search.oninput = () => { st.libQuery = search.value; if (ctx.libUi) ctx.libUi.query = st.libQuery; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
       box.querySelectorAll('[data-ref]').forEach(el => {
         el.addEventListener('dragstart', ev => { ev.dataTransfer.setData('application/x-lp-sound', el.dataset.ref); ev.dataTransfer.effectAllowed = 'copy'; });
         el.addEventListener('click', () => { st.picked = JSON.parse(el.dataset.ref); box.querySelectorAll('.lm-sound').forEach(x => { x.style.outline = x === el ? '2px solid var(--accent)' : ''; }); renderInspector(); renderSettings(); });
@@ -1690,7 +1713,7 @@
 
     render();
     fit();
-    return { flush, state: st, render, audio, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
+    return { flush, state: st, render, audio, setLibraries(libs) { ctx.libraries = libs; renderLibrary(); }, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
       window.removeEventListener('resize', onResize); document.removeEventListener('fullscreenchange', onFsChange); document.removeEventListener('webkitfullscreenchange', onFsChange);
       if (st.maximized) { st.leavingFs = true; host.classList.remove('lm-max'); if (fsEl() === host && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } } };
   }

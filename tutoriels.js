@@ -4,9 +4,9 @@
 // Thèmes ouverts à tous = LESSON_THEMES_OPEN du Backstage ; les autres restent grisés « bientôt » ; les leçons `adminOnly` ne sont pas montrées.
 (function () {
   const THEMES = [
-    { id: 'engine', titleKey: 'lessonThemeEngine', open: true },
-    { id: 'pitch', titleKey: 'lessonThemePitch', open: true },
-    { id: 'preprod', titleKey: 'lessonThemePreprod', open: false },
+    { id: 'engine', titleKey: 'themeEngineTitle', subKey: 'themeEngineSub', open: true },
+    { id: 'pitch', titleKey: 'themePitchTitle', subKey: 'themePitchSub', open: true },
+    { id: 'preprod', titleKey: 'themePreprodTitle', subKey: 'themePreprodSub', open: false },
   ];
   // [id, thème, clé du titre, clé de la description, réservée aux admins]
   const LESSONS = [
@@ -51,16 +51,23 @@
     let done = {};
     try { done = JSON.parse(localStorage.getItem(DONE_STORAGE) || '{}') || {}; } catch (e) { done = {}; }
     const url = l => './layerpitch-backstage.html?tuto&lesson=' + encodeURIComponent(l.id) + '&lang=' + lang;
-    root.innerHTML = THEMES.map(th => {
+    const fill = (t, n) => t.replace('{n}', n);
+    // Sections repliables (<details>), toutes repliées au départ ; l'état n'est pas mémorisé (chaque visite repart repliée).
+    root.innerHTML = `<div class="bar"><button type="button" data-all="open">${esc(tr('expandAll'))}</button><button type="button" data-all="close">${esc(tr('collapseAll'))}</button></div>` + THEMES.map(th => {
       const items = LESSONS.filter(l => l.theme === th.id && !l.adminOnly);
-      const [main, ...rest] = tr(th.titleKey).split(' : ');
+      const nDone = th.open ? items.filter(l => done[l.id]).length : 0;
+      const parts = [items.length === 1 ? tr('countLesson1') : fill(tr('countLessons'), items.length)];
+      if (!th.open) parts.push(tr('soonBadge')); else if (nDone) parts.push(nDone === 1 ? tr('countDone1') : fill(tr('countDone'), nDone));
       const rows = items.length ? items.map(l => {
         const body = `<div class="row-main"><div class="row-title">${esc(tr(l.titleKey))}</div><div class="row-sub">${esc(tr(l.descKey))}</div></div>`;
         if (!th.open) return `<div class="row is-soon">${body}<span class="pill">${esc(tr('soonBadge'))}</span></div>`;
-        return `<a class="row" href="${esc(url(l))}" data-lesson="${esc(l.id)}">${body}${done[l.id] ? `<span class="pill">${esc(tr('doneBadge'))}</span>` : `<span class="btn">${esc(tr('start'))}</span>`}</a>`;
+        return `<a class="row" href="${esc(url(l))}" data-lesson="${esc(l.id)}">${body}${done[l.id] ? `<span class="pill">${esc(tr('doneBadge'))}</span><span class="btn">${esc(tr('redo'))}</span>` : `<span class="btn">${esc(tr('start'))}</span>`}</a>`;
       }).join('') : `<p class="hint">${esc(tr('themeSoon'))}</p>`;
-      return `<section class="card"><h2>${esc(main)}</h2>${rest.length ? `<p class="hint">${esc(rest.join(' : ').replace(/^./, c => c.toUpperCase()))}</p>` : ''}${rows}</section>`;
+      return `<details class="card theme${th.open ? '' : ' is-soon'}" data-theme="${th.id}"><summary><span class="chev" aria-hidden="true"></span><span class="sum-main"><b>${esc(tr(th.titleKey))}</b><small>${esc(tr(th.subKey))}</small></span><span class="count">${esc(parts.join(' · '))}</span></summary><div class="rows">${rows}</div></details>`;
     }).join('');
+    root.querySelectorAll('[data-all]').forEach(b => b.addEventListener('click', () => {
+      root.querySelectorAll('details.theme').forEach(d => { d.open = b.dataset.all === 'open'; });
+    }));
   }
   window.LayerPitchTutorialsHub = { THEMES, LESSONS, init };
 })();
