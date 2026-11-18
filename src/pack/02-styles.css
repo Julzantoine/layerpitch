@@ -14,6 +14,15 @@
   .preview-mode-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #24262b; color: #f5f6f8; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 8px 16px; letter-spacing: 0.02em; }
   body.has-preview-banner .share-btn { top: 56px; }
   .page { max-width: 760px; margin: 0 auto; }
+  /* Dans un Projet (?projet=1) : toute la largeur, lecteur à gauche et couches/niveaux à droite, pas de bouton de retour. */
+  body.in-projet { padding: 14px 22px 24px; }
+  body.in-projet .page { max-width: none; }
+  body.in-projet .back-link, body.in-projet .share-btn { display: none; }
+  body.in-projet .block { margin-top: 24px; margin-bottom: 28px; }
+  body.in-projet .track-row-details-inner { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); column-gap: 24px; align-items: start; }
+  body.in-projet .track-row-details-inner > * { grid-column: 1; }
+  body.in-projet .track-row-details-inner > .voice-graph { grid-column: 2; grid-row: 1 / span 10; margin-top: 0; }
+  @media (max-width: 560px) { body.in-projet .track-row-details-inner { display: block; } }
   a { color: var(--accent); }
 
   .back-link { display: inline-block; margin-bottom: 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-decoration: none; }
