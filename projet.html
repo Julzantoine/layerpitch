@@ -2631,7 +2631,8 @@ function lockDemo() {
     const v = ((S.demo && S.demo.vitrines) || []).find(x => a.href.includes('id=' + x.id)); if (!v || !v.slug) return;
     a.href = location.origin + '/vitrine/' + encodeURIComponent(v.slug); a.textContent = tr('demoViewShowcase');
   });
-  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled && !el.closest('.lm-wrap, .lm-toolbar, .lp-video-versions')) { // .lp-video-versions : changer de version vidéo = lecture seule, reste actif el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
+  // .lp-video-versions : changer de version vidéo ne modifie rien, le menu reste actif en démo.
+  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled && !el.closest('.lm-wrap, .lm-toolbar, .lp-video-versions')) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
 }
 if (DEMO) {
   document.body.classList.add('demo');
