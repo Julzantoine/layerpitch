@@ -497,7 +497,19 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 9, labelKey: 'lsArrowOut' } },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    // Écoute imposée : pas de « Suivant ». L'étape n'avance que lorsqu'un rebouclage a réellement été entendu (la position de lecture
+    // revient en arrière depuis la fin de la boucle), pas seulement après un clic sur « Prévisualiser ».
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listenTarget: '#libraryDetail [data-role="previewHost"]', clickDone: true,
+      enter: (c) => { c.prevPos = null; c.wrapped = false; },
+      done: (c) => {
+        if (c.wrapped) return true;
+        const row = document.querySelector('#libraryDetail [data-role="previewHost"] .track-row-wrapper');
+        const lp = row && row.lpControl && row.lpControl.loopPosition && row.lpControl.loopPosition();
+        if (!lp) { c.prevPos = null; return false; }
+        if (c.prevPos != null && c.prevPos >= lp.out - 2 && lp.pos < c.prevPos - 0.5) c.wrapped = true;
+        c.prevPos = lp.pos;
+        return c.wrapped;
+      } },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },

@@ -7188,6 +7188,8 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
       refreshPool() { if (!isVerticalRandom) return false; rerollPool(); return true; },
       setLevel(level, sec) { if (lpWaitTimer) { lpPendingRamp = { level, sec }; return; } rampTo(level, sec); },
       isPlaying: () => playing,
+      // Position de lecture dans le fichier et sortie de boucle (secondes) : la leçon « statique » s'en sert pour constater un rebouclage.
+      loopPosition: () => (playing && useQuantizedLoop ? { pos: currentPlaybackOffset(), out: loopOutSec } : null),
       onEnded(cb) { lpEndedCb = cb; },
       elapsed: () => (playing ? Math.max(0, ctx.currentTime - lpPlayStartedAt) : 0),
       // Prochain repère de la grille (mesure, temps, 2 ou 4 mesures) à partir de maintenant, en secondes d'horloge audio ; null si le
