@@ -215,14 +215,19 @@
       }
     } catch (e) { /* hors ligne ou migration pas encore appliquée */ }
   }
+  // La barre du Backstage est posée avant que la session soit relue : on attend la session, et un échec n'est jamais retenu
+  // (on réessaie plutôt que de rester sans « ? » jusqu'au prochain chargement).
   let helpFlagPromise = null;
   function helpFlagAllowed(ctx) {
     if (ctx && ctx.flags) return Promise.resolve(!!ctx.flags.help_toggle);
     if (!helpFlagPromise) helpFlagPromise = (async () => {
       try {
-        const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
-        return !!(data || []).find(f => f.key === 'help_toggle' && f.allowed);
-      } catch (e) { return false; }
+        const { session } = await window.LayerPitchAuth.getSession();
+        if (!session) { helpFlagPromise = null; return null; }
+        const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
+        if (error || !data) { helpFlagPromise = null; return null; }
+        return !!data.find(f => f.key === 'help_toggle' && f.allowed);
+      } catch (e) { helpFlagPromise = null; return null; }
     })();
     return helpFlagPromise;
   }
@@ -253,7 +258,12 @@
   // Pose le bouton dans `place(b)` quand le feu vert est ouvert pour cette personne ; sans session ou feu vert fermé : rien.
   function mountHelpButton(place, ctx) {
     const b = helpButton(); place(b);
-    helpFlagAllowed(ctx).then(ok => { if (ok) { b.hidden = false; helpSyncFromAccount(); } else b.remove(); });
+    const attempt = n => helpFlagAllowed(ctx).then(ok => {
+      if (ok) { b.hidden = false; helpSyncFromAccount(); }
+      else if (ok === null && n < 3 && !ctx) setTimeout(() => attempt(n + 1), 1500 * (n + 1)); // session pas encore prête : on réessaie
+      else b.remove();
+    });
+    attempt(0);
     return b;
   }
   window.addEventListener('storage', e => { if (e.key === HOME_PREFS_LOCAL) helpBroadcast(); });

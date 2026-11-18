@@ -13,6 +13,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms || 30));
     const dom = new JSDOM('<!doctype html><body><nav id="nav"><a class="nav-item">x</a></nav><div id="t" data-help="projet_tab_board" title="natif">Moodboard</div></body>',
       { url: 'https://example.test/projet.html', runScripts: 'outside-only' });
     const w = dom.window;
+    w.LayerPitchAuth = { getSession: () => Promise.resolve({ session: { user: {} } }) };
     w.LayerPitchSupabaseClient = { getClient: () => ({
       rpc: (name, args) => { rpcCalls.push([name, args]); return Promise.resolve({ data: name === 'my_feature_flags' ? [{ key: 'help_toggle', allowed }] : {} }); },
       from: () => ({ select: () => ({ maybeSingle: () => Promise.resolve({ data: { home_prefs: {} } }) }) }),
@@ -87,6 +88,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms || 30));
   check('projet.html charge le moteur', /layerpitch-help-engine\.js/.test(fs.readFileSync('projet.html', 'utf8')));
   check('atelier : source charge le moteur', /layerpitch-help-engine\.js/.test(fs.readFileSync('src/atelier/03-ecran-et-scripts.html', 'utf8')));
   check('Backstage écoute lp-help-change', /addEventListener\('lp-help-change'/.test(fs.readFileSync('src/backstage/48-accueil.js', 'utf8')));
+  // Image de fond : classe posée sur <html> + voile derrière le contenu du Backstage ; le « ? » attend la session avant de lire le feu vert.
+  check('apparence : classe lp-has-bg-image posée avec une image', /classList\.toggle\('lp-has-bg-image', !!img\)/.test(fs.readFileSync('layerpitch-appearance.js', 'utf8')));
+  check('Backstage : voile derrière le contenu quand une image est en fond', /html\.lp-has-bg-image \.backstage-content \{[^}]*color-mix/.test(fs.readFileSync('src/backstage/02-styles.css', 'utf8')));
+  check('« ? » : attend la session avant le feu vert', /LayerPitchAuth\.getSession\(\)[\s\S]{0,200}my_feature_flags/.test(fs.readFileSync('layerpitch-shell.js', 'utf8')));
   console.log(failures ? failures + ' échec(s)' : 'Tous les tests passent.');
   process.exit(failures ? 1 : 0);
 })();
