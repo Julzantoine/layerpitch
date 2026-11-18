@@ -70,3 +70,7 @@
 }
 /* Première bulle de chaque leçon : le tutoriel se fait sur ordinateur. */
 .tour-desktop { font-size: 12.5px; line-height: 1.5; color: var(--text-dim); background: var(--accent-soft, #eef3f9); border-radius: 8px; padding: 8px 10px; margin: 0 0 12px; }
+
+.tour-locknote { margin-top: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(47,128,192,0.12); color: var(--text, inherit); font-size: 12.5px; }
+.tour-card.is-nudged { animation: tour-nudge 0.35s ease; }
+@keyframes tour-nudge { 0%,100% { translate: 0 0; } 25% { translate: -5px 0; } 75% { translate: 5px 0; } }

@@ -81,6 +81,12 @@ const LESSON_SAMPLE_FOLDERS = {
 Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
   LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
 }));
+// Nom vu par l'apprenant -> fichier réel du dossier `tuto/` (le nom change, pas le fichier).
+const LESSON_SAMPLE_ALIASES = {
+  'Jazz 1 Lo_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Lo_Intro1M_9M_110bpm.wav'],
+  'Jazz 2 Hi_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Hi_Intro1M_9M_110bpm.wav'],
+};
+Object.keys(LESSON_SAMPLE_ALIASES).forEach(n => { const [dir, real] = LESSON_SAMPLE_ALIASES[n]; LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(real); });
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -318,7 +324,9 @@ const LESSON_SAMPLE_NAMES = {
   transRock: 'Jazz Hi_Trans Rock City_1M.wav',
   transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
   transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
-  embrLoops: 'Jazz Lo_Intro1M_9M_110bpm.wav, Jazz Hi_Intro1M_9M_110bpm.wav',
+  // Noms affichés avec un numéro : le dépôt de plusieurs fichiers les trie par ordre alphabétique, et « Hi » passerait avant « Lo »
+  // (boucle de référence inversée, retour d'un testeur 18/11). Les fichiers restent ceux du dossier (voir LESSON_SAMPLE_ALIASES).
+  embrLoops: 'Jazz 1 Lo_Intro1M_9M_110bpm.wav, Jazz 2 Hi_Intro1M_9M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
@@ -538,7 +546,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Simple mention (rien à cocher) : volontairement sans zone en surbrillance, qui inciterait à cocher la case.
+    { titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
