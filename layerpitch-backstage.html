@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795043083944">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795043135256">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2370,20 +2370,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1795043083944"></script>
-<script src="layerpitch-i18n.js?v=1795043083944"></script>
-<script src="layerpitch-import-engine.js?v=1795043083944"></script>
-<script src="layerpitch-appearance.js?v=1795043083944"></script>
-<script src="layerpitch-font-picker.js?v=1795043083944"></script>
-<script src="layerpitch-album-shared.js?v=1795043083944"></script>
-<script src="layerpitch-album-editor.js?v=1795043083944"></script>
-<script src="layerpitch-shell.js?v=1795043083944"></script>
-<script src="layerpitch-social-icons.js?v=1795043083944"></script>
-<script src="layerpitch-notify.js?v=1795043083944"></script>
-<script src="layerpitch-guide.js?v=1795043083944"></script>
-<script src="layerpitch-lesson-previews.js?v=1795043083944"></script>
-<script src="layerpitch-help.js?v=1795043083944"></script>
-<script src="player.js?v=1795043083944"></script>
+<script src="layerpitch-tuto.js?v=1795043135256"></script>
+<script src="layerpitch-i18n.js?v=1795043135256"></script>
+<script src="layerpitch-import-engine.js?v=1795043135256"></script>
+<script src="layerpitch-appearance.js?v=1795043135256"></script>
+<script src="layerpitch-font-picker.js?v=1795043135256"></script>
+<script src="layerpitch-album-shared.js?v=1795043135256"></script>
+<script src="layerpitch-album-editor.js?v=1795043135256"></script>
+<script src="layerpitch-shell.js?v=1795043135256"></script>
+<script src="layerpitch-social-icons.js?v=1795043135256"></script>
+<script src="layerpitch-notify.js?v=1795043135256"></script>
+<script src="layerpitch-guide.js?v=1795043135256"></script>
+<script src="layerpitch-lesson-previews.js?v=1795043135256"></script>
+<script src="layerpitch-help.js?v=1795043135256"></script>
+<script src="player.js?v=1795043135256"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19663,7 +19663,6 @@ function switchEssentialsPath(path) {
 const HOME_PREFS_LOCAL = 'lp_home_prefs_v1'; // repli (navigateur) : mêmes clés que profiles.home_prefs
 const HOME_ON_HINT = 'lp_home_on'; // « l'Accueil est ouvert pour moi » : choisit le bon onglet dès le chargement, avant que les feux verts soient connus
 const HOME_NEWS = [ // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
-  { date: "2026-11-19", fr: { title: "Vidéos côté studio", text: "Les studios retrouvent leurs vidéos et leurs montages directement dans leur espace studio." }, en: { title: "Videos on the studio side", text: "Studios find their videos and edits right in their studio space." } },
   { date: "2026-11-19", fr: { title: "Versioning vidéo", text: "Rejoue un même montage avec d'autres morceaux ou Sfx, écoute chaque version sur la vidéo et fais-la relire par ton client." }, en: { title: "Video versioning", text: "Replay the same edit with other tracks or Sfx, listen to each version on the video and have your client review it." } },
   { date: "2026-11-19", fr: { title: "Mode simple ou avancé", text: "Garde un Backstage épuré : les options avancées sont masquées (« N options avancées masquées ») et un interrupteur dans l'Accueil les réaffiche." }, en: { title: "Simple or advanced mode", text: "Keep the Backstage clean: advanced options are hidden (\"N advanced options hidden\") and a switch on the Home page brings them back." } },
   { date: "2026-11-19", fr: { title: "Visites de section", text: "À la première ouverture d'une section (Contenu, Apparence, Bibliothèque, Sfx, Packs, Analytics), une bulle te propose une courte visite guidée." }, en: { title: "Section tours", text: "The first time you open a section (Content, Appearance, Library, Sfx, Packs, Analytics), a bubble offers a short guided tour." } },
