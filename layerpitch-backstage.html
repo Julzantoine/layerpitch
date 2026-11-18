@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794957926978">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795011646314">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2367,20 +2367,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1794957926978"></script>
-<script src="layerpitch-i18n.js?v=1794957926978"></script>
-<script src="layerpitch-import-engine.js?v=1794957926978"></script>
-<script src="layerpitch-appearance.js?v=1794957926978"></script>
-<script src="layerpitch-font-picker.js?v=1794957926978"></script>
-<script src="layerpitch-album-shared.js?v=1794957926978"></script>
-<script src="layerpitch-album-editor.js?v=1794957926978"></script>
-<script src="layerpitch-shell.js?v=1794957926978"></script>
-<script src="layerpitch-social-icons.js?v=1794957926978"></script>
-<script src="layerpitch-notify.js?v=1794957926978"></script>
-<script src="layerpitch-guide.js?v=1794957926978"></script>
-<script src="layerpitch-lesson-previews.js?v=1794957926978"></script>
-<script src="layerpitch-help.js?v=1794957926978"></script>
-<script src="player.js?v=1794957926978"></script>
+<script src="layerpitch-tuto.js?v=1795011646314"></script>
+<script src="layerpitch-i18n.js?v=1795011646314"></script>
+<script src="layerpitch-import-engine.js?v=1795011646314"></script>
+<script src="layerpitch-appearance.js?v=1795011646314"></script>
+<script src="layerpitch-font-picker.js?v=1795011646314"></script>
+<script src="layerpitch-album-shared.js?v=1795011646314"></script>
+<script src="layerpitch-album-editor.js?v=1795011646314"></script>
+<script src="layerpitch-shell.js?v=1795011646314"></script>
+<script src="layerpitch-social-icons.js?v=1795011646314"></script>
+<script src="layerpitch-notify.js?v=1795011646314"></script>
+<script src="layerpitch-guide.js?v=1795011646314"></script>
+<script src="layerpitch-lesson-previews.js?v=1795011646314"></script>
+<script src="layerpitch-help.js?v=1795011646314"></script>
+<script src="player.js?v=1795011646314"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -19293,6 +19293,22 @@ function seedMyExamplesIfNeeded() {
   return examplesSeedPromise;
 }
 async function seedMyExamplesNow() {
+  await seedExampleTracksNow();
+  await seedMyDemoProjectNow();
+}
+// Projet de démonstration (18/11, feu vert example_project, migration 20261118010000) : même principe que les exemples, copié une
+// seule fois dans les Projets du compositeur (le serveur décide : feu vert, accueil terminé, déjà fait). Supprimable d'un clic depuis
+// la liste des Projets ou le Projet lui-même (bouton « Supprimer la démo »).
+async function seedMyDemoProjectNow() {
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
+    if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
+    if (data && data.seeded) {
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+    }
+  } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }
+}
+async function seedExampleTracksNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
     if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }
