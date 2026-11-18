@@ -20,6 +20,12 @@ défaut `og-default.png` (1200 × 630, à la racine du site).
 6. LinkedIn garde les aperçus en mémoire : pour rafraîchir un lien déjà partagé, le coller dans le **Post Inspector**
    (https://www.linkedin.com/post-inspector/) puis « Inspect ».
 
+## Pages de démonstration (18/11)
+Le Projet de démo (`/projet.html?demo`) et l'AdReel de démo de la landing (`/?adreel=demo-fr` ou `demo-en`) ont un aperçu fixe
+(titre + description + `og-default.png`), sans interroger la base. Pour changer le texte : `STATIC_PREVIEWS` dans le Worker, puis
+recoller le fichier dans Cloudflare (Edit code → Deploy). WhatsApp garde les aperçus en mémoire : essayer avec un lien légèrement
+différent (ex. `?demo&v=2`).
+
 ## Pour l'annuler
 Cloudflare → le Worker → **Settings → Domains & Routes** : supprimer la route. Le site redevient exactement comme avant.
 
