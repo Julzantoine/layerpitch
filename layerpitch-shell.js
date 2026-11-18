@@ -177,6 +177,87 @@
     syncCollapseBtn(b);
     return b;
   }
+
+  // ---- Bouton « ? » : aide contextuelle allumée / éteinte (18/11, feu vert help_toggle) ----
+  // Même réglage que « Aide contextuelle » dans les Réglages rapides de l'Accueil (profiles.home_prefs.help_off, repli dans
+  // ce navigateur : lp_home_prefs_v1). Posé à côté du bouton de repli de la barre : visible sur toutes les pages qui ont la
+  // barre, Backstage compris (l'Atelier, dans son cadre du Backstage, suit par l'événement « storage » et par un message).
+  // Les bulles elles-mêmes : Backstage = son propre moteur (12-bulles-d-aide.js), autres pages = layerpitch-help-engine.js.
+  const HOME_PREFS_LOCAL = 'lp_home_prefs_v1';
+  function helpIsOff() {
+    try { return !!(JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}).help_off; } catch (e) { return false; }
+  }
+  function helpBroadcast() {
+    const off = helpIsOff();
+    document.querySelectorAll('.lp-help-btn').forEach(syncHelpBtn);
+    window.dispatchEvent(new CustomEvent('lp-help-change', { detail: { off } }));
+    document.querySelectorAll('iframe').forEach(f => { try { f.contentWindow.postMessage({ source: 'lp-shell', type: 'help', off }, '*'); } catch (e) { /* cadre fermé */ } });
+  }
+  function helpSetOff(off) {
+    try { const cur = JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}; cur.help_off = !!off; localStorage.setItem(HOME_PREFS_LOCAL, JSON.stringify(cur)); } catch (e) { /* stockage indisponible : le temps de la page */ }
+    helpBroadcast();
+    try {
+      const c = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+      if (c && !new URLSearchParams(location.search).has('tuto') && !new URLSearchParams(location.search).has('demo')) Promise.resolve(c.rpc('set_my_home_prefs', { p: { help_off: !!off } })).catch(() => { /* le choix reste dans ce navigateur */ });
+    } catch (e) { /* idem */ }
+  }
+  // Le compte fait foi : au chargement, on recopie son choix dans ce navigateur (les autres pages et l'Atelier le lisent ici).
+  let helpSynced = false;
+  async function helpSyncFromAccount() {
+    if (helpSynced) return; helpSynced = true;
+    try {
+      const c = window.LayerPitchSupabaseClient.getClient();
+      const { data, error } = await c.from('profiles').select('home_prefs').maybeSingle();
+      if (error || !data || !data.home_prefs || typeof data.home_prefs.help_off !== 'boolean') return;
+      if (data.home_prefs.help_off !== helpIsOff()) {
+        const cur = JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}; cur.help_off = data.home_prefs.help_off;
+        localStorage.setItem(HOME_PREFS_LOCAL, JSON.stringify(cur)); helpBroadcast();
+      }
+    } catch (e) { /* hors ligne ou migration pas encore appliquée */ }
+  }
+  let helpFlagPromise = null;
+  function helpFlagAllowed(ctx) {
+    if (ctx && ctx.flags) return Promise.resolve(!!ctx.flags.help_toggle);
+    if (!helpFlagPromise) helpFlagPromise = (async () => {
+      try {
+        const { data } = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
+        return !!(data || []).find(f => f.key === 'help_toggle' && f.allowed);
+      } catch (e) { return false; }
+    })();
+    return helpFlagPromise;
+  }
+  const HELP_CSS = `
+  .lp-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; flex: 0 0 auto;
+    border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-help-btn:hover { background: rgba(47, 128, 192, .08); border-color: var(--border, #e2e2e6); color: var(--accent, #2f80c0); }
+  .lp-help-btn[aria-pressed="true"] { background: rgba(47, 128, 192, .14); border-color: var(--accent, #2f80c0); color: var(--accent, #2f80c0); }
+  .lp-nav-top .lp-help-btn { margin-left: auto; margin-right: 4px; }
+  .lp-help-btn-own { display: flex; margin: -6px -4px 8px auto; }
+  html.lp-sidebar-collapsed .lp-help-btn-own { margin: 0 auto 10px; }
+  html.lp-sidebar-collapsed .lp-nav-top .lp-help-btn { margin: 4px 0 0; }
+  html.lp-sidebar-collapsed .lp-nav-top { flex-wrap: wrap; }`;
+  function syncHelpBtn(b) {
+    const on = !helpIsOff(), label = tr(on ? 'helpOn' : 'helpOff');
+    b.setAttribute('aria-pressed', String(on)); b.title = label; b.setAttribute('aria-label', label);
+  }
+  function helpButton() {
+    if (!document.getElementById('lpHelpCss')) {
+      const st = document.createElement('style'); st.id = 'lpHelpCss'; st.textContent = HELP_CSS; document.head.appendChild(st);
+    }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lp-help-btn'; b.hidden = true;
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg>';
+    b.addEventListener('click', () => helpSetOff(!helpIsOff()));
+    syncHelpBtn(b);
+    return b;
+  }
+  // Pose le bouton dans `place(b)` quand le feu vert est ouvert pour cette personne ; sans session ou feu vert fermé : rien.
+  function mountHelpButton(place, ctx) {
+    const b = helpButton(); place(b);
+    helpFlagAllowed(ctx).then(ok => { if (ok) { b.hidden = false; helpSyncFromAccount(); } else b.remove(); });
+    return b;
+  }
+  window.addEventListener('storage', e => { if (e.key === HOME_PREFS_LOCAL) helpBroadcast(); });
+
   // Barre repliée : le libellé caché d'une rubrique apparaît en infobulle au survol (calculé au moment du survol, pour
   // suivre la langue affichée ; une infobulle déjà prévue par la page n'est jamais remplacée).
   function wireCollapsedTooltips(nav, selector) {
@@ -193,6 +274,7 @@
     if (!nav || nav.querySelector(':scope > .lp-collapse-btn')) return;
     const b = collapseButton(); b.classList.add('lp-collapse-btn-own');
     nav.insertBefore(b, nav.firstChild);
+    mountHelpButton(hb => { hb.classList.add('lp-help-btn-own'); nav.insertBefore(hb, b.nextSibling); });
     wireCollapsedTooltips(nav, selector || 'a, button');
   }
 
@@ -499,6 +581,7 @@
     html += `<div class="lp-nav-foot"><button type="button" id="lpSignOut">${esc(tr('signOut'))}</button></div>`;
     nav.innerHTML = html;
     nav.querySelector('.lp-nav-top').appendChild(collapseButton());
+    mountHelpButton(hb => nav.querySelector('.lp-nav-top').insertBefore(hb, nav.querySelector('.lp-collapse-btn')), state.ctx);
     nav.querySelectorAll('a.lp-item').forEach(a => a.addEventListener('click', e => {
       const url = new URL(a.href);
       if (state.navHandler && url.pathname === location.pathname && state.navHandler(url) === true) {
@@ -645,5 +728,5 @@
     if (window.LayerPitchAuth.onAuthStateChange) window.LayerPitchAuth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN') resumeTrack(session); });
   }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();
