@@ -96,6 +96,6 @@ async function fetchSiteData() {
   if (error) throw new Error('Aucune session active — connecte-toi avant de recharger (' + error + ').');
   loadedComposerId = composerId; // clé du brouillon automatique (un par compte)
   await seedMyExamplesIfNeeded(); // exemples préchargés (4/11, 45-exemples.js) : copiés une fois, AVANT la lecture
-  return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId, { withContacts: true });
 }
 

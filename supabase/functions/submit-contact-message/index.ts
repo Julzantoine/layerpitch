@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { adReelId, packId, albumId, handle, name, email, message } = await req.json();
+    const { adReelId, ownerId, packId, albumId, handle, name, email, message } = await req.json();
     const shopKind = typeof packId === 'string' && packId ? 'pack' : (typeof albumId === 'string' && albumId ? 'album' : (typeof handle === 'string' && handle ? 'composer' : null));
     if (!shopKind && (!adReelId || typeof adReelId !== 'string')) {
       return new Response(JSON.stringify({ error: 'adReelId, packId, albumId ou handle manquant.' }), {
@@ -151,9 +151,11 @@ Deno.serve(async (req) => {
         adReelLabel = `Shop · ${album.title || albumId}`; logRef = `album:${albumId}`;
       }
       if (ownerComposerId) {
-        const { data: main } = await adminClient.from('ad_reels').select('profile').eq('owner_id', ownerComposerId).order('created_at').limit(50);
-        const withContact = (main || []).find((r: { profile: { contactEmail?: string } }) => r.profile && typeof r.profile.contactEmail === 'string' && r.profile.contactEmail.trim());
-        if (withContact) recipientEmail = withContact.profile.contactEmail.trim();
+        // Adresse de contact privée (ad_reel_contacts, 18/11, audit sécurité I1) : celle de l'AdReel principal d'abord.
+        const { data: contacts } = await adminClient.from('ad_reel_contacts').select('ad_reel_id, email').eq('owner_id', ownerComposerId).limit(50);
+        const list = (contacts || []).filter((c: { email?: string }) => typeof c.email === 'string' && c.email.trim());
+        const pick = list.find((c: { ad_reel_id: string }) => c.ad_reel_id === 'main') || list[0];
+        if (pick) recipientEmail = pick.email.trim();
       }
       if (!recipientEmail && sellerProfileId) {
         const { data: u } = await adminClient.auth.admin.getUserById(sellerProfileId);
@@ -161,18 +163,21 @@ Deno.serve(async (req) => {
       }
       if (!recipientEmail) return new Response(JSON.stringify({ error: 'Ce vendeur ne peut pas être contacté pour le moment.' }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } else {
-      const { data: adReel, error: adReelError } = await adminClient
-        .from('ad_reels')
-        .select('owner_id, label, profile')
-        .eq('id', adReelId)
-        .maybeSingle();
+      // Le même identifiant (« main ») existe chez chaque compositeur : ownerId (envoyé par la page, 18/11) désigne
+      // lequel. Il ne choisit pas le destinataire : l'adresse reste celle que CE compositeur a configurée pour CET AdReel.
+      // Sans ownerId (ancienne page encore en cache) : accepté seulement si l'identifiant est unique.
+      let adReelQuery = adminClient.from('ad_reels').select('owner_id, label').eq('id', adReelId);
+      if (typeof ownerId === 'string' && /^[0-9a-f-]{36}$/i.test(ownerId)) adReelQuery = adReelQuery.eq('owner_id', ownerId);
+      const { data: adReelRows, error: adReelError } = await adReelQuery.limit(2);
+      const adReel = adReelRows && adReelRows.length === 1 ? adReelRows[0] : null;
       if (adReelError || !adReel) {
         return new Response(JSON.stringify({ error: 'AdReel introuvable.' }), {
           status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      recipientEmail = adReel.profile && typeof adReel.profile.contactEmail === 'string'
-        ? adReel.profile.contactEmail.trim() : '';
+      const { data: contact } = await adminClient.from('ad_reel_contacts').select('email')
+        .eq('owner_id', adReel.owner_id).eq('ad_reel_id', adReelId).maybeSingle();
+      recipientEmail = contact && typeof contact.email === 'string' ? contact.email.trim() : '';
       if (!recipientEmail) {
         return new Response(JSON.stringify({ error: 'Ce compositeur n\'a pas configuré d\'email de contact.' }), {
           status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

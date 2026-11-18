@@ -30,12 +30,30 @@
 
   // opts.ownerId : voir le commentaire équivalent dans api/tracks.js (listTracks) — même correctif
   // d'isolation multi-compositeur.
+  // opts.withContacts (Backstage, 18/11) : remet l'e-mail de contact (table privée ad_reel_contacts, lisible par le seul
+  // propriétaire) dans profile.contactEmail, comme avant. Les pages publiques ne le demandent jamais : elles n'ont que
+  // profile.hasContact (audit sécurité du 16/11, I1).
   async function listAdReels(opts) {
     let query = getClient().from('ad_reels').select(AD_REEL_SELECT);
     if (opts && opts.ownerId) query = query.eq('owner_id', opts.ownerId);
     const { data, error } = await query;
     if (error) return { adReels: null, error: error.message };
-    return { adReels: data.map(reshapeAdReel), error: null };
+    const adReels = data.map(reshapeAdReel);
+    if (opts && opts.withContacts) {
+      let cq = getClient().from('ad_reel_contacts').select('owner_id, ad_reel_id, email');
+      if (opts.ownerId) cq = cq.eq('owner_id', opts.ownerId);
+      const { data: contacts, error: cErr } = await cq;
+      // (Une adresse encore dans le profil — faux serveur du tutoriel — est gardée telle quelle.)
+      // Lecture impossible : on s'arrête plutôt que de laisser le Backstage croire l'adresse vide (il l'effacerait en
+      // enregistrant).
+      if (cErr) return { adReels: null, error: cErr.message };
+      const byKey = {};
+      (contacts || []).forEach(c => { byKey[c.owner_id + '/' + c.ad_reel_id] = c.email; });
+      adReels.forEach(ar => {
+        if (ar.profile && typeof ar.profile === 'object') ar.profile = Object.assign({}, ar.profile, { contactEmail: byKey[ar.ownerId + '/' + ar.id] || ar.profile.contactEmail || '' });
+      });
+    }
+    return { adReels, error: null };
   }
 
   // ownerId obligatoire depuis le renommage de clé (owner_id, id) — un id d'AdReel seul (ex. 'main')

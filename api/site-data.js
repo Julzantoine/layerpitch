@@ -27,7 +27,8 @@
 // des tables singleton globales, corrigé une fois la lacune confirmée par Jules-Antoine — voir
 // api/settings.js et supabase/migrations/20260901170000_settings_socials_per_composer.sql).
 (function () {
-  async function loadSiteDataFromPostgres(ownerId) {
+  // opts.withContacts : Backstage seulement (e-mails de contact privés, voir api/adreels.js listAdReels).
+  async function loadSiteDataFromPostgres(ownerId, opts) {
     if (!ownerId) throw new Error('loadSiteDataFromPostgres() : ownerId obligatoire (isolation multi-compositeur).');
     const [tracksRes, packsRes, collectionsRes, sfxRes, settingsRes, socialsRes, adReelsRes,
            trackFoldersRes, sfxFoldersRes, adReelFoldersRes] = await Promise.all([
@@ -37,7 +38,7 @@
       window.LayerPitchSfx.listSfx({ ownerId }),
       window.LayerPitchSettings.getSettings(ownerId),
       window.LayerPitchSettings.listSocials(ownerId),
-      window.LayerPitchAdReels.listAdReels({ ownerId }),
+      window.LayerPitchAdReels.listAdReels({ ownerId, withContacts: !!(opts && opts.withContacts) }),
       window.LayerPitchTracks.listTrackFolders({ ownerId }),
       window.LayerPitchSfx.listSfxFolders({ ownerId }),
       window.LayerPitchAdReels.listAdReelFolders({ ownerId }),

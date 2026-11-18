@@ -36,8 +36,8 @@ const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + 
   const els = [...doc.querySelectorAll('*')];
   check('aucun attribut onerror ajouté par un nom d\'image', !els.some(e => e.hasAttribute('onerror')));
   check('aucun attribut data-x ajouté par un nom d\'image', !els.some(e => e.hasAttribute('data-x')));
-  check('pied de page : lien et e-mail piégés sans attribut ajouté, lien jamais en javascript:',
-    !els.some(e => e.hasAttribute('onmouseover') || e.hasAttribute('onclick')) && [...doc.querySelectorAll('a')].every(a => !/^javascript:/i.test(a.getAttribute('href'))) && doc.querySelectorAll('a[href^="mailto:"]').length === 1);
+  check('pied de page : lien piégé sans attribut ajouté, jamais en javascript:, e-mail jamais affiché',
+    !els.some(e => e.hasAttribute('onmouseover') || e.hasAttribute('onclick')) && [...doc.querySelectorAll('a')].every(a => !/^javascript:/i.test(a.getAttribute('href'))) && doc.querySelectorAll('a[href^="mailto:"]').length === 0);
   const imgs = [...doc.querySelectorAll('img')];
   check('chaque image pointe vers les médias LayerPitch, nom piégé compris tel quel',
     imgs.length > 0 && imgs.every(i => i.getAttribute('src') === 'https://media.layerpitch.com/images/' + EVIL));

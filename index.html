@@ -8,10 +8,10 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title data-i18n="pageTitle">LayerPitch</title>
-<link rel="stylesheet" href="player.css?v=1795041199074">
+<link rel="stylesheet" href="player.css?v=1795041797323">
 <!-- Styles des blocs et de la page : fichier commun avec les vitrines de Projet (reel.css, 28/09). -->
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795041199074">
-<link rel="stylesheet" href="reel.css?v=1795041199074">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795041797323">
+<link rel="stylesheet" href="reel.css?v=1795041797323">
 <script>
   // Umami chargé dynamiquement et sauté en mode aperçu (?preview=1) -- voir le commentaire équivalent
   // dans pack.html.
@@ -96,12 +96,12 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
-<script src="layerpitch-i18n.js?v=1795041199074"></script>
-<script src="public-page.js?v=1795041199074"></script>
-<script src="player.js?v=1795041199074"></script>
-<script src="layerpitch-social-icons.js?v=1795041199074"></script>
-<script src="layerpitch-video-versions.js?v=1795041199074"></script>
-<script src="reel.js?v=1795041199074"></script>
+<script src="layerpitch-i18n.js?v=1795041797323"></script>
+<script src="public-page.js?v=1795041797323"></script>
+<script src="player.js?v=1795041797323"></script>
+<script src="layerpitch-social-icons.js?v=1795041797323"></script>
+<script src="layerpitch-video-versions.js?v=1795041797323"></script>
+<script src="reel.js?v=1795041797323"></script>
 <script>
 const { section, escapeHtml, linkify, renderTracksBlock, setupContrastToggle, setupNightModeToggle } = window.LayerPlayerCore;
 
@@ -393,14 +393,14 @@ async function init() {
       trackIds: adReel.trackIds, trackOverrides: adReel.trackOverrides, libraryById, packsByTrackId, packsById, collectionsById, sfxById,
       socials: data.socials, noAiCertifiedGlobal: data.noAiCertifiedGlobal });
 
-    if (!embedMode && (profile.contactUrl || profile.contactEmail)) {
-      // Sécurité (audit 16/11) : site et e-mail viennent du compositeur -- échappés, et le lien ne peut être qu'une adresse
-      // web (« javascript:… » ou autre devient une adresse https:// inoffensive).
+    // Pied de page : le site du compositeur seulement. Son e-mail n'est plus jamais affiché ni lisible par les visiteurs
+    // (audit sécurité 16/11, I1, décision du 17/11) : on le joint par le bloc Contact, qui relaie le message.
+    if (!embedMode && profile.contactUrl) {
+      // Sécurité (audit 16/11) : le site vient du compositeur -- échappé, et le lien ne peut être qu'une adresse web
+      // (« javascript:… » ou autre devient une adresse https:// inoffensive).
       const contactHref = u => /^https?:\/\//i.test(u) ? u : 'https://' + u;
-      document.getElementById('contact').innerHTML = [
-        profile.contactUrl ? `<a href="${escapeHtml(contactHref(String(profile.contactUrl).trim()))}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(profile.contactUrl).replace(/^https?:\/\//, ''))}</a>` : '',
-        profile.contactEmail ? `<a href="mailto:${escapeHtml(profile.contactEmail)}">${escapeHtml(profile.contactEmail)}</a>` : ''
-      ].filter(Boolean).join(' &nbsp;/&nbsp; ');
+      document.getElementById('contact').innerHTML =
+        `<a href="${escapeHtml(contactHref(String(profile.contactUrl).trim()))}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(profile.contactUrl).replace(/^https?:\/\//, ''))}</a>`;
     }
     // Bouton "Intégrer" public (data.embedAllowed.adreels, liste de morceaux d'AdReel uniquement) : voir le
     // commentaire équivalent dans pack.html. Absent si cet AdReel n'a aucun bloc "Morceaux" (rien à
@@ -524,8 +524,8 @@ document.addEventListener('keydown', e => {
 
 window.addEventListener('load', init);
 </script>
-<script src="layerpitch-guide.js?v=1795041199074"></script>
-<script src="adreel-demo-tour.js?v=1795041199074"></script>
-<script src="layerpitch-preview-tuto.js?v=1795041199074"></script>
+<script src="layerpitch-guide.js?v=1795041797323"></script>
+<script src="adreel-demo-tour.js?v=1795041797323"></script>
+<script src="layerpitch-preview-tuto.js?v=1795041797323"></script>
 </body>
 </html>
