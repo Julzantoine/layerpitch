@@ -10,10 +10,10 @@
 (function () {
   // Références musicales à déposer dans le Moodboard (une par service, pour montrer la reconnaissance automatique).
   // Format : { label, value (adresse) }. Décidé le 20/10 : un lien YouTube et un lien Spotify ; choisis le 02/11 pour « Music City »
-  // (Hi-Fi Rush : tout le monde bat au rythme de la musique ; Persona 5 : jazz urbain de nuit). Image du Moodboard : LESSON_IMAGES.
+  // (refait le 18/11 pour « Dernier Étage » : Chernobyl en YouTube, Silent Hill 2 en Spotify). Image du Moodboard : LESSON_IMAGES.
   const LESSON_LINKS = [
-    { label: 'Hi-Fi Rush (YouTube)', value: 'https://www.youtube.com/watch?v=O2i1Vq3Odbg' },
-    { label: 'Persona 5 OST (Spotify)', value: 'https://open.spotify.com/album/4pJT0WKggr4xk149X8A6KC' },
+    { label: 'Chernobyl : « Bridge of Death » (YouTube)', value: 'https://www.youtube.com/watch?v=aM_HhU_CV44' },
+    { label: 'Silent Hill 2 : bande originale (Spotify)', value: 'https://open.spotify.com/album/5XjZ6xhbPbALPVGd5Zx0Cw' },
   ];
   const LESSON_IMAGES = []; // [{ label, name, url }]
 
@@ -71,9 +71,9 @@
       'pj-create': [
         { titleKey: 'plCreateWelcomeTitle', textKey: 'plCreateWelcomeText' },
         { selector: '#newTitle', titleKey: 'plCreateNameTitle', textKey: 'plCreateNameText', done: () => hasText('newTitle'),
-          drops: [{ kind: 'text', label: 'Music City', value: 'Music City' }] },
+          drops: [{ kind: 'text', label: 'Dernier Étage', value: 'Dernier Étage' }] },
         { selector: '#newDesc', titleKey: 'plCreateDescTitle', textKey: 'plCreateDescText', done: () => hasText('newDesc'),
-          drops: [{ kind: 'text', label: 'Jeu d’exploration musicale. Quatre villes, un style par ville, un seul tempo.', value: 'Jeu d’exploration musicale. Quatre villes, un style par ville, un seul tempo.' }] },
+          drops: [{ kind: 'text', label: 'Jeu d’horreur psychologique sur le burn-out en entreprise.', value: 'Jeu d’horreur psychologique sur le burn-out en entreprise.' }] },
         { selector: '#createBtn', titleKey: 'plCreateBtnTitle', textKey: 'plCreateBtnText', clickDone: true, done: () => !!document.querySelector('a.row') },
         { selector: 'a.row', titleKey: 'plCreateDoneTitle', textKey: 'plCreateDoneText', final: true },
       ],
@@ -84,11 +84,11 @@
       'pj-chat': [
         { titleKey: 'plChatWelcomeTitle', textKey: 'plChatWelcomeText' },
         { selector: '#newMsg', titleKey: 'plChatWriteTitle', textKey: 'plChatWriteText', done: () => hasText('newMsg'),
-          drops: [{ kind: 'text', label: 'On valide la carte jeudi ?', value: 'On valide la carte jeudi ?' }] },
+          drops: [{ kind: 'text', label: 'On valide la version A pour jeudi ?', value: 'On valide la version A pour jeudi ?' }] },
         { selector: '#sendBtn', titleKey: 'plChatSendTitle', textKey: 'plChatSendText', clickDone: true },
         { selector: '#chanSel', titleKey: 'plChatChannelTitle', textKey: 'plChatChannelText', done: () => !!S.chan },
         { selector: '#newMsg', titleKey: 'plChatSectionWriteTitle', textKey: 'plChatSectionWriteText', done: () => hasText('newMsg'),
-          drops: [{ kind: 'text', label: 'Ici, on reste feutré : contrebasse et balais.', value: 'Ici, on reste feutré : contrebasse et balais.' }] },
+          drops: [{ kind: 'text', label: 'Pour le test de jeudi, on compare A et B sur la même image.', value: 'Pour le test de jeudi, on compare A et B sur la même image.' }] },
         { selector: '#sendBtn', titleKey: 'plChatSendTitle', textKey: 'plChatSectionSendText', done: () => secMsgCount() > 0 },
         { titleKey: 'plChatDoneTitle', textKey: 'plChatDoneText', final: true },
       ],
@@ -105,20 +105,20 @@
       'pj-annotate': [
         { titleKey: 'plAnnWelcomeTitle', textKey: 'plAnnWelcomeText' },
         { selector: '.tab[data-tab="videos"]', titleKey: 'plAnnTabTitle', textKey: 'plAnnTabText', done: () => S.tab === 'videos' },
-        // Chaque geste est exigé (05/11) : la musique 2, la pause quand la batterie arrive (~9 s), la note adressée à Joshua.
+        // Chaque geste est exigé (05/11) : la version alternative, la pause quand la 2e couche arrive (~17 s, photocopieuse), la note adressée à Karim.
         { selector: '#montageGrid .lp-video-versions select', titleKey: 'plAnnVersionTitle', textKey: 'plAnnVersionText',
           done: () => { const sel = document.querySelector('#montageGrid .lp-video-versions select'); return !!(sel && sel.value && sel.value !== 'original'); } },
         { selector: '#montageGrid video', titleKey: 'plAnnPlayTitle', textKey: 'plAnnPlayText',
-          done: () => { const v = document.querySelector('#montageGrid video'); return !!(v && v.paused && v.currentTime >= 7 && v.currentTime <= 14); } },
+          done: () => { const v = document.querySelector('#montageGrid video'); return !!(v && v.paused && v.currentTime >= 16 && v.currentTime <= 22); } },
         { selector: '#montageGrid [data-act="notes"]', titleKey: 'plAnnOpenTitle', textKey: 'plAnnOpenText',
           done: () => !!document.querySelector('#montageGrid [data-role="noteHere"]') },
         { selector: '#montageGrid [data-role="noteHere"]', titleKey: 'plAnnHereTitle', textKey: 'plAnnHereText',
           done: () => { const l = document.querySelector('#montageGrid [data-role="noteAtLabel"]'); return !!(l && l.textContent.trim()); } },
         { selector: '#montageGrid [data-role="noteBody"]', titleKey: 'plAnnBodyTitle', textKey: 'plAnnBodyText',
           done: () => { const t = document.querySelector('#montageGrid [data-role="noteBody"]'); return !!(t && t.value.trim().length > 3); },
-          drops: [label('Ici, la batterie arrive un peu tôt : on aimerait qu’elle attende que la salle soit pleine.')] },
+          drops: [label('Ici, la deuxième couche entre pile à la photocopieuse : on la voudrait un peu plus tôt.')] },
         { selector: '#montageGrid [data-role="noteTo"]', titleKey: 'plAnnToTitle', textKey: 'plAnnToText',
-          done: () => { const sel = document.querySelector('#montageGrid [data-role="noteTo"]'); const o = sel && sel.selectedOptions && sel.selectedOptions[0]; return !!(o && /joshua/i.test(o.textContent)); } },
+          done: () => { const sel = document.querySelector('#montageGrid [data-role="noteTo"]'); const o = sel && sel.selectedOptions && sel.selectedOptions[0]; return !!(o && /karim/i.test(o.textContent)); } },
         { selector: '#montageGrid [data-role="noteAdd"]', titleKey: 'plAnnAddTitle', textKey: 'plAnnAddText',
           done: () => !!document.querySelector('#montageGrid [data-note]') },
         { titleKey: 'plAnnDoneTitle', textKey: 'plAnnDoneText', final: true },
@@ -128,9 +128,9 @@
         { selector: '.tab[data-tab="board"]', titleKey: 'plBoardTabTitle', textKey: 'plBoardTabText', done: () => S.tab === 'board' },
         { selector: '#addKind', titleKey: 'plBoardKindTitle', textKey: 'plBoardKindText', done: () => $('addKind') && $('addKind').value === 'note' },
         { selector: '#fTitle', titleKey: 'plBoardNoteTitleTitle', textKey: 'plBoardNoteTitleText', done: () => hasText('fTitle'),
-          drops: [{ kind: 'text', label: 'Le bar du club', value: 'Le bar du club' }] },
+          drops: [{ kind: 'text', label: 'La photocopieuse', value: 'La photocopieuse' }] },
         { selector: '#fBody', titleKey: 'plBoardNoteBodyTitle', textKey: 'plBoardNoteBodyText', done: () => hasText('fBody'),
-          drops: [{ kind: 'text', label: 'Au bar : les glaçons dans les verres, par-dessus la musique.', value: 'Au bar : les glaçons dans les verres, par-dessus la musique.' }] },
+          drops: [{ kind: 'text', label: 'Un bruit régulier et mécanique qui rythme la journée de bureau.', value: 'Un bruit régulier et mécanique qui rythme la journée de bureau.' }] },
         { selector: '#addBtn', titleKey: 'plBoardAddTitle', textKey: 'plBoardAddText', clickDone: true },
         // Déposer un lien (YouTube, Spotify…) : reconnu automatiquement, lecteur intégré. Sauté tant que le kit est vide.
         { selector: '#grid', titleKey: 'plBoardLinkTitle', textKey: 'plBoardLinkText', skip: () => !LESSON_LINKS.length,
@@ -149,48 +149,67 @@
       { selector: '.tab[data-tab="map"]', titleKey: 'plMapTabTitle', textKey: 'plMapTabText', done: () => S.tab === 'map' },
       { selector: '#lmNew', titleKey: 'plMapNewTitle', textKey: 'plMapNewText', clickDone: true },
       { selector: '#lmAskOverlay input', titleKey: 'plMapNameTitle', textKey: 'plMapNameText', done: () => { const i = document.querySelector('#lmAskOverlay input'); return !!i && i.value.trim().length > 1; },
-        drops: [label('Music City')] },
+        drops: [label('Niveau 1 : le bureau, le couloir, les archives')] },
       { selector: '#lmAskOverlay [type="submit"]', titleKey: 'plMapCreateTitle', textKey: 'plMapCreateText', done: () => !!$('lmSettings') },
       // Ambiance générale : un fond sonore qui tourne sous toute la carte (sauté tant que le fichier n'est pas fourni).
       { selector: '#lmSettings summary', titleKey: 'plMapSettingsTitle', textKey: 'plMapSettingsText', skip: () => !hasAmbiance(), done: () => !!($('lmSettings') && $('lmSettings').open) },
       { selector: '#lmRoomZone', titleKey: 'plMapAmbianceTitle', textKey: 'plMapAmbianceText', skip: () => !hasAmbiance(), done: () => !!document.querySelector('#lmRoomZone .lm-sound'), drops: fileDrops(MAP_AMBIANCE) },
-      // Les lieux : le début de niveau est Jazz City ; puis Rock City, le carrefour, qui mène à Disco City (sa boîte de nuit est au niveau 2) et à Synth City.
+      // Les lieux (18/11, carte du projet de démo « Dernier Étage ») : le bureau au départ, l'ascenseur, le couloir, la salle d'archives.
       { selector: '[data-add="start"]', titleKey: 'plMapStartTitle', textKey: 'plMapStartText', done: () => nodeCount() >= 1 },
-      labelStep('start', 'Jazz City'),
+      labelStep('start', 'Bureau'),
       { selector: '[data-add="place"]', titleKey: 'plMapPlaceTitle', textKey: 'plMapPlaceText', done: () => nodeCount() >= 2 },
-      labelStep('rock', 'Rock City'),
+      labelStep('lift', 'Ascenseur'),
       { selector: '[data-add="place"]', titleKey: 'plMapPlace2Title', textKey: 'plMapPlace2Text', done: () => nodeCount() >= 3 },
-      labelStep('disco', 'Disco City'),
-      { selector: '#lmNote', titleKey: 'plMapManorNoteTitle', textKey: 'plMapManorNoteText', done: () => !!($('lmNote') && /niveau 2/i.test($('lmNote').value)),
-        drops: [{ kind: 'text', label: 'La boîte de nuit de Disco City : sa carte est au niveau 2.', value: 'La boîte de nuit de Disco City : sa carte est au niveau 2.' }] },
+      labelStep('hall', 'Couloir'),
+      { selector: '#lmNote', titleKey: 'plMapManorNoteTitle', textKey: 'plMapManorNoteText', done: () => !!($('lmNote') && /lumières éteintes/i.test($('lmNote').value)),
+        drops: [{ kind: 'text', label: 'On déambule, lumières éteintes. Un seul drone.', value: 'On déambule, lumières éteintes. Un seul drone.' }] },
       { selector: '[data-add="place"]', titleKey: 'plMapPlace3Title', textKey: 'plMapPlace3Text', done: () => nodeCount() >= 4 },
-      labelStep('synth', 'Synth City'),
+      labelStep('archives', "Salle d'archives"),
       // Les parcours : relier les lieux.
       { selector: '#lmConnect', titleKey: 'plMapConnectTitle', textKey: 'plMapConnectText', done: () => !!($('lmConnect') && $('lmConnect').classList.contains('primary')) },
-      { selector: linkTarget('Jazz City', 'Rock City'), titleKey: 'plMapLink1Title', textKey: 'plMapLink1Text', done: () => edgeCount() >= 1 },
-      { selector: linkTarget('Rock City', 'Disco City'), titleKey: 'plMapLink2Title', textKey: 'plMapLink2Text', done: () => edgeCount() >= 2 },
-      { selector: linkTarget('Rock City', 'Synth City'), titleKey: 'plMapLink3Title', textKey: 'plMapLink3Text', done: () => edgeCount() >= 3 },
+      { selector: linkTarget('Bureau', 'Ascenseur'), titleKey: 'plMapLink1Title', textKey: 'plMapLink1Text', done: () => edgeCount() >= 1 },
+      { selector: linkTarget('Ascenseur', 'Couloir'), titleKey: 'plMapLink2Title', textKey: 'plMapLink2Text', done: () => edgeCount() >= 2 },
+      { selector: linkTarget('Couloir', "Salle d'archives"), titleKey: 'plMapLink3Title', textKey: 'plMapLink3Text', done: () => edgeCount() >= 3 },
       { selector: '#lmConnect', titleKey: 'plMapDisconnectTitle', textKey: 'plMapDisconnectText', done: () => !($('lmConnect') && $('lmConnect').classList.contains('primary')) },
       // Un point de transition sur un parcours : le fichier qui se jouera quand on le traverse.
       { selector: () => document.querySelector('#lmSvg [data-edge]'), titleKey: 'plMapEdgeTitle', textKey: 'plMapEdgeText', done: () => !!$('lmSplitT') },
       { selector: '#lmSplitT', titleKey: 'plMapTransitionTitle', textKey: 'plMapTransitionText', done: () => nodeEls().some(g => g.textContent.includes('⇢')) },
       { titleKey: 'plMapBuildDoneTitle', textKey: 'plMapBuildDoneText', final: true },
     ];
-    // Leçons « musique » (glisser la boucle de chaque ville sur son lieu) et « balade » (la carte a déjà sa musique, voir seedMapMusic).
+    // Leçons « musique » (glisser la musique de chaque lieu et de chaque zone) et « balade » (la carte a déjà sa musique, voir seedMapMusic).
     // L'onglet Carte d'abord : la carte d'exemple s'y ouvre toute seule.
     const mapTabStep = { selector: '.tab[data-tab="map"]', titleKey: 'plMapTabTitle', textKey: 'plMapTabText', done: () => S.tab === 'map' && !!document.querySelector('#lmSvg') };
     // On glisse chaque morceau de la bibliothèque (à gauche) sur sa ville, puis les pas sur les chemins, puis l'ambiance de fond.
     const libItem = title => () => [...document.querySelectorAll('#lmLib .lm-sound')].find(el => { const t = el.querySelector('.lm-t'); return t && t.textContent === title; }) || null;
     const edgeEl = id => document.querySelector(`#lmSvg [data-edge="${id}"]`);
-    const W = WALK_MAP || { nodes: [], edges: [], roomTone: null };
+    const W = WALK_MAP || { nodes: [], edges: [], zones: [], roomTone: null };
     const placeName = id => { const n = W.nodes.find(x => x.id === id); return n ? n.label : ''; };
+    const zoneEl = id => () => document.querySelector(`#lmSvg g[data-zone="${id}"]`);
+    const zoneName = id => { const z = (W.zones || []).find(x => x.id === id); return z ? z.label : ''; };
+    const zoneHas = id => () => { const g = zoneEl(id)(); return !!g && /♪/.test(g.textContent); };
+    const zoneHere = id => () => { const g = zoneEl(id)(); return !!g && g.classList.contains('here'); };
+    const nodeById = id => W.nodes.find(x => x.id === id);
+    const soundOf = x => (x && x.sounds && x.sounds.main && x.sounds.main[0]) || null;
+    const libTabStep = kind => ({ selector: `#lmLib [data-lt="${kind}"]`, titleKey: kind === 'sfx' ? 'plMapMusicSfxTabTitle' : 'plMapMusicTrackTabTitle', textKey: kind === 'sfx' ? 'plMapMusicSfxTabText' : 'plMapMusicTrackTabText',
+      done: () => { const b = document.querySelector(`#lmLib [data-lt="${kind}"]`); return !!(b && b.classList.contains('primary')); } });
+    // Musique du niveau 1 (18/11) : le morceau du bureau sur le poste de travail, le Sfx de l'ascenseur, un drone par zone (archives, salle secrète),
+    // le son du parcours couloir -> archives, puis l'ambiance de fond (« RoomTone », qui sert aussi de son de parcours).
+    const nodeDrop = (id, kindTab) => { const n = nodeById(id), r = soundOf(n); return r ? [{ selector: libItem(r.title), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText',
+      textVars: { name: n.label, track: r.title }, done: () => { const g = nodeEl(n.label); return !!g && /♪/.test(g.textContent); } }] : []; };
+    const zoneDrop = id => { const z = (W.zones || []).find(x => x.id === id), r = soundOf(z); return r ? [{ selector: libItem(r.title), titleKey: 'plMapMusicZoneTitle', textKey: 'plMapMusicZoneText',
+      textVars: { name: z.label, track: r.title }, done: zoneHas(id) }] : []; };
+    const edgeDrop = id => { const e = W.edges.find(x => x.id === id), r = soundOf(e); return r ? [{ selector: libItem(r.title), titleKey: 'plMapMusicPathTitle', textKey: 'plMapMusicPathText',
+      textVars: { from: placeName(e.from), to: placeName(e.to), track: r.title }, done: () => { const g = edgeEl(e.id); return !!g && /♪/.test(g.textContent); } }] : []; };
     lessons['pj-map-music'] = [
       { titleKey: 'plMapMusicWelcomeTitle', textKey: 'plMapMusicWelcomeText' },
       mapTabStep,
-      ...W.nodes.filter(n => n.sounds.main[0]).map(n => ({ selector: libItem(n.sounds.main[0].title), titleKey: 'plMapMusicDropTitle', textKey: 'plMapMusicDropText',
-        textVars: { name: n.label, track: n.sounds.main[0].title }, done: () => { const g = nodeEl(n.label); return !!g && /♪/.test(g.textContent); } })),
-      ...W.edges.filter(e => e.sounds.main[0]).map(e => ({ selector: libItem(e.sounds.main[0].title), titleKey: 'plMapMusicPathTitle', textKey: 'plMapMusicPathText',
-        textVars: { from: placeName(e.from), to: placeName(e.to), track: e.sounds.main[0].title }, done: () => { const g = edgeEl(e.id); return !!g && /♪/.test(g.textContent); } })),
+      ...nodeDrop('poste'),
+      libTabStep('sfx'),
+      ...nodeDrop('ascenseur'),
+      libTabStep('track'),
+      ...zoneDrop('z-archives'),
+      ...zoneDrop('z-secrete'),
+      ...edgeDrop('e5'),
       ...(W.roomTone ? [
         { selector: '#lmSettings > summary', titleKey: 'plMapMusicRoomOpenTitle', textKey: 'plMapMusicRoomOpenText', done: () => !!($('lmSettings') && $('lmSettings').open) },
         { selector: libItem(W.roomTone.title), titleKey: 'plMapMusicRoomTitle', textKey: 'plMapMusicRoomText', textVars: { track: W.roomTone.title },
@@ -202,9 +221,9 @@
       { titleKey: 'plMapWalkWelcomeTitle', textKey: 'plMapWalkWelcomeText' },
       mapTabStep,
       { selector: '#lmPlay', titleKey: 'plMapWalkStartTitle', textKey: 'plMapWalkStartText', done: () => !!document.querySelector('#lmCanvas.playing') },
-      { selector: () => nodeEl('Jazz City'), titleKey: 'plMapWalkCabinTitle', textKey: 'plMapWalkCabinText', done: () => isHere('Jazz City') },
-      { selector: () => nodeEl('Rock City'), titleKey: 'plMapWalkForestTitle', textKey: 'plMapWalkForestText', done: () => isHere('Rock City') },
-      { selector: () => nodeEl('Disco City'), titleKey: 'plMapWalkManorTitle', textKey: 'plMapWalkManorText', done: () => isHere('Disco City') },
+      { selector: () => nodeEl('Poste de travail'), titleKey: 'plMapWalkCabinTitle', textKey: 'plMapWalkCabinText', done: () => isHere('Poste de travail') },
+      { selector: () => nodeEl('Ascenseur'), titleKey: 'plMapWalkForestTitle', textKey: 'plMapWalkForestText', done: () => isHere('Ascenseur') },
+      { selector: zoneEl('z-archives'), titleKey: 'plMapWalkManorTitle', textKey: 'plMapWalkManorText', done: zoneHere('z-archives') },
       { titleKey: 'plMapWalkDoneTitle', textKey: 'plMapWalkDoneText', final: true },
     ];
 
@@ -236,8 +255,8 @@
       showcaseTab,
       { selector: '[data-new="players"]', titleKey: 'plVitNewTitle', textKey: 'plVitNewText', done: () => !!draft() },
       { selector: '#vSub', titleKey: 'plVitSubTitle', textKey: 'plVitSubText', done: () => hasText('vSub'),
-        drops: [{ kind: 'text', label: 'Quatre villes, un tempo : la ville qui joue avec toi.', value: 'Quatre villes, un tempo : la ville qui joue avec toi.' }] },
-      { selector: '#vSlug', titleKey: 'plVitSlugTitle', textKey: 'plVitSlugText', done: () => hasText('vSlug'), drops: [{ kind: 'text', label: 'music-city', value: 'music-city' }] },
+        drops: [{ kind: 'text', label: 'Un jeu d’horreur psychologique : le burn-out, étage par étage.', value: 'Un jeu d’horreur psychologique : le burn-out, étage par étage.' }] },
+      { selector: '#vSlug', titleKey: 'plVitSlugTitle', textKey: 'plVitSlugText', done: () => hasText('vSlug'), drops: [{ kind: 'text', label: 'dernier-etage', value: 'dernier-etage' }] },
       { selector: () => vbEl('tracks'), titleKey: 'plVitTracksTitle', textKey: 'plVitTracksText' },
       { selector: '[data-addblock="text"]', titleKey: 'plVitAddTextTitle', textKey: 'plVitAddTextText', done: () => hasBlock('text') },
       { selector: vbField('text', 'title'), titleKey: 'plVitTextTitleTitle', textKey: 'plVitTextTitleText', done: () => vbHas('text', 'title'), drops: [{ kind: 'text', label: 'Le pitch', value: 'Le pitch' }] },
