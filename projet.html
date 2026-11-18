@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795044450215">
-<link rel="stylesheet" href="player.css?v=1795044450215">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795045138473">
+<link rel="stylesheet" href="player.css?v=1795045138473">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -160,6 +160,12 @@
   .mood-grid .item-visual .preview-thumb, .mood-grid .item-visual .lp-montage video { border-radius: 0; }
   .mood-grid .item-visual .preview-thumb img { aspect-ratio: 4 / 3; max-height: none; }
   .mood-grid .item-visual .preview-meta { padding: 6px 14px 0; }
+  /* Vignette de remplacement (note, lien sans aperçu, morceau…) : carte régulière, grande icône de catégorie, invitation à poser une image */
+  .item-ph { position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); font-size: 44px; }
+  .item-ph .ph-add { position: absolute; right: 8px; bottom: 8px; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--accent); border-radius: 999px; background: var(--bg-card); color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; opacity: .85; }
+  .item-ph .ph-add:hover { opacity: 1; }
+  .item .cover-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .item .cover-edit img { width: 64px; height: 48px; object-fit: cover; border-radius: 4px; }
   .mood-grid .item-kind { font-size: 11px; font-weight: 600; color: var(--accent); }
   .mood-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
   .mood-filters .f { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); }
@@ -267,32 +273,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1795044450215"></script>
-<script src="layerpitch-notify.js?v=1795044450215"></script>
-<script src="player.js?v=1795044450215"></script>
-<script src="api/supabase-client.js?v=1795044450215"></script>
-<script src="api/auth.js?v=1795044450215"></script>
-<script src="layerpitch-appearance.js?v=1795044450215"></script>
-<script src="layerpitch-font-picker.js?v=1795044450215"></script>
-<script src="layerpitch-help.js?v=1795044450215"></script>
-<script src="layerpitch-help-engine.js?v=1795044450215"></script>
-<script src="layerpitch-shell.js?v=1795044450215"></script>
-<script src="api/tracks.js?v=1795044450215"></script>
-<script src="api/packs.js?v=1795044450215"></script>
-<script src="api/albums.js?v=1795044450215"></script>
-<script src="api/studio.js?v=1795044450215"></script>
-<script src="api/adreels.js?v=1795044450215"></script>
-<script src="api/demo-client.js?v=1795044450215"></script>
-<script src="api/demo-projects.js?v=1795044450215"></script>
-<script src="layerpitch-tuto.js?v=1795044450215"></script>
-<script src="layerpitch-guide.js?v=1795044450215"></script>
-<script src="layerpitch-lesson-previews.js?v=1795044450215"></script>
-<script src="projet-lecons.js?v=1795044450215"></script>
-<script src="layerpitch-video-versions.js?v=1795044450215"></script>
-<script src="api/projects.js?v=1795044450215"></script>
-<script src="api/sfx.js?v=1795044450215"></script>
-<script src="projet-carte-audio.js?v=1795044450215"></script>
-<script src="projet-carte.js?v=1795044450215"></script>
+<script src="layerpitch-i18n.js?v=1795045138473"></script>
+<script src="layerpitch-notify.js?v=1795045138473"></script>
+<script src="player.js?v=1795045138473"></script>
+<script src="api/supabase-client.js?v=1795045138473"></script>
+<script src="api/auth.js?v=1795045138473"></script>
+<script src="layerpitch-appearance.js?v=1795045138473"></script>
+<script src="layerpitch-font-picker.js?v=1795045138473"></script>
+<script src="layerpitch-help.js?v=1795045138473"></script>
+<script src="layerpitch-help-engine.js?v=1795045138473"></script>
+<script src="layerpitch-shell.js?v=1795045138473"></script>
+<script src="api/tracks.js?v=1795045138473"></script>
+<script src="api/packs.js?v=1795045138473"></script>
+<script src="api/albums.js?v=1795045138473"></script>
+<script src="api/studio.js?v=1795045138473"></script>
+<script src="api/adreels.js?v=1795045138473"></script>
+<script src="api/demo-client.js?v=1795045138473"></script>
+<script src="api/demo-projects.js?v=1795045138473"></script>
+<script src="layerpitch-tuto.js?v=1795045138473"></script>
+<script src="layerpitch-guide.js?v=1795045138473"></script>
+<script src="layerpitch-lesson-previews.js?v=1795045138473"></script>
+<script src="projet-lecons.js?v=1795045138473"></script>
+<script src="layerpitch-video-versions.js?v=1795045138473"></script>
+<script src="api/projects.js?v=1795045138473"></script>
+<script src="api/sfx.js?v=1795045138473"></script>
+<script src="projet-carte-audio.js?v=1795045138473"></script>
+<script src="projet-carte.js?v=1795045138473"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -1691,6 +1697,25 @@ function moodCategory(a) {
   return 'notes';
 }
 const MOOD_ICONS = { music: '♪', images: '🖼', videos: '🎬', links: '🔗', notes: '📝' };
+// Choisir l'image de vignette d'un objet : ouvre le sélecteur de fichiers, envoie l'image dans le Projet, puis la pose sur l'objet.
+function pickCover(a, after) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return window.LayerPitchNotify.error(tr('coverNotImage'));
+    const up = await PJ.upload(projectId, f);
+    if (up.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: up.error }));
+    await setCover(a, up.data.fileId, after);
+  };
+  inp.click();
+}
+// fileId = null : retire l'image choisie (la vignette redevient automatique) et efface le fichier devenu inutile.
+async function setCover(a, fileId, after) {
+  const old = a.coverFileId;
+  const r = await PJ.updateAsset(a.id, { coverFileId: fileId });
+  if (!r.error && old && old !== fileId) PJ.deleteFile(old).catch(() => {});
+  return after(r);
+}
 async function assetCard(a, pins) {
   const el = document.createElement('div');
   el.className = 'item' + (a.starred ? ' pitch' : '');
@@ -1706,8 +1731,16 @@ async function assetCard(a, pins) {
   if (a.kind === 'montage') media = montagePlayerHtml();
   const cat = moodCategory(a); el.dataset.cat = cat;
   // Un visuel (image, miniature, montage) passe en tête de carte ; les lecteurs et boutons restent sous le titre.
-  const visual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
-  el.innerHTML = `${visual ? `<div class="item-visual">${media}</div>` : ''}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
+  // Vignette au choix (19/11, cover_file_id) : sur les objets qui n'ont pas de visuel propre (ni image, ni vidéo, ni montage) ;
+  // sans image choisie ni visuel, une vignette de remplacement (icône de catégorie) garde la grille régulière.
+  const ownVisual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
+  const canCover = !['image', 'video', 'montage'].includes(a.kind);
+  const coverSrc = canCover && a.coverFileId ? await fileUrl(a.coverFileId) : null;
+  const visual = ownVisual && !coverSrc;
+  const topVisual = coverSrc ? `<div class="item-visual"><img src="${esc(coverSrc)}" alt=""></div>`
+    : visual ? `<div class="item-visual">${media}</div>`
+    : canCover ? `<div class="item-visual item-ph" aria-hidden="false"><span aria-hidden="true">${MOOD_ICONS[cat]}</span><button class="ph-add" type="button" data-act="cover">${esc(tr('coverAdd'))}</button></div>` : '';
+  el.innerHTML = `${topVisual}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
     <div class="item-title">${esc(assetTitle(a))}</div>
     ${visual ? '' : media}
     ${a.body ? `<div class="item-body">${esc(a.body)}</div>` : ''}
@@ -1740,13 +1773,17 @@ async function assetCard(a, pins) {
     const titleEl = el.querySelector('.item-title'), bodyEl = el.querySelector('.item-body');
     const form = document.createElement('div'); form.className = 'edit-form';
     form.innerHTML = `<input type="text" class="e-title" maxlength="300" value="${esc(a.title || '')}" placeholder="${esc(tr('itemTitle'))}"><textarea class="e-body" rows="5" placeholder="${esc(tr('itemBody'))}">${esc(a.body || '')}</textarea>
+      ${canCover ? `<div class="cover-edit">${coverSrc ? `<img src="${esc(coverSrc)}" alt="">` : ''}<button class="btn" type="button" data-x="cover">${esc(tr(coverSrc ? 'coverChange' : 'coverAdd'))}</button>${coverSrc ? `<button class="btn" type="button" data-x="uncover">${esc(tr('coverRemove'))}</button>` : ''}</div>` : ''}
       <div class="bar"><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button><button class="btn" type="button" data-x="cancel">${esc(tr('cancel'))}</button></div>`;
     titleEl.hidden = true; if (bodyEl) bodyEl.hidden = true;
     titleEl.after(form);
     form.querySelector('.e-title').focus();
     form.querySelector('[data-x="cancel"]').onclick = () => { form.remove(); titleEl.hidden = false; if (bodyEl) bodyEl.hidden = false; };
     form.querySelector('[data-x="save"]').onclick = async () => after(await PJ.updateAsset(a.id, { title: form.querySelector('.e-title').value.trim(), body: form.querySelector('.e-body').value }));
+    const cv = form.querySelector('[data-x="cover"]'); if (cv) cv.onclick = () => pickCover(a, after);
+    const uc = form.querySelector('[data-x="uncover"]'); if (uc) uc.onclick = () => setCover(a, null, after);
   };
+  if (act('cover')) act('cover').onclick = () => pickCover(a, after);
   act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
   if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id, mediaFor(el, a));
   return el;
@@ -1778,6 +1815,7 @@ async function deleteAsset(a) {
   if (!(await window.LayerPitchNotify.confirm(tr('deleteAssetConfirm', { title: assetTitle(a) }), { okLabel: tr('deleteFromProject'), danger: true }))) return false;
   const r = await PJ.deleteAsset(a.id);
   if (r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return false; }
+  if (a.coverFileId) PJ.deleteFile(a.coverFileId).catch(() => {}); // la vignette choisie n'est plus liée à rien
   if (S.video && S.video.id === a.id) S.video = null;
   await reloadContent(); renderPanel(); broadcast('content');
   return true;

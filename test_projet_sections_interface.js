@@ -31,7 +31,7 @@ const { JSDOM } = require('jsdom');
       setAppearance: (id, p) => { calls.push(['setApp', p]); return ok(null); },
       preview: () => ok({}), snapshots: () => ok([]), activity: () => ok([]), vitrines: () => ok([]),
       demoStatus: () => ok({ eligible: false }), markRead: () => ok(null), markSeen: () => ok(null), messages: () => ok([]), annotations: () => ok([]),
-      fileUrl: () => ok('https://example.test/x.png'),
+      fileUrl: () => ok('https://example.test/x.png'), deleteFile: id => { calls.push(['delFile', id]); return ok('p'); },
       sections: () => locked ? Promise.resolve({ data: null, error: 'Les sections ne sont pas encore ouvertes' }) : ok({ sections: db.sections.map(s => Object.assign({}, s)), links: db.links.map(l => Object.assign({}, l)) }),
       createSection: (pid, title, parent) => { const id = 's' + (++db.n); db.sections.push({ id, parentId: parent || null, title, position: db.sections.length }); calls.push(['create', title, parent]); return ok({ id }); },
       renameSection: (id, title) => { db.sections.find(s => s.id === id).title = title; return ok(null); },
@@ -359,6 +359,21 @@ const { JSDOM } = require('jsdom');
   click(ed.w, f.querySelector('[data-x="save"]')); await wait(200);
   check('modifier : enregistrement envoyé avec titre et commentaire', ed.calls.some(x => x[0] === 'update' && x[1] === 'n1' && x[2].title === 'Note corrigée' && x[2].body === 'Nouveau texte'));
   check('modifier : la carte affiche le nouveau texte', /Note corrigée/.test(ed.d.querySelector('#grid').textContent) && !ed.d.querySelector('#grid .edit-form'));
+
+  // ---- Vignette au choix (19/11) : remplacement automatique, image choisie, retrait
+  const cv = await boot(false, null, db => {
+    db.assets.push({ id: 'n2', kind: 'note', origin: 'own', title: 'Sans image', body: '', notes: 0, pinned: true });
+    db.assets.push({ id: 'n3', kind: 'note', origin: 'own', title: 'Avec image', body: '', notes: 0, pinned: true, coverFileId: 'cf1' });
+    db.mood.push('n2', 'n3');
+  });
+  await tab(cv, 'board');
+  const cardOf = t => [...cv.d.querySelectorAll('#grid .item')].find(x => x.textContent.includes(t));
+  check('vignette : sans image, une vignette de remplacement avec invitation', !!cardOf('Sans image').querySelector('.item-ph [data-act="cover"]'));
+  check('vignette : avec image choisie, l\'image est en tête de carte et plus de remplacement', !!cardOf('Avec image').querySelector('.item-visual img') && !cardOf('Avec image').querySelector('.item-ph'));
+  click(cv.w, cardOf('Avec image').querySelector('[data-act="edit"]')); await wait(50);
+  check('vignette : le formulaire propose de changer ou retirer l\'image', !!cardOf('Avec image').querySelector('[data-x="cover"]') && !!cardOf('Avec image').querySelector('[data-x="uncover"]'));
+  click(cv.w, cardOf('Avec image').querySelector('[data-x="uncover"]')); await wait(200);
+  check('vignette : retirer envoie coverFileId nul', cv.calls.some(x => x[0] === 'update' && x[1] === 'n3' && x[2].coverFileId === null));
 
   // ---- Repliés d'office : un onglet vertical, un clic pour ouvrir, le choix est mémorisé
   const fr = await boot(false, null, null, { freshStorage: true });
