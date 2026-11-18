@@ -177,6 +177,8 @@ const path = require('path');
   check('accueil studio : ajout de la démo (en studio)', /seedDemoCopy\(true\)/.test(read('studio.html')));
   check('liste des Projets : bouton « Supprimer la démo » sur la copie', /data-remove-demo/.test(read('projets.html')) && /removeDemoCopy/.test(read('projets.html')));
   check('page Projet : bandeau et bouton « Supprimer la démo »', /demoCopyRemoveBtn/.test(read('projet.html')) && /removeDemoCopy/.test(read('projet.html')));
+  check('première connexion : la démo est ajoutée à la fin de la bienvenue, après le marquage de l\'accueil (compositeur et studio)',
+    /markOnboardingComplete\(\)[\s\S]*seed_my_demo_project[\s\S]*p_as_studio: !!isStudio/.test(read('bienvenue.html')));
   check('textes FR et EN de la démo présents', ['demoCopyBadge', 'demoCopyBanner', 'demoCopyRemove', 'demoCopyConfirm', 'demoCopyRemoved'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
 
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
