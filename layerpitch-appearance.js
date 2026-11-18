@@ -79,6 +79,7 @@
     if (!dark && bg) html.style.setProperty('--backstage-bg', bg); else html.style.removeProperty('--backstage-bg');
     const img = over ? over.image : read(KEYS.image);
     layer.style.backgroundImage = img ? `url(${img})` : 'none';
+    html.classList.toggle('lp-has-bg-image', !!img); // les pages s'en servent pour garder les textes lisibles par-dessus (voile)
     const op = parseInt(over ? String(over.opacity == null ? 8 : over.opacity) : (read(KEYS.opacity) || '8'), 10);
     layer.style.opacity = String((isNaN(op) ? 8 : op) / 100);
     layer.classList.toggle('scrolls-with-page', over ? over.fixed === false : read(KEYS.fixed) === '0');
