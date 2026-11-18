@@ -52,14 +52,13 @@
       ['Réf. graphique : Edward Hopper, « Office at Night »', 'https://en.wikipedia.org/wiki/Office_at_Night', 'Une lumière froide, deux personnes dans un bureau qui ne se parlent pas. Le malaise par le cadrage.'],
     ],
   };
-  // Leçons Vitrine (18/11, refaites pour « Dernier Étage ») : quatre images du jeu, un extrait de gameplay et deux morceaux favoris (★, repris d'office
+  // Leçons Vitrine (18/11, refaites pour « Dernier Étage ») : quatre images du jeu, le montage vidéo « Short SIW Test #1 » et deux morceaux favoris (★, repris d'office
   // par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers à déposer dans media.layerpitch.com/tuto/dernier-etage/ (dossier medias-dernier-etage/ de
   // Jules-Antoine). Images et extrait : Protocol Interactive, « Something Is Wrong » (en développement), accord demandé le 18/11 : TANT QU'IL N'EST PAS CONFIRMÉ,
   // les deux leçons restent réservées aux admins (adminOnly dans src/backstage/43-visite-guidee.js).
   const MC_DIR = 'https://media.layerpitch.com/tuto/dernier-etage/';
   const SHOWCASE_IMAGES = [['Le bureau d’Allrisk Solutions', 'bureau.jpg'], ['L’écran d’ordinateur du jeu', 'ecran-haunted-stories.jpg'], ['Le couloir sombre', 'couloir.jpg'], ['L’écran-titre', 'titre-steam.jpg']]
     .map(([title, file]) => ({ title, name: file, url: MC_DIR + file }));
-  const SHOWCASE_VIDEO = { title: 'Dernier Étage : extrait de gameplay', name: 'clip-3.mp4', url: MC_DIR + 'clip-3.mp4' };
   const SHOWCASE_TRACKS = [['bmwb6s3d467w77', 'Welcome to the Office'], ['bmw3ds8idckeds', 'Drone Urbex #2']];
   const SHOWCASE_PITCH = 'Vous êtes employé(e) dans une tour de bureaux qui ne ferme jamais. Les dossiers s’empilent, les néons bourdonnent, et chaque étage est un peu plus sombre que le précédent. Un jeu à l’ambiance lente, où la musique ne dit pas quoi ressentir : elle suit votre fatigue.';
   // Vitrine « déjà construite » (leçon apparence) : le résultat de la leçon « construire ».
@@ -137,7 +136,9 @@
       const fileAsset = (kind, f, mime) => { const fileId = nid('f'); files[fileId] = { name: f.name, size: 0, type: mime, url: f.url };
         const a = { id: nid('a'), kind, origin: 'own', title: f.title, body: '', url: null, fileId, fileName: f.name, mimeType: mime, createdAt: now(), authorEmail: 'ines@dernier-etage.example', preview: null }; assets.push(a); return a; };
       const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/jpeg'));
-      const vid = fileAsset('video', SHOWCASE_VIDEO, 'video/mp4');
+      // Bloc « Vidéo » : le montage « Short SIW Test #1 » (menu des versions) (plus d'extrait mp4 à héberger : le bloc lit le montage directement).
+      const vid = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Scène d’ouverture : version A (mélodie) et version B (texture)', body: '', montageId: 'cap-dernier-etage', montageTitle: 'Short SIW Test #1', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+      assets.push(vid);
       const trk = SHOWCASE_TRACKS.map(([trackId, title]) => { const a = { id: nid('a'), kind: 'track', origin: 'own', title, trackId, starred: true, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null }; assets.push(a); return a; });
       if (opts.seedVitrineBuilt) vitrines.push({ id: 'vit-dernier-etage', audience: 'players', display: 'page', title: 'Dernier Étage', subtitle: 'Un jeu d’horreur psychologique : le burn-out, étage par étage.', slug: 'dernier-etage',
         published: false, secretToken: null, logoAssetId: null, bgAssetId: null, theme: {},
@@ -151,7 +152,7 @@
       (v.blocks || []).forEach(b => (b.assetIds || []).forEach(id => ids.add(id)));
       const map = {}, fileUrls = {};
       ids.forEach(id => { const a = assets.find(x => x.id === id); if (!a) return;
-        map[id] = { kind: a.kind, title: a.title, fileId: a.fileId || null, trackId: a.trackId || null, url: a.url || null, preview: a.preview || null, packId: a.packId || null };
+        map[id] = { kind: a.kind, title: a.title, fileId: a.fileId || null, trackId: a.trackId || null, url: a.url || null, preview: a.preview || null, packId: a.packId || null, montageId: a.montageId || null, montageTitle: a.montageTitle || null };
         if (a.fileId && files[a.fileId]) fileUrls[a.fileId] = files[a.fileId].url; });
       const trackIds = Object.values(map).filter(a => a.trackId).map(a => a.trackId);
       let tracks = [];

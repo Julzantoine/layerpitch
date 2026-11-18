@@ -70,12 +70,12 @@ function renderVideoBlockItem(container, block) {
     // Vidéo de la bibliothèque du compositeur (composer_videos, voir layerpitch-backstage.html) :
     // v.url pointe déjà vers un .mp4 hébergé sur R2 (résolu à la sélection côté Backstage, jamais une
     // page YouTube/Vimeo) -- lu directement avec <video>, pas d'iframe externe à charger.
-    if (v.source === 'library' && v.url) {
+    if (v.source === 'library' && (v.url || v.montageId)) {
       const wrap = document.createElement('div');
       wrap.className = 'video-card video-card-native';
       const video = document.createElement('video');
       video.className = 'video-embed-native';
-      video.src = v.url;
+      if (v.url) video.src = v.url; // montage versionné : sans URL, c'est le lecteur de versions qui pose la source
       video.controls = true;
       video.preload = 'metadata';
       if (v.thumbnail) video.poster = resolveImageUrl(v.thumbnail);

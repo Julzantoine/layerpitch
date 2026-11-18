@@ -148,18 +148,31 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   })()`);
   // 70 s à 120 BPM = 140 temps ; la 31e mesure commence au temps 120 : 120/140 de la largeur.
   check('flèche : placée sur la barre de la 31e mesure', arrowX && Math.abs(arrowX.x - (100 + 1000 * 120 / 140)) < 0.01 && arrowX.y === 400);
-  // Étape d'écoute : le clic sur « Écouter » n'avance plus ; « Suivant » n'apparaît qu'après le clic, et c'est lui qui avance.
-  const listenIdx = w.eval(`LESSONS.find(l => l.id === 'static').steps.findIndex(x => x.listen)`);
+  // Étape d'écoute (leçon statique) : geste imposé, jamais de « Suivant » ; elle n'avance que lorsqu'un rebouclage a été entendu.
+  const listenIdx = w.eval(`LESSONS.find(l => l.id === 'static').steps.findIndex(x => x.titleKey === 'lsListenTitle')`);
   w.eval(`guide.lessonId = 'static'; guide.index = ${listenIdx}; guide.maxIndex = ${listenIdx}; guide.clicked = false; guide.advancing = false; guide.cardKey = ''; renderGuideStep();`);
   check('écoute : pas de « Suivant » avant le clic', !w.document.querySelector('[data-tour="next"]'));
   w.eval(`guide.clicked = true; guideTick();`);
   await new Promise(r => setTimeout(r, 700));
-  check('écoute : après le clic, la leçon n’avance pas toute seule', w.eval('guide.index') === listenIdx);
-  check('écoute : « Suivant » apparaît après le clic', !!w.document.querySelector('[data-tour="next"]'));
+  check('écoute : après le clic seul, la leçon n’avance pas (il faut entendre le rebouclage)', w.eval('guide.index') === listenIdx);
+  check('écoute : « Suivant » n’est jamais proposé', !w.document.querySelector('[data-tour="next"]'));
+  // Rebouclage : la position revient en arrière depuis la fin de la boucle -> l'étape est validée.
+  const wrap = w.eval(`(function () {
+    const st = LESSONS.find(l => l.id === 'static').steps[${listenIdx}];
+    const host = document.createElement('div'); host.id = 'libraryDetail';
+    const ph = document.createElement('div'); ph.setAttribute('data-role', 'previewHost');
+    const row = document.createElement('div'); row.className = 'track-row-wrapper'; let pos = 5;
+    row.lpControl = { loopPosition: () => ({ pos, out: 60 }) };
+    ph.appendChild(row); host.appendChild(ph); document.body.appendChild(host);
+    const c = {}; st.enter(c);
+    const r = [st.done(c)]; pos = 59.5; r.push(st.done(c)); pos = 2; r.push(st.done(c));
+    host.remove(); return r;
+  })()`);
+  check('écoute : pas validée avant le rebouclage, validée après', wrap[0] === false && wrap[1] === false && wrap[2] === true);
   // (Les étapes « supprime le morceau d'essai » ont été retirées le 20/10 : le tutoriel se joue sans compte, rien n'est enregistré.)
   // Écoute : après le clic sur « Écouter », la surbrillance passe au lecteur qui vient de s'ouvrir.
   const hl = w.eval(`(function () {
-    const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.listen);
+    const st = LESSONS.find(l => l.id === 'static').steps.find(x => x.titleKey === 'lsListenTitle');
     const btn = document.createElement('button'); btn.setAttribute('data-action', 'preview-track');
     const host = document.createElement('div'); host.id = 'libraryDetail';
     const player = document.createElement('div'); player.setAttribute('data-role', 'previewHost'); player.textContent = 'lecteur';

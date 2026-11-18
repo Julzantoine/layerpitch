@@ -234,6 +234,7 @@
     const vbEl = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? document.querySelector(`[data-vb="${b.id}"]`) : null; };
     const vbField = (type, f) => () => { const r = vbEl(type); return r && r.querySelector(`[data-f="${f}"]`); };
     const vbHas = (type, f) => { const el = vbField(type, f)(); return !!(el && el.value.trim().length > 1); };
+    const pickedMontage = () => { const d = draft(); const b = d && d.blocks.filter(x => x.type === 'video').pop(); return !!(b && (b.assetIds || []).some(id => (S.content.assets || []).some(a => a.id === id && a.kind === 'montage'))); };
     const picked = type => { const d = draft(); const b = d && d.blocks.filter(x => x.type === type).pop(); return b ? (b.assetIds || []).length : 0; };
     const linkRows = () => { const r = vbEl('links'); return r ? r.querySelectorAll('[data-link]').length : 0; };
     const linkUrl = j => () => { const r = vbEl('links'); const row = r && r.querySelector(`[data-link="${j}"]`); return row && row.querySelector('[data-f="url"]'); };
@@ -263,7 +264,7 @@
       { selector: vbField('text', 'content'), titleKey: 'plVitTextBodyTitle', textKey: 'plVitTextBodyText', done: () => vbHas('text', 'content'),
         drops: DP.SHOWCASE_PITCH ? [{ kind: 'text', label: DP.SHOWCASE_PITCH, value: DP.SHOWCASE_PITCH }] : [] },
       { selector: '[data-addblock="video"]', titleKey: 'plVitAddVideoTitle', textKey: 'plVitAddVideoText', done: () => hasBlock('video') },
-      { selector: () => vbEl('video'), titleKey: 'plVitPickVideoTitle', textKey: 'plVitPickVideoText', done: () => picked('video') >= 1 },
+      { selector: () => vbEl('video'), titleKey: 'plVitPickVideoTitle', textKey: 'plVitPickVideoText', done: pickedMontage },
       { selector: '[data-addblock="photo"]', titleKey: 'plVitAddPhotoTitle', textKey: 'plVitAddPhotoText', done: () => hasBlock('photo') },
       { selector: () => vbEl('photo'), titleKey: 'plVitPickPhotoTitle', textKey: 'plVitPickPhotoText', done: () => picked('photo') >= 4 },
       { selector: '[data-addblock="links"]', titleKey: 'plVitAddLinksTitle', textKey: 'plVitAddLinksText', done: () => hasBlock('links') },
@@ -307,7 +308,7 @@
       },
       startLesson: id => start(id),
       // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
-      choiceAction: action => { if (action === 'tuto') window.open('./projets.html?tuto&lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
+      choiceAction: action => { if (action === 'tuto') window.open('./tutoriels.html?lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
     });
     // Visite du projet d'exemple « Music City » (14/11) : proposée en fin de la visite de la page Projets (projets.html). Onglet par onglet, sans
