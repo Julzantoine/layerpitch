@@ -123,6 +123,13 @@ function homeProfileReminderShown() {
   return homeOpen() && profileQuizOpen() && myOnboardingProfile !== undefined && !onboardingAnswered(myOnboardingProfile);
 }
 // Aide contextuelle : un seul interrupteur qui coupe les petits textes sous les champs et les bulles au survol (les avertissements restent).
+// Le « ? » de la barre (layerpitch-shell.js) et l'interrupteur de l'Accueil sont le même réglage : l'un prévient l'autre.
+function notifyHelpButton() { window.dispatchEvent(new CustomEvent('lp-help-change', { detail: { off: !!(homePrefs && homePrefs.help_off) } })); document.querySelectorAll('.lp-help-btn').forEach(b => { const on = !(homePrefs && homePrefs.help_off); b.setAttribute('aria-pressed', String(on)); }); }
+window.addEventListener('lp-help-change', e => {
+  if (!homePrefs || !e.detail || e.detail.off === !!homePrefs.help_off) return;
+  homePrefs.help_off = !!e.detail.off; applyHomeHelp();
+  const cb = document.getElementById('homeHelpToggle'); if (cb) cb.checked = !homePrefs.help_off;
+});
 function applyHomeHelp() { document.body.classList.toggle('lp-help-off', homeOpen() && !!(homePrefs && homePrefs.help_off)); }
 
 // ---- « Continuer » : les 3 derniers éléments touchés (morceau, AdReel) ----
@@ -382,7 +389,7 @@ function homeDo(act) {
       if (e.target.checked) hidden.delete(e.target.dataset.homeMenu); else hidden.add(e.target.dataset.homeMenu);
       homeSavePrefs({ menu_hidden: [...hidden] }); applyHomeMenu(); return;
     }
-    if (e.target.id === 'homeHelpToggle') { homeSavePrefs({ help_off: !e.target.checked }); applyHomeHelp(); }
+    if (e.target.id === 'homeHelpToggle') { homeSavePrefs({ help_off: !e.target.checked }); applyHomeHelp(); notifyHelpButton(); }
   });
   // Une bulle « J'ai besoin de comprendre » se referme d'un clic ailleurs ou d'Échap.
   document.addEventListener('click', e => { if ((homeLearnOpen || homeSellOpen) && !e.target.closest('.home-learn-wrap')) homeCloseLearn(); });
