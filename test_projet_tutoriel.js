@@ -168,7 +168,7 @@ const { JSDOM } = require('jsdom');
     const DPr = W.LayerPitchDemoProjects;
     const PJv = DPr.create({ seedVitrine: true });
     const as = (await PJv.content()).data.assets;
-    check('vitrine : quatre images, la vidéo de gameplay et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'video' && a.fileId) && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
+    check('vitrine : quatre images, le montage vidéo et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'montage' && a.montageId === 'cap-dernier-etage') && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
     check('vitrine : images lues depuis media.layerpitch.com/tuto/dernier-etage/', /^https:\/\/media\.layerpitch\.com\/tuto\/dernier-etage\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
     check('vitrine : aucune vitrine au départ de la leçon « construire »', (await PJv.vitrines()).data.length === 0);
     const img = as.find(a => a.kind === 'image');
