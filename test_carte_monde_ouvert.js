@@ -242,7 +242,7 @@ const { JSDOM } = require('jsdom');
     const host = w.document.createElement('div'); w.document.body.appendChild(host);
     const calls = [];
     let fsReq = 0, fsExit = 0;
-    host.requestFullscreen = () => { fsReq++; Object.defineProperty(w.document, 'fullscreenElement', { value: host, configurable: true }); return Promise.resolve(); };
+    host.requestFullscreen = () => { fsReq++; Object.defineProperty(w.document, 'fullscreenElement', { value: host, configurable: true }); w.document.dispatchEvent(new w.Event('fullscreenchange')); return Promise.resolve(); };
     w.document.exitFullscreen = () => { fsExit++; Object.defineProperty(w.document, 'fullscreenElement', { value: null, configurable: true }); return Promise.resolve(); };
     const maps = [{ id: 'mx', title: 'X', data: { nodes: [{ id: 'a', type: 'start', x: 0, y: 0 }], edges: [] } }];
     const view = w.LayerPitchLevelMap.mount(host, { tr, canEdit: true, libraries: { track: [], sfx: [], asset: [] }, maps, save: async m => { calls.push('save:' + m.id); return { id: m.id }; }, remove: async () => ({}),

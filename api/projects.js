@@ -20,10 +20,15 @@
   const P = {
     // Projet de démonstration public (sans compte, lecture seule) : voir la migration 20260929010000.
     publicDemo: () => rpc('get_public_demo'),
+    publicDemoMaps: () => rpc('get_public_demo_maps'), // cartes de niveau de la démo (migration 20261117010000)
     // Interrupteur « Démo publique » (administrateurs et compte de démo) : { eligible, projectId } et pose / retrait de la marque.
     demoStatus: () => rpc('get_public_demo_status'),
     setDemo: (id, on) => rpc('set_public_demo', { p_project_id: id, p_on: !!on }),
     listMine: () => rpc('list_my_projects'),
+    // Projet de démonstration copié dans le compte (18/11, migration 20261118020000) : ajout automatique une seule fois (le serveur décide :
+    // feu vert, accueil terminé, déjà fait), suppression en un clic de toutes les copies. { seeded, projectId } / { removed }.
+    seedDemoCopy: asStudio => rpc('seed_my_demo_project', { p_as_studio: !!asStudio }),
+    removeDemoCopy: () => rpc('remove_my_demo_project'),
     // Carte de niveau (6/10, migration 20261006020000) : plusieurs cartes par Projet, une carte = un document JSON.
     listMaps: id => rpc('list_project_maps', { p_project_id: id }),
     saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),

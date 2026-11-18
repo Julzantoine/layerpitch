@@ -28,6 +28,9 @@ export function isSearchBot(userAgent) { return SEARCH_BOT.test(userAgent || '')
 
 // Adresse -> { kind, handle, ref, alt } ou null (page qui n'a pas d'aperçu propre : on laisse passer).
 export function routeOf(url) {
+  // Pages de demonstration (sans base de donnees) : le Projet de demo (/projet.html?demo) et l'AdReel de demo de la landing (/?adreel=demo-fr|demo-en).
+  if (url.pathname === '/projet.html' && url.searchParams.has('demo')) return { kind: 'static', key: 'projet-demo' };
+  if ((url.pathname === '/' || url.pathname === '/index.html') && /^demo-(fr|en)$/.test(url.searchParams.get('adreel') || '')) return { kind: 'static', key: 'adreel-' + url.searchParams.get('adreel') };
   const segs = url.pathname.split('/').filter(Boolean).map(s => { try { return decodeURIComponent(s); } catch (e) { return s; } });
   if (!segs.length) return null;
   if (segs[0] === 'album' && segs.length === 2 && !segs[1].includes('.')) return { kind: 'album', handle: '', ref: segs[1], alt: '' };
@@ -46,6 +49,23 @@ export function routeOf(url) {
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
+
+// Apercus fixes des pages de demonstration (accents ecrits \uXXXX, voir l'avertissement en haut du fichier).
+const STATIC_PREVIEWS = {
+  'projet-demo': {
+    fr: { title: 'LayerPitch \u2014 Projet de d\u00e9monstration', description: 'D\u00e9couvrez comment un studio et un compositeur travaillent ensemble sur la musique d\u2019un jeu : discussion, moodboard, versions, carte sonore.' },
+    en: { title: 'LayerPitch \u2014 Demo Project', description: 'See how a studio and a composer work together on a game\u2019s music: chat, moodboard, versions, sound map.' },
+  },
+  'adreel-demo-fr': { lang: 'fr', title: 'LayerPitch \u2014 AdReel de d\u00e9monstration', description: 'Avec cet AdReel de d\u00e9mo, d\u00e9couvrez comment mettre en valeur votre musique adaptative et augmentez vos chances de convaincre les studios que vous \u00eates le compositeur qu\u2019il leur faut.' },
+  'adreel-demo-en': { lang: 'en', title: 'LayerPitch \u2014 Demo AdReel', description: 'With this demo AdReel, see how to showcase your adaptive music and improve your chances of convincing studios that you\u2019re the composer they need.' },
+};
+export function staticPreview(route, url) {
+  const e = STATIC_PREVIEWS[route.key];
+  if (!e) return null;
+  const lang = e.lang || (url.searchParams.get('lang') === 'en' ? 'en' : 'fr');
+  const t = e.lang ? e : e[lang];
+  return { kind: 'static', title: t.title, descriptionFr: lang === 'fr' ? t.description : '', descriptionEn: lang === 'en' ? t.description : '', image: null, lang };
+}
 
 export function previewHtml(preview, url) {
   const lang = url.searchParams.get('lang') === 'en' ? 'en' : (preview.lang === 'en' ? 'en' : 'fr');
@@ -147,6 +167,12 @@ export default {
     if (!search && !isShareBot(ua)) return fetch(request);
     const route = routeOf(url);
     if (!route) return fetch(request);
+    if (route.kind === 'static') { // pages de demonstration : apercu fixe, aucune base interrogee (robots de partage seulement)
+      if (!isShareBot(ua)) return fetch(request);
+      const sp = staticPreview(route, url);
+      if (!sp) return fetch(request);
+      return new Response(body(previewHtml(sp, url)), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+    }
     if (search && route.kind === 'adreel') {
       const page = await fetchSeoPage(route, env);
       if (page && page.path) {

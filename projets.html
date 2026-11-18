@@ -26,6 +26,7 @@
   .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); text-decoration: none; display: inline-block; }
   .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.danger:hover:not(:disabled) { border-color: #b5442e; color: #b5442e; }
   .btn:disabled { opacity: .5; cursor: default; }
   label { display: block; font-size: 12px; color: var(--text-dim); margin: 12px 0 4px; }
   input[type="text"], input[type="email"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
@@ -43,7 +44,7 @@
   .choice input { width: auto; margin: 0; }
   .empty { color: var(--text-dimmer); text-align: center; padding: 24px 0; }
 </style>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794918739492">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795041199074">
 </head>
 <body>
 <div class="page">
@@ -51,20 +52,20 @@
   <div id="content"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
-<script src="layerpitch-tuto.js?v=1794918739492"></script>
-<script src="layerpitch-i18n.js?v=1794918739492"></script>
-<script src="layerpitch-notify.js?v=1794918739492"></script>
-<script src="api/supabase-client.js?v=1794918739492"></script>
-<script src="api/auth.js?v=1794918739492"></script>
-<script src="layerpitch-appearance.js?v=1794918739492"></script>
-<script src="layerpitch-shell.js?v=1794918739492"></script>
-<script src="api/studio.js?v=1794918739492"></script>
-<script src="api/demo-client.js?v=1794918739492"></script>
-<script src="api/demo-projects.js?v=1794918739492"></script>
-<script src="layerpitch-guide.js?v=1794918739492"></script>
-<script src="layerpitch-lesson-previews.js?v=1794918739492"></script>
-<script src="projet-lecons.js?v=1794918739492"></script>
-<script src="api/projects.js?v=1794918739492"></script>
+<script src="layerpitch-tuto.js?v=1795041199074"></script>
+<script src="layerpitch-i18n.js?v=1795041199074"></script>
+<script src="layerpitch-notify.js?v=1795041199074"></script>
+<script src="api/supabase-client.js?v=1795041199074"></script>
+<script src="api/auth.js?v=1795041199074"></script>
+<script src="layerpitch-appearance.js?v=1795041199074"></script>
+<script src="layerpitch-shell.js?v=1795041199074"></script>
+<script src="api/studio.js?v=1795041199074"></script>
+<script src="api/demo-client.js?v=1795041199074"></script>
+<script src="api/demo-projects.js?v=1795041199074"></script>
+<script src="layerpitch-guide.js?v=1795041199074"></script>
+<script src="layerpitch-lesson-previews.js?v=1795041199074"></script>
+<script src="projet-lecons.js?v=1795041199074"></script>
+<script src="api/projects.js?v=1795041199074"></script>
 <script>
 // projets.html — liste et création des Projets (chantier profils et permissions, étape 5, 28/09 ; D20, D24, D36).
 // Créer : compositeur (Warrior 1, Boss 5) ou studio (Indie 1, AA 5, AAA illimité) ; les invités ne paient jamais.
@@ -84,6 +85,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const $ = id => document.getElementById(id);
 const content = $('content');
 let showArchived = false;
+let demoSeedTried = false;
 let myFlags = {};
 // MODE TUTORIEL (?tuto, 20/10) : Projets fictifs sur un faux serveur local (api/demo-projects.js), rien n'est enregistré ; porte d'entrée unique :
 // layerpitch-tuto.js (fermé au public tant que Jules-Antoine ne l'a pas ouvert).
@@ -101,6 +103,14 @@ async function render() {
   const { session } = await LayerPitchAuth.getSession();
   const [{ composerId }, { studioId }] = session ? await Promise.all([LayerPitchAuth.getMyComposerId(), LayerPitchAuth.getMyStudioId()]) : [{}, {}];
   if (!session) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('signInPrompt'))} <a href="./studio.html?lang=${pageLang}">${esc(tr('signInLink'))}</a></p></div>`; return; }
+  // Projet de démonstration (18/11, feu vert example_project) : copié une seule fois dans le compte ; le serveur décide (feu vert, accueil, déjà fait).
+  if (!TUTO && !demoSeedTried) {
+    demoSeedTried = true;
+    try {
+      const r = await PJ.seedDemoCopy(!composerId && !!studioId);
+      if (r.data && r.data.seeded && window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox();
+    } catch (e) { /* la démo reste simplement absente */ }
+  }
   const [{ flags }, { entitlements }, list] = await Promise.all([LayerPitchStudio.myFeatureFlags(), LayerPitchStudio.myEntitlements(), PJ.listMine()]);
   myFlags = flags || {};
   if (!flags || !flags.projects) {
@@ -135,11 +145,22 @@ async function render() {
     ${projects.length ? projects.map(p => `<a class="row" href="./projet.html?id=${encodeURIComponent(p.id)}${TUTO ? '&tuto' : ''}${PJ_LESSON_IN_PROJECT ? '&lesson=' + encodeURIComponent(PJ_LESSON) : ''}&lang=${pageLang}">
         <div class="row-main"><div class="row-title">${esc(p.title)}</div>
           <div class="row-sub">${esc(tr(p.ownerKind === 'studio' ? 'ownedByStudio' : 'ownedByComposer'))} · ${esc(tr('role_' + p.role))}${p.archived ? ' · ' + esc(tr('archived')) : ''}</div></div>
+        ${p.isDemo ? `<span class="pill">${esc(tr('demoCopyBadge'))}</span><button class="btn danger" type="button" data-remove-demo>${esc(tr('demoCopyRemove'))}</button>` : ''}
         ${p.unread ? `<span class="pill">${esc(tr('unread', { n: p.unread }))}</span>` : ''}
       </a>`).join('') : `<div class="empty">${esc(tr('none'))}</div>`}
   </div>`;
   content.innerHTML = html;
   $('archivedToggle').onchange = e => { showArchived = e.target.checked; render(); };
+  // « Supprimer la démo » (18/11) : efface d'un coup la copie de démonstration ; le bouton est dans la ligne, qui est un lien : on l'arrête.
+  content.querySelectorAll('[data-remove-demo]').forEach(b => b.onclick = async e => {
+    e.preventDefault(); e.stopPropagation();
+    if (!(await window.LayerPitchNotify.confirm(tr('demoCopyConfirm'), { okLabel: tr('demoCopyRemove'), danger: true }))) return;
+    b.disabled = true;
+    const r = await PJ.removeDemoCopy();
+    if (r.error) { b.disabled = false; return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); }
+    window.LayerPitchNotify.info(tr('demoCopyRemoved'));
+    render();
+  });
   const btn = $('createBtn');
   if (btn) btn.onclick = async () => {
     const title = $('newTitle').value.trim();

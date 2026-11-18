@@ -367,7 +367,7 @@
       ${extras}
       ${guide.kind === 'lesson' && guide.index === 0 ? `<div class="tour-desktop">${esc(tr('lessonDesktopNote'))}</div>` : ''}
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-free">${esc(tr('lessonFreePlay'))}</div>` : ''}
-      ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
+      ${(guide.kind === 'lesson' && step.final) || step.beta ? `<div class="tour-ps">${esc(tr(step.betaPsKey || 'lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr(step.betaLinkKey || 'lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
       ${step.choices && step.choices.length ? `<div class="tour-choices">${step.choices.map(c => `<button class="btn btn-primary" type="button" data-tour="choice" data-lesson="${esc(c.lesson || '')}" data-action="${esc(c.action || '')}">${esc(tr(c.labelKey))}</button>`).join('')}</div>` : ''}

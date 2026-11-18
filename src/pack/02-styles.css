@@ -24,7 +24,6 @@
   .back-link.embed-cta-btn:hover { opacity: 0.88; color: #fff; }
 
   .pack-illustration { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; margin: 0 auto 28px; border-radius: 8px; border: 1px solid var(--border); }
-  .pack-illustration.empty { width: 100%; max-height: none; aspect-ratio: 16/7; background: linear-gradient(135deg, #23262d, #3a3f48); }
 
   .pack-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 28px; margin-bottom: 16px; }
   .pack-presentation p { font-size: 14.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 14px; white-space: pre-wrap; }

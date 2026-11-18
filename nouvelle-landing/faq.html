@@ -220,6 +220,38 @@
   },
   {
    "@type": "Question",
+   "name": "Qu'est-ce que la musique adaptative dans un jeu vidéo ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Une musique qui change en temps réel selon ce qui se passe dans le jeu : l'intensité monte pendant un combat, des couches s'ajoutent ou se coupent, la musique passe d'une section à une autre sans coupure. Le joueur n'entend jamais deux fois exactement la même chose."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Quelle différence entre LayerPitch et Wwise ou FMOD ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Wwise et FMOD sont des moteurs audio (middleware) qu'on intègre dans un jeu pour jouer la musique et les sons. LayerPitch ne les remplace pas : c'est l'espace qui sert avant l'intégration, pour présenter, écouter, tester sur vidéo et valider la musique adaptative entre compositeur et studio, depuis un simple lien web."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Faut-il savoir programmer ou connaître un middleware audio pour s'en servir ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Non. Le compositeur construit son AdReel dans le Backstage, sans écrire de code, et le studio écoute en jouant avec l'intensité, les couches et les branches directement dans son navigateur."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Peut-on tester la musique sur la vidéo de son jeu ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Oui. Dans l'espace Projet, on peut tester les versions d'une musique sur une vidéo, comparer plusieurs montages et laisser ses retours au compositeur."
+   }
+  },
+  {
+   "@type": "Question",
    "name": "Faut-il un compte pour écouter ?",
    "acceptedAnswer": {
     "@type": "Answer",
@@ -256,6 +288,46 @@
    "acceptedAnswer": {
     "@type": "Answer",
     "text": "Cinq : statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement et séquentiel aléatoire."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "LayerPitch est-il une alternative à SoundCloud pour envoyer ses démos à un studio ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Oui, pour la musique de jeu vidéo. SoundCloud ne fait écouter que des pistes linéaires. Avec un AdReel, le studio joue avec la musique : il monte l'intensité, coupe des couches, explore les branches. Il n'y a ni fil public ni abonnés : vous envoyez un lien."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Faut-il un site web ou une plateforme pour présenter sa musique à un studio ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Les deux se complètent. Un site aide les studios à vous trouver, un AdReel les aide à comprendre et à valider votre musique adaptative. LayerPitch ne remplace pas votre site : vous y mettez simplement le lien de votre AdReel."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Puis-je savoir si un studio a ouvert mon lien ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Oui. Vous voyez qui a ouvert l'AdReel, quelles couches ont été testées et combien de temps la personne est restée."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Mon AdReel apparaît-il sur Google ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Seulement si vous le décidez : chaque AdReel a sa case « visible sur les moteurs de recherche », que vous cochez ou non. Sinon, il n'est accessible qu'aux personnes à qui vous envoyez le lien."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Puis-je essayer LayerPitch gratuitement ?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Oui. Il y a toujours un palier gratuit (Rookie pour les compositeurs, SoloDev pour les studios), et écouter un AdReel ne demande jamais de compte."
    }
   },
   {
@@ -354,6 +426,10 @@
   <details><summary>C'est quoi LayerPitch ?</summary><p>Un espace de travail pour composer, présenter, tester et valider la musique et le sound design d'un jeu vidéo, entre compositeurs, sound designers et studios.</p></details>
   <details><summary>C'est quoi un AdReel ?</summary><p>Un « Adaptive Reel » : une présentation de musique interactive (changement d'état, embranchements, changement d'intensité, pools aléatoires) qu'on partage avec un simple lien.</p></details>
   <details><summary>Faut-il installer quelque chose ?</summary><p>Non. Un AdReel, une vitrine ou un projet s'ouvre comme une page web.</p></details>
+  <details><summary>Qu'est-ce que la musique adaptative dans un jeu vidéo ?</summary><p>Une musique qui change en temps réel selon ce qui se passe dans le jeu : l'intensité monte pendant un combat, des couches s'ajoutent ou se coupent, la musique passe d'une section à une autre sans coupure. Le joueur n'entend jamais deux fois exactement la même chose.</p></details>
+  <details><summary>Quelle différence entre LayerPitch et Wwise ou FMOD ?</summary><p>Wwise et FMOD sont des moteurs audio (middleware) qu'on intègre dans un jeu pour jouer la musique et les sons. LayerPitch ne les remplace pas : c'est l'espace qui sert avant l'intégration, pour présenter, écouter, tester sur vidéo et valider la musique adaptative entre compositeur et studio, depuis un simple lien web.</p></details>
+  <details><summary>Faut-il savoir programmer ou connaître un middleware audio pour s'en servir ?</summary><p>Non. Le compositeur construit son AdReel dans le Backstage, sans écrire de code, et le studio écoute en jouant avec l'intensité, les couches et les branches directement dans son navigateur.</p></details>
+  <details><summary>Peut-on tester la musique sur la vidéo de son jeu ?</summary><p>Oui. Dans l'espace Projet, on peut tester les versions d'une musique sur une vidéo, comparer plusieurs montages et laisser ses retours au compositeur.</p></details>
   <details><summary>Faut-il un compte pour écouter ?</summary><p>Non. Écouter les AdReels, les packs et les vitrines est toujours gratuit, sans compte.</p></details>
   <h2>Accès</h2>
   <details><summary>Comment accéder à LayerPitch ?</summary><p>LayerPitch est actuellement en bêta fermée, sur invitation, pour les compositeurs, les sound designers et les studios. Laissez votre e-mail : l'invitation arrive dans la journée et reste valable 24 h.</p></details>
@@ -361,6 +437,11 @@
   <h2>Compositeurs et sound designers</h2>
   <details><summary>Que voit le studio quand j'envoie un AdReel ?</summary><p>Il joue avec la musique : il ajuste l'intensité, coupe des couches, explore les embranchements. De votre côté, vous voyez qui a ouvert le lien, quelles couches ont été testées et combien de temps il est resté.</p></details>
   <details><summary>Quels modes de lecture adaptative existent ?</summary><p>Cinq : statique bouclable, layering vertical, layering randomisé, séquentiel à embranchement et séquentiel aléatoire.</p></details>
+  <details><summary>LayerPitch est-il une alternative à SoundCloud pour envoyer ses démos à un studio ?</summary><p>Oui, pour la musique de jeu vidéo. SoundCloud ne fait écouter que des pistes linéaires. Avec un AdReel, le studio joue avec la musique : il monte l'intensité, coupe des couches, explore les branches. Il n'y a ni fil public ni abonnés : vous envoyez un lien.</p></details>
+  <details><summary>Faut-il un site web ou une plateforme pour présenter sa musique à un studio ?</summary><p>Les deux se complètent. Un site aide les studios à vous trouver, un AdReel les aide à comprendre et à valider votre musique adaptative. LayerPitch ne remplace pas votre site : vous y mettez simplement le lien de votre AdReel.</p></details>
+  <details><summary>Puis-je savoir si un studio a ouvert mon lien ?</summary><p>Oui. Vous voyez qui a ouvert l'AdReel, quelles couches ont été testées et combien de temps la personne est restée.</p></details>
+  <details><summary>Mon AdReel apparaît-il sur Google ?</summary><p>Seulement si vous le décidez : chaque AdReel a sa case « visible sur les moteurs de recherche », que vous cochez ou non. Sinon, il n'est accessible qu'aux personnes à qui vous envoyez le lien.</p></details>
+  <details><summary>Puis-je essayer LayerPitch gratuitement ?</summary><p>Oui. Il y a toujours un palier gratuit (Rookie pour les compositeurs, SoloDev pour les studios), et écouter un AdReel ne demande jamais de compte.</p></details>
   <details><summary>Puis-je vendre ma musique ?</summary><p>Oui, via les packs, avec un paiement Stripe Connect et un mandat de facturation. La vente réelle ne commencera qu'à l'ouverture publique.</p></details>
   <h2>Studios</h2>
   <details><summary>Qu'est-ce que le Moodboard et l'espace Projet ?</summary><p>Un espace commun pour réunir références, images, vidéos, notes et morceaux, construire la direction sonore, discuter avec votre compositeur ou sound designer et tester les versions sur vidéo.</p></details>

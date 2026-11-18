@@ -63,7 +63,7 @@ async function init() {
     }
     container.innerHTML = `
       <div class="pub-section">
-        ${pack.illustration ? `<img class="pack-illustration" src="${escapeHtml(/^(blob:|data:)/.test(pack.illustration) ? pack.illustration : IMAGES_BASE + pack.illustration)}" alt="">` : `<div class="pack-illustration empty"></div>`}
+        ${pack.illustration ? `<img class="pack-illustration" src="${escapeHtml(/^(blob:|data:)/.test(pack.illustration) ? pack.illustration : IMAGES_BASE + pack.illustration)}" alt="">` : ''}
         <div class="pack-title">${escapeHtml(pack.title)}</div>
         <div class="pack-presentation">${pickBilingualText(pack.presentationFr, pack.presentationEn).split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('')}</div>
       </div>

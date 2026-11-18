@@ -74,6 +74,8 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   check('/album/<id>', R('/album/alb1').kind === 'album' && R('/album/alb1').ref === 'alb1');
   check('pages sans aperçu propre laissées passer (accueil, shop, vitrine, fichiers, pack sans id)', [R('/'), R('/shop'), R('/vitrine/x'), R('/player.js'), R('/jean/pack.html'), R('/a/b/c')].every(x => x === null));
 
+  check('demo : /projet.html?demo et /?adreel=demo-fr|en reconnus, /projet.html seul et autres ?adreel= laisses passer', R('/projet.html?demo').kind === 'static' && R('/?adreel=demo-fr').key === 'adreel-demo-fr' && R('/?adreel=demo-en').key === 'adreel-demo-en' && R('/projet.html') === null && R('/?adreel=autre') === null);
+
   const calls = [];
   const realFetch = global.fetch;
   const ok = body => ({ ok: true, json: async () => body });
@@ -103,6 +105,12 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   global.fetch = async (u) => (String(u).includes('get_share_preview') ? ok(global.__preview) : new Response('x'));
   html = await (await W.default.fetch(req('/jean/collection.html?id=co1&lang=en', 'facebookexternalhit/1.1'), {})).text();
   check('sans description ni image : texte et image LayerPitch par défaut (langue demandée)', /Interactive music for game pitches/.test(html) && /og:image" content="https:\/\/beta\.layerpitch\.com\/og-default\.png"/.test(html));
+  global.fetch = async (u) => { if (String(u).includes('rpc')) throw new Error('base interrogee a tort'); return new Response('page normale'); };
+  html = await (await W.default.fetch(req('/projet.html?demo', 'WhatsApp/2.23'), {})).text();
+  check('demo Projet : apercu pour WhatsApp (titre, description, image par defaut), sans base', /og:title" content="LayerPitch \u2014 Projet de d\u00e9monstration"/.test(html) && /og:description" content="[^"]+"/.test(html) && /og-default\.png/.test(html));
+  html = await (await W.default.fetch(req('/?adreel=demo-en', 'WhatsApp/2.23'), {})).text();
+  check('demo AdReel EN : apercu en anglais', /og:title" content="LayerPitch \u2014 Demo AdReel"/.test(html) && /lang="en"/.test(html));
+  check('demo : un visiteur humain n\'est pas touche', (await (await W.default.fetch(req('/projet.html?demo', 'Mozilla/5.0 Firefox/130.0'), {})).text()) === 'page normale');
   global.fetch = realFetch;
   const code = fs.readFileSync(path.join(__dirname, 'cloudflare', 'apercu-liens-worker.mjs'), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s\/\/.*$/, '')).join('\n');
   check('programme Cloudflare : aucun caractère non ASCII dans le code (le presse-papiers abîmait « … »)', !/[^\x00-\x7F]/.test(code));

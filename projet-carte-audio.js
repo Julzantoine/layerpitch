@@ -56,7 +56,7 @@
     function wantedMusic() {
       const item = itemAt(st.position); if (!item) return null;
       // Un point de passage sans son à lui est transparent : la musique en cours continue (le son du parcours qu'on emprunte).
-      if (item.type === 'junction' && !((item.sounds && item.sounds.main) || []).length && st.music) return { ref: st.music, transition: model.resolveTransition(map, item) };
+      if (item.type === 'junction' && !((item.sounds && item.sounds.main) || []).length && st.music) return { ref: st.music, transition: model.resolveTransition(map, item), layer: item.layer || null, role: st.combat ? 'combat' : 'explore' };
       const useCombat = st.combat && model.hasAltMusic(map, st.position);
       let list = (item.sounds && (useCombat ? item.sounds.combat : item.sounds.main)) || [];
       // Exploration vide mais un morceau de combat posé : un compositeur peut se servir de la 1re couche d'un morceau à couches
@@ -66,15 +66,18 @@
         const combat = ((item.sounds && item.sounds.combat) || []).filter(r => r && (r.kind === 'track' || r.kind === 'asset'));
         if (combat.length && model.hasAltMusic(map, st.position)) { list = combat; fallback = true; }
       }
-      return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item), fallback, role: useCombat ? 'combat' : 'explore' };
+      return { ref: model.pickVariant(list, lastMusicKey), transition: model.resolveTransition(map, item), fallback, role: useCombat ? 'combat' : 'explore', layer: item.layer || null };
     }
 
+    // Niveau du fond d'ambiance : le réglage de la carte, baissé de « roomDuckDb » dB tant qu'une musique joue (17/11).
+    const roomGain = () => model.dbToGain((map.roomToneDb || 0) - (musicVoice && st.music ? Math.max(0, Math.min(40, Number(map.roomDuckDb) || 0)) : 0));
+    const applyRoomLevel = sec => { if (roomVoice && map) roomVoice.setLevel(roomGain(), sec); };
     async function setRoom() {
       const item = itemAt(st.position);
       // Balade libre : le fond d'ambiance vient de l'endroit où l'on se tient (cercle, zone), choisi par la page.
       const ref = st.free ? (st.roomOverride || null) : item ? model.resolveRoom(map, item) : (map && map.roomTone) || null;
       const key = model.refKey(ref);
-      if (key === model.refKey(st.room)) { if (roomVoice) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.3); return; }
+      if (key === model.refKey(st.room)) { applyRoomLevel(0.3); return; }
       const my = ++roomSeq;
       const fade = 2;
       const old = roomVoice; st.room = ref;
@@ -83,17 +86,22 @@
       if (!ref) return;
       const v = await load(ref);
       if (my !== roomSeq || !v) return;
-      roomVoice = v; v.start(0); v.setLevel(model.dbToGain(map.roomToneDb), fade);
+      roomVoice = v; v.start(0); v.setLevel(roomGain(), fade);
     }
     let roomSeq = 0;
 
     // Couche d'un morceau à couches : automatique (exploration = couche 1, combat = toutes) ou choisie à la main.
-    function applyLayer(voice, role) {
+    function applyLayer(voice, role, keepCurrent) {
       if (!voice || !voice.layerCount || !voice.setIntensity) { st.layerLevel = null; return; }
       const n = safe(() => voice.layerCount()) || 0;
       if (n < 2) { st.layerLevel = null; return; }
+      // Lieu sans couche réglée, même morceau qui continue : on garde la couche déjà entendue (pas de retour à la couche 1).
+      if (keepCurrent && role !== 'combat' && st.layerRole !== 'combat' && st.intensity == null && st.layerLevel != null) return;
+      st.layerRole = role === 'combat' ? 'combat' : 'explore';
       const auto = voice.layerAuto ? (safe(() => voice.layerAuto(role === 'combat' ? 'combat' : 'explore')) || 0) : (role === 'combat' ? n - 1 : 0);
-      const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : Math.max(0, Math.min(n - 1, auto));
+      // Couche réglée sur le lieu (exploration seulement : le combat garde toutes les couches) : le morceau continue, seule la couche change.
+      const placed = role !== 'combat' && st.wantLayer ? st.wantLayer - 1 : null;
+      const want = st.intensity != null ? Math.max(0, Math.min(n - 1, st.intensity)) : Math.max(0, Math.min(n - 1, placed != null ? placed : auto));
       safe(() => voice.setIntensity(want)); st.layerLevel = want;
     }
     // Attente qu'une voix soit chargée (vérifiée dix fois par seconde, deux minutes au plus) ; abandonnée si l'on est déjà reparti ailleurs.
@@ -129,6 +137,7 @@
       if (cancelPending) { cancelPending(); cancelPending = null; st.pendingAt = null; }
       setRoom();
       const want = wantedMusic();
+      st.wantLayer = want && want.layer || null;
       const newKey = want && want.ref ? model.refKey(want.ref) : null;
       st.fallback = !!(want && want.fallback);
       // Nœud « Transition » franchi pour arriver ici : ses réglages (style, durée, repère) et son fichier remplacent ceux de l'arrivée ;
@@ -136,8 +145,8 @@
       const viaNode = st.via && st.via.length ? model.nodeById(map, st.via[0]) : null; st.via = null;
       const viaTr = viaNode ? model.resolveTransition(map, viaNode) : null;
       if (newKey === lastMusicKey && musicVoice) {
-        st.music = want.ref; applyLayer(musicVoice, want.role);
-        if (viaTr && viaTr.stinger) load(viaTr.stinger).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
+        st.music = want.ref; applyLayer(musicVoice, want.role, !want.layer);
+        if (viaTr && viaTr.stinger) load(Object.assign({}, viaTr.stinger, { oneShot: true })).then(v => { if (v && my === token) { if (stingerVoice) { const sv = stingerVoice; safe(() => sv.stop()); } stingerVoice = v; v.start(1); } });
         notify(); return;
       } // même son : on le laisse jouer (la couche suit l'état exploration / combat)
       let tr = viaTr || (want ? want.transition : model.resolveTransition(map, null));
@@ -170,7 +179,7 @@
         if (incoming) applyLayer(incoming, want && want.role); else st.layerLevel = null;
         const sec = Math.max(0, tr.sec || 0);
         if (stingerVoice) { const sv = stingerVoice; stingerVoice = null; safe(() => sv.stop()); }
-        if (tr.stinger) load(tr.stinger).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
+        if (tr.stinger) load(Object.assign({}, tr.stinger, { oneShot: true })).then(v => { if (v && my === token) { stingerVoice = v; v.start(1); } });
         const stopLater = (v, after) => { if (!v) return; env.schedule(() => { if (musicVoice !== v) safe(() => v.stop()); }, env.now() + after + 0.05); };
         musicVoice = incoming; lastMusicKey = incoming ? newKey : null; if (incoming && (incoming.sequenceCount || incoming.isReady)) watchSequences(); st.music = want && want.ref && incoming ? want.ref : null;
         if (tr.style === 'cut' || sec === 0) {
@@ -183,6 +192,7 @@
           if (outgoing && outgoing !== incoming) { outgoing.setLevel(0, sec); stopLater(outgoing, sec); }
           if (incoming) { incoming.start(0); incoming.setLevel(1, outgoing ? sec : Math.min(sec, 1)); } // premier son : fondu d'entrée court
         }
+        applyRoomLevel(Math.max(0.5, Math.min(sec || 1, 3))); // le fond baisse quand une musique arrive, remonte quand elle s'en va
         notify();
       };
       if (at - env.now() > 0.02) { st.pendingAt = at; cancelPending = env.schedule(run, at); notify(); } else await run();
@@ -263,7 +273,7 @@
       },
       async resume() { if (st.position || st.free) { st.playing = true; await enter(); } },
       // Réglage fait pendant l'écoute (niveau du fond d'ambiance).
-      refreshRoomLevel() { if (roomVoice && map) roomVoice.setLevel(model.dbToGain(map.roomToneDb), 0.2); },
+      refreshRoomLevel() { applyRoomLevel(0.2); },
     };
   }
 
@@ -301,7 +311,7 @@
         if (!cache.has(key)) cache.set(key, env.mountTrackControl(spec.track));
         return cache.get(key);
       }
-      return bufferVoice(spec.url, spec.loop !== false);
+      return bufferVoice(spec.url, spec.loop !== false && !ref.oneShot); // une virgule de transition (stinger) se joue une seule fois
     };
   }
 

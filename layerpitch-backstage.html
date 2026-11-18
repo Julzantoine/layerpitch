@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders@0.7.0/dist/umd/WasmMediaEncoder.min.js" integrity="sha384-jnL9yi4lELMxvcNwE9FNSNbrTe8Gstx6L6uycidp2ar4UTa3JrZzgbtG2ouao2z6" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794918739492">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795041199074">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -288,7 +288,7 @@
   /* Plein écran (05/11) : le cadre couvre la fenêtre, le bouton de sortie flotte en haut à droite. */
   /* Plein écran de l'atelier (07/11) : la barre du haut (Prévisualiser, Sauvegarder / publier, Tutoriel…) reste visible, le cadre prend le reste ; le bouton
      « Quitter » est celui de l'atelier (dans le cadre), Échap marche aussi. */
-  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; }
+  body.video-atelier-full .page-top-row { position: fixed; top: 0; left: 0; right: 0; margin: 0; padding: 8px 20px; z-index: 901; border-radius: 0; background: var(--backstage-bg); }
   body.video-atelier-full .video-atelier-frame { position: fixed; inset: 58px 0 0 0; width: 100vw; height: calc(100vh - 58px); min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 900; }
   body.video-atelier-full .video-atelier-bar { display: none; }
   body.video-atelier-full { overflow: hidden; }
@@ -944,7 +944,11 @@
      identifié précisément entre les deux — ce commentaire lui-même affirmait alors "max 760px" comme une
      évidence, signe que la régression était déjà en place au moment où ce bloc a été écrit. Restauré à
      min(1400px, 92vw). */
-  .page-top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400; background: var(--backstage-bg); padding: 4px 0 8px; margin: -4px 0 0; }
+  /* Barre du haut collante (17/11, « pas très jolie » avec une image en filigrane : bande opaque aux bords francs) : verre dépoli
+     arrondi, bords alignés sur la barre latérale ; le filigrane transparaît à travers. */
+  .page-top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400;
+    background: color-mix(in srgb, var(--backstage-bg) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+    border-radius: 12px; box-shadow: 0 1px 3px rgba(20,22,28,.08); padding: 8px 12px; margin: -4px 0 0; }
   .global-actions-bar { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
 
   /* Menu compte (icône réglage, en haut à droite -- norme des autres sites : tout ce qui concerne
@@ -1102,7 +1106,7 @@
      le contenu prend toute la largeur ; les rangées de boutons passent à la ligne ; les deux colonnes internes s'empilent. */
   @media (max-width: 720px) {
     body { padding: 12px 12px 70px; }
-    .page-top-row { flex-direction: column; align-items: stretch; gap: 10px; position: static; }
+    .page-top-row { flex-direction: column; align-items: stretch; gap: 10px; position: static; margin: -4px 0 0; }
     .page-top-row h1 { font-size: 18px; }
     .global-actions-bar { flex-wrap: wrap; flex-shrink: 1; gap: 8px; }
     .backstage-layout { flex-direction: column; align-items: stretch; gap: 14px; margin-top: 12px; }
@@ -2363,20 +2367,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
-<script src="layerpitch-tuto.js?v=1794918739492"></script>
-<script src="layerpitch-i18n.js?v=1794918739492"></script>
-<script src="layerpitch-import-engine.js?v=1794918739492"></script>
-<script src="layerpitch-appearance.js?v=1794918739492"></script>
-<script src="layerpitch-font-picker.js?v=1794918739492"></script>
-<script src="layerpitch-album-shared.js?v=1794918739492"></script>
-<script src="layerpitch-album-editor.js?v=1794918739492"></script>
-<script src="layerpitch-shell.js?v=1794918739492"></script>
-<script src="layerpitch-social-icons.js?v=1794918739492"></script>
-<script src="layerpitch-notify.js?v=1794918739492"></script>
-<script src="layerpitch-guide.js?v=1794918739492"></script>
-<script src="layerpitch-lesson-previews.js?v=1794918739492"></script>
-<script src="layerpitch-help.js?v=1794918739492"></script>
-<script src="player.js?v=1794918739492"></script>
+<script src="layerpitch-tuto.js?v=1795041199074"></script>
+<script src="layerpitch-i18n.js?v=1795041199074"></script>
+<script src="layerpitch-import-engine.js?v=1795041199074"></script>
+<script src="layerpitch-appearance.js?v=1795041199074"></script>
+<script src="layerpitch-font-picker.js?v=1795041199074"></script>
+<script src="layerpitch-album-shared.js?v=1795041199074"></script>
+<script src="layerpitch-album-editor.js?v=1795041199074"></script>
+<script src="layerpitch-shell.js?v=1795041199074"></script>
+<script src="layerpitch-social-icons.js?v=1795041199074"></script>
+<script src="layerpitch-notify.js?v=1795041199074"></script>
+<script src="layerpitch-guide.js?v=1795041199074"></script>
+<script src="layerpitch-lesson-previews.js?v=1795041199074"></script>
+<script src="layerpitch-help.js?v=1795041199074"></script>
+<script src="player.js?v=1795041199074"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -17858,7 +17862,19 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 9, labelKey: 'lsArrowOut' } },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    // Écoute imposée : pas de « Suivant ». L'étape n'avance que lorsqu'un rebouclage a réellement été entendu (la position de lecture
+    // revient en arrière depuis la fin de la boucle), pas seulement après un clic sur « Prévisualiser ».
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listenTarget: '#libraryDetail [data-role="previewHost"]', clickDone: true,
+      enter: (c) => { c.prevPos = null; c.wrapped = false; },
+      done: (c) => {
+        if (c.wrapped) return true;
+        const row = document.querySelector('#libraryDetail [data-role="previewHost"] .track-row-wrapper');
+        const lp = row && row.lpControl && row.lpControl.loopPosition && row.lpControl.loopPosition();
+        if (!lp) { c.prevPos = null; return false; }
+        if (c.prevPos != null && c.prevPos >= lp.out - 2 && lp.pos < c.prevPos - 0.5) c.wrapped = true;
+        c.prevPos = lp.pos;
+        return c.wrapped;
+      } },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
@@ -19306,6 +19322,22 @@ function seedMyExamplesIfNeeded() {
   return examplesSeedPromise;
 }
 async function seedMyExamplesNow() {
+  await seedExampleTracksNow();
+  await seedMyDemoProjectNow();
+}
+// Projet de démonstration (18/11, feu vert example_project, migration 20261118020000) : même principe que les exemples, copié une
+// seule fois dans les Projets du compositeur (le serveur décide : feu vert, accueil terminé, déjà fait). Supprimable d'un clic depuis
+// la liste des Projets ou le Projet lui-même (bouton « Supprimer la démo »).
+async function seedMyDemoProjectNow() {
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
+    if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
+    if (data && data.seeded) {
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+    }
+  } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }
+}
+async function seedExampleTracksNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
     if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }
@@ -19645,6 +19677,8 @@ function switchEssentialsPath(path) {
 const HOME_PREFS_LOCAL = 'lp_home_prefs_v1'; // repli (navigateur) : mêmes clés que profiles.home_prefs
 const HOME_ON_HINT = 'lp_home_on'; // « l'Accueil est ouvert pour moi » : choisit le bon onglet dès le chargement, avant que les feux verts soient connus
 const HOME_NEWS = [ // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+  { date: "2026-11-18", fr: { title: "Un projet de démonstration", text: "Le projet « Dernier Étage » est ajouté à tes Projets pour explorer le mode Projet avec un exemple complet (tu peux le supprimer en un clic)." }, en: { title: "A demo project", text: "The \"Dernier Étage\" project is added to your Projects so you can explore Project mode with a full example (you can delete it in one click)." } },
+  { date: "2026-11-18", fr: { title: "Des leçons à ta mesure", text: "Réponds à quelques questions sur ton profil et retrouve en tête du menu Tutoriel les leçons qui te correspondent (« Tes essentiels »)." }, en: { title: "Lessons that fit you", text: "Answer a few questions about your profile and find the lessons that suit you at the top of the Tutorial menu (\"Your essentials\")." } },
   { date: "2026-11-14", fr: { title: "Polices en aperçu", text: "Dans les menus de choix de police, chaque police s'affiche dans son propre style (polices Google et polices importées comprises), y compris dans la page Projet." }, en: { title: "Fonts previewed in their own style", text: "In the font pickers, each font is shown in its own style (Google and uploaded fonts included), also on the Project page." } },
   { date: "2026-11-14", fr: { title: "Noms de variantes simplifiés", text: "Retire d'un clic le début commun des noms des variantes d'un pool pour ne garder que ce qui les distingue." }, en: { title: "Shorter variant names", text: "Remove the shared beginning of a pool's variant names in one click, keeping only what tells them apart." } },
   { date: "2026-11-14", fr: { title: "Tâches du projet", text: "Partage une liste de tâches avec ton équipe : assigne, fixe une échéance et lie chaque tâche à un élément du projet." }, en: { title: "Project tasks", text: "Share a task list with your team: assign people, set due dates and link each task to an item in the project." } },

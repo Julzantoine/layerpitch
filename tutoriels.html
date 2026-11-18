@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LayerPitch — Tous les tutoriels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root { --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6; --text: #24262b; --text-dim: #5f636b; --text-dimmer: #9a9ea6; --accent: #2f80c0; --accent-soft: #e6eef8;
+    --font-body: 'Inter', system-ui, sans-serif; --font-title: 'Space Grotesk', 'Inter', sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 32px 16px 60px; }
+  .page { max-width: 820px; margin: 0 auto; }
+  a { color: var(--accent); }
+  .top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .top-links { display: flex; gap: 12px; font-size: 13px; }
+  h1 { font-family: var(--font-title); font-size: 26px; margin: 0; }
+  h2 { font-family: var(--font-title); font-size: 17px; margin: 0 0 6px; }
+  .intro { color: var(--text-dim); line-height: 1.6; margin: 0 0 20px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 10px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); text-decoration: none; color: inherit; }
+  .row-main { flex: 1 1 auto; min-width: 0; }
+  a.row:hover .row-title { color: var(--accent); }
+  .row-title { font-family: var(--font-title); font-size: 15px; }
+  .row-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.5; }
+  .row.is-soon { opacity: .55; }
+  .btn { border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 13px; white-space: nowrap; }
+  a.row:hover .btn { border-color: var(--accent); color: var(--accent); }
+  details.theme { padding: 0; overflow: hidden; }
+  details.theme > summary { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; list-style: none; }
+  details.theme > summary::-webkit-details-marker { display: none; }
+  details.theme > summary:hover { background: #fafbfc; }
+  .sum-main { flex: 1; min-width: 0; }
+  .sum-main b { display: block; font-family: var(--font-title); font-size: 16px; font-weight: 600; }
+  .sum-main small { display: block; font-size: 12.5px; color: var(--text-dim); margin-top: 2px; line-height: 1.5; }
+  .count { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+  .chev { width: 8px; height: 8px; border-right: 2px solid var(--text-dim); border-bottom: 2px solid var(--text-dim); transform: rotate(-45deg); transition: transform .15s; margin: 0 4px; flex: none; }
+  details[open] > summary .chev { transform: rotate(45deg); }
+  details.theme.is-soon { opacity: .75; }
+  .rows { padding: 0 20px 8px; border-top: 1px solid var(--border); }
+  .bar { display: flex; gap: 14px; justify-content: flex-end; margin: 0 0 10px; }
+  .bar button { border: none; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .pill { font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><h1 id="h1"></h1><div class="top-links"><a id="langLink" href="#"></a><a id="homeLink" href="https://layerpitch.com/"></a></div></div>
+  <p class="intro" id="intro"></p>
+  <div id="content"></div>
+</div>
+<script src="layerpitch-i18n.js?v=1795041199074"></script>
+<script src="tutoriels.js?v=1795041199074"></script>
+<script>
+// tutoriels.html — page publique qui regroupe toutes les leçons du mode tutoriel (17/11). Jamais derrière une connexion.
+const pageLang = (new URLSearchParams(location.search).get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
+function tr(key) {
+  const I = window.LAYERPITCH_I18N || { fr: {}, en: {} };
+  const look = d => d && ((d.tutorials && d.tutorials[key]) || (d.backstage && d.backstage[key]) || (d.shared && d.shared[key]));
+  return look(I[pageLang]) || look(I.fr) || key;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+document.documentElement.lang = pageLang;
+document.title = tr('pageTitle');
+document.getElementById('h1').textContent = tr('h1');
+document.getElementById('intro').textContent = tr('intro');
+document.getElementById('homeLink').textContent = tr('home');
+const other = pageLang === 'fr' ? 'en' : 'fr';
+const lg = document.getElementById('langLink'); lg.textContent = other.toUpperCase(); lg.href = './tutoriels.html?lang=' + other;
+window.LayerPitchTutorialsHub.init({ lang: pageLang, tr, esc, root: document.getElementById('content') });
+</script>
+</body>
+</html>

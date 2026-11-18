@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794918739492">
-<link rel="stylesheet" href="player.css?v=1794918739492">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795041199074">
+<link rel="stylesheet" href="player.css?v=1795041199074">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -171,7 +171,10 @@
   .tuto-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border: 1px solid #b9d3ec; border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; font-size: 12px; color: #1d4a73; }
   .tuto-banner .btn { padding: 3px 10px; font-size: 12px; }
   .demo-banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--text); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-  body.demo #chat { pointer-events: none; opacity: .55; user-select: none; }
+  /* Démo : le tchat se lit (la liste des messages défile) mais on n'y écrit pas. */
+  body.demo #chat { opacity: .55; user-select: none; }
+  body.demo #chat > :not(#thread) { pointer-events: none; }
+  body.demo #chat .bubble button, body.demo #chat .bubble input { pointer-events: none; }
   .demo-shell { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; background: #eceef2; border-right: 1px solid var(--border); padding: 18px 14px; overflow: auto; pointer-events: none; user-select: none; opacity: .6; }
   .demo-shell b { display: block; font-family: var(--font-title); font-size: 17px; margin-bottom: 14px; }
   .demo-shell small { display: block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); margin: 14px 0 4px; }
@@ -208,30 +211,30 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
-<script src="layerpitch-i18n.js?v=1794918739492"></script>
-<script src="layerpitch-notify.js?v=1794918739492"></script>
-<script src="player.js?v=1794918739492"></script>
-<script src="api/supabase-client.js?v=1794918739492"></script>
-<script src="api/auth.js?v=1794918739492"></script>
-<script src="layerpitch-appearance.js?v=1794918739492"></script>
-<script src="layerpitch-font-picker.js?v=1794918739492"></script>
-<script src="layerpitch-shell.js?v=1794918739492"></script>
-<script src="api/tracks.js?v=1794918739492"></script>
-<script src="api/packs.js?v=1794918739492"></script>
-<script src="api/albums.js?v=1794918739492"></script>
-<script src="api/studio.js?v=1794918739492"></script>
-<script src="api/adreels.js?v=1794918739492"></script>
-<script src="api/demo-client.js?v=1794918739492"></script>
-<script src="api/demo-projects.js?v=1794918739492"></script>
-<script src="layerpitch-tuto.js?v=1794918739492"></script>
-<script src="layerpitch-guide.js?v=1794918739492"></script>
-<script src="layerpitch-lesson-previews.js?v=1794918739492"></script>
-<script src="projet-lecons.js?v=1794918739492"></script>
-<script src="layerpitch-video-versions.js?v=1794918739492"></script>
-<script src="api/projects.js?v=1794918739492"></script>
-<script src="api/sfx.js?v=1794918739492"></script>
-<script src="projet-carte-audio.js?v=1794918739492"></script>
-<script src="projet-carte.js?v=1794918739492"></script>
+<script src="layerpitch-i18n.js?v=1795041199074"></script>
+<script src="layerpitch-notify.js?v=1795041199074"></script>
+<script src="player.js?v=1795041199074"></script>
+<script src="api/supabase-client.js?v=1795041199074"></script>
+<script src="api/auth.js?v=1795041199074"></script>
+<script src="layerpitch-appearance.js?v=1795041199074"></script>
+<script src="layerpitch-font-picker.js?v=1795041199074"></script>
+<script src="layerpitch-shell.js?v=1795041199074"></script>
+<script src="api/tracks.js?v=1795041199074"></script>
+<script src="api/packs.js?v=1795041199074"></script>
+<script src="api/albums.js?v=1795041199074"></script>
+<script src="api/studio.js?v=1795041199074"></script>
+<script src="api/adreels.js?v=1795041199074"></script>
+<script src="api/demo-client.js?v=1795041199074"></script>
+<script src="api/demo-projects.js?v=1795041199074"></script>
+<script src="layerpitch-tuto.js?v=1795041199074"></script>
+<script src="layerpitch-guide.js?v=1795041199074"></script>
+<script src="layerpitch-lesson-previews.js?v=1795041199074"></script>
+<script src="projet-lecons.js?v=1795041199074"></script>
+<script src="layerpitch-video-versions.js?v=1795041199074"></script>
+<script src="api/projects.js?v=1795041199074"></script>
+<script src="api/sfx.js?v=1795041199074"></script>
+<script src="projet-carte-audio.js?v=1795041199074"></script>
+<script src="projet-carte.js?v=1795041199074"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -271,11 +274,15 @@ function demoProjects() {
   const reads = {
     get: async () => ({ data: S.demoProject, error: null }),
     content: async () => ({ data: S.demo.content, error: null }),
+    listMaps: async () => ({ data: S.demo.maps || [], error: null }),
     messages: async () => ({ data: (S.demo.messages || []).map(names), error: null }),
     activity: async () => ({ data: (S.demo.activity || []).map(names), error: null }),
     annotations: async (id, tt, tid) => ({ data: (S.demo.annotations || []).filter(n => (!tt || n.targetType === tt) && (!tid || n.targetId === tid)).map(names), error: null }),
     vitrines: async () => ({ data: (S.demo.vitrines || []).map(v => Object.assign({ audience: 'players', published: true, secretToken: null, blocks: [], theme: {} }, v)), error: null }),
     snapshots: async () => ({ data: [], error: null }),
+    // Carte : on peut la manier et y déposer les sons du pack pour essayer ; rien n'est enregistré (tout reste dans la page).
+    saveMap: async (id, p) => { const ms = S.demo.maps = S.demo.maps || []; const i = ms.findIndex(m => m.id === p.id); if (i >= 0) ms[i] = Object.assign({}, ms[i], p); else ms.push(Object.assign({ id: p.id || 'demo-' + Date.now() }, p)); return { data: { id: p.id || ms[ms.length - 1].id }, error: null }; },
+    deleteMap: async mapId => { S.demo.maps = (S.demo.maps || []).filter(m => m.id !== mapId); return { data: null, error: null }; },
     markRead: async () => ({ data: null, error: null }), markSeen: async () => ({ data: null, error: null }),
     fileUrl: (fileId) => realPJ.fileUrl(fileId),
   };
@@ -294,7 +301,7 @@ if (SOLO_MAP) { S.tab = 'map'; S.openMapId = params.get('map') || null; document
 if (!SOLO_MAP && ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members'].includes(params.get('tab'))) S.tab = params.get('tab');
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
-const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
+const TUTO_LESSONS = Object.assign({ started: false }, (TUTO || DEMO) ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $, demo: DEMO }) : { list: [], start: () => false });
 // Les leçons se lancent depuis le menu des tutos (?lesson=…) ; exposées pour les tests, qui les enchaînent sur une seule page.
 if (TUTO) window.LayerPitchTutoLessons = TUTO_LESSONS;
 // ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « Sans section » ----
@@ -743,13 +750,16 @@ async function fileUrl(fileId) {
 async function loadDemo() {
   let d = null;
   if (params.get('demo') === 'fixture') { try { d = await (await fetch('./test-fixtures/public-demo.json')).json(); } catch (e) {} } // aperçu local, sans base
-  else { const r = await realPJ.publicDemo(); d = r.data; }
+  else { const r = await realPJ.publicDemo(); d = r.data; if (d) { const m = await realPJ.publicDemoMaps(); d.maps = m.data || []; } }
   if (!d) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('demoUnavailable'))}</p></div>`; return; }
   S.demo = d; S.me = { id: 'demo', email: '' };
   S.demoProject = Object.assign({}, d.project, { role: 'viewer', archived: false, members: (d.members || []).map(m => ({ email: m.name, status: 'active', source: 'guest', role: m.role, me: false })) });
   S.project = S.demoProject; S.content = d.content || { assets: [], moodboard: [], packs: [], albums: [] };
   document.title = tr('pageTitleProject', { title: S.project.title });
   await loadMessages(); computeUnread(); render();
+  // Visite guidée proposée d'emblée à la première ouverture (puis relançable par le bouton du bandeau).
+  let seen = false; try { seen = localStorage.getItem('layerpitch_demo_tour_seen_v1') === '1'; localStorage.setItem('layerpitch_demo_tour_seen_v1', '1'); } catch (e) { /* stockage indisponible */ }
+  if (!seen && !params.get('tab')) setTimeout(() => TUTO_LESSONS.start('pj-tour'), 500);
 }
 async function load() {
   if (DEMO) return loadDemo();
@@ -802,7 +812,7 @@ function joinChannel() {
       }
       else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
       else if (payload.what === 'tasks') { await loadTasks(); if (S.tab === 'tasks' && !document.querySelector('.sec-overlay')) renderPanel(); }
-      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
+      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && (S.mapView.state.dirty || S.mapView.state.maximized))) renderPanel(); } // jamais pendant l'édition ni en plein écran
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
@@ -816,7 +826,21 @@ function markProjectSeen(force) {
   if (!force && Date.now() - lastSeenPush < 30000) return;
   lastSeenPush = Date.now(); PJ.markSeen(projectId);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) markProjectSeen(true); else markProjectSeen(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return markProjectSeen(true);
+  markProjectSeen();
+  refreshAfterReturn();
+});
+// Retour sur la page (après un tour dans le Backstage pour ajouter un morceau à un pack) : on relit tout ce qui vient du compositeur.
+// La carte garde son travail en cours : seule sa bibliothèque est mise à jour, la carte n'est pas remontée.
+async function refreshAfterReturn() {
+  if (!S.project || DEMO || TUTO) return;
+  invalidateComposerCaches();
+  try {
+    if (S.tab === 'map' && S.mapView && S.mapView.setLibraries) S.mapView.setLibraries(await buildMapLibraries());
+    else if (S.tab === 'music' && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) await renderPanel();
+  } catch (e) { console.warn('actualisation au retour', e); }
+}
 window.addEventListener('pagehide', () => markProjectSeen(true));
 function broadcast(what, extra) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: Object.assign({ what }, extra || {}) }); } catch (e) {} }
 function renderPresence() {
@@ -893,7 +917,8 @@ function render() {
   if (!visibleTabs().includes(S.tab)) S.tab = 'board'; // onglet demandé mais absent pour ce compte
   content.innerHTML = `
     ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
-    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
+    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><span><button class="btn" type="button" id="demoTourBtn">${esc(tr('demoTour'))}</button> <a class="btn" id="demoTutoBtn" href="./tutoriels.html?lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoTutorial'))}</a> <a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></span></div>` : ''}
+    ${p.isDemo && !DEMO && !TUTO ? `<div class="demo-banner"><span>${esc(tr('demoCopyBanner'))}</span><span><button class="btn danger" type="button" id="demoCopyRemoveBtn">${esc(tr('demoCopyRemove'))}</button></span></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
         ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
@@ -920,6 +945,12 @@ function render() {
   };
   if ($('openNotesBtn')) $('openNotesBtn').onclick = () => { S.showOpenNotes = !S.showOpenNotes; renderOpenNotes(); };
   renderOpenNotes();
+  if ($('demoCopyRemoveBtn')) $('demoCopyRemoveBtn').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('demoCopyConfirm'), { okLabel: tr('demoCopyRemove'), danger: true }))) return;
+    const r = await PJ.removeDemoCopy();
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    location.href = './projets.html?lang=' + pageLang;
+  };
   if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };
   if ($('deleteBtn')) $('deleteBtn').onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('deleteConfirm', { title: p.title }), { okLabel: tr('deleteProject'), danger: true }))) return;
@@ -929,7 +960,7 @@ function render() {
   };
   renderPanel();
   renderChat();
-  if (DEMO) lockDemo();
+  if (DEMO) { lockDemo(); const tb = $('demoTourBtn'); if (tb) tb.onclick = () => TUTO_LESSONS.start('pj-tour'); }
 }
 // Notes non résolues de tout le Projet (clic sur le compteur à côté du titre) : sur quoi, qui, quoi, et « Voir » qui mène
 // à l'objet (onglet Vidéos, Images ou Moodboard, notes ouvertes).
@@ -961,6 +992,7 @@ async function renderOpenNotes() {
 async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
+  if (S.lastPanelTab !== S.tab) { S.lastPanelTab = S.tab; invalidateComposerCaches(); } // changer d'onglet = relire les packs et morceaux
   if (S.tab === 'map') return renderMap(panel);
   if (S.tab === 'tasks') return renderTasks(panel);
   // Moodboard / Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
@@ -1304,6 +1336,13 @@ function wireComposer(aside) {
 // Les notes pointent vers l'objet : elles le suivent d'une section à l'autre.
 const assetById = id => (S.content.assets || []).find(a => a.id === id);
 const assetTitle = a => a.title || (a.preview && a.preview.title) || a.trackTitle || a.packTitle || a.albumTitle || a.montageTitle || a.fileName || a.url || '';
+// Tout ce que le Projet lit chez le compositeur (ses packs, morceaux, Sfx, dossiers ; le contenu des packs partagés) est gardé en mémoire
+// pour ne pas tout relire à chaque clic. Quand le contenu a pu changer ailleurs (ajout d'un morceau à un pack dans le Backstage), on
+// vide ces mémoires : c'est le SEUL endroit à compléter si on ajoute une nouvelle lecture de ce genre.
+function invalidateComposerCaches() {
+  S.myPacksLoaded = false; S.myTracksLoaded = false; S.mySfxLoaded = false; S.mapFoldersLoaded = false;
+  S.packLibCache = null; S.allPacksCache = null; S.demoSoundsLoaded = false;
+}
 async function ensureMyPacks() {
   if (S.myPacksLoaded || !S.myComposerId) return;
   const r = await LayerPitchPacks.listPacks({ ownerId: S.myComposerId });
@@ -1487,7 +1526,7 @@ function assetThumbHtml(a) {
   const src = pv || (y ? `https://i.ytimg.com/vi/${y}/default.jpg` : null);
   if (src) return `<span style="${box}"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover"></span>`;
   if (a.kind === 'image' && a.fileId) return `<span style="${box}"><img data-thumbfile="${esc(a.fileId)}" alt="" style="width:100%;height:100%;object-fit:cover"></span>`;
-  return `<span style="${box}">${a.kind === 'video' ? '🎬' : a.kind === 'audio' ? '🎧' : a.kind === 'track' ? '♪' : a.kind === 'pack' ? '📦' : '•'}</span>`;
+  return `<span style="${box}">${a.kind === 'video' || a.kind === 'montage' ? '🎬' : a.kind === 'audio' ? '🎧' : a.kind === 'track' ? '♪' : a.kind === 'pack' ? '📦' : '•'}</span>`;
 }
 function fillThumbs(root) { root.querySelectorAll('img[data-thumbfile]').forEach(async img => { const u = await fileUrl(img.dataset.thumbfile); if (u) img.src = u; }); }
 // Fichier déjà envoyé dans le Projet (même nom, même taille) : proposer de réutiliser l'objet existant plutôt qu'une copie.
@@ -1591,6 +1630,7 @@ function mountMontagePlayer(host, a) {
 async function ensureMyMontages() {
   if (S.myMontagesLoaded) return;
   S.myMontagesLoaded = true; S.myMontages = [];
+  if (DEMO) return; // visiteur de la démo : pas de compte, donc pas de montages à lister (évitait deux erreurs 401)
   try {
     // Les miens (compositeur) et ceux de mon studio (montages du studio, 21/10, migration 20261021060000).
     const client = window.LayerPitchSupabaseClient.getClient();
@@ -1883,7 +1923,7 @@ function renderVideoNotes() {
 // ---- Carte de niveau (6/10, migration 20261006020000) : dessiner un niveau puis y déposer des sons de la bibliothèque ----
 // Éditeur et fonctions pures : projet-carte.js. Sons proposés : morceaux et Sfx de la bibliothèque du compositeur, et l'audio du Projet.
 // Lecture de la carte : les sons de la bibliothèque jouent avec le vrai lecteur (morceaux adaptatifs, plusieurs EN MÊME TEMPS : fond
-// d'ambiance, morceau en cours, morceau qui entre) ; Sfx et audio du Projet sont décodés et bouclés. Les lecteurs de morceaux sont montés
+// d'ambiance, morceau en cours, morceau qui entre) ; les Sfx sont décodés et joués une fois (comme ailleurs), l'audio du Projet est bouclé. Les lecteurs de morceaux sont montés
 // hors de l'écran, une seule fois par morceau.
 function mapAudioEnv() {
   const P = window.LayerPlayerCore;
@@ -1900,7 +1940,8 @@ function mapAudioEnv() {
         const sfx = r.sfx && r.sfx[0];
         const alts = (sfx && sfx.alternatives || []).filter(a => a.file);
         if (!alts.length || !sfx.base) return null;
-        return { type: 'url', url: sfx.base + encodeURIComponent(alts[Math.floor(Math.random() * alts.length)].file), loop: true };
+        // Un Sfx n'a pas de réglage de boucle dans le Backstage : il se joue une fois, comme partout ailleurs.
+        return { type: 'url', url: sfx.base + encodeURIComponent(alts[Math.floor(Math.random() * alts.length)].file), loop: false };
       }
       if (ref.kind === 'asset') {
         const a = assetById(ref.id);
@@ -1958,19 +1999,71 @@ if (SOLO_MAP) window.addEventListener('pagehide', () => {
   try { const m = S.mapView && S.mapView.state; if (window.opener && m && m.current) window.opener.postMessage({ lpMapClosed: m.current }, location.origin); } catch (e) { /* onglet d'origine fermé */ }
 });
 if (!SOLO_MAP) window.addEventListener('message', ev => { if (ev.origin === location.origin && ev.data && ev.data.lpMapClosed) S.openMapId = String(ev.data.lpMapClosed); });
+// Musique des packs partagés au Projet : chaque pack devient un dossier de « Du Projet », avec ses morceaux et ses Sfx
+// (posés sur la carte comme n'importe quel morceau ou Sfx). Un pack introuvable ou illisible est simplement sauté.
+async function sharedPacksLibrary() {
+  const sig = (S.content.packs || []).map(p => p.packId).join(',');
+  if (S.packLibCache && S.packLibCache.sig === sig) return S.packLibCache.out;
+  const out = { items: [], folders: [] };
+  for (const sp of (S.content.packs || [])) {
+    try {
+      let pack = (await LayerPitchPacks.getPack(sp.packId)).pack;
+      // Le faux serveur du tutoriel ne sait pas lire un pack seul : on le retrouve dans la liste.
+      if (!pack) { if (!S.allPacksCache) S.allPacksCache = (await LayerPitchPacks.listPacks()).packs || []; pack = S.allPacksCache.find(x => x.id === sp.packId); }
+      if (!pack) continue;
+      const [tr_, sr] = await Promise.all([
+        pack.trackIds.length ? LayerPitchTracks.listTracksByIds(pack.trackIds) : { tracks: [] },
+        pack.sfxIds.length ? LayerPitchSfx.listSfxByIds(pack.sfxIds) : { sfx: [] },
+      ]);
+      const fid = 'pack:' + sp.packId;
+      const byId = (list, id) => (list || []).find(x => x.id === id);
+      const items = [];
+      pack.trackIds.forEach(id => { const t = byId(tr_.tracks, id); if (t) items.push({ id: t.id, title: t.title, hint: t.mode, kind: 'track', folderId: fid }); });
+      pack.sfxIds.forEach(id => { const x = byId(sr.sfx, id); if (x) items.push({ id: x.id, title: x.title, kind: 'sfx', folderId: fid }); });
+      if (items.length) { out.folders.push({ id: fid, label: sp.title || pack.title }); out.items.push(...items); }
+    } catch (e) { console.warn('pack partagé illisible', sp.packId, e); }
+  }
+  S.packLibCache = { sig, out };
+  return out;
+}
+// Démo publique : la bibliothèque de la carte propose les morceaux et Sfx des packs partagés du Projet (lisibles sans compte).
+async function ensureDemoPackSounds() {
+  if (S.demoSoundsLoaded) return;
+  S.demoSoundsLoaded = true; S.myTracks = []; S.mySfx = [];
+  for (const k of (S.content.packs || [])) {
+    const pk = (await LayerPitchPacks.getPack(k.packId)).pack; if (!pk) continue;
+    if ((pk.trackIds || []).length) S.myTracks.push(...((await LayerPitchTracks.listTracksByIds(pk.trackIds)).tracks || []));
+    if ((pk.sfxIds || []).length) S.mySfx.push(...((await LayerPitchSfx.listSfxByIds(pk.sfxIds)).sfx || []));
+  }
+}
+// Bibliothèques de la carte (Morceaux, Sfx, « Du Projet » avec un dossier par pack partagé). Reconstruite à chaque ouverture de la carte et
+// à chaque retour sur la page : un morceau ajouté à un pack (ou au Backstage) apparaît donc sans recharger.
+async function buildMapLibraries() {
+  if (DEMO) await ensureDemoPackSounds(); else await ensureMyTracks();
+  if (!DEMO && !S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
+  // Dossiers du Backstage (Morceaux, Sfx) et musique des packs partagés au Projet (un dossier par pack, dans « Du Projet »).
+  if (!DEMO && S.myComposerId && !S.mapFoldersLoaded) {
+    try {
+      const [tf, sf] = await Promise.all([LayerPitchTracks.listTrackFolders({ ownerId: S.myComposerId }), LayerPitchSfx.listSfxFolders({ ownerId: S.myComposerId })]);
+      S.mapFolders = { track: tf.folders || [], sfx: sf.folders || [] }; S.mapFoldersLoaded = true;
+    } catch (e) { S.mapFolders = { track: [], sfx: [] }; }
+  }
+  const packLib = DEMO ? { items: [], folders: [] } : await sharedPacksLibrary(); // la démo publique les met déjà dans « Morceaux » (ensureDemoPackSounds)
+  const libraries = {
+    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode, folderId: t.folderId || null })),
+    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title, folderId: x.folderId || null })),
+    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })).concat(packLib.items),
+    folders: { track: (S.mapFolders && S.mapFolders.track) || [], sfx: (S.mapFolders && S.mapFolders.sfx) || [], asset: packLib.folders },
+  };
+  return libraries;
+}
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
     panel.innerHTML = `<div class="card"><h2>${esc(tr('map_title'))}</h2><p class="hint">${esc(/pas encore ouverte/.test(r.error) ? tr('map_locked') : tr('errorPrefix', { message: r.error }))}</p></div>`;
     return;
   }
-  await ensureMyTracks();
-  if (!S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
-  const libraries = {
-    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode })),
-    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title })),
-    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
-  };
+  const libraries = await buildMapLibraries();
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   S.mapView = null;
   if (mapPopupOpen()) return renderMapDetached(panel);
@@ -1978,7 +2071,8 @@ async function renderMap(panel) {
   S.mapView = LayerPitchLevelMap.mount(panel, {
     tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
-    detach: SOLO_MAP ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
+    libUi: (S.mapLibUi = S.mapLibUi || { tab: 'track', query: '', open: new Set() }),
+    detach: (SOLO_MAP || DEMO) ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
     uploadSound: async file => {
@@ -2026,8 +2120,9 @@ async function renderMusic(panel) {
   panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
       ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
           <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
-          ${TUTO ? '' : `<a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`}
-          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}</div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
+          ${TUTO ? '' : `<button class="btn" type="button" data-expandpack="${esc(p.packId)}" aria-expanded="false">${esc(tr('expandPack'))}</button><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPackNewTab'))}</a>`}
+          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}
+          <div class="pack-inline" data-packframe="${esc(p.packId)}" hidden style="flex:1 1 100%"></div></div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
       ${S.myPacks.length ? `<label>${esc(tr('bringPack'))}</label><div class="bar"><select id="myPack" style="flex:1 1 200px">${S.myPacks.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select>
         <button class="btn" id="shareBtn" type="button">${esc(tr('sharePack'))}</button>
         ${studioProject ? `<button class="btn" id="offerBtn" type="button" title="${esc(tr('offerHelp'))}">${esc(tr('offerPack'))}</button>` : ''}</div>` : ''}
@@ -2048,6 +2143,19 @@ async function renderMusic(panel) {
   };
   if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
   if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
+  // Pack déplié : mémorisé (S.openPacks), car la page se redessine seule (autre membre, retour sur l'onglet) et le repliait aussitôt.
+  // Dépliés d'office (retour 18/11 : la musique est le cœur du site) ; seul un repli volontaire est mémorisé.
+  S.collapsedPacks = S.collapsedPacks || new Set();
+  const setPackOpen = (id, open) => {
+    const box = panel.querySelector('[data-packframe="' + id + '"]'), b = panel.querySelector('[data-expandpack="' + id + '"]');
+    if (!box || !b) return;
+    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(id)}&lang=${pageLang}" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    box.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+    b.textContent = tr(open ? 'collapsePack' : 'expandPack');
+    if (open) S.collapsedPacks.delete(id); else S.collapsedPacks.add(id);
+  };
+  panel.querySelectorAll('[data-expandpack]').forEach(b => { b.onclick = () => setPackOpen(b.dataset.expandpack, panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]').hidden); if (!TUTO && !S.collapsedPacks.has(b.dataset.expandpack)) setPackOpen(b.dataset.expandpack, true); });
   panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
   if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
   panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });
@@ -2059,7 +2167,7 @@ async function renderMusic(panel) {
 // de l'AdReel, qui pointent vers les objets du Projet ; même moteur d'affichage que les AdReels (reel.js). Tous les
 // membres préparent, les administrateurs publient. Fichiers privés autorisés partout, avec un avertissement (Q7).
 const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links', 'contact'];
-const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video'], photo: ['image'], packs: ['pack'] };
+const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video', 'montage'], photo: ['image'], packs: ['pack'] };
 const VITRINE_FONTS = ['default', 'google:Space Grotesk', 'google:Fraunces', 'google:Zilla Slab', 'google:Manrope', 'google:Playfair Display', 'google:DM Serif Display', 'google:JetBrains Mono'];
 // Aperçu : chaque police s'affiche dans sa propre police dans les menus (une seule feuille Google Fonts, display=swap).
 // Le menu déroulant natif ignore la police des options : layerpitch-font-picker.js ouvre un menu maison à la place.
@@ -2526,7 +2634,7 @@ function renderMembers(panel) {
 
 if (!DEMO && !TUTO && !SOLO_MAP) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
 // Démonstration : formulaires et boutons d'écriture grisés (la discussion et la barre latérale le sont par la feuille de style).
-const DEMO_WRITE = '[data-act], [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
+const DEMO_WRITE = '[data-act]:not([data-act="play"]):not([data-act="watch"]), [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
 function lockDemo() {
   // Formulaires d'ajout : retirés (rien à saisir en démo) ; le reste des contrôles d'écriture est grisé.
   const add = $('addKind'); if (add && add.closest('.bar')) add.closest('.bar').hidden = true;
@@ -2536,7 +2644,8 @@ function lockDemo() {
     const v = ((S.demo && S.demo.vitrines) || []).find(x => a.href.includes('id=' + x.id)); if (!v || !v.slug) return;
     a.href = location.origin + '/vitrine/' + encodeURIComponent(v.slug); a.textContent = tr('demoViewShowcase');
   });
-  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
+  // .lp-video-versions : changer de version vidéo ne modifie rien, le menu reste actif en démo.
+  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled && !el.closest('.lm-wrap, .lm-toolbar, .lp-video-versions')) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
 }
 if (DEMO) {
   document.body.classList.add('demo');

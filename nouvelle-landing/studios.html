@@ -83,6 +83,7 @@
   }
   .hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 700; font-style: italic; line-height: 1.22; position: relative; }
   .hero .sub { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-dim); margin-top: 20px; position: relative; }
+  .hero .promise { font-family: var(--font-title); font-size: clamp(19px, 3.2vw, 28px); font-weight: 600; line-height: 1.3; color: var(--accent-dark); max-width: 30ch; margin: 28px auto 0; position: relative; }
 
   /* ---- Carte des chemins (remplace l'ancienne forme d'onde) -- reproduction compacte, en
        HTML/SVG plutôt qu'une image, de la carte des chemins du backstage (mode séquentiel à
@@ -208,6 +209,7 @@
 
 <header class="hero wrap">
   <h1>Une musique qui immerge,<br>un travail qui se fluidifie.</h1>
+  <p class="promise">Écoutez la musique réagir dans vos niveaux avant de l’implémenter.</p>
   <div class="sub">LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble. Grâce à une suite d’outils pensés pour fluidifier le workflow, écoutez les propositions musicales, jouez avec, testez-les dans vos niveaux et validez tout avant l’implémentation. Vous avez déjà beaucoup à faire… Gagnez du temps.</div>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
@@ -262,27 +264,7 @@
 
 <section class="demo wrap">
   <p>Un projet de démonstration, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
-  <!-- DÉMO PAS ENCORE PRÊTE : bouton grisé. Le jour où le Projet « Alone in the Barque » est marqué comme démo publique (interrupteur
-       « Démo publique » sur sa page), remplacer ce <span> par :
-       <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a> -->
-  <span class="btn btn-primary" aria-disabled="true" title="Bientôt" style="opacity:.45;cursor:default;pointer-events:none">Manipulez un projet vous-même · Bientôt</span>
-</section>
-
-<section class="proof wrap">
-  <div class="proof-grid">
-    <div class="testimonial">
-      <p>"The branching music system really has the ability to wow someone!"</p>
-      <cite>Michael W.</cite> <span class="role">— compositeur de jeu vidéo / enseignant en MA Composition for Video Game</span>
-    </div>
-    <div class="testimonial">
-      <p>"That's genuinely cool for game composers' reel!"</p>
-      <cite>Giorgio V.</cite> <span class="role">— Audio Director / enseignant en MA Sound Design for Video Games</span>
-    </div>
-    <div class="testimonial">
-      <p>"C'est la première fois que je vois un outil de présentation de musique interactive comme ça."</p>
-      <cite>William R.</cite> <span class="role">— doctorant en ludomusicologie</span>
-    </div>
-  </div>
+  <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a>
 </section>
 
 <section class="block wrap">
