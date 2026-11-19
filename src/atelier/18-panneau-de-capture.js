@@ -1194,7 +1194,7 @@ function openCapturePanel(file, opts) {
   }
   async function refreshCoverRow() {
     if (!coverRow) return;
-    const on = captureCanSave && !!savedCaptureId && !disposed && !!window.__lpCaptureIsAdmin; // nouveauté : admin seulement jusqu'au feu vert
+    const on = captureCanSave && !!savedCaptureId && !disposed; // ouvert à tous les comptes qui enregistrent leurs montages (19/11)
     coverRow.hidden = !on;
     if (!on || coverFor === savedCaptureId) return;
     const id = savedCaptureId; coverFor = id; coverUrl = null; renderCoverRow();
