@@ -246,6 +246,7 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
+    <div class="atelier-cover-row" id="atelierCoverRow" hidden></div>
     ${stepsV2 ? `<div class="atelier-stepbar" id="atelierStepBar" role="tablist">
       <button type="button" class="atelier-stepbar-btn done" data-step="video" data-help="atelier_stepVideo" role="tab"><span class="n">1</span> ${tr('stepBarVideo')}</button>
       <button type="button" class="atelier-stepbar-btn on" data-step="montage" data-help="atelier_stepMontage" role="tab" aria-selected="true"><span class="n">2</span> ${tr('stepBarMontage')}</button>
@@ -926,7 +927,7 @@ function openCapturePanel(file, opts) {
         lastSavedKey = key;
         setSaveState('saved', tr(hostPublishes ? 'captureSavedAutoHost' : 'captureSavedAutoStudio'));
         refreshLoadOptions();
-        if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); }
+        if (savedCaptureId !== currentCaptureId) { savedCaptureId = currentCaptureId; if (versioning) versioning.refresh(); renderExportHistory(); refreshCoverRow(); }
       } catch (e) {
         console.error(e);
         setSaveState('error', tr('captureSaveFailed').replace('{error}', e.message));
@@ -1025,6 +1026,7 @@ function openCapturePanel(file, opts) {
     activeAltId = null; baseSnap = null; titleInput.disabled = false; // un autre montage : on repart de sa version n° 1
     currentCaptureId = capture.id;
     savedCaptureId = capture.id;
+    refreshCoverRow();
     setTimeout(renderExportHistory, 0); // historique des exports de ce montage
     lastEvents = capture.events || [];
     laneOverrides = capture.laneOverrides || {};
@@ -1147,6 +1149,59 @@ function openCapturePanel(file, opts) {
   // La version n° 1 porte le nom du montage : le renommer la renomme partout (menu, export, AdReels, Projets, relecture).
   const origName = () => (baseState().title || '').trim() || tr('altOriginal');
   const altName = (v, i) => v.title || tr('altDefaultName').replace('{n}', String(i + 2));
+  // Vignette du montage (19/11) : une image par montage, lue partout où il est affiché. Prise sur l'image de la vidéo (à la tête de lecture)
+  // ou importée ; visible dès que le montage est enregistré (Boss, comme l'enregistrement lui-même).
+  const coverRow = document.getElementById('atelierCoverRow');
+  let coverUrl = null, coverFor = null, coverBusy = false;
+  const coverEsc = window.LayerPlayerCore.escapeHtml;
+  function renderCoverRow() {
+    if (!coverRow) return;
+    coverRow.innerHTML = `<span class="atelier-cover-label">${coverEsc(tr('captureCoverLabel'))}</span>
+      ${coverUrl ? `<img class="atelier-cover-thumb" src="${coverEsc(coverUrl)}" alt="">` : `<span class="atelier-cover-none">${coverEsc(tr('captureCoverNone'))}</span>`}
+      <button type="button" class="video-test-panel-btn" id="atelierCoverFrame" title="${coverEsc(tr('captureCoverFrameHelp'))}" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverFrame'))}</button>
+      <button type="button" class="video-test-panel-btn" id="atelierCoverImport" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverImport'))}</button>
+      ${coverUrl ? `<button type="button" class="video-test-panel-btn" id="atelierCoverRemove" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverRemove'))}</button>` : ''}
+      <span class="atelier-cover-status" id="atelierCoverStatus"></span>`;
+    const st = msg => { const el = document.getElementById('atelierCoverStatus'); if (el) el.textContent = msg || ''; };
+    const run = async (work, doneKey) => {
+      const id = savedCaptureId; if (!id || coverBusy) return;
+      coverBusy = true; renderCoverRow(); st(tr('captureCoverBusy'));
+      try { coverUrl = await work(id); coverFor = id; renderCoverRow(); st(tr(doneKey)); }
+      catch (e) { console.error(e); coverBusy = false; renderCoverRow(); st(tr('captureCoverFailed').replace('{error}', e.message || e)); return; }
+      coverBusy = false; renderCoverRow(); st(tr(doneKey));
+    };
+    const fr = document.getElementById('atelierCoverFrame');
+    if (fr) fr.onclick = () => run(async id => {
+      const w = videoEl.videoWidth, h = videoEl.videoHeight; if (!w || !h) throw new Error('image de la vidéo indisponible');
+      const scale = Math.min(1, 1280 / w), cv = document.createElement('canvas'); cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
+      cv.getContext('2d').drawImage(videoEl, 0, 0, cv.width, cv.height);
+      const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.85)); if (!blob) throw new Error('image illisible');
+      return uploadMontageCover(id, blob, 'jpg');
+    }, 'captureCoverSaved');
+    const im = document.getElementById('atelierCoverImport');
+    if (im) im.onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0]; if (!f) return;
+        const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[f.type];
+        if (!ext) return st(tr('captureCoverNotImage'));
+        run(id => uploadMontageCover(id, f, ext), 'captureCoverSaved');
+      };
+      inp.click();
+    };
+    const rm = document.getElementById('atelierCoverRemove');
+    if (rm) rm.onclick = () => run(async id => { await clearMontageCover(id); return null; }, 'captureCoverRemoved');
+  }
+  async function refreshCoverRow() {
+    if (!coverRow) return;
+    const on = captureCanSave && !!savedCaptureId && !disposed && !!window.__lpCaptureIsAdmin; // nouveauté : admin seulement jusqu'au feu vert
+    coverRow.hidden = !on;
+    if (!on || coverFor === savedCaptureId) return;
+    const id = savedCaptureId; coverFor = id; coverUrl = null; renderCoverRow();
+    const r = await window.LayerPitchSupabaseClient.getClient().rpc('get_video_capture_cover', withStudio({ p_capture_id: id })).catch(() => ({ error: true }));
+    if (savedCaptureId !== id) return; // un autre montage a été ouvert entre-temps
+    coverUrl = r && !r.error && r.data ? r.data : null; renderCoverRow();
+  }
   function renderAltSelect() {
     if (!altSelect) return;
     const on = !!(versioning && versioningLevel === 'saved' && savedCaptureId && captureCanSave);
