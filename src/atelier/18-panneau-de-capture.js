@@ -246,7 +246,6 @@ function openCapturePanel(file, opts) {
         <button type="button" class="video-test-panel-btn" id="videoCaptureCloseBtn" title="${tr('closeBtn')}" aria-label="${tr('closeBtn')}">✕</button>
       </div>
     </div>
-    <div class="atelier-cover-row" id="atelierCoverRow" hidden></div>
     ${stepsV2 ? `<div class="atelier-stepbar" id="atelierStepBar" role="tablist">
       <button type="button" class="atelier-stepbar-btn done" data-step="video" data-help="atelier_stepVideo" role="tab"><span class="n">1</span> ${tr('stepBarVideo')}</button>
       <button type="button" class="atelier-stepbar-btn on" data-step="montage" data-help="atelier_stepMontage" role="tab" aria-selected="true"><span class="n">2</span> ${tr('stepBarMontage')}</button>
@@ -284,6 +283,7 @@ function openCapturePanel(file, opts) {
       <label class="video-capture-count" data-adv id="videoCaptureKeepOldLabel" hidden style="display:none" title="${tr('captureKeepOldHelp')}"><input type="checkbox" id="videoCaptureKeepOld" checked style="width:auto;margin:0"> ${tr('captureKeepOldLabel')}</label>
       <span class="video-capture-count" id="videoCaptureExportStatus"></span>
     </div>
+    <div class="video-capture-bar video-step-publier atelier-cover-row" id="atelierCoverRow" hidden></div>
     <div class="video-capture-history video-step-publier" id="videoCaptureHistory" hidden></div>
     <div class="video-capture-bar video-step-montage">
       <select class="video-capture-load-select" data-help="atelier_loadSelect" id="videoCaptureLoadSelect" disabled><option value="">${tr('captureLoadOptionDefault')}</option></select>
@@ -1158,9 +1158,9 @@ function openCapturePanel(file, opts) {
     if (!coverRow) return;
     coverRow.innerHTML = `<span class="atelier-cover-label">${coverEsc(tr('captureCoverLabel'))}</span>
       ${coverUrl ? `<img class="atelier-cover-thumb" src="${coverEsc(coverUrl)}" alt="">` : `<span class="atelier-cover-none">${coverEsc(tr('captureCoverNone'))}</span>`}
-      <button type="button" class="video-test-panel-btn" id="atelierCoverFrame" title="${coverEsc(tr('captureCoverFrameHelp'))}" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverFrame'))}</button>
-      <button type="button" class="video-test-panel-btn" id="atelierCoverImport" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverImport'))}</button>
-      ${coverUrl ? `<button type="button" class="video-test-panel-btn" id="atelierCoverRemove" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverRemove'))}</button>` : ''}
+      <button type="button" class="video-capture-download-btn" id="atelierCoverFrame" title="${coverEsc(tr('captureCoverFrameHelp'))}" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverFrame'))}</button>
+      <button type="button" class="video-capture-download-btn" id="atelierCoverImport" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverImport'))}</button>
+      ${coverUrl ? `<button type="button" class="video-capture-download-btn" id="atelierCoverRemove" ${coverBusy ? 'disabled' : ''}>${coverEsc(tr('captureCoverRemove'))}</button>` : ''}
       <span class="atelier-cover-status" id="atelierCoverStatus"></span>`;
     const st = msg => { const el = document.getElementById('atelierCoverStatus'); if (el) el.textContent = msg || ''; };
     const run = async (work, doneKey) => {
