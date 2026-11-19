@@ -47,6 +47,8 @@ const PAGES = [
   ['en/faq.html', html => faqLd(html, 'en')],
   ['layerpitch-vs-wwise-fmod.html', html => faqLd(html, 'fr')],
   ['en/layerpitch-vs-wwise-fmod.html', html => faqLd(html, 'en')],
+  ['layerpitch-vs-disco-dropbox.html', html => faqLd(html, 'fr')],
+  ['en/layerpitch-vs-disco-dropbox.html', html => faqLd(html, 'en')],
 ];
 
 function render(html, ld) {
