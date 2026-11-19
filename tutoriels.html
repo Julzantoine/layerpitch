@@ -47,7 +47,7 @@
 </head>
 <body>
 <div class="page">
-  <div class="top"><h1 id="h1"></h1><div class="top-links"><a id="langLink" href="#"></a><a id="homeLink" href="https://layerpitch.com/"></a></div></div>
+  <div class="top"><h1 id="h1"></h1><div class="top-links"><a id="langLink" href="#"></a><a id="homeLink" href="https://www.layerpitch.com/"></a></div></div>
   <p class="intro" id="intro"></p>
   <div id="content"></div>
 </div>
@@ -67,6 +67,7 @@ document.title = tr('pageTitle');
 document.getElementById('h1').textContent = tr('h1');
 document.getElementById('intro').textContent = tr('intro');
 document.getElementById('homeLink').textContent = tr('home');
+document.getElementById('homeLink').href = pageLang === 'en' ? 'https://www.layerpitch.com/en/' : 'https://www.layerpitch.com/';
 const other = pageLang === 'fr' ? 'en' : 'fr';
 const lg = document.getElementById('langLink'); lg.textContent = other.toUpperCase(); lg.href = './tutoriels.html?lang=' + other;
 window.LayerPitchTutorialsHub.init({ lang: pageLang, tr, esc, root: document.getElementById('content') });
