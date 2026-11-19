@@ -56,9 +56,10 @@
   // par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers à déposer dans media.layerpitch.com/tuto/dernier-etage/ (dossier medias-dernier-etage/ de
   // Jules-Antoine). Images et extrait : Protocol Interactive, « Something Is Wrong » (en développement), accord demandé le 18/11 : TANT QU'IL N'EST PAS CONFIRMÉ,
   // les deux leçons restent réservées aux admins (adminOnly dans src/backstage/43-visite-guidee.js).
-  const MC_DIR = 'https://media.layerpitch.com/tuto/dernier-etage/';
-  const SHOWCASE_IMAGES = [['Le bureau d’Allrisk Solutions', 'bureau.jpg'], ['L’écran d’ordinateur du jeu', 'ecran-haunted-stories.jpg'], ['Le couloir sombre', 'couloir.jpg'], ['L’écran-titre', 'titre-steam.jpg']]
-    .map(([title, file]) => ({ title, name: file, url: MC_DIR + file }));
+  const MC_DIR = 'https://media.layerpitch.com/tuto/';
+  // Captures de Jules-Antoine, déposées telles quelles (PNG, noms d'origine) dans tuto/ ; encodées pour l'adresse (apostrophe courbe, accents).
+  const SHOWCASE_IMAGES = [['Le bureau d’Allrisk Solutions', '11.13.22'], ['L’écran d’ordinateur du jeu', '11.14.07'], ['Le couloir sombre', '11.14.23'], ['L’écran-titre', '11.14.58']]
+    .map(([title, t]) => { const name = 'Capture d’écran 2026-11-18 à ' + t + '.png'; return { title, name, url: MC_DIR + encodeURIComponent(name) }; });
   const SHOWCASE_TRACKS = [['bmwb6s3d467w77', 'Welcome to the Office'], ['bmw3ds8idckeds', 'Drone Urbex #2']];
   const SHOWCASE_PITCH = 'Vous êtes employé(e) dans une tour de bureaux qui ne ferme jamais. Les dossiers s’empilent, les néons bourdonnent, et chaque étage est un peu plus sombre que le précédent. Un jeu à l’ambiance lente, où la musique ne dit pas quoi ressentir : elle suit votre fatigue.';
   // Vitrine « déjà construite » (leçon apparence) : le résultat de la leçon « construire ».
@@ -135,7 +136,7 @@
     if (opts.seedVitrine || opts.seedVitrineBuilt) {
       const fileAsset = (kind, f, mime) => { const fileId = nid('f'); files[fileId] = { name: f.name, size: 0, type: mime, url: f.url };
         const a = { id: nid('a'), kind, origin: 'own', title: f.title, body: '', url: null, fileId, fileName: f.name, mimeType: mime, createdAt: now(), authorEmail: 'ines@dernier-etage.example', preview: null }; assets.push(a); return a; };
-      const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/jpeg'));
+      const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/png'));
       // Bloc « Vidéo » : le montage « Short SIW Test #1 » (menu des versions) (plus d'extrait mp4 à héberger : le bloc lit le montage directement).
       const vid = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Scène d’ouverture : version A (mélodie) et version B (texture)', body: '', montageId: 'cap-dernier-etage', montageTitle: 'Short SIW Test #1', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
       assets.push(vid);

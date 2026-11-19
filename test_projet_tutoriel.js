@@ -169,7 +169,7 @@ const { JSDOM } = require('jsdom');
     const PJv = DPr.create({ seedVitrine: true });
     const as = (await PJv.content()).data.assets;
     check('vitrine : quatre images, le montage vidéo et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'montage' && a.montageId === 'cap-dernier-etage') && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
-    check('vitrine : images lues depuis media.layerpitch.com/tuto/dernier-etage/', /^https:\/\/media\.layerpitch\.com\/tuto\/dernier-etage\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
+    check('vitrine : images lues depuis media.layerpitch.com/tuto/ (captures PNG)', /^https:\/\/media\.layerpitch\.com\/tuto\/Capture%20d%E2%80%99%C3%A9cran/.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
     check('vitrine : aucune vitrine au départ de la leçon « construire »', (await PJv.vitrines()).data.length === 0);
     const img = as.find(a => a.kind === 'image');
     const r = await PJv.saveVitrine('demo-dernier-etage', { audience: 'players', display: 'page', title: 'Dernier Étage', subtitle: '', slug: 'dernier-etage', published: false, theme: {}, bgAssetId: img.id, blocks: [{ id: 'b1', type: 'photo', assetIds: [img.id] }] });
