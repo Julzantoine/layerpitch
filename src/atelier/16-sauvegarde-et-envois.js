@@ -132,7 +132,7 @@ const MEDIA_BASE = 'https://media.layerpitch.com/';
 // Envois vidéo AU NOM D'UN STUDIO (asStudio) : ouverts depuis le redéploiement de create-media-signed-url par Jules-Antoine (21/10).
 async function r2SignedUrl(path, method, size) {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
-    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && path.startsWith('video/') ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
+    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && (path.startsWith('video/') || /^images\/[^/]+\/montage-/.test(path)) ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
   if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
@@ -215,6 +215,22 @@ async function r2DeleteRemovedVideos(removed) {
       if (data && data.url && !data.kept) await fetch(data.url, { method: 'DELETE' });
     } catch (e) { console.warn('Effacement du fichier ' + r.path + ' :', e.message || e); }
   }
+}
+// Vignette d'un montage (19/11, migration 20261119020000) : l'image est envoyée sous images/<dossier du propriétaire>/montage-<id>-<suffixe>.<ext>
+// (le serveur impose ce dossier : celui du compositeur, ou celui du studio), puis son adresse est rangée sur le montage. Le suffixe change à
+// chaque envoi : un navigateur qui a gardé l'ancienne image n'est pas servi par son cache.
+async function uploadMontageCover(captureId, blob, ext) {
+  const owner = videoAsStudio() ? (await window.LayerPitchAuth.getMyStudioId()).studioId : (await window.LayerPitchAuth.getMyComposerId()).composerId;
+  if (!owner) throw new Error(tr('captureCoverNoOwner'));
+  const path = `images/${owner}/montage-${captureId}-${Date.now().toString(36)}.${ext}`;
+  await r2PutFile(path, blob, blob.type || 'image/jpeg');
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_cover', withStudio({ p_capture_id: captureId, p_cover_url: MEDIA_BASE + path }));
+  if (error) throw error;
+  return MEDIA_BASE + path;
+}
+async function clearMontageCover(captureId) {
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_cover', withStudio({ p_capture_id: captureId, p_cover_url: null }));
+  if (error) throw error;
 }
 // Envoie un export terminé (Blob mp4) dans la bibliothèque vidéo du compositeur -- kind:'capture_export'
 // pour le distinguer d'un simple import (voir composer_videos.kind), pack_id relie l'export à CE pack.

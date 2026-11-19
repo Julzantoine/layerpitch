@@ -58,6 +58,8 @@
     // Vidéo muette une fois + un son par version (migration 20261021040000) : une version 'audio' se joue sur l'image muette du
     // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
     const base = montage.baseUrl || null;
+    // Vignette du montage (choisie dans l'atelier, migration 20261119020000) : l'affiche du lecteur avant la lecture, quelle que soit la version.
+    if (montage.coverUrl && /^https:\/\//.test(montage.coverUrl)) video.poster = montage.coverUrl;
     const isSound = v => v.kind === 'audio' && !!base;
     // Deux pistes son : l'active, et une de rechange déjà chargée avec « l'autre » version (bascule A/B instantanée, sans attente de chargement).
     let audio = document.createElement('audio');
