@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795043467019">
-<link rel="stylesheet" href="player.css?v=1795043467019">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795087152975">
+<link rel="stylesheet" href="player.css?v=1795087152975">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -117,11 +117,38 @@
   .sec-pick { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; cursor: pointer; }
   .sec-pick input { width: auto; margin: 0; }
   @media (max-width: 900px) { .sec-layout { grid-template-columns: minmax(0, 1fr); } .sec-nav { position: static; max-height: none; } }
+  /* Colonne Sections repliable (retour Joris 18/11) : repliée d'office, un onglet vertical comme la Discussion. */
+  .sec-layout.sec-collapsed { grid-template-columns: 44px minmax(0, 1fr); }
+  .sec-nav.collapsed { padding: 0; border: none; background: transparent; box-shadow: none; overflow: visible; }
+  /* Colonne de filtres façon boutique (19/11) */
+  .fct-applied { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; }
+  .fct-applied-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+  .fct-applied-top a { font-size: 12px; color: var(--text); text-decoration: underline; }
+  .fct-chip { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-top: 6px; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; background: var(--bg-card); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+  .fct-chip small { color: var(--text-dim); font-weight: 600; }
+  .fct-facet { border-top: 1px solid var(--border); padding: 10px 0; }
+  .fct-facet h4 { margin: 0 0 6px; font-size: 13px; }
+  .fct-row { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .fct-row:hover { background: var(--bg); }
+  .fct-row.on { background: var(--accent-soft); }
+  .fct-row input { margin: 0; width: 16px; height: 16px; flex: 0 0 auto; accent-color: var(--accent); }
+  .fct-name { min-width: 0; overflow-wrap: anywhere; }
+  .fct-row .meta { margin-left: auto; }
+  .fct-mode { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; font-size: 12px; color: var(--text-dim); }
+  .fct-mode label { cursor: pointer; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--bg-card); }
+  .fct-mode input { display: none; }
+  .fct-mode label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .sec-rail.on { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 900px) { .sec-layout.sec-collapsed { grid-template-columns: minmax(0, 1fr); } .sec-rail { flex-direction: row; width: auto; min-height: 0; padding: 8px 14px; } .sec-rail .chat-rail-label { writing-mode: horizontal-tb; } }
   /* Tableau */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
   /* Moodboard : le visuel domine (retour Joris). Grille régulière, visuels recadrés en 4/3, étiquette de catégorie en tête. */
   .mood-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
   .mood-grid .item { padding: 0; gap: 0; overflow: hidden; }
+  .item .edit-form { display: flex; flex-direction: column; gap: 6px; }
+  .item .edit-form textarea { min-height: 90px; }
+  .item [hidden] { display: none; }
+  .mood-grid .item[hidden] { display: none; } /* sans cela, display:flex de .item l'emporte sur l'attribut hidden et les filtres n'ont aucun effet */
   .mood-grid .item > :not(.item-visual) { margin-left: 14px; margin-right: 14px; }
   .mood-grid .item > .item-kind { margin-top: 12px; }
   .mood-grid .item > .item-title { margin-top: 4px; font-size: 17px; font-weight: 600; }
@@ -133,11 +160,19 @@
   .mood-grid .item-visual .preview-thumb, .mood-grid .item-visual .lp-montage video { border-radius: 0; }
   .mood-grid .item-visual .preview-thumb img { aspect-ratio: 4 / 3; max-height: none; }
   .mood-grid .item-visual .preview-meta { padding: 6px 14px 0; }
+  /* Vignette de remplacement (note, lien sans aperçu, morceau…) : carte régulière, grande icône de catégorie, invitation à poser une image */
+  .item-ph { position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); font-size: 44px; }
+  .item-ph .ph-add { position: absolute; right: 8px; bottom: 8px; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--accent); border-radius: 999px; background: var(--bg-card); color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; opacity: .85; }
+  .item-ph .ph-add:hover { opacity: 1; }
+  .item .cover-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .item .cover-edit img { width: 64px; height: 48px; object-fit: cover; border-radius: 4px; }
   .mood-grid .item-kind { font-size: 11px; font-weight: 600; color: var(--accent); }
   .mood-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
   .mood-filters .f { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); }
   .mood-filters .f.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .mood-grid[data-filter]:not([data-filter="all"]) .drag-handle { display: none; }
+  .drop-zone { border: 1.5px dashed var(--border); border-radius: 10px; padding: 14px; text-align: center; color: var(--text-dim); font-size: 13px; }
+  .drop-zone:hover { border-color: var(--accent); color: var(--accent); }
   /* Formulaires d'ajout repliés : le contenu passe avant l'outil (retour Joris). */
   .add-fold { margin-bottom: 14px; }
   .add-fold > summary { cursor: pointer; display: inline-block; list-style: none; border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--accent); background: var(--bg-card); }
@@ -238,32 +273,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1795043467019"></script>
-<script src="layerpitch-notify.js?v=1795043467019"></script>
-<script src="player.js?v=1795043467019"></script>
-<script src="api/supabase-client.js?v=1795043467019"></script>
-<script src="api/auth.js?v=1795043467019"></script>
-<script src="layerpitch-appearance.js?v=1795043467019"></script>
-<script src="layerpitch-font-picker.js?v=1795043467019"></script>
-<script src="layerpitch-help.js?v=1795043467019"></script>
-<script src="layerpitch-help-engine.js?v=1795043467019"></script>
-<script src="layerpitch-shell.js?v=1795043467019"></script>
-<script src="api/tracks.js?v=1795043467019"></script>
-<script src="api/packs.js?v=1795043467019"></script>
-<script src="api/albums.js?v=1795043467019"></script>
-<script src="api/studio.js?v=1795043467019"></script>
-<script src="api/adreels.js?v=1795043467019"></script>
-<script src="api/demo-client.js?v=1795043467019"></script>
-<script src="api/demo-projects.js?v=1795043467019"></script>
-<script src="layerpitch-tuto.js?v=1795043467019"></script>
-<script src="layerpitch-guide.js?v=1795043467019"></script>
-<script src="layerpitch-lesson-previews.js?v=1795043467019"></script>
-<script src="projet-lecons.js?v=1795043467019"></script>
-<script src="layerpitch-video-versions.js?v=1795043467019"></script>
-<script src="api/projects.js?v=1795043467019"></script>
-<script src="api/sfx.js?v=1795043467019"></script>
-<script src="projet-carte-audio.js?v=1795043467019"></script>
-<script src="projet-carte.js?v=1795043467019"></script>
+<script src="layerpitch-i18n.js?v=1795087152975"></script>
+<script src="layerpitch-notify.js?v=1795087152975"></script>
+<script src="player.js?v=1795087152975"></script>
+<script src="api/supabase-client.js?v=1795087152975"></script>
+<script src="api/auth.js?v=1795087152975"></script>
+<script src="layerpitch-appearance.js?v=1795087152975"></script>
+<script src="layerpitch-font-picker.js?v=1795087152975"></script>
+<script src="layerpitch-help.js?v=1795087152975"></script>
+<script src="layerpitch-help-engine.js?v=1795087152975"></script>
+<script src="layerpitch-shell.js?v=1795087152975"></script>
+<script src="api/tracks.js?v=1795087152975"></script>
+<script src="api/packs.js?v=1795087152975"></script>
+<script src="api/albums.js?v=1795087152975"></script>
+<script src="api/studio.js?v=1795087152975"></script>
+<script src="api/adreels.js?v=1795087152975"></script>
+<script src="api/demo-client.js?v=1795087152975"></script>
+<script src="api/demo-projects.js?v=1795087152975"></script>
+<script src="layerpitch-tuto.js?v=1795087152975"></script>
+<script src="layerpitch-guide.js?v=1795087152975"></script>
+<script src="layerpitch-lesson-previews.js?v=1795087152975"></script>
+<script src="projet-lecons.js?v=1795087152975"></script>
+<script src="layerpitch-video-versions.js?v=1795087152975"></script>
+<script src="api/projects.js?v=1795087152975"></script>
+<script src="api/sfx.js?v=1795087152975"></script>
+<script src="projet-carte-audio.js?v=1795087152975"></script>
+<script src="projet-carte.js?v=1795087152975"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -340,6 +375,14 @@ const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard
 S.appearance = null; // apparence d'équipe : null = pas ouverte, {} = rien de réglé
 S.secPins = []; S.selMode = false; S.selected = new Set(); S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
+// Filtres (colonne de gauche, façon boutique, 19/11) : plusieurs étiquettes cochées élargissent (« l'une ou l'autre », réglable en
+// « toutes »), le type et les étiquettes se combinent en réduisant. S.sel reste « l'unique étiquette cochée » pour ce qui en dépend
+// (rangement d'un objet ajouté, tchat, tâches, actions groupées) : 'all' dès qu'il y en a zéro ou plusieurs.
+S.fTags = new Set(); S.fKinds = new Set();
+S.fMode = (() => { try { return localStorage.getItem('layerpitch_project_filter_mode') === 'all' ? 'all' : 'any'; } catch (e) { return 'any'; } })();
+const filtersActive = () => S.fTags.size > 0 || S.fKinds.size > 0;
+function syncSel() { S.sel = S.fTags.size === 1 ? [...S.fTags][0] : 'all'; }
+function setFilterTo(id) { S.fTags = id && id !== 'all' ? new Set([id]) : new Set(); S.fKinds = new Set(); syncSel(); }
 async function loadSections() {
   if (DEMO || S.secLocked) return;
   const r = await PJ.sections(projectId);
@@ -349,6 +392,8 @@ async function loadSections() {
   const cs = await PJ.sectionChatState(projectId); S.chanState = cs.error ? [] : (cs.data || []);
   if (S.chan && !secById(S.chan)) S.chan = null;
   if (S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
+  [...S.fTags].forEach(id => { if (id !== 'none' && !secById(id)) S.fTags.delete(id); });
+  if (S.fTags.size) syncSel();
 }
 const secById = id => S.sections && S.sections.sections.find(x => x.id === id);
 const secKids = pid => S.sections.sections.filter(x => (x.parentId || null) === (pid || null));
@@ -356,14 +401,15 @@ function secDescendants(id) { const out = [id]; for (const k of secKids(id)) out
 const assetSectionIds = assetId => S.sections.links.filter(l => l.assetId === assetId).map(l => l.sectionId);
 function secCount(id) { const ids = new Set(secDescendants(id)); return new Set(S.sections.links.filter(l => ids.has(l.sectionId)).map(l => l.assetId)).size; }
 function inSelection(a) {
-  if (!S.sections || S.sel === 'all') return true;
+  if (!S.sections || !S.fTags.size) return true;
   const mine = assetSectionIds(a.id);
-  if (S.sel === 'none') return !mine.length;
-  const ids = new Set(secDescendants(S.sel));
-  return mine.some(i => ids.has(i));
+  const has = t => t === 'none' ? !mine.length : mine.includes(t);
+  return S.fMode === 'all' ? [...S.fTags].every(has) : [...S.fTags].some(has);
 }
+const inKinds = a => !S.fKinds.size || S.fKinds.has(moodCategory(a));
 // Moodboard à l'écran : null = le général, sinon l'identifiant de la section choisie (sur « Sans section », le général).
-const boardSection = () => S.sections && S.tab === 'board' && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null;
+// Un seul Moodboard par Projet : l'étiquette ne fait plus que filtrer (décision du 19/11 ; les épingles par section restent en base).
+const boardSection = () => null;
 const sectionPinned = (secId) => S.secPins.filter(k => k.sectionId === secId).sort((a, b) => a.position - b.position);
 const forSel = list => S.sections ? list.filter(inSelection) : list;
 // Un objet ajouté pendant qu'une section est choisie y est rangé tout de suite (il reste de toute façon dans la réserve).
@@ -376,45 +422,72 @@ async function addAsset(id, payload, pin) {
 const secBtn = (a, cls) => S.sections ? `<button class="${cls || 'icon-btn'}" type="button" data-secassign="${esc(a.id)}" title="${esc(tr('secAssign'))}">🗂${assetSectionIds(a.id).length ? ' ' + assetSectionIds(a.id).length : ''}</button>` : '';
 async function sectionsChanged() { await loadSections(); renderPanel(); broadcast('sections'); }
 function secError(r) { if (r && r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return true; } return false; }
+// Colonne de filtres, façon boutique en ligne (19/11) : filtres appliqués, Type (Moodboard seulement), Étiquettes = les sections, à plat.
+const FACET_KINDS = ['music', 'images', 'videos', 'links', 'notes'];
+const kindLabel = k => tr('filter' + k[0].toUpperCase() + k.slice(1));
+function secPath(id) { const x = secById(id); if (!x) return ''; const par = x.parentId && secById(x.parentId); return par ? secPath(par.id) + ' › ' + x.title : x.title; }
 function renderSecNav() {
   const nav = $('secNav'); if (!nav || !S.sections) return;
-  const assets = S.content.assets || [];
-  const none = assets.filter(a => !assetSectionIds(a.id).length).length;
-  const editRow = (depth, value) => `<div class="sec-row" style="padding-left:${6 + depth * 14}px"><input type="text" id="secInput" maxlength="120" value="${esc(value || '')}" placeholder="${esc(tr('secNamePlaceholder'))}"></div>`;
-  const walk = (pid, depth) => secKids(pid).map(x => {
-    const on = S.sel === x.id;
-    const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" data-secdrag="${esc(x.id)}" draggable="true" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
-        ${on ? `<span class="sec-acts">${[['add', '＋', 'secActSub', 'secAddSub'], ['rename', '✎', 'secActRename', 'secRename'], ['move', '⇄', 'secActMove', 'secMove'], ['chat', '💬', 'secActChat', 'chanOpen'], ['map', '🗺', 'secActMap', 'secMapLink'], ['del', '✕', 'secActDel', 'secDelete']].map(([act, ic, lab, tip]) => `<button class="sec-act${act === 'del' ? ' danger' : ''}" type="button" data-secact="${act}" data-id="${esc(x.id)}" title="${esc(tr(tip))}">${ic} ${esc(tr(lab))}</button>`).join('')}</span>` : ''}</div>`;
-    return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
+  const board = S.tab === 'board';
+  // Objets de l'onglet, pour les compteurs : le Moodboard compte ses épingles, les autres onglets leurs objets.
+  const tabAssets = board ? (S.content.moodboard || []).map(assetById).filter(Boolean)
+    : (S.content.assets || []).filter(a => (S.tab === 'images' && a.kind === 'image') || (S.tab === 'videos' && (a.kind === 'video' || a.kind === 'montage')) || (S.tab === 'music' && (a.kind === 'track' || a.kind === 'audio')));
+  const tagCount = id => tabAssets.filter(a => assetSectionIds(a.id).includes(id)).length;
+  const noneCount = tabAssets.filter(a => !assetSectionIds(a.id).length).length;
+  const picked = S.fTags.size === 1 && S.sel !== 'none' ? secById(S.sel) : null;
+  const n = S.fTags.size + (board ? S.fKinds.size : 0);
+  const layout = nav.closest('.sec-layout');
+  if (layout) layout.classList.toggle('sec-collapsed', !S.secOpen);
+  nav.classList.toggle('collapsed', !S.secOpen);
+  if (!S.secOpen) {
+    // Replié : un onglet vertical, mis en avant quand un filtre est actif (sinon l'onglet paraîtrait vide).
+    nav.innerHTML = `<button class="chat-rail sec-rail${n ? ' on' : ''}" id="secOpenBtn" type="button" title="${esc(tr('secOpen'))}">🗂<span class="chat-rail-label">${esc(tr('filtersTitle'))}${n ? ' · ' + n : ''}</span></button>`;
+    $('secOpenBtn').onclick = () => setSecOpen(true);
+    return;
+  }
+  const tagTitle = id => id === 'none' ? tr('tagNone') : secPath(id);
+  const chips = [...(board ? [...S.fKinds].map(k => ['kind', k, tr('facetType'), kindLabel(k)]) : []), ...[...S.fTags].map(t => ['tag', t, tr('facetTags'), tagTitle(t)])];
+  const editRow = value => `<div class="sec-row"><input type="text" id="secInput" maxlength="120" value="${esc(value || '')}" placeholder="${esc(tr('secNamePlaceholder'))}"></div>`;
+  const tagRows = secFlat().map(x => {
+    if (S.secEdit && S.secEdit.rename === x.id) return editRow(x.title);
+    const on = S.fTags.has(x.id), unread = chanUnread(x.id);
+    return `<label class="fct-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}"><input type="checkbox" data-ftag="${esc(x.id)}"${on ? ' checked' : ''}><span class="fct-name">${esc(secPath(x.id))}</span>${unread ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${unread}</span>` : ''}<span class="meta">${tagCount(x.id)}</span></label>`
+      + (picked && picked.id === x.id ? `<span class="sec-acts">${[['rename', '✎', 'secActRename', 'secRename'], ['chat', '💬', 'secActChat', 'chanOpen'], ['map', '🗺', 'secActMap', 'secMapLink'], ['del', '✕', 'secActDel', 'secDelete']].map(([act, ic, lab, tip]) => `<button class="sec-act${act === 'del' ? ' danger' : ''}" type="button" data-secact="${act}" data-id="${esc(x.id)}" title="${esc(tr(tip))}">${ic} ${esc(tr(lab))}</button>`).join('')}</span>` : '');
   }).join('');
-  const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
-  nav.innerHTML = `<h3>${esc(tr('secTitle'))}<span>${S.tab !== 'board' ? `<button class="icon-btn${S.selMode ? ' on' : ''}" type="button" data-secact="select" title="${esc(tr('selToggle'))}">☑</button>` : ''}</span></h3>
-    ${S.tab === 'board' ? `<div class="sec-row${S.sel === 'all' || S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secBoardGeneral'))}</button><span class="meta">${(S.content.moodboard || []).length}</span></div>`
-    : `<div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
-    <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>`}
-    <div class="sec-sep"></div>
-    ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
-    ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
-    <div class="sec-sep"></div><button class="btn" type="button" data-secact="download" style="width:100%">⬇ ${esc(tr(picked ? 'dlSection' : 'dlAll'))}</button>
-    <button class="btn" type="button" data-secact="add" data-id="" style="width:100%;margin-top:6px">＋ ${esc(tr('secAdd'))}</button>
-    ${picked && picked.mapId ? `<div class="sec-sep"></div><button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
-    ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr(S.tab === 'board' ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
-  nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
+  nav.innerHTML = `<h3>${esc(tr('filtersTitle'))}<span><button class="icon-btn" type="button" data-secact="collapse" title="${esc(tr('secCollapse'))}">«</button>${!board ? `<button class="icon-btn${S.selMode ? ' on' : ''}" type="button" data-secact="select" title="${esc(tr('selToggle'))}">☑</button>` : ''}</span></h3>
+    ${n ? `<div class="fct-applied"><div class="fct-applied-top"><b>${esc(tr('filtersApplied', { n }))}</b><a href="#" data-fclear>${esc(tr('filtersClear'))}</a></div>${chips.map(c => `<button type="button" class="fct-chip" data-fremove="${c[0]}" data-fval="${esc(c[1])}"><b>✕</b><span><small>${esc(c[2])} :</small> ${esc(c[3])}</span></button>`).join('')}</div>` : ''}
+    ${board ? `<div class="fct-facet"><h4>${esc(tr('facetType'))}</h4>${FACET_KINDS.map(k => `<label class="fct-row${S.fKinds.has(k) ? ' on' : ''}"><input type="checkbox" data-fkind="${k}"${S.fKinds.has(k) ? ' checked' : ''}><span class="fct-name">${esc(kindLabel(k))}</span><span class="meta">${tabAssets.filter(a => moodCategory(a) === k).length}</span></label>`).join('')}</div>` : ''}
+    <div class="fct-facet"><h4>${esc(tr('facetTags'))}</h4>
+      ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
+      ${tagRows}
+      <label class="fct-row${S.fTags.has('none') ? ' on' : ''}"><input type="checkbox" data-ftag="none"${S.fTags.has('none') ? ' checked' : ''}><span class="fct-name">${esc(tr('tagNone'))}</span><span class="meta">${noneCount}</span></label>
+      ${S.fTags.size > 1 ? `<div class="fct-mode">${esc(tr('filtersMode'))} <label><input type="radio" name="fmode" value="any"${S.fMode === 'any' ? ' checked' : ''}><span>${esc(tr('filtersModeAny'))}</span></label><label><input type="radio" name="fmode" value="all"${S.fMode === 'all' ? ' checked' : ''}><span>${esc(tr('filtersModeAll'))}</span></label></div>` : ''}
+      ${S.secEdit && S.secEdit.add === '' ? editRow('') : ''}
+      <button class="btn" type="button" data-secact="add" data-id="" style="width:100%;margin-top:8px">＋ ${esc(tr('tagAdd'))}</button>
+    </div>
+    <button class="btn" type="button" data-secact="download" style="width:100%;margin-top:8px">⬇ ${esc(tr(picked ? 'dlSection' : 'dlAll'))}</button>
+    ${picked && picked.mapId ? `<button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%;margin-top:6px">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
+    ${picked ? `<div class="meta" style="margin-top:8px">${esc(tr(board ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
+  const toggle = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); S.secEdit = null; syncSel(); renderPanel(); };
+  nav.querySelectorAll('[data-ftag]').forEach(i => i.onchange = () => toggle(S.fTags, i.dataset.ftag));
+  nav.querySelectorAll('[data-fkind]').forEach(i => i.onchange = () => toggle(S.fKinds, i.dataset.fkind));
+  nav.querySelectorAll('[data-fremove]').forEach(b => b.onclick = () => toggle(b.dataset.fremove === 'kind' ? S.fKinds : S.fTags, b.dataset.fval));
+  const clr = nav.querySelector('[data-fclear]'); if (clr) clr.onclick = e => { e.preventDefault(); S.fTags = new Set(); S.fKinds = new Set(); syncSel(); renderPanel(); };
+  nav.querySelectorAll('[name="fmode"]').forEach(r => r.onchange = () => { S.fMode = r.value; try { localStorage.setItem('layerpitch_project_filter_mode', r.value); } catch (e) {} renderPanel(); });
   nav.querySelectorAll('[data-secact]').forEach(b => b.onclick = async () => {
     const id = b.dataset.id, act = b.dataset.secact;
-    if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
+    if (act === 'collapse') setSecOpen(false);
+    else if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
     else if (act === 'rename') { S.secEdit = { rename: id }; renderSecNav(); }
     else if (act === 'select') { S.selMode = !S.selMode; S.selected = new Set(); renderSecNav(); decorateSelection(); }
     else if (act === 'download') downloadFiles(picked ? picked.id : null);
     else if (act === 'chat') openChannel(id);
     else if (act === 'map') openMapLinkDialog(id);
-    else if (act === 'move') openMoveDialog(id);
     else if (act === 'del') {
       const x = secById(id);
       if (!(await window.LayerPitchNotify.confirm(tr('secDeleteConfirm', { title: x.title }), { okLabel: tr('secDelete'), danger: true }))) return;
       if (secError(await PJ.deleteSection(id))) return;
-      if (S.sel === id) S.sel = x.parentId || 'all';
+      S.fTags.delete(id); syncSel();
       await sectionsChanged();
     }
     const input = $('secInput'); if (input) { input.focus(); input.select(); }
@@ -427,7 +500,7 @@ function renderSecNav() {
     const title = input.value.trim(), ed = S.secEdit; if (!title || !ed) { S.secEdit = null; return renderSecNav(); }
     S.secEdit = null;
     if (ed.rename) { if (secError(await PJ.renameSection(ed.rename, title))) return renderSecNav(); }
-    else { const r = await PJ.createSection(projectId, title, ed.add || null); if (secError(r)) return renderSecNav(); if (r.data && r.data.id) S.sel = r.data.id; }
+    else { const r = await PJ.createSection(projectId, title, ed.add || null); if (secError(r)) return renderSecNav(); }
     await sectionsChanged();
   };
 }
@@ -1099,7 +1172,12 @@ async function editProject() {
 // lien ou une pièce jointe, une barre « Ranger dans : Moodboard / Vidéos » (sur décision d'un membre, jamais automatique).
 const CHAT_KEY = 'layerpitch_project_chat_open';
 const isPhone = () => window.matchMedia('(max-width: 900px)').matches;
-S.chatOpen = (() => { try { return localStorage.getItem(CHAT_KEY) !== '0'; } catch (e) { return true; } })();
+// Repliée d'office (retour Joris 18/11), sauf dans la démo et le tutoriel, qui montrent le tchat et les sections tout de suite.
+// Un nouveau message reste signalé : pastille sur l'onglet replié et titre de la page.
+S.chatOpen = (() => { try { const v = localStorage.getItem(CHAT_KEY); return DEMO || TUTO ? v !== '0' : v === '1'; } catch (e) { return !!(DEMO || TUTO); } })();
+const SEC_KEY = 'layerpitch_project_sections_open';
+S.secOpen = (() => { try { const v = localStorage.getItem(SEC_KEY); return DEMO || TUTO ? v !== '0' : v === '1'; } catch (e) { return !!(DEMO || TUTO); } })();
+function setSecOpen(open) { S.secOpen = open; try { localStorage.setItem(SEC_KEY, open ? '1' : '0'); } catch (e) {} renderSecNav(); }
 S.chatPhoneOpen = false; S.unread = 0; S.pending = [];
 const VIDEO_URL = /^https:\/\/(www\.|m\.)?(youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/)/i;
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -1386,15 +1464,20 @@ async function renderBoard(panel) {
   await Promise.all([ensureMyPacks(), ensureMyTracks(), ensureMyMontages()]);
   const sec = boardSection();
   // Moodboard d'une section : ses propres épingles (ordre, ★), sur les mêmes objets de la réserve.
-  const pins = sec ? sectionPinned(sec).map(k => { const a = assetById(k.assetId); return a ? Object.assign({}, a, { starred: k.starred }) : null; }).filter(Boolean)
+  const allPins = sec ? sectionPinned(sec).map(k => { const a = assetById(k.assetId); return a ? Object.assign({}, a, { starred: k.starred }) : null; }).filter(Boolean)
     : (S.content.moodboard || []).map(assetById).filter(Boolean);
+  const pins = allPins.filter(a => inSelection(a) && inKinds(a)); // filtres de la colonne de gauche
   const unpinned = sec ? (S.content.assets || []).filter(a => !sectionPinned(sec).some(k => k.assetId === a.id)) : (S.content.assets || []).filter(a => !a.pinned);
   const shared = S.content.packs || [];
   const packChoices = [...S.myPacks.map(p => ({ id: p.id, title: p.title })), ...shared.filter(s => !S.myPacks.some(p => p.id === s.packId)).map(s => ({ id: s.packId, title: s.title }))];
+  // Entête allégé (retour Joris) : une zone de dépôt visible, et le formulaire d'ajout replié derrière « + Ajouter ».
+  // Ouvert d'office dans le tutoriel et la démo, dont les leçons pointent ses champs.
   panel.innerHTML = `<div class="card">
       <h2>${esc(tr('boardTitle'))}${sec ? ' · ' + esc(secById(sec).title) : ''}</h2>
-      <p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>
-      <div class="bar">
+      ${pins.length ? '' : `<p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>`}
+      <div class="drop-zone">⬇ ${esc(tr('dropZone'))}</div>
+      <details class="add-fold" id="boardAddFold" style="margin:10px 0 0"${S.boardAddOpen || TUTO || DEMO ? ' open' : ''}><summary>${esc(tr('boardAddOpen'))}</summary>
+      <div class="bar" style="margin-top:8px">
         <select id="addKind" data-help="projet_addKind" style="max-width:240px">
           <option value="link">${esc(tr('kind_link'))}</option><option value="note">${esc(tr('kind_note'))}</option>
           <option value="upload">${esc(tr('kind_upload'))}</option>
@@ -1406,11 +1489,10 @@ async function renderBoard(panel) {
         <span class="meta">${esc(tr('pitchHint'))}</span>
       </div>
       <div id="addForm"></div>
-      <div class="meta" style="margin-top:6px">${esc(tr('dropHint'))}</div>
+      </details>
       <div class="msg" id="boardMsg"></div>
     </div>
-    ${pins.length > 1 ? `<div class="mood-filters" id="moodFilters">${MOOD_FILTERS.map(k => `<button type="button" class="f${(S.boardFilter || 'all') === k ? ' on' : ''}" data-filter="${k}">${esc(tr('filter' + k[0].toUpperCase() + k.slice(1)))}</button>`).join('')}</div>` : ''}
-    <div class="grid mood-grid" id="grid" data-filter="${esc(S.boardFilter || 'all')}">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
+    <div class="grid mood-grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr(allPins.length ? 'filterNone' : 'boardEmpty'))}</div>`}</div>
     ${sec ? '' : `<div class="card" style="margin-top:14px">
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
@@ -1435,21 +1517,12 @@ async function renderBoard(panel) {
     f.insertAdjacentHTML('beforeend', `${boardSection() ? `<label class="choice" style="margin-top:8px"><input type="checkbox" id="alsoGeneral"> ${esc(tr('alsoGeneral'))}</label>` : ''}<div class="bar" style="margin-top:8px"><button class="btn primary" id="addBtn" type="button">${esc(tr('addToBoard'))}</button></div>`);
     $('addBtn').onclick = addItem;
   };
+  $('boardAddFold').addEventListener('toggle', e => { S.boardAddOpen = e.target.open; });
   $('addKind').onchange = renderAddForm;
   renderAddForm();
   const grid = $('grid');
-  for (const a of pins) grid.appendChild(await assetCard(a, pins));
-  const applyMoodFilter = () => {
-    const f = S.boardFilter || 'all'; let shown = 0;
-    grid.dataset.filter = f;
-    [...grid.children].forEach(c => { if (!c.dataset.cat) return; const on = f === 'all' || c.dataset.cat === f; c.hidden = !on; if (on) shown++; });
-    grid.querySelector('.mood-none')?.remove();
-    if (!shown && pins.length) grid.insertAdjacentHTML('beforeend', `<div class="empty mood-none" style="grid-column:1/-1">${esc(tr('filterNone'))}</div>`);
-    panel.querySelectorAll('#moodFilters .f').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
-  };
-  panel.querySelectorAll('#moodFilters .f').forEach(b => b.onclick = () => { S.boardFilter = b.dataset.filter; applyMoodFilter(); });
-  applyMoodFilter();
-  if (pins.length > 1) {
+  for (const a of pins) grid.appendChild(await assetCard(a, filtersActive() ? [a] : pins));
+  if (pins.length > 1 && !filtersActive()) { // réordonner : seulement sans filtre (sinon l'ordre porterait sur une partie)
     grid.dataset.sortable = 'grid';
     makeSortable(grid, async (f, t) => {
       const ids = pins.map(x => x.id); ids.splice(t, 0, ids.splice(f, 1)[0]);
@@ -1624,6 +1697,25 @@ function moodCategory(a) {
   return 'notes';
 }
 const MOOD_ICONS = { music: '♪', images: '🖼', videos: '🎬', links: '🔗', notes: '📝' };
+// Choisir l'image de vignette d'un objet : ouvre le sélecteur de fichiers, envoie l'image dans le Projet, puis la pose sur l'objet.
+function pickCover(a, after) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return window.LayerPitchNotify.error(tr('coverNotImage'));
+    const up = await PJ.upload(projectId, f);
+    if (up.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: up.error }));
+    await setCover(a, up.data.fileId, after);
+  };
+  inp.click();
+}
+// fileId = null : retire l'image choisie (la vignette redevient automatique) et efface le fichier devenu inutile.
+async function setCover(a, fileId, after) {
+  const old = a.coverFileId;
+  const r = await PJ.updateAsset(a.id, { coverFileId: fileId });
+  if (!r.error && old && old !== fileId) PJ.deleteFile(old).catch(() => {});
+  return after(r);
+}
 async function assetCard(a, pins) {
   const el = document.createElement('div');
   el.className = 'item' + (a.starred ? ' pitch' : '');
@@ -1639,8 +1731,16 @@ async function assetCard(a, pins) {
   if (a.kind === 'montage') media = montagePlayerHtml();
   const cat = moodCategory(a); el.dataset.cat = cat;
   // Un visuel (image, miniature, montage) passe en tête de carte ; les lecteurs et boutons restent sous le titre.
-  const visual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
-  el.innerHTML = `${visual ? `<div class="item-visual">${media}</div>` : ''}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
+  // Vignette au choix (19/11, cover_file_id) : sur les objets qui n'ont pas de visuel propre (ni image, ni vidéo, ni montage) ;
+  // sans image choisie ni visuel, une vignette de remplacement (icône de catégorie) garde la grille régulière.
+  const ownVisual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
+  const canCover = !['image', 'video', 'montage'].includes(a.kind);
+  const coverSrc = canCover && a.coverFileId ? await fileUrl(a.coverFileId) : null;
+  const visual = ownVisual && !coverSrc;
+  const topVisual = coverSrc ? `<div class="item-visual"><img src="${esc(coverSrc)}" alt=""></div>`
+    : visual ? `<div class="item-visual">${media}</div>`
+    : canCover ? `<div class="item-visual item-ph" aria-hidden="false"><span aria-hidden="true">${MOOD_ICONS[cat]}</span><button class="ph-add" type="button" data-act="cover">${esc(tr('coverAdd'))}</button></div>` : '';
+  el.innerHTML = `${topVisual}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
     <div class="item-title">${esc(assetTitle(a))}</div>
     ${visual ? '' : media}
     ${a.body ? `<div class="item-body">${esc(a.body)}</div>` : ''}
@@ -1649,6 +1749,7 @@ async function assetCard(a, pins) {
       <button class="icon-btn${a.starred ? ' on' : ''}" type="button" data-act="star" title="${esc(tr('pitchToggle'))}">★</button>
       ${pins.length > 1 ? dragHandle() : ''}
       ${secBtn(a)}${S.sections && S.sections.sections.length ? `<button class="icon-btn" type="button" data-act="moodcopy" title="${esc(tr('moodCopy'))}">⎘</button>` : ''}
+      ${['note', 'link', 'image', 'video', 'file', 'audio'].includes(a.kind) ? `<button class="icon-btn" type="button" data-act="edit" title="${esc(tr('edit'))}">✎</button>` : ''}
       <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
       <button class="icon-btn" type="button" data-act="unpin" title="${esc(tr('unpin'))}">⊖</button>
       <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
@@ -1666,6 +1767,23 @@ async function assetCard(a, pins) {
   act('unpin').onclick = async () => after(sec ? await PJ.pinInSection(sec, a.id, false) : await PJ.pin(a.id, false));
   if (act('moodcopy')) act('moodcopy').onclick = () => openMoodboardsDialog(a.id);
   act('del').onclick = () => deleteAsset(a);
+  // Modifier le titre et le commentaire sur place (une note épinglée se corrige sans la recréer) ; update_project_asset existait déjà.
+  if (act('edit')) act('edit').onclick = () => {
+    if (el.querySelector('.edit-form')) return;
+    const titleEl = el.querySelector('.item-title'), bodyEl = el.querySelector('.item-body');
+    const form = document.createElement('div'); form.className = 'edit-form';
+    form.innerHTML = `<input type="text" class="e-title" maxlength="300" value="${esc(a.title || '')}" placeholder="${esc(tr('itemTitle'))}"><textarea class="e-body" rows="5" placeholder="${esc(tr('itemBody'))}">${esc(a.body || '')}</textarea>
+      ${canCover ? `<div class="cover-edit">${coverSrc ? `<img src="${esc(coverSrc)}" alt="">` : ''}<button class="btn" type="button" data-x="cover">${esc(tr(coverSrc ? 'coverChange' : 'coverAdd'))}</button>${coverSrc ? `<button class="btn" type="button" data-x="uncover">${esc(tr('coverRemove'))}</button>` : ''}</div>` : ''}
+      <div class="bar"><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button><button class="btn" type="button" data-x="cancel">${esc(tr('cancel'))}</button></div>`;
+    titleEl.hidden = true; if (bodyEl) bodyEl.hidden = true;
+    titleEl.after(form);
+    form.querySelector('.e-title').focus();
+    form.querySelector('[data-x="cancel"]').onclick = () => { form.remove(); titleEl.hidden = false; if (bodyEl) bodyEl.hidden = false; };
+    form.querySelector('[data-x="save"]').onclick = async () => after(await PJ.updateAsset(a.id, { title: form.querySelector('.e-title').value.trim(), body: form.querySelector('.e-body').value }));
+    const cv = form.querySelector('[data-x="cover"]'); if (cv) cv.onclick = () => pickCover(a, after);
+    const uc = form.querySelector('[data-x="uncover"]'); if (uc) uc.onclick = () => setCover(a, null, after);
+  };
+  if (act('cover')) act('cover').onclick = () => pickCover(a, after);
   act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
   if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id, mediaFor(el, a));
   return el;
@@ -1697,6 +1815,7 @@ async function deleteAsset(a) {
   if (!(await window.LayerPitchNotify.confirm(tr('deleteAssetConfirm', { title: assetTitle(a) }), { okLabel: tr('deleteFromProject'), danger: true }))) return false;
   const r = await PJ.deleteAsset(a.id);
   if (r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return false; }
+  if (a.coverFileId) PJ.deleteFile(a.coverFileId).catch(() => {}); // la vignette choisie n'est plus liée à rien
   if (S.video && S.video.id === a.id) S.video = null;
   await reloadContent(); renderPanel(); broadcast('content');
   return true;
@@ -2500,10 +2619,10 @@ function gotoTaskLink(link) {
   if (link.type === 'asset') {
     const a = assetById(link.id); if (!a) return;
     if (a.kind === 'video') return openInVideos(a.id);
-    S.sel = 'all';
+    setFilterTo('all');
     S.tab = a.kind === 'image' ? 'images' : ['track', 'audio', 'pack', 'album'].includes(a.kind) && !a.pinned ? 'music' : 'board';
     S.openNotes[a.id] = true;
-  } else if (link.type === 'section') { if (!secById(link.id)) return; S.sel = link.id; S.tab = 'board'; }
+  } else if (link.type === 'section') { if (!secById(link.id)) return; setFilterTo(link.id); S.tab = 'board'; }
   else if (link.type === 'map') { S.openMapId = link.id; S.openMapNode = link.sub || null; S.tab = 'map'; }
   stopMedia(); render();
 }
@@ -2562,7 +2681,7 @@ async function renderTasks(panel) {
   $('taskAddBtn').onclick = add;
   $('taskNew').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } };
   $('taskMoreBtn').onclick = () => openTaskDialog(null, { title: $('taskNew').value.trim() });
-  if ($('taskSec')) $('taskSec').onchange = e => { S.sel = e.target.value; renderPanel(); };
+  if ($('taskSec')) $('taskSec').onchange = e => { setFilterTo(e.target.value); renderPanel(); };
   $('taskMine').onchange = e => { S.taskMine = e.target.checked; renderPanel(); };
   if ($('taskDoneToggle')) $('taskDoneToggle').onclick = () => { S.taskShowDone = !S.taskShowDone; renderPanel(); };
   panel.querySelectorAll('[data-task]').forEach(row => {

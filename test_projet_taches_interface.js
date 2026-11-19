@@ -102,7 +102,7 @@ const { JSDOM } = require('jsdom');
   const up = c.calls.filter(x => x[0] === 'update').pop();
   check('enregistrer : assignée, échéance, section, lien carte + point', up && up[2].assigneeId === 'u2' && up[2].dueDate === '2020-01-15' && up[2].sectionId === 's2' && up[2].link.type === 'map' && up[2].link.id === 'mp1' && up[2].link.sub === 'n1');
   check('dialogue fermé après enregistrement', !c.d.querySelector('.sec-overlay'));
-  check('groupes par section : « # Château » puis « Sans section »', [...c.d.querySelectorAll('.task-group h3')].map(h => h.textContent.trim()).slice(0, 2).join('|') === '# Château|Sans section');
+  check('groupes par section : « # Château » puis « Sans étiquette »', [...c.d.querySelectorAll('.task-group h3')].map(h => h.textContent.trim()).slice(0, 2).join('|') === '# Château|Sans étiquette');
   row = [...c.d.querySelectorAll('.task-row')].find(r => r.textContent.includes('Mixer le thème'));
   check('pastilles : personne assignée + échéance en retard', /autre@x\.test/.test(row.textContent) && !!row.querySelector('.pill.overdue'));
   check('lien affiché : carte · point', /Niveau 1 · Le boss/.test(row.querySelector('[data-tasklink]').textContent));
