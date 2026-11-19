@@ -149,8 +149,7 @@ begin
            t.position, v_uid, t.created_at, t.updated_at
     from public.project_tasks t where t.project_id = v_src.id;
 
-  insert into public.project_appearance (project_id, data, updated_by)
-    select v_new, ap.data, v_uid from public.project_appearance ap where ap.project_id = v_src.id;
+  -- Apparence (photo de fond) NON copiée : les testeurs arrivent sur un fond neutre, avec toute la place pour le contenu.
 
   -- Vitrines : recopiées NON publiées, adresse libre à chaque fois (l'adresse est unique sur tout le site) ; les objets cités dans
   -- les blocs sont redirigés vers les copies.
@@ -277,3 +276,6 @@ end;
 $$;
 revoke execute on function public.seed_my_demo_project(boolean) from public, anon;
 grant execute on function public.seed_my_demo_project(boolean) to authenticated;
+
+-- Les copies déjà faites (migration 20261118020000) perdent leur photo de fond : même arrivée pour tout le monde.
+delete from public.project_appearance where project_id in (select id from public.projects where demo_source_id is not null);

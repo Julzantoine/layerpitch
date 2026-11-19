@@ -108,7 +108,8 @@ const path = require('path');
     && M.every(m => m.author_id === U(2) && new Date(m.created_at) <= new Date()) && new Date(M[0].created_at) < new Date(M[1].created_at));
   const N = await q(`select * from public.project_annotations where project_id = $1`, [copy]);
   check('notes : seulement les publiques, rattachées à la copie de l\'objet', N.length === 1 && N[0].body === 'Note publique' && N[0].target_id === noteCopy && N[0].private === false);
-  check('apparence copiée', (await val(`select data->>'bg' from public.project_appearance where project_id = $1`, [copy])) === '#2f80c0');
+  check('apparence (photo de fond) NON copiée : arrivée sur un fond neutre', (await val(`select count(*)::int from public.project_appearance where project_id = $1`, [copy])) === 0
+    && (await val(`select count(*)::int from public.project_appearance where project_id = $1`, [src])) === 1);
   const V = await q(`select * from public.project_vitrines where project_id = $1 order by audience`, [copy]);
   const packCopy = A.find(a => a.kind === 'pack').id;
   check('vitrines copiées NON publiées, adresses libres et uniques', V.length === 2 && V.every(v => v.published === false)
@@ -212,6 +213,8 @@ const path = require('path');
     /markOnboardingComplete\(\)[\s\S]*seed_my_demo_project[\s\S]*p_as_studio: !!isStudio/.test(read('bienvenue.html')));
   check('bouton « Publier la mise à jour » sur le Projet démo + rafraîchissement de la cloche après une mise à jour', /demoPublishBtn/.test(read('projet.html')) && /publishDemoUpdate/.test(read('api/projects.js'))
     && ['projets.html', 'studio.html', 'src/backstage/45-exemples.js'].every(f => /seeded \|\| (r\.)?data\.updated/.test(read(f))));
+  check('visite guidée adaptée aux copies : sections et discussion ouvertes le temps de leur bulle', /demoCopy/.test(read('projet-lecons.js')) && /setPanels/.test(read('projet-lecons.js')) && /demoCopyTourBtn/.test(read('projet.html'))
+    && ['stPjCopyTourTitle', 'stPjCopyTourText', 'stPjCopySecTitle', 'stPjCopySecText', 'stPjCopyChatText', 'stPjCopyEndText'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
   check('textes FR et EN de la démo présents', ['demoCopyBadge', 'demoCopyBanner', 'demoCopyRemove', 'demoCopyConfirm', 'demoCopyRemoved', 'demoPublishBtn', 'demoPublishHint', 'demoPublishConfirm', 'demoPublished'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
 
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
