@@ -180,7 +180,8 @@ const { JSDOM } = require('jsdom');
     const vhtml = read('vitrine.html');
     check('vitrine.html?tuto : lue depuis le navigateur, ni statistiques ni message envoyé', /TUTO_KEY = 'layerpitch_tuto_vitrine_v1'/.test(vhtml) && /if \(!TUTO\) startVitrineStats/.test(vhtml) && /if \(TUTO\) return \{ ok: true \}/.test(vhtml) && DPr.TUTO_VITRINE_KEY === 'layerpitch_tuto_vitrine_v1');
     const bs = read('src/backstage/43-visite-guidee.js');
-    check('vitrine : deux leçons en fin de menu, réservées aux admins pour l’instant', /pj-vitrine', theme: 'preprod', public: true, adminOnly: true/.test(bs) && /pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true/.test(bs));
+    check('page Projets : « leçon suivante » recharge la page (étape « Ouvre le projet ») au lieu de jouer le tchat sur la liste', /startLesson: id => \{\s*if \(\/\\\/projets\(\?:\\\.html\)\?\$\/\.test\(location\.pathname\) && id !== 'pj-create'\) \{ location\.href = '\.\/projets\.html\?tuto&lesson='/.test(read('projet-lecons.js')));
+    check('vitrine : deux leçons en fin de menu, ouvertes à tous depuis l’accord de Protocol Interactive (19/11)', /pj-vitrine', theme: 'preprod', public: true, page: 'projet'/.test(bs) && /pj-vitrine-look', theme: 'preprod', public: true, page: 'projet'/.test(bs));
     const pl = read('projet.html');
     check('éditeur de vitrine : le texte des blocs est gardé quand on ajoute un bloc', /collect\(\); syncVitrineBlocks\(panel\);\n    const k = b\.dataset\.addblock/.test(pl));
   }
