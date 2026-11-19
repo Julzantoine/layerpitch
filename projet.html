@@ -32,6 +32,14 @@
   .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
   .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  /* Image de fond (apparence du Projet) : l'image reste intacte, le texte posé directement dessus
+     repose sur une bande translucide floutée (verre dépoli) pour rester lisible. */
+  html.lp-has-bg-image .top, html.lp-has-bg-image .desc, html.lp-has-bg-image .tabs, html.lp-has-bg-image .lp-crumbs {
+    background: color-mix(in srgb, var(--bg-card) 68%, transparent); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1);
+    border-radius: 12px; padding: 8px 14px; }
+  html.lp-has-bg-image .lp-crumbs { width: fit-content; }
+  html.lp-has-bg-image .desc { margin: 4px 0 12px; padding: 10px 14px; }
+  html.lp-has-bg-image .tabs { margin: 12px 0 16px; width: fit-content; max-width: 100%; }
   .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 8px; }
   .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: 12.5px; color: var(--text); text-decoration: none; display: inline-block; }
   .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
