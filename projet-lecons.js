@@ -306,7 +306,12 @@
         const i = LESSON_LIST.findIndex(l => l.id === lessonId), next = i >= 0 ? LESSON_LIST[i + 1] : null;
         return next ? { lesson: next, n: i + 1 + 1 } : null;
       },
-      startLesson: id => start(id),
+      // Sur la page « Projets » (liste), seule « Créer un projet » se joue sur place ; les autres leçons se jouent DANS le projet :
+      // on recharge la page avec ?lesson=<id>, qui commence par l'étape « Ouvre le projet » (leçon pj-open).
+      startLesson: id => {
+        if (/\/projets(?:\.html)?$/.test(location.pathname) && id !== 'pj-create') { location.href = './projets.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(ctx.lang || 'fr'); return; }
+        start(id);
+      },
       // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
       choiceAction: action => { if (action === 'tuto') window.open('./tutoriels.html?lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
