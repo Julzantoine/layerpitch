@@ -81,7 +81,7 @@ function homeMenuEntries() {
     const key = el.dataset.tab || el.id;
     const label = (el.querySelector('[data-i18n]') || el).textContent.trim();
     return { el, key, label, flagHidden: el.hidden && !el.classList.contains('nav-user-hidden') };
-  }).filter(e => e.key && !HOME_MENU_KEEP.includes(e.key) && e.label && !e.el.classList.contains('nav-feedback-btn') && !e.flagHidden);
+  }).filter(e => e.key && !HOME_MENU_KEEP.includes(e.key) && e.label && !e.el.classList.contains('nav-feedback-btn') && !e.el.classList.contains('nav-tuto-link') && !e.flagHidden);
 }
 function applyHomeMenu() {
   const hidden = homeOpen() ? ((homePrefs && homePrefs.menu_hidden) || []) : [];
