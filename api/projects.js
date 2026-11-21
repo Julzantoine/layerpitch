@@ -29,6 +29,8 @@
     // feu vert, accueil terminé, déjà fait), suppression en un clic de toutes les copies. { seeded, projectId } / { removed }.
     seedDemoCopy: asStudio => rpc('seed_my_demo_project', { p_as_studio: !!asStudio }),
     removeDemoCopy: () => rpc('remove_my_demo_project'),
+    // Publier une version de la démo aux copies des testeurs (admin, 19/11, migration 20261119010000) : { projectId, version }.
+    publishDemoUpdate: () => rpc('publish_demo_update'),
     // Carte de niveau (6/10, migration 20261006020000) : plusieurs cartes par Projet, une carte = un document JSON.
     listMaps: id => rpc('list_project_maps', { p_project_id: id }),
     saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),

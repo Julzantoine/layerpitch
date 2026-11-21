@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795042183651">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795256241669">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -2370,20 +2370,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1795042183651"></script>
-<script src="layerpitch-i18n.js?v=1795042183651"></script>
-<script src="layerpitch-import-engine.js?v=1795042183651"></script>
-<script src="layerpitch-appearance.js?v=1795042183651"></script>
-<script src="layerpitch-font-picker.js?v=1795042183651"></script>
-<script src="layerpitch-album-shared.js?v=1795042183651"></script>
-<script src="layerpitch-album-editor.js?v=1795042183651"></script>
-<script src="layerpitch-shell.js?v=1795042183651"></script>
-<script src="layerpitch-social-icons.js?v=1795042183651"></script>
-<script src="layerpitch-notify.js?v=1795042183651"></script>
-<script src="layerpitch-guide.js?v=1795042183651"></script>
-<script src="layerpitch-lesson-previews.js?v=1795042183651"></script>
-<script src="layerpitch-help.js?v=1795042183651"></script>
-<script src="player.js?v=1795042183651"></script>
+<script src="layerpitch-tuto.js?v=1795256241669"></script>
+<script src="layerpitch-i18n.js?v=1795256241669"></script>
+<script src="layerpitch-import-engine.js?v=1795256241669"></script>
+<script src="layerpitch-appearance.js?v=1795256241669"></script>
+<script src="layerpitch-font-picker.js?v=1795256241669"></script>
+<script src="layerpitch-album-shared.js?v=1795256241669"></script>
+<script src="layerpitch-album-editor.js?v=1795256241669"></script>
+<script src="layerpitch-shell.js?v=1795256241669"></script>
+<script src="layerpitch-social-icons.js?v=1795256241669"></script>
+<script src="layerpitch-notify.js?v=1795256241669"></script>
+<script src="layerpitch-guide.js?v=1795256241669"></script>
+<script src="layerpitch-lesson-previews.js?v=1795256241669"></script>
+<script src="layerpitch-help.js?v=1795256241669"></script>
+<script src="player.js?v=1795256241669"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -17401,7 +17401,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch']; // 'preprod' (leçons Projet sur « Dernier Étage ») refermé le 19/11 le temps que Jules-Antoine les vérifie ; accord Protocol Interactive reçu
 // `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
 function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
@@ -17432,6 +17432,12 @@ const LESSON_SAMPLE_FOLDERS = {
 Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
   LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
 }));
+// Nom vu par l'apprenant -> fichier réel du dossier `tuto/` (le nom change, pas le fichier).
+const LESSON_SAMPLE_ALIASES = {
+  'Jazz 1 Lo_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Lo_Intro1M_9M_110bpm.wav'],
+  'Jazz 2 Hi_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Hi_Intro1M_9M_110bpm.wav'],
+};
+Object.keys(LESSON_SAMPLE_ALIASES).forEach(n => { const [dir, real] = LESSON_SAMPLE_ALIASES[n]; LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(real); });
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -17669,7 +17675,9 @@ const LESSON_SAMPLE_NAMES = {
   transRock: 'Jazz Hi_Trans Rock City_1M.wav',
   transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
   transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
-  embrLoops: 'Jazz Lo_Intro1M_9M_110bpm.wav, Jazz Hi_Intro1M_9M_110bpm.wav',
+  // Noms affichés avec un numéro : le dépôt de plusieurs fichiers les trie par ordre alphabétique, et « Hi » passerait avant « Lo »
+  // (boucle de référence inversée, retour d'un testeur 18/11). Les fichiers restent ceux du dossier (voir LESSON_SAMPLE_ALIASES).
+  embrLoops: 'Jazz 1 Lo_Intro1M_9M_110bpm.wav, Jazz 2 Hi_Intro1M_9M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
@@ -17889,7 +17897,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Simple mention (rien à cocher) : volontairement sans zone en surbrillance, qui inciterait à cocher la case.
+    { titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
@@ -18646,10 +18655,10 @@ const LESSONS = [
   ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
-  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
-  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
-  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
-  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Ouvertes à tous le 19/11 (accord de Protocol Interactive
+  // reçu pour les images de « Something Is Wrong » : media.layerpitch.com/tuto/, captures PNG).
+  { id: 'pj-vitrine', theme: 'preprod', public: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
@@ -19318,7 +19327,7 @@ async function seedMyDemoProjectNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
     if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
-    if (data && data.seeded) {
+    if (data && (data.seeded || data.updated)) {
       try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
     }
   } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }
@@ -19663,6 +19672,9 @@ function switchEssentialsPath(path) {
 const HOME_PREFS_LOCAL = 'lp_home_prefs_v1'; // repli (navigateur) : mêmes clés que profiles.home_prefs
 const HOME_ON_HINT = 'lp_home_on'; // « l'Accueil est ouvert pour moi » : choisit le bon onglet dès le chargement, avant que les feux verts soient connus
 const HOME_NEWS = [ // Nouveautés : { date: 'AAAA-MM-JJ', fr: { title, text }, en: { title, text }, tab? } — CHAQUE entrée est validée par Jules-Antoine avant d'être ajoutée
+  { date: "2026-11-19", fr: { title: "Versioning vidéo", text: "Rejoue un même montage avec d'autres morceaux ou Sfx, écoute chaque version sur la vidéo et fais-la relire par ton client." }, en: { title: "Video versioning", text: "Replay the same edit with other tracks or Sfx, listen to each version on the video and have your client review it." } },
+  { date: "2026-11-19", fr: { title: "Mode simple ou avancé", text: "Garde un Backstage épuré : les options avancées sont masquées (« N options avancées masquées ») et un interrupteur dans l'Accueil les réaffiche." }, en: { title: "Simple or advanced mode", text: "Keep the Backstage clean: advanced options are hidden (\"N advanced options hidden\") and a switch on the Home page brings them back." } },
+  { date: "2026-11-19", fr: { title: "Visites de section", text: "À la première ouverture d'une section (Contenu, Apparence, Bibliothèque, Sfx, Packs, Analytics), une bulle te propose une courte visite guidée." }, en: { title: "Section tours", text: "The first time you open a section (Content, Appearance, Library, Sfx, Packs, Analytics), a bubble offers a short guided tour." } },
   { date: "2026-11-18", fr: { title: "Un projet de démonstration", text: "Le projet « Dernier Étage » est ajouté à tes Projets pour explorer le mode Projet avec un exemple complet (tu peux le supprimer en un clic)." }, en: { title: "A demo project", text: "The \"Dernier Étage\" project is added to your Projects so you can explore Project mode with a full example (you can delete it in one click)." } },
   { date: "2026-11-18", fr: { title: "Des leçons à ta mesure", text: "Réponds à quelques questions sur ton profil et retrouve en tête du menu Tutoriel les leçons qui te correspondent (« Tes essentiels »)." }, en: { title: "Lessons that fit you", text: "Answer a few questions about your profile and find the lessons that suit you at the top of the Tutorial menu (\"Your essentials\")." } },
   { date: "2026-11-14", fr: { title: "Polices en aperçu", text: "Dans les menus de choix de police, chaque police s'affiche dans son propre style (polices Google et polices importées comprises), y compris dans la page Projet." }, en: { title: "Fonts previewed in their own style", text: "In the font pickers, each font is shown in its own style (Google and uploaded fonts included), also on the Project page." } },

@@ -123,6 +123,13 @@
   .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch { background: #fff; }
   .video-alt-group-v2 .video-alt-link-btn[aria-pressed="true"] .video-alt-switch::after { left: 12px; background: #2f80c0; }
   /* Barre d'étapes Vidéo → Montage → Publier (13/11) : admin seulement (classe atelier-v2). Chaque étape ne montre que ses éléments. */
+  .atelier-cover-row { align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #bdbdbd; }
+  .atelier-cover-row .video-capture-download-btn { white-space: nowrap; flex: none; }
+  .atelier-cover-label { font-weight: 600; color: #ddd; }
+  .atelier-cover-row[hidden] { display: none !important; }
+  .atelier-cover-thumb { height: 34px; width: auto; max-width: 90px; object-fit: cover; border-radius: 4px; }
+  .atelier-cover-none { opacity: .7; }
+  .atelier-cover-status { opacity: .85; }
   .atelier-stepbar { display: flex; gap: 6px; padding: 8px 10px; background: #141414; }
   .atelier-stepbar-btn { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid #3a3a3a; background: #1c1c1c; color: #999; cursor: pointer; font-size: 12px; font-family: inherit; }
   .atelier-stepbar-btn .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: #2a2a2a; margin-right: 6px; font-size: 10px; }

@@ -55,7 +55,7 @@ const path = require('path');
   const srcCounts = async () => JSON.stringify(await q(`select (select count(*) from public.project_assets where project_id = '${src}') a,
     (select count(*) from public.project_files where project_id = '${src}') f, (select count(*) from public.project_messages where project_id = '${src}') m,
     (select count(*) from public.packs where id = 'pack-demo') p`));
-  const before = await srcCounts();
+  let before = await srcCounts();
 
   // ---- Comptes : un compositeur, un studio (propriétaire), un compte avant l'accueil, un compte sans profil studio/compositeur.
   await mk(2, 'ana@x.test');
@@ -90,12 +90,13 @@ const path = require('path');
   check('la source n\'est pas marquée démo dans sa liste', (await (async () => { await as(1); const l = await val(`select public.list_my_projects()`); await as(2); return l.find(p => p.id === src).isDemo === false; })()));
 
   const A = await q(`select * from public.project_assets where project_id = $1 order by created_at`, [copy]);
-  check('objets copiés : note, lien, pack (les images déposées ne sont pas reprises)', A.length === 3 && A.some(a => a.kind === 'note' && a.title === 'La lampe')
-    && A.some(a => a.kind === 'link') && A.some(a => a.kind === 'pack' && a.pack_id === 'pack-demo'));
-  check('aucun fichier déposé n\'est copié', (await val(`select count(*)::int from public.project_files where project_id = $1`, [copy])) === 0 && A.every(a => a.file_id === null));
+  check('objets copiés : note, lien, pack, et l\'image (fichier partagé)', A.length === 4 && A.some(a => a.kind === 'note' && a.title === 'La lampe')
+    && A.some(a => a.kind === 'link') && A.some(a => a.kind === 'pack' && a.pack_id === 'pack-demo') && A.some(a => a.kind === 'image'));
+  check('fichiers PARTAGÉS, jamais copiés : l\'image pointe vers le fichier de la source, la copie n\'a aucun fichier à elle', (await val(`select count(*)::int from public.project_files where project_id = $1`, [copy])) === 0
+    && A.find(a => a.kind === 'image').file_id === f.fileId);
   check('nouveaux identifiants, auteur = le compte', A.every(a => ![note, link, packAsset].includes(a.id) && a.created_by === U(2)));
   const noteCopy = A.find(a => a.kind === 'note').id;
-  check('Moodboard : la note et le lien sont épinglés, pas le pack', (await val(`select count(*)::int from public.project_moodboard_pins where project_id = $1`, [copy])) === 2);
+  check('Moodboard : la note, le lien et l\'image sont épinglés, pas le pack', (await val(`select count(*)::int from public.project_moodboard_pins where project_id = $1`, [copy])) === 3);
   const S = await q(`select * from public.project_sections where project_id = $1`, [copy]);
   const sMus = S.find(s => s.title === 'Musique'), sSub = S.find(s => s.title === 'Sous-musique');
   check('sections copiées, arbre conservé', S.length === 2 && sSub.parent_id === sMus.id && sMus.id !== sec && sMus.parent_id === null);
@@ -108,7 +109,8 @@ const path = require('path');
     && M.every(m => m.author_id === U(2) && new Date(m.created_at) <= new Date()) && new Date(M[0].created_at) < new Date(M[1].created_at));
   const N = await q(`select * from public.project_annotations where project_id = $1`, [copy]);
   check('notes : seulement les publiques, rattachées à la copie de l\'objet', N.length === 1 && N[0].body === 'Note publique' && N[0].target_id === noteCopy && N[0].private === false);
-  check('apparence copiée', (await val(`select data->>'bg' from public.project_appearance where project_id = $1`, [copy])) === '#2f80c0');
+  check('apparence (photo de fond) NON copiée : arrivée sur un fond neutre', (await val(`select count(*)::int from public.project_appearance where project_id = $1`, [copy])) === 0
+    && (await val(`select count(*)::int from public.project_appearance where project_id = $1`, [src])) === 1);
   const V = await q(`select * from public.project_vitrines where project_id = $1 order by audience`, [copy]);
   const packCopy = A.find(a => a.kind === 'pack').id;
   check('vitrines copiées NON publiées, adresses libres et uniques', V.length === 2 && V.every(v => v.published === false)
@@ -141,11 +143,50 @@ const path = require('path');
   check('studio : la copie est un Projet de studio', P3 && P3.owner_kind === 'studio' && P3.owner_profile_id === null && P3.owner_studio_id && P3.created_by === U(3));
   check('studio : le Projet est dans sa liste, en admin', (await val(`select public.list_my_projects()`)).some(p => p.id === r3.projectId && p.role === 'admin' && p.isDemo));
 
+  // ---- Mises à jour de la démo (migration 20261119010000)
+  await as(2);
+  await q(`select public.add_project_asset($1, $2::jsonb, true)`, [copy, JSON.stringify({ kind: 'note', title: 'Ma note perso', body: 'x' })]);
+  check('sans nouvelle version publiée : la copie n\'est pas touchée', (await val(`select public.seed_my_demo_project()`)).updated === 0
+    && (await val(`select count(*)::int from public.project_assets where project_id = $1 and title = 'Ma note perso'`, [copy])) === 1);
+  check('un compte ordinaire ne peut pas publier une version', await fails(`select public.publish_demo_update()`, [], /Réservé/));
+  await as(1);
+  const pub = await val(`select public.publish_demo_update()`);
+  check('un administrateur publie : version 2 sur le Projet de démo', pub.version === 2 && pub.projectId === src);
+  await q(`select public.add_project_asset($1, $2::jsonb, true)`, [src, JSON.stringify({ kind: 'note', title: 'Nouvelle note de la démo', body: 'y' })]);
+  before = await srcCounts(); // la source a gagné une note : nouvelle référence pour « intacte »
+  await as(2);
+  const up = await val(`select public.seed_my_demo_project()`);
+  const copy2 = (await q(`select id from public.projects where demo_source_id = $1 and created_by = $2`, [src, U(2)]));
+  check('à la connexion suivante : la copie est remplacée par la nouvelle version', up.updated === 1 && copy2.length === 1 && copy2[0].id !== copy);
+  check('la copie à jour contient la nouvelle note et plus les modifications du testeur', (await val(`select count(*)::int from public.project_assets where project_id = $1 and title = 'Nouvelle note de la démo'`, [copy2[0].id])) === 1
+    && (await val(`select count(*)::int from public.project_assets where project_id = $1 and title = 'Ma note perso'`, [copy2[0].id])) === 0);
+  check('la copie à jour porte la version 2 ; l\'ancienne a disparu', (await val(`select demo_source_version from public.projects where id = $1`, [copy2[0].id])) === 2
+    && (await val(`select count(*)::int from public.projects where id = $1`, [copy])) === 0);
+  check('un message « mis à jour » arrive dans la cloche (un seul)', (await val(`select count(*)::int from public.admin_messages where recipient_id = $1 and title->>'fr' = 'Le projet de démo a été mis à jour'`, [U(2)])) === 1);
+  check('deuxième appel : plus rien à mettre à jour', (await val(`select public.seed_my_demo_project()`)).updated === 0);
+  await as(3);
+  const up3 = await val(`select public.seed_my_demo_project(true)`);
+  const c3 = (await q(`select * from public.projects where demo_source_id = $1 and created_by = $2`, [src, U(3)]))[0];
+  check('studio : la copie est aussi mise à jour, et reste un Projet de studio', up3.updated === 1 && c3.owner_kind === 'studio' && c3.demo_source_version === 2 && c3.id !== r3.projectId);
+  r3.projectId = c3.id;
+  check('la source garde sa version publiée et reste la démo publique', (await val(`select demo_version from public.projects where id = $1`, [src])) === 2 && (await val(`select public_demo from public.projects where id = $1`, [src])) === true);
+
+  // ---- Fichiers partagés : un testeur ne peut pas détruire ceux de la source
+  const imgCopy = (await q(`select id from public.project_assets where project_id = $1 and kind = 'image'`, [copy2[0].id]))[0].id;
+  await as(2);
+  const delPath = await val(`select public.delete_project_asset($1)`, [imgCopy]);
+  check('supprimer l\'image dans sa copie : rien n\'est effacé du stockage (chemin non rendu)', delPath === null);
+  check('…et le fichier ainsi que l\'objet de la source sont intacts', (await val(`select count(*)::int from public.project_files where id = $1`, [f.fileId])) === 1
+    && (await val(`select count(*)::int from public.project_assets where project_id = $1 and file_id = $2`, [src, f.fileId])) === 1);
+  await as(2);
+  check('un testeur ne peut pas supprimer le fichier de la source', await fails(`select public.delete_project_file($1)`, [f.fileId]));
+  check('la copie n\'a pas de fichier à elle (quota stockage intact)', (await val(`select count(*)::int from public.project_files where project_id = $1`, [copy2[0].id])) === 0);
+
   // ---- Suppression en un clic
   await as(2);
   const rm = await val(`select public.remove_my_demo_project()`);
   check('suppression : la copie disparaît (et seulement elle)', rm.removed === 1
-    && (await val(`select count(*)::int from public.projects where id = $1`, [copy])) === 0
+    && (await val(`select count(*)::int from public.projects where demo_source_id is not null and created_by = $1`, [U(2)])) === 0
     && (await val(`select count(*)::int from public.projects where id = $1`, [own])) === 1);
   check('suppression : tout son contenu part avec (objets, messages, vitrines, tâches)', (await val(`select (select count(*) from public.project_assets where project_id = '${copy}')
     + (select count(*) from public.project_messages where project_id = '${copy}') + (select count(*) from public.project_vitrines where project_id = '${copy}')
@@ -154,7 +195,27 @@ const path = require('path');
   check('la copie du studio n\'est pas touchée par la suppression d\'un autre compte', (await val(`select count(*)::int from public.projects where id = $1`, [r3.projectId])) === 1);
   check('suppression : l\'ajout ne se refait pas ensuite', (await val(`select public.seed_my_demo_project()`)).skipped === 'done'
     && (await val(`select count(*)::int from public.projects where demo_source_id is not null and created_by = $1`, [U(2)])) === 0);
+  await as(1); await q(`select public.publish_demo_update()`); await as(2);
+  check('une copie supprimée ne revient pas, même après une nouvelle version publiée', (await val(`select public.seed_my_demo_project()`)).updated === 0
+    && (await val(`select count(*)::int from public.projects where demo_source_id is not null and created_by = $1`, [U(2)])) === 0);
   check('supprimer quand il n\'y a plus rien ne plante pas', (await val(`select public.remove_my_demo_project()`)).removed === 0);
+
+  // ---- Vignette choisie : visible dans la démo publique (migration 20261119030000)
+  await as(1);
+  const cf = await val(`select public.reserve_project_file($1, 'disclaimer.png', 1000)`, [src]); await q(`select public.complete_project_file($1)`, [cf.fileId]);
+  await q(`select public.update_project_asset($1, $2::jsonb)`, [note, JSON.stringify({ coverFileId: cf.fileId })]);
+  await as(0); await db.query(`set role anon`);
+  const pd = await val(`select public.get_public_demo()`);
+  await db.query(`reset role`);
+  const pubPath = await val(`select public.project_file_is_public($1)`, [cf.fileId]);
+  check('démo publique : la vignette choisie est rendue (coverFileId)', pd.content.assets.find(x => x.id === note).coverFileId === cf.fileId);
+  check('démo publique : le fichier de la vignette est lisible sans compte', !!pubPath);
+  await as(1);
+  const other = (await q(`insert into public.projects (title, owner_kind, owner_profile_id, created_by) values ('Autre projet', 'composer', $1, $1) returning id`, [U(1)]))[0].id;
+  const ownCover = await val(`select public.reserve_project_file($1, 'perso.png', 1000)`, [other]); await q(`select public.complete_project_file($1)`, [ownCover.fileId]);
+  const ownNote = (await val(`select public.add_project_asset($1, $2::jsonb, false)`, [other, JSON.stringify({ kind: 'note', title: 'N', body: 'x' })])).id;
+  await q(`select public.update_project_asset($1, $2::jsonb)`, [ownNote, JSON.stringify({ coverFileId: ownCover.fileId })]);
+  check('la vignette d\'un autre Projet reste privée', (await val(`select public.project_file_is_public($1)`, [ownCover.fileId])) === null);
 
   // ---- Pas de source : rien, et le marqueur n'est pas posé (la démo pourra arriver plus tard)
   await as(1); await q(`select public.set_public_demo($1, false)`, [src]);
@@ -179,7 +240,11 @@ const path = require('path');
   check('page Projet : bandeau et bouton « Supprimer la démo »', /demoCopyRemoveBtn/.test(read('projet.html')) && /removeDemoCopy/.test(read('projet.html')));
   check('première connexion : la démo est ajoutée à la fin de la bienvenue, après le marquage de l\'accueil (compositeur et studio)',
     /markOnboardingComplete\(\)[\s\S]*seed_my_demo_project[\s\S]*p_as_studio: !!isStudio/.test(read('bienvenue.html')));
-  check('textes FR et EN de la démo présents', ['demoCopyBadge', 'demoCopyBanner', 'demoCopyRemove', 'demoCopyConfirm', 'demoCopyRemoved'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
+  check('bouton « Publier la mise à jour » sur le Projet démo + rafraîchissement de la cloche après une mise à jour', /demoPublishBtn/.test(read('projet.html')) && /publishDemoUpdate/.test(read('api/projects.js'))
+    && ['projets.html', 'studio.html', 'src/backstage/45-exemples.js'].every(f => /seeded \|\| (r\.)?data\.updated/.test(read(f))));
+  check('visite guidée adaptée aux copies : sections et discussion ouvertes le temps de leur bulle', /demoCopy/.test(read('projet-lecons.js')) && /setPanels/.test(read('projet-lecons.js')) && /demoCopyTourBtn/.test(read('projet.html'))
+    && ['stPjCopyTourTitle', 'stPjCopyTourText', 'stPjCopySecTitle', 'stPjCopySecText', 'stPjCopyChatText', 'stPjCopyEndText'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
+  check('textes FR et EN de la démo présents', ['demoCopyBadge', 'demoCopyBanner', 'demoCopyRemove', 'demoCopyConfirm', 'demoCopyRemoved', 'demoPublishBtn', 'demoPublishHint', 'demoPublishConfirm', 'demoPublished'].every(k => (i18n.match(new RegExp(`\\b${k}:`, 'g')) || []).length === 2));
 
   console.log(failures ? `\n${failures} ÉCHEC(S)` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);

@@ -50,7 +50,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch']; // 'preprod' (leçons Projet sur « Dernier Étage ») refermé le 19/11 le temps que Jules-Antoine les vérifie ; accord Protocol Interactive reçu
 // `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
 function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
@@ -81,6 +81,12 @@ const LESSON_SAMPLE_FOLDERS = {
 Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
   LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
 }));
+// Nom vu par l'apprenant -> fichier réel du dossier `tuto/` (le nom change, pas le fichier).
+const LESSON_SAMPLE_ALIASES = {
+  'Jazz 1 Lo_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Lo_Intro1M_9M_110bpm.wav'],
+  'Jazz 2 Hi_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Hi_Intro1M_9M_110bpm.wav'],
+};
+Object.keys(LESSON_SAMPLE_ALIASES).forEach(n => { const [dir, real] = LESSON_SAMPLE_ALIASES[n]; LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(real); });
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -318,7 +324,9 @@ const LESSON_SAMPLE_NAMES = {
   transRock: 'Jazz Hi_Trans Rock City_1M.wav',
   transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
   transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
-  embrLoops: 'Jazz Lo_Intro1M_9M_110bpm.wav, Jazz Hi_Intro1M_9M_110bpm.wav',
+  // Noms affichés avec un numéro : le dépôt de plusieurs fichiers les trie par ordre alphabétique, et « Hi » passerait avant « Lo »
+  // (boucle de référence inversée, retour d'un testeur 18/11). Les fichiers restent ceux du dossier (voir LESSON_SAMPLE_ALIASES).
+  embrLoops: 'Jazz 1 Lo_Intro1M_9M_110bpm.wav, Jazz 2 Hi_Intro1M_9M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
@@ -538,7 +546,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Simple mention (rien à cocher) : volontairement sans zone en surbrillance, qui inciterait à cocher la case.
+    { titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
@@ -1295,10 +1304,10 @@ const LESSONS = [
   ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
-  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
-  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
-  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
-  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Ouvertes à tous le 19/11 (accord de Protocol Interactive
+  // reçu pour les images de « Something Is Wrong » : media.layerpitch.com/tuto/, captures PNG).
+  { id: 'pj-vitrine', theme: 'preprod', public: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).

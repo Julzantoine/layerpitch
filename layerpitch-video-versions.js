@@ -27,6 +27,10 @@
       + '.lp-video-cue small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;line-height:1.2}'
       + '.lp-video-cue-flash{color:#ffbd7a;font-weight:600}.lp-video-cue-credit{position:absolute;right:12px;top:12px;font-size:12px}.lp-video-cue[hidden]{display:none}'
       + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}.lp-video-ab{font:inherit;padding:4px 10px;border-radius:6px;cursor:pointer}.lp-video-ab:disabled{opacity:.45;cursor:default}';
+    st.textContent += '.lp-video-fsbtn{font:inherit;padding:4px 10px;border-radius:6px;cursor:pointer}'
+      + '.lp-video-versions.lp-in-fs{position:absolute;top:12px;left:12px;z-index:5;margin:0;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.65);color:#fff}'
+      + '.lp-video-fs:fullscreen{background:#000;display:flex;align-items:center;justify-content:center;width:100%;height:100%}'
+      + '.lp-video-fs:fullscreen video{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain;aspect-ratio:auto!important}';
     document.head.appendChild(st);
   }
   async function client() {
@@ -54,6 +58,8 @@
     // Vidéo muette une fois + un son par version (migration 20261021040000) : une version 'audio' se joue sur l'image muette du
     // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
     const base = montage.baseUrl || null;
+    // Vignette du montage (choisie dans l'atelier, migration 20261119020000) : l'affiche du lecteur avant la lecture, quelle que soit la version.
+    if (montage.coverUrl && /^https:\/\//.test(montage.coverUrl)) video.poster = montage.coverUrl;
     const isSound = v => v.kind === 'audio' && !!base;
     // Deux pistes son : l'active, et une de rechange déjà chargée avec « l'autre » version (bascule A/B instantanée, sans attente de chargement).
     let audio = document.createElement('audio');
@@ -208,6 +214,28 @@
         bar.appendChild(abBtn);
       }
       wrap.parentNode.insertBefore(bar, wrap.nextSibling);
+      // Plein écran : celui de la vidéo seule (bouton natif) ne montre ni ce menu ni les étiquettes Music/SFX. On met tout le bloc
+      // en plein écran et on y rentre le menu pendant ce temps (iPhone : pas de plein écran d'élément, on garde le natif).
+      if (wrap.requestFullscreen || wrap.webkitRequestFullscreen) {
+        video.setAttribute('controlslist', 'nofullscreen');
+        wrap.classList.add('lp-video-fs');
+        const fsBtn = document.createElement('button');
+        fsBtn.type = 'button'; fsBtn.className = 'lp-video-fsbtn';
+        fsBtn.textContent = '\u26F6'; fsBtn.title = tr('videoFullscreen') === 'videoFullscreen' ? 'Fullscreen' : tr('videoFullscreen');
+        const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+        fsBtn.addEventListener('click', () => {
+          if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+          const r = (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
+          if (r && r.catch) r.catch(() => { /* refusé : on reste en page */ });
+        });
+        bar.appendChild(fsBtn);
+        const syncFs = () => {
+          if (fsEl() === wrap) { bar.classList.add('lp-in-fs'); wrap.appendChild(bar); }
+          else if (bar.parentNode === wrap) { bar.classList.remove('lp-in-fs'); wrap.parentNode.insertBefore(bar, wrap.nextSibling); }
+        };
+        document.addEventListener('fullscreenchange', syncFs);
+        document.addEventListener('webkitfullscreenchange', syncFs);
+      }
     }
     refresh();
     return { versions, select, refresh, get audio() { return audio; }, current: () => current, switchTo, toggleAB, previous: () => previous };
