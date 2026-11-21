@@ -26,7 +26,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms || 30));
   let w = mk(false);
   w.LayerPitchShell.collapsible(w.document.getElementById('nav'), {});
   await wait(60);
-  check('feu vert fermé : aucun « ? »', !w.document.querySelector('.lp-help-btn'));
+  const closedBtn = w.document.querySelector('.lp-help-btn');
+  check('feu vert fermé : aucun « ? » visible', !closedBtn || closedBtn.hidden);
+  w.LayerPitchShell.setHelpAllowed(true);
+  check('le Backstage peut montrer le « ? » (setHelpAllowed) sans 2e lecture', closedBtn && !closedBtn.hidden);
+  w.LayerPitchShell.setHelpAllowed(false);
+  check('… et le recacher', closedBtn.hidden);
 
   // Feu vert ouvert : le bouton est là, allumé par défaut.
   w = mk(true);
@@ -91,6 +96,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms || 30));
   // Image de fond : classe posée sur <html> + voile derrière le contenu du Backstage ; le « ? » attend la session avant de lire le feu vert.
   check('apparence : classe lp-has-bg-image posée avec une image', /classList\.toggle\('lp-has-bg-image', !!img\)/.test(fs.readFileSync('layerpitch-appearance.js', 'utf8')));
   check('Backstage : voile derrière le contenu quand une image est en fond', /html\.lp-has-bg-image \.backstage-content \{[^}]*color-mix/.test(fs.readFileSync('src/backstage/02-styles.css', 'utf8')));
+  check('Backstage : prévient la barre de son feu vert', /setHelpAllowed\(!!nf\.help_toggle\)/.test(fs.readFileSync('src/backstage/14-connexion-abonnement-admin.js', 'utf8')));
   check('« ? » : attend la session avant le feu vert', /LayerPitchAuth\.getSession\(\)[\s\S]{0,200}my_feature_flags/.test(fs.readFileSync('layerpitch-shell.js', 'utf8')));
   console.log(failures ? failures + ' échec(s)' : 'Tous les tests passent.');
   process.exit(failures ? 1 : 0);

@@ -234,6 +234,7 @@
   const HELP_CSS = `
   .lp-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; flex: 0 0 auto;
     border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-help-btn[hidden] { display: none !important; }
   .lp-help-btn:hover { background: rgba(47, 128, 192, .08); border-color: var(--border, #e2e2e6); color: var(--accent, #2f80c0); }
   .lp-help-btn[aria-pressed="true"] { background: rgba(47, 128, 192, .14); border-color: var(--accent, #2f80c0); color: var(--accent, #2f80c0); }
   .lp-nav-top .lp-help-btn { margin-left: auto; margin-right: 4px; }
@@ -261,12 +262,18 @@
     const attempt = n => helpFlagAllowed(ctx).then(ok => {
       if (ok) { b.hidden = false; helpSyncFromAccount(); }
       else if (ok === null && n < 3 && !ctx) setTimeout(() => attempt(n + 1), 1500 * (n + 1)); // session pas encore prête : on réessaie
-      else b.remove();
+      // sinon : le bouton reste caché (la page peut encore le montrer par setHelpAllowed, voir plus bas)
     });
     attempt(0);
     return b;
   }
   window.addEventListener('storage', e => { if (e.key === HOME_PREFS_LOCAL) helpBroadcast(); });
+  // Le Backstage connaît déjà ses feux verts (14-connexion-abonnement-admin.js) : il le dit ici, sans attendre une 2e lecture.
+  function setHelpAllowed(ok) {
+    helpFlagPromise = Promise.resolve(!!ok);
+    document.querySelectorAll('.lp-help-btn').forEach(b => { b.hidden = !ok; });
+    if (ok) helpSyncFromAccount();
+  }
 
   // Barre repliée : le libellé caché d'une rubrique apparaît en infobulle au survol (calculé au moment du survol, pour
   // suivre la langue affichée ; une infobulle déjà prévue par la page n'est jamais remplacée).
@@ -738,5 +745,5 @@
     if (window.LayerPitchAuth.onAuthStateChange) window.LayerPitchAuth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN') resumeTrack(session); });
   }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, setHelpAllowed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();
