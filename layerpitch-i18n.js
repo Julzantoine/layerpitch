@@ -1198,6 +1198,7 @@ window.LAYERPITCH_I18N = {
       pageTitle: 'LayerPitch — Backstage',
       // ---- Accueil du Backstage (13/11, feu vert home_dashboard) ----
       navHome: 'Accueil',
+      navTutorials: 'Tutoriels',
       homeGreeting: 'Bonjour !',
       homeGreetingSub: 'Voici ton espace LayerPitch.',
       homeTourReminder: 'Découvre LayerPitch avec la visite guidée (2 minutes).',
@@ -7040,6 +7041,7 @@ window.LAYERPITCH_I18N = {
       pageTitle: 'LayerPitch — Backstage',
       // ---- Backstage home (13/11, home_dashboard flag) ----
       navHome: 'Home',
+      navTutorials: 'Tutorials',
       homeGreeting: 'Hello!',
       homeGreetingSub: 'Here is your LayerPitch space.',
       homeTourReminder: 'Discover LayerPitch with the guided tour (2 minutes).',

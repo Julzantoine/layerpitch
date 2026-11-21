@@ -367,6 +367,9 @@
   .nav-item.nav-home-btn:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
   .nav-item.nav-home-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   a.nav-item { text-decoration: none; box-sizing: border-box; }
+  /* Tutoriels (21/11) : lien mis en valeur en haut du menu, même teinte que l'Accueil mais un cran plus discret. */
+  .nav-item.nav-tuto-link { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+  .nav-item.nav-tuto-link:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #24262b; color: #fff; }
   .nav-item:disabled { color: var(--text-dimmer); cursor: default; }
