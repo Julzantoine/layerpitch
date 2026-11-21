@@ -61,6 +61,12 @@
   }
   .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text-title); }
   .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; transition: border-color 0.15s ease, color 0.15s ease; }
+  .nav-tuto { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: #fff; background: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(47,111,224,0.35); transition: background 0.15s ease, transform 0.15s ease; }
+  .nav-tuto:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  .hero .demo { padding: 28px 24px 32px; }
+  .hero-tuto { margin-top: 28px; text-align: center; position: relative; }
+  .hero-tuto .lead-in { display: block; max-width: 520px; margin: 0 auto 16px; color: var(--text-dim); font-size: 14.5px; line-height: 1.6; }
+  .hero-tuto .note { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dimmer); }
   .nav-account:hover { border-color: var(--accent); color: var(--accent); }
   .nav-right { display: flex; align-items: center; gap: 14px; }
   .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
@@ -203,6 +209,7 @@
   </div>
   <div class="nav-right">
     <span class="nav-lang"><a class="active" href="./studios">FR</a> / <a href="./en/studios">EN</a></span>
+    <a class="nav-tuto" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Tutoriels</a>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
@@ -211,6 +218,10 @@
   <h1>Une musique qui immerge,<br>un travail qui se fluidifie.</h1>
   <p class="promise">Écoutez la musique réagir dans vos niveaux avant de l’implémenter.</p>
   <div class="sub">LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble. Grâce à une suite d’outils pensés pour fluidifier le workflow, écoutez les propositions musicales, jouez avec, testez-les dans vos niveaux et validez tout avant l’implémentation. Vous avez déjà beaucoup à faire… Gagnez du temps.</div>
+  <section class="demo">
+    <p>Et puisqu'une image vaut mieux que mille mots, voici un projet de démo, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
+    <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a>
+  </section>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
@@ -260,16 +271,12 @@
       <div class="path-legend-item"><span class="path-legend-swatch" style="background:#eab308"></span>Embranchement en attente de choix</div>
     </div>
   </div>
+  <p class="hero-tuto"><span class="lead-in">Vous êtes du genre à vouloir savoir comment tout fonctionne ? Allez donc jeter un œil aux tutoriels !</span><a class="btn btn-primary" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Essayer les tutoriels →</a><span class="note">Sans compte, avec des morceaux d’exemple.</span></p>
 </header>
-
-<section class="demo wrap">
-  <p>Un projet de démonstration, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
-  <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a>
-</section>
 
 <section class="block wrap">
   <span class="eyebrow">Notre approche</span>
-  <p>Chaque échange autour de la musique ou des SFX coûte du temps : on décrit, on propose, on implémente, on teste, on recommence. Avec LayerPitch, studio et compositeur ou sound designer travaillent dans le même espace, avec des outils pensés pour valider plus tôt, et donc dépenser moins. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et les SFX ont leur propre section.</p>
+  <p>Chaque échange autour de la musique ou des SFX coûte du temps : on décrit, on propose, on implémente, on teste, on recommence. Avec LayerPitch, studio et compositeur ou sound designer travaillent dans le même espace, avec des outils pensés pour valider plus tôt, et donc dépenser moins.<br><br>Plus besoin de builds successifs, plus de « Explo#1.8_LayerOne_Final_FINAL_more reverb#2 »… Le lecteur audio intègre la musique sous tous ses états et le versioning n'a jamais été aussi simple.<br><br><strong>Droppez un lien et explorez toute la musique et toutes les vidéos sous toutes leurs formes automatiquement mises à jour.</strong></p>
 </section>
 
 <section class="block wrap">

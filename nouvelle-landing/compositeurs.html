@@ -61,6 +61,12 @@
   }
   .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text-title); }
   .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; transition: border-color 0.15s ease, color 0.15s ease; }
+  .nav-tuto { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: #fff; background: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(47,111,224,0.35); transition: background 0.15s ease, transform 0.15s ease; }
+  .nav-tuto:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  .hero .demo { padding: 28px 24px 32px; }
+  .hero-tuto { margin-top: 28px; text-align: center; position: relative; }
+  .hero-tuto .lead-in { display: block; max-width: 520px; margin: 0 auto 16px; color: var(--text-dim); font-size: 14.5px; line-height: 1.6; }
+  .hero-tuto .note { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dimmer); }
   .nav-account:hover { border-color: var(--accent); color: var(--accent); }
   .nav-right { display: flex; align-items: center; gap: 14px; }
   .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
@@ -107,9 +113,8 @@
   .demo { text-align: center; padding: 16px 0 56px; }
   .demo p { max-width: 560px; margin: 0 auto 32px; color: var(--text-dim); font-size: 14.5px; }
   .demo .eyebrow { justify-content: center; }
-  .demo-more { margin: 22px 0 0; color: var(--text-dim); font-size: 14px; }
-  .demo-more a { color: var(--accent, #2f80c0); font-weight: 600; text-decoration: none; }
-  .demo-more a:hover { text-decoration: underline; }
+  .demo p.demo-more { margin: 34px auto 0; max-width: none; font-size: 13.5px; color: var(--text-dim); }
+  .demo-more span { display: block; margin-bottom: 12px; }
 
   /* ---- Social proof ---- */
   .proof { padding: 12px 0 60px; }
@@ -214,6 +219,7 @@
   </div>
   <div class="nav-right">
     <span class="nav-lang"><a class="active" href="./compositeurs">FR</a> / <a href="./en/composers">EN</a></span>
+    <a class="nav-tuto" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Tutoriels</a>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
@@ -223,6 +229,14 @@
   <div class="sub">Compositeurs, sound designers : pour avancer dans le game, mieux vaut être équipé.</div>
   <p class="promise">Faites entendre votre musique adaptative réagir au jeu : sans intégration, sans middleware.</p>
   <p class="lead">Du pitch à l'OST, LayerPitch accompagne votre musique adaptative. Présentez-la avec un AdReel (Adaptive Reel), testez-la sur le gameplay du studio, travaillez ensemble sur le moodboard et la carte musicale, puis vendez vos assets et vos OST interactives.</p>
+  <section class="demo">
+    <p>Et puisqu'une image vaut mieux que mille mots, voici un AdReel de démo : jouez avec l'intensité, coupez des couches, explorez les embranchements, comme le ferait un studio qui reçoit votre pitch.</p>
+    <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
+         charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
+         7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
+    <a class="btn btn-primary" href="https://beta.layerpitch.com/?adreel=demo-fr" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Manipulez un AdReel vous-même →</a>
+    <p class="demo-more"><span>Et quand un studio vous répond ?</span><a class="btn btn-secondary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_composer_projet_demo_click')">Explorer un projet de démo →</a></p>
+  </section>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
@@ -272,20 +286,12 @@
       <div class="path-legend-item"><span class="path-legend-swatch" style="background:#eab308"></span>Embranchement en attente de choix</div>
     </div>
   </div>
+  <p class="hero-tuto"><span class="lead-in">Vous êtes du genre à vouloir savoir comment tout fonctionne ? Allez donc jeter un œil aux tutoriels !</span><a class="btn btn-primary" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Essayer les tutoriels →</a><span class="note">Sans compte, avec des morceaux d’exemple.</span></p>
 </header>
-
-<section class="demo wrap">
-  <p>Voici un AdReel de démonstration : jouez avec l'intensité, coupez des couches, explorez les embranchements, comme le ferait un studio qui reçoit votre pitch.</p>
-  <!-- Comportement d'accès réellement vérifié le 6 septembre (fenêtre privée) : cette page se
-       charge sans compte. Cloudflare Access a été retiré de layerpitch-backstage.html le
-       7 septembre (docs/infrastructure.md, Partie C) -- seul admin.html reste derrière ce mur. -->
-  <a class="btn btn-primary" href="https://beta.layerpitch.com/?adreel=demo-fr" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_demo_click')">Manipulez un AdReel vous-même →</a>
-  <p class="demo-more">Et quand un studio vous répond ? <a href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_composer_projet_demo_click')">Expérimentez les outils de collaboration avec un projet de démo →</a></p>
-</section>
 
 <section class="block wrap">
   <span class="eyebrow">Notre approche</span>
-  <p>En tant que compositeurs de musique de jeu vidéo, notre métier consiste à apporter des solutions créatives aux problématiques de musique et de sound design, et à fluidifier le rapport qu'entretiennent les studios avec le son. En phase de pitch ou de préproduction, la musique linéaire oblige le studio à imaginer ce que ça donnerait une fois implémentée, avec le risque que ça ne sonne pas et qu'il faille reprendre tout le cycle proposition, implémentation, test, et la perte de temps qui va avec. Avec LayerPitch, tout ça, c'est de l'histoire ancienne. Le système est pensé pour fluidifier la collaboration entre le compositeur et le studio tout au long du process. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et même les SFX ont leur petite section dédiée. Tester en conditions, essayer plusieurs reverbs sur des footsteps, expérimenter autour de la spatialisation, travailler à plusieurs sur un projet pour avancer plus vite et de manière plus fluide, c'est ce que propose LayerPitch.</p>
+  <p>En tant que compositeurs de musique de jeu vidéo, notre métier consiste à apporter des solutions créatives aux problématiques de musique et de sound design, et à fluidifier le rapport qu'entretiennent les studios avec le son. En phase de pitch ou de préproduction, la musique linéaire oblige le studio à imaginer ce que ça donnerait une fois implémentée, avec le risque que ça ne sonne pas et qu'il faille reprendre tout le cycle proposition, implémentation, test, et la perte de temps qui va avec. Avec LayerPitch, tout ça, c'est de l'histoire ancienne. Le système est pensé pour fluidifier la collaboration entre le compositeur et le studio tout au long du process.<br><br>Plus besoin de builds successifs, plus de « Explo#1.8_LayerOne_Final_FINAL_more reverb#2 »… LayerPitch intègre la musique et la vidéo sous tous leurs états, le versioning n'a jamais été aussi simple et la collaboration aussi fluide…<br><br><strong>Avec LayerPitch, droppez un simple lien et explorez toute la musique et toutes les vidéos sous toutes leurs formes automatiquement mises à jour.</strong></p>
 </section>
 
 <section class="block wrap">
