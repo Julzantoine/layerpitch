@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795272485325">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795370784388">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1975,6 +1975,7 @@
           <button class="btn btn-small" id="btnAddContactBlock" data-i18n="addContactBlock">+ Bloc contact</button>
           <!-- Admin seulement jusqu'au feu vert 'adreel_socials' (28/09) : affiché par renderAdminOnlyPanels(). -->
           <button class="btn btn-small" id="btnAddSocialsBlock" data-adv data-i18n="addSocialsBlock" hidden>+ Bloc réseaux sociaux</button>
+          <button class="btn btn-small" id="btnAddLinkPreviewBlock" data-adv data-i18n="addLinkPreviewBlock" hidden>+ Bloc aperçu du lien</button>
         </div>
       </div>
 
@@ -2380,20 +2381,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1795272485325"></script>
-<script src="layerpitch-i18n.js?v=1795272485325"></script>
-<script src="layerpitch-import-engine.js?v=1795272485325"></script>
-<script src="layerpitch-appearance.js?v=1795272485325"></script>
-<script src="layerpitch-font-picker.js?v=1795272485325"></script>
-<script src="layerpitch-album-shared.js?v=1795272485325"></script>
-<script src="layerpitch-album-editor.js?v=1795272485325"></script>
-<script src="layerpitch-shell.js?v=1795272485325"></script>
-<script src="layerpitch-social-icons.js?v=1795272485325"></script>
-<script src="layerpitch-notify.js?v=1795272485325"></script>
-<script src="layerpitch-guide.js?v=1795272485325"></script>
-<script src="layerpitch-lesson-previews.js?v=1795272485325"></script>
-<script src="layerpitch-help.js?v=1795272485325"></script>
-<script src="player.js?v=1795272485325"></script>
+<script src="layerpitch-tuto.js?v=1795370784388"></script>
+<script src="layerpitch-i18n.js?v=1795370784388"></script>
+<script src="layerpitch-import-engine.js?v=1795370784388"></script>
+<script src="layerpitch-appearance.js?v=1795370784388"></script>
+<script src="layerpitch-font-picker.js?v=1795370784388"></script>
+<script src="layerpitch-album-shared.js?v=1795370784388"></script>
+<script src="layerpitch-album-editor.js?v=1795370784388"></script>
+<script src="layerpitch-shell.js?v=1795370784388"></script>
+<script src="layerpitch-social-icons.js?v=1795370784388"></script>
+<script src="layerpitch-notify.js?v=1795370784388"></script>
+<script src="layerpitch-guide.js?v=1795370784388"></script>
+<script src="layerpitch-lesson-previews.js?v=1795370784388"></script>
+<script src="layerpitch-help.js?v=1795370784388"></script>
+<script src="player.js?v=1795370784388"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2866,6 +2867,9 @@ async function renderAdminOnlyPanels(session) {
   // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
   const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
+  // Bloc invisible « Aperçu du lien » (22/11) : même règle, admin seulement jusqu'au feu vert ; grisé quand l'AdReel en a déjà un.
+  const linkPreviewBlockBtn = document.getElementById('btnAddLinkPreviewBlock');
+  if (linkPreviewBlockBtn) linkPreviewBlockBtn.hidden = !flagOpen('adreel_link_preview_block');
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)
@@ -3232,7 +3236,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   });
 });
 
-const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), contact: tr('blockLabelContact') };
+const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), linkpreview: tr('blockLabelLinkPreview'), contact: tr('blockLabelContact') };
 const SINGLETON_TYPES = ['header', 'bio', 'testimonials', 'tracks'];
 const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo', 'video'];
 
@@ -6211,6 +6215,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
     if (b.type === 'socials') clone.socialIds = (b.socialIds || []).slice();
+    if (b.type === 'linkpreview') { clone.image = null; clone.imageOriginalName = null; clone.pendingFile = null; } // le texte suit ; l'image reste à l'AdReel d'origine (un fichier publié n'a qu'un propriétaire)
     return clone;
   }).filter(Boolean);
   // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.
@@ -11484,6 +11489,10 @@ function blockSummaryText(block) {
       const n = socialsShownInBlock(block).length;
       return n ? trCount(n, 'blockSummarySocialsSingular', 'blockSummarySocials') : tr('blockSummarySocialsNone');
     }
+    case 'linkpreview': {
+      const t = (block.title || '').trim();
+      return (t ? truncateSummary(t) + ' · ' : '') + tr('blockSummaryLinkPreviewHidden');
+    }
     case 'contact': {
       return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
     }
@@ -11535,7 +11544,7 @@ function layoutBlocks() {
 // de doublon, pas de bouton inutile qui traînerait alors que le bloc existe déjà.
 function updateSingletonAddButtons() {
   const presentTypes = new Set(blocks.map(b => b.type));
-  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock' };
+  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock', linkpreview: 'btnAddLinkPreviewBlock' }; // linkpreview : un seul par AdReel
   Object.entries(map).forEach(([type, btnId]) => {
     const btn = document.getElementById(btnId);
     if (btn) btn.style.display = presentTypes.has(type) ? 'none' : '';
@@ -12234,6 +12243,66 @@ function refreshSocialsBlockCards() {
   refreshAllBlockSummaries();
 }
 
+// Bloc invisible « Aperçu du lien » (22/11) : titre, description et image de la carte qu'affichent les messageries quand on colle le
+// lien de CET AdReel. Rien ne s'affiche sur la page publique (le moteur d'affichage ignore ce type) ; get_share_preview le lit en
+// priorité, avant le réglage du compte (rubrique Réseaux sociaux) puis le profil. Un seul par AdReel. L'image choisie attend la
+// publication (block.pendingFile), comme les autres images, et est ajustée au format 1200 × 630 si la case est cochée.
+function buildLinkPreviewBlockCard(block) {
+  const { card, body } = makeCardShell(block);
+  if (block.autoFit === undefined) block.autoFit = true;
+  if (block.fitMode !== 'contain') block.fitMode = 'fill';
+  if (!/^#[0-9a-f]{6}$/i.test(block.fitColor || '')) block.fitColor = '#ffffff';
+  body.innerHTML = `<div class="hint-inline" style="margin:0 0 10px">${tr('linkPreviewBlockHint')}</div>
+    <label>${tr('sharePreviewTitleLabel')}</label>
+    <input type="text" data-role="lpTitle" maxlength="90">
+    <label>${tr('sharePreviewDescLabel')}</label>
+    <textarea data-role="lpDesc" rows="3" maxlength="200"></textarea>
+    <label>${tr('sharePreviewImageLabel')}</label>
+    <div data-role="lpImageCtrl"></div>
+    <div class="hint-inline">${tr('sharePreviewImageHint')}</div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin:10px 0 0"><input type="checkbox" data-role="lpAutoFit" style="width:auto;margin:2px 0 0 0"><span style="font-size:12px;line-height:1.5">${tr('sharePreviewAutoFitLabel')}</span></label>
+    <select data-role="lpFitMode" style="max-width:360px;margin-top:6px"><option value="fill">${tr('sharePreviewFitFill')}</option><option value="contain">${tr('sharePreviewFitContain')}</option></select>
+    <label data-role="lpFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:normal;font-size:12px"><span>${tr('sharePreviewFitColorLabel')}</span><input type="color" data-role="lpFitColor" style="width:44px;padding:0"></label>
+    <div data-role="lpMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>`;
+  const $ = r => body.querySelector(`[data-role="${r}"]`);
+  let pendingUrl = null;
+  const redraw = () => {
+    $('lpMock').innerHTML = sharePreviewMockHtml(block, block.pendingFile ? (pendingUrl || '') : '');
+    $('lpFitMode').disabled = block.autoFit === false;
+    $('lpFitColorWrap').style.display = block.fitMode === 'contain' && block.autoFit !== false ? 'flex' : 'none';
+    refreshAllBlockSummaries();
+  };
+  const touch = () => { hasUnsavedEdits = true; redraw(); };
+  $('lpTitle').value = block.title || ''; $('lpDesc').value = block.description || '';
+  $('lpAutoFit').checked = block.autoFit !== false; $('lpFitMode').value = block.fitMode; $('lpFitColor').value = block.fitColor;
+  $('lpTitle').addEventListener('input', e => { block.title = e.target.value; touch(); });
+  $('lpDesc').addEventListener('input', e => { block.description = e.target.value; touch(); });
+  $('lpAutoFit').addEventListener('change', e => { block.autoFit = e.target.checked; touch(); });
+  $('lpFitMode').addEventListener('change', e => { block.fitMode = e.target.value; touch(); });
+  $('lpFitColor').addEventListener('input', e => { block.fitColor = e.target.value; touch(); });
+  const ctrl = $('lpImageCtrl');
+  ctrl.innerHTML = fileCtrlHtml(tr('chooseSharePreviewImage'), `<button type="button" class="btn btn-small btn-danger" data-role="lpRemoveImage">${tr('removeSharePreviewImage')}</button>`);
+  const rm = ctrl.querySelector('[data-role="lpRemoveImage"]');
+  const refreshRm = () => { rm.hidden = !(block.pendingFile || block.image); };
+  wireFileControl(ctrl, 'image/*', () => block.pendingFile || null, () => block.image || null, f => {
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    block.pendingFile = f || null;
+    if (f) pendingUrl = URL.createObjectURL(f);
+    refreshRm(); touch();
+  }, () => block.imageOriginalName || null);
+  refreshRm();
+  rm.addEventListener('click', () => {
+    // L'image publiée est effacée du stockage à la prochaine publication (file d'orphelins), comme pour le réglage du compte.
+    if (block.image) queueR2Delete('images/' + block.image);
+    block.image = null; block.imageOriginalName = null; block.pendingFile = null;
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    fillCtrl(); refreshRm(); touch();
+  });
+  function fillCtrl() { const st = ctrl.querySelector('[data-role="fileStatus"]'); if (st) updateFileStatus(st, null, null, null); }
+  redraw();
+  return card;
+}
+
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   // « Atelier vidéo » (21/10) : faire une vidéo avec la musique d'un pack (onglet Vidéo → Atelier), puis la choisir ici dans la bibliothèque.
@@ -12444,7 +12513,7 @@ function buildVideoCard(block) {
   return card;
 }
 
-const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, contact: buildContactBlockCard };
+const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, linkpreview: buildLinkPreviewBlockCard, contact: buildContactBlockCard };
 
 function renderImgPreview(el, pendingFile, remoteFile) {
   if (pendingFile) el.innerHTML = `<img src="${URL.createObjectURL(pendingFile)}">`;
@@ -12477,7 +12546,8 @@ function buildCardForBlock(block) {
     // de presets au niveau général -- masqué ici plutôt que dans chacun des ~9 builders, même choke
     // point que l'injection elle-même. Les réglages déjà enregistrés par un compositeur passé ensuite en
     // Free restent en base (block.appearance n'est jamais touché ici), juste plus montrés/appliqués.
-    if (currentEffectivePlan !== 'free') {
+    // Bloc invisible « Aperçu du lien » : rien à styler, il n'apparaît pas sur la page.
+    if (currentEffectivePlan !== 'free' && block.type !== 'linkpreview') {
       appendBlockAppearanceSection(body, block);
       appendElementAppearanceSection(body, block);
     }
@@ -12885,6 +12955,16 @@ document.getElementById('btnAddSocialsBlock').addEventListener('click', () => {
   blockCards[b.id] = buildCardForBlock(b);
   hasUnsavedEdits = true;
   trackBackstageEvent('block_add', { blockType: 'socials' });
+  layoutBlocks();
+});
+document.getElementById('btnAddLinkPreviewBlock').addEventListener('click', () => {
+  if (!flagOpen('adreel_link_preview_block')) return;
+  if (blocks.some(b => b.type === 'linkpreview')) return; // un seul par AdReel : un lien n'a qu'un aperçu
+  const b = { id: genId(), type: 'linkpreview', title: '', description: '', image: null, imageOriginalName: null, autoFit: true, fitMode: 'fill', fitColor: '#ffffff' };
+  blocks.push(b);
+  blockCards[b.id] = buildCardForBlock(b);
+  hasUnsavedEdits = true;
+  trackBackstageEvent('block_add', { blockType: 'linkpreview' });
   layoutBlocks();
 });
 document.getElementById('btnAddContactBlock').addEventListener('click', () => {
@@ -14751,14 +14831,19 @@ async function sharePreviewFit(file, mode, color) {
     return new File([blob], 'share-preview.' + (jpeg ? 'jpg' : 'png'), { type: blob.type });
   } finally { URL.revokeObjectURL(url); }
 }
+// HTML de la carte d'aperçu (maquette) pour un état { title, description, image, autoFit, fitMode, fitColor } ; pendingUrl = image choisie
+// mais pas encore publiée. Partagée par la carte du compte (rubrique Réseaux sociaux) et par le bloc invisible « Aperçu du lien » d'un AdReel.
+function sharePreviewMockHtml(state, pendingUrl) {
+  const src = pendingUrl || (state.image ? MEDIA_BASE + 'images/' + state.image : '');
+  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${state.autoFit !== false && state.fitMode !== 'contain' ? 'cover' : 'contain'};background:${state.autoFit !== false && state.fitMode === 'contain' ? escapeAttr(state.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
+  const title = (state.title || '').trim() || tr('sharePreviewMockTitleFallback');
+  const desc = (state.description || '').trim();
+  return `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+}
 function renderSharePreviewMock() {
   const mock = document.getElementById('sharePreviewMock');
   if (!mock) return;
-  const src = sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : (sharePreview.image ? MEDIA_BASE + 'images/' + sharePreview.image : '');
-  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${sharePreview.autoFit !== false && sharePreview.fitMode !== 'contain' ? 'cover' : 'contain'};background:${sharePreview.autoFit !== false && sharePreview.fitMode === 'contain' ? escapeAttr(sharePreview.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
-  const title = (sharePreview.title || '').trim() || tr('sharePreviewMockTitleFallback');
-  const desc = (sharePreview.description || '').trim();
-  mock.innerHTML = `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+  mock.innerHTML = sharePreviewMockHtml(sharePreview, sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : '');
 }
 let sharePreviewPendingFileUrl = null;
 function fillSharePreviewFields() {
@@ -16803,6 +16888,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
         else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
+        else if (b.type === 'linkpreview') out = { id: b.id, type: 'linkpreview', title: (b.title || '').trim(), description: (b.description || '').trim(), image: b.image || null, imageOriginalName: b.imageOriginalName || null, autoFit: b.autoFit !== false, fitMode: b.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(b.fitColor || '') ? b.fitColor : '#ffffff' };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de
@@ -16971,6 +17057,18 @@ async function publishAll() {
             img.file = fileName; img.originalFileName = img.pendingFile.name; img.pendingFile = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
           }
+        }
+        // Image du bloc invisible « Aperçu du lien » : images/<son id>/<id du bloc>-share.<ext>, ajustée au format 1200 × 630 si la case est cochée.
+        if (b.type === 'linkpreview' && b.pendingFile) {
+          let toSend = b.pendingFile;
+          if (b.autoFit !== false) {
+            try { toSend = await sharePreviewFit(b.pendingFile, b.fitMode, b.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = b.pendingFile; }
+          }
+          const bytes = new Uint8Array(await toSend.arrayBuffer());
+          const fileName = `${myComposerId}/${b.id}-share.${extOf(toSend.name)}`;
+          await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+          b.image = fileName; b.imageOriginalName = b.pendingFile.name; b.pendingFile = null;
+          log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
         }
         if (b.type === 'video') {
           for (let i = 0; i < b.videos.length; i++) {

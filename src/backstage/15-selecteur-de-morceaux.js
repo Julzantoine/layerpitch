@@ -597,6 +597,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
     if (b.type === 'socials') clone.socialIds = (b.socialIds || []).slice();
+    if (b.type === 'linkpreview') { clone.image = null; clone.imageOriginalName = null; clone.pendingFile = null; } // le texte suit ; l'image reste à l'AdReel d'origine (un fichier publié n'a qu'un propriétaire)
     return clone;
   }).filter(Boolean);
   // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.

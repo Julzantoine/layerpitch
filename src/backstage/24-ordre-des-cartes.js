@@ -48,6 +48,10 @@ function blockSummaryText(block) {
       const n = socialsShownInBlock(block).length;
       return n ? trCount(n, 'blockSummarySocialsSingular', 'blockSummarySocials') : tr('blockSummarySocialsNone');
     }
+    case 'linkpreview': {
+      const t = (block.title || '').trim();
+      return (t ? truncateSummary(t) + ' · ' : '') + tr('blockSummaryLinkPreviewHidden');
+    }
     case 'contact': {
       return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
     }
@@ -99,7 +103,7 @@ function layoutBlocks() {
 // de doublon, pas de bouton inutile qui traînerait alors que le bloc existe déjà.
 function updateSingletonAddButtons() {
   const presentTypes = new Set(blocks.map(b => b.type));
-  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock' };
+  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock', linkpreview: 'btnAddLinkPreviewBlock' }; // linkpreview : un seul par AdReel
   Object.entries(map).forEach(([type, btnId]) => {
     const btn = document.getElementById(btnId);
     if (btn) btn.style.display = presentTypes.has(type) ? 'none' : '';
