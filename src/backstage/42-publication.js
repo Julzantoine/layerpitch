@@ -264,7 +264,7 @@ async function publishAll() {
         try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
       }
       const bytes = new Uint8Array(await toSend.arrayBuffer());
-      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      const fileName = `${myComposerId}/share-preview-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi (même raison que pour le bloc « Aperçu du lien »)
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -325,7 +325,7 @@ async function publishAll() {
             try { toSend = await sharePreviewFit(b.pendingFile, b.fitMode, b.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = b.pendingFile; }
           }
           const bytes = new Uint8Array(await toSend.arrayBuffer());
-          const fileName = `${myComposerId}/${b.id}-share.${extOf(toSend.name)}`;
+          const fileName = `${myComposerId}/${b.id}-share-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi : sinon l'ancien nom (mis en file d'effacement au retrait) efface aussi le nouveau fichier, et le navigateur garde l'ancienne image en mémoire
           await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
           b.image = fileName; b.imageOriginalName = b.pendingFile.name; b.pendingFile = null;
           log(tr('uploadedImageGeneric', { file: fileName }), 'ok');

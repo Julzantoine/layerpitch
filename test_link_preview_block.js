@@ -82,6 +82,11 @@ const check = (label, cond) => { console.log((cond ? 'OK   ' : 'FAIL ') + label)
   // Page publique : le moteur d'affichage ignore le type
   const reelSrc = fs.readFileSync(__dirname + '/reel.js', 'utf-8');
   check('page publique : aucun rendu pour le type linkpreview', !/case 'linkpreview'/.test(reelSrc));
+  // Remplacer l'image : le retrait met l'ancien fichier en file d'effacement ; un nom d'envoi identique effaçait aussi le nouveau
+  // fichier (et le navigateur gardait l'ancienne image). Garde sur le code : chaque envoi reçoit un nom neuf.
+  const pub = fs.readFileSync(__dirname + '/src/backstage/42-publication.js', 'utf-8');
+  check('envoi d\'image du bloc : nom neuf à chaque publication', /-share-\$\{Date\.now\(\)\.toString\(36\)\}/.test(pub));
+  check('envoi de l\'image du réglage du compte : nom neuf à chaque publication', /share-preview-\$\{Date\.now\(\)\.toString\(36\)\}/.test(pub));
   console.log(failures ? failures + ' échec(s)' : 'Tous les tests passent');
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
