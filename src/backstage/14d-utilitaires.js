@@ -28,6 +28,16 @@ function imageContentType(ext) {
   const map = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', avif: 'image/avif', gif: 'image/gif', svg: 'image/svg+xml' };
   return map[(ext || '').toLowerCase()] || 'application/octet-stream';
 }
+// Retire d'une liste, SANS la remplacer par une nouvelle, chaque élément qui répond à `drop`.
+// Indispensable pour les listes partagées par plusieurs variables : la liste des morceaux de
+// l'AdReel ouvert est à la fois `ar.trackIds` (envoyée à la sauvegarde) et `trackIds` (affichée
+// à l'écran). Un `a.trackIds = a.trackIds.filter(...)` les séparait : un morceau ajouté ensuite
+// s'affichait mais n'était jamais enregistré (bug du 22/11, test_suppression_garde_les_listes_liees.js).
+function removeInPlace(list, drop) {
+  if (!Array.isArray(list)) return list;
+  for (let i = list.length - 1; i >= 0; i--) if (drop(list[i])) list.splice(i, 1);
+  return list;
+}
 function genId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 const UPLOAD_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4M8 8l4-4 4 4"/><path d="M4 15.5v3.5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3.5"/></svg>';

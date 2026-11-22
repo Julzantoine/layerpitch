@@ -76,9 +76,10 @@ document.getElementById('sfxLibraryContainer').addEventListener('click', async e
     sfxLibrary.splice(si, 1);
     // Nettoie toutes les références à ce Sfx désormais supprimé — morceaux, packs, blocs de contenu —
     // sinon un id orphelin resterait silencieusement ignoré à la publication.
-    library.forEach(t => { if (t.sfxIds) t.sfxIds = t.sfxIds.filter(id => id !== removedId); });
-    packs.forEach(p => { if (p.sfxIds) p.sfxIds = p.sfxIds.filter(id => id !== removedId); });
-    adReels.forEach(ar => ar.blocks.forEach(b => { if (b.type === 'sfx' && b.sfxIds) b.sfxIds = b.sfxIds.filter(id => id !== removedId); }));
+    // Retrait SUR PLACE (removeInPlace) : un sélecteur déjà affiché garde la même liste que celle sauvegardée.
+    library.forEach(t => removeInPlace(t.sfxIds, id => id === removedId));
+    packs.forEach(p => removeInPlace(p.sfxIds, id => id === removedId));
+    adReels.forEach(ar => ar.blocks.forEach(b => { if (b.type === 'sfx') removeInPlace(b.sfxIds, id => id === removedId); }));
     sfxSelectedEntry.delete(removedId);
     hasUnsavedEdits = true;
     trackBackstageEvent('sfx_remove', {});

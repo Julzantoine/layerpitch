@@ -159,9 +159,11 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     // Fichiers R2 effacés seulement après la suppression en base, à la publication (voir pendingR2Deletes).
     pendingR2Deletes.set('tracks:' + removedId, trackRemoteFileKeys(library[ti]));
     library.splice(ti, 1);
-    adReels.forEach(a => { a.trackIds = a.trackIds.filter(id => id !== removedId); });
-    packs.forEach(p => { p.trackIds = (p.trackIds || []).filter(id => id !== removedId); });
-    library.forEach(l => { if (l.mode === 'hybrid-sequential') l.sections = (l.sections || []).filter(sec => sec.trackId !== removedId); });
+    // Retrait SUR PLACE (removeInPlace) : `trackIds`, la liste affichée de l'AdReel ouvert, est la même
+    // liste que `ar.trackIds` ; en créer une nouvelle séparait l'écran de la sauvegarde.
+    adReels.forEach(a => removeInPlace(a.trackIds, id => id === removedId));
+    packs.forEach(p => removeInPlace(p.trackIds, id => id === removedId));
+    library.forEach(l => { if (l.mode === 'hybrid-sequential') removeInPlace(l.sections, sec => sec.trackId === removedId); });
     trackBackstageEvent('track_delete', {});
   }
   else if (btn.dataset.action === 'add-fx-trigger') {
