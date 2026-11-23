@@ -65,9 +65,16 @@ $$;
 revoke execute on function public.check_ad_reel_secret(uuid, text, text) from public, anon, authenticated;
 
 -- ---- M1 : liens de relecture ----
-alter table public.video_review_access_failures add column if not exists ip text;
-create index if not exists video_review_access_failures_ip_idx on public.video_review_access_failures (capture_id, ip, at);
-
+-- Deux formes possibles selon ce qui est en base : l'ancienne (video_review_links + video_review_access_failures, sur main)
+-- ou la refonte « review_links » (review_link_open + review_access_failures, appliquée le 23/11 depuis la branche
+-- claude/dropcue-analysis-6fd75e, pas encore fusionnée). Le même défaut existe dans les deux : chacune est corrigée si
+-- elle est présente, l'autre est ignorée. TOUTE nouvelle version de review_link_open doit garder ce frein par visiteur.
+do $do$
+begin
+  if to_regclass('public.video_review_access_failures') is not null and to_regclass('public.video_review_links') is not null then
+    execute 'alter table public.video_review_access_failures add column if not exists ip text';
+    execute 'create index if not exists video_review_access_failures_ip_idx on public.video_review_access_failures (capture_id, ip, at)';
+    execute $f$
 create or replace function public.video_review_capture(p_slug text, p_secret text)
 returns text language plpgsql security definer set search_path = public as $$
 declare
@@ -89,7 +96,40 @@ begin
   return null;
 end;
 $$;
-revoke all on function public.video_review_capture(text, text) from public, anon, authenticated;
+$f$;
+    execute 'revoke all on function public.video_review_capture(text, text) from public, anon, authenticated';
+  end if;
+
+  if to_regclass('public.review_access_failures') is not null and to_regclass('public.review_links') is not null
+     and to_regprocedure('public.review_link_open(text, text)') is not null then
+    execute 'alter table public.review_access_failures add column if not exists ip text';
+    execute 'create index if not exists review_access_failures_ip_idx on public.review_access_failures (link_id, ip, at)';
+    execute $f$
+create or replace function public.review_link_open(p_slug text, p_secret text)
+returns public.review_links language plpgsql security definer set search_path = public as $$
+declare
+  l public.review_links;
+  v_ip text := coalesce(public.request_client_ip(), 'inconnue');
+begin
+  if p_slug is null then return null; end if;
+  select * into l from public.review_links where slug = p_slug and enabled;
+  if not found then return null; end if;
+  if (select count(*) from public.review_access_failures
+      where link_id = l.id and ip = v_ip and at > now() - interval '10 minutes') >= 10
+     or (select count(*) from public.review_access_failures
+      where link_id = l.id and at > now() - interval '10 minutes') >= 100 then
+    raise exception 'trop d''essais, réessayez dans quelques minutes' using hint = 'throttled';
+  end if;
+  if p_secret is not null and p_secret <> '' and public.ad_reel_secret_hash(l.salt, p_secret, l.iterations) = l.secret_hash then return l; end if;
+  insert into public.review_access_failures (link_id, ip) values (l.id, v_ip);
+  delete from public.review_access_failures where at < now() - interval '1 day';
+  return null;
+end;
+$$;
+$f$;
+  end if;
+end;
+$do$;
 
 -- ---- M4 ----
 revoke execute on function public.submit_access_request(text, text, text) from public, anon, authenticated;
