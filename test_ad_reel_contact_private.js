@@ -1,5 +1,5 @@
 // Sécurité (audit du 16/11, I1 ; décision du 17/11 : cacher l'adresse) : l'e-mail de contact d'un AdReel n'est plus
-// public. Base jetable PGlite (migration 20261118030000) + contrôles de texte des pages et de la fonction d'envoi.
+// public. Base jetable PGlite (migration 20261123010000) + contrôles de texte des pages et de la fonction d'envoi.
 const fs = require('fs'), path = require('path');
 let failures = 0;
 const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + label); if (!cond) failures++; };
@@ -56,7 +56,7 @@ const check = (label, cond) => { console.log((cond ? 'OK  ' : 'FAIL') + ' - ' + 
   await db.exec(`alter table public.ad_reels disable trigger ad_reels_contact_private`);
   await q(`insert into public.ad_reels (id, owner_id, label, profile) values ('ancien', $1, 'A', $2)`, [c2, JSON.stringify({ title: 'Ancien', contactEmail: 'ana@exemple.fr' })]);
   await db.exec(`alter table public.ad_reels enable trigger ad_reels_contact_private`);
-  await db.exec(fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261118030000_ad_reel_contact_private.sql'), 'utf-8'));
+  await db.exec(fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261123010000_ad_reel_contact_private.sql'), 'utf-8'));
   p = await prof(c2, 'ancien');
   check('reprise : adresse déplacée, profil nettoyé', !('contactEmail' in p) && p.hasContact === true && await contact(c2, 'ancien') === 'ana@exemple.fr');
 
