@@ -212,6 +212,9 @@ async function renderAdminOnlyPanels(session) {
   // Bloc invisible « Aperçu du lien » (22/11) : même règle, admin seulement jusqu'au feu vert ; grisé quand l'AdReel en a déjà un.
   const linkPreviewBlockBtn = document.getElementById('btnAddLinkPreviewBlock');
   if (linkPreviewBlockBtn) linkPreviewBlockBtn.hidden = !flagOpen('adreel_link_preview_block');
+  // Suivi des envois (23/11) : bouton « Envoyer à… » et onglet Envois, admin seulement jusqu'au feu vert (50-envois.js).
+  const sendsOn = flagOpen('sends_tracking');
+  ['navItemSends', 'btnSendAdReel'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !sendsOn; });
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)

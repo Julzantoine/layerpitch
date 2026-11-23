@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795382088892">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795449133033">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1309,6 +1309,53 @@
     .home-learn-pop { position: fixed; inset: 0; width: auto; max-width: none; border-radius: 0; overflow-y: auto; z-index: 9000; }
     .home-choices .btn { flex: 1 1 100%; }
   }
+  /* Suivi des envois (23/11, 50-envois.js) : lignes séparées par un filet, pas de cartes encadrées. */
+  .sends-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .sends-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .sends-toolbar input[type="search"] { flex: 1 1 240px; min-width: 0; }
+  .sends-toolbar select { flex: 0 0 auto; width: auto; }
+  .sends-h3 { font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin: 22px 0 4px; display: flex; align-items: center; gap: 8px; }
+  .sends-count { font-weight: 500; color: var(--text-dimmer); }
+  .sends-remind .sends-h3 { color: var(--accent); }
+  .sends-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .sends-row-main { min-width: 0; }
+  .sends-who { all: unset; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text); }
+  .sends-who:hover, .sends-who:focus-visible { color: var(--accent); }
+  .sends-who:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  .sends-person { font-weight: 400; color: var(--text-dim); }
+  .sends-meta, .sends-listen { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .sends-listen.is-heard { color: var(--seq-map-success); }
+  .sends-remind-reason { font-size: 12px; color: var(--accent); margin-top: 2px; }
+  .sends-gone { color: var(--text-dimmer); font-style: italic; }
+  .sends-row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .sends-status { width: auto; font-size: 12px; padding: 3px 6px; }
+  .sends-status-listened { color: var(--seq-map-success); }
+  .sends-status-replied { color: var(--accent); }
+  .sends-status-signed { color: var(--seq-map-success); font-weight: 600; }
+  .sends-status-dropped { color: var(--text-dimmer); }
+  .sends-detail { grid-column: 1 / -1; padding: 6px 0 4px; display: flex; flex-direction: column; gap: 8px; }
+  .sends-detail-line { font-size: 12px; color: var(--text-dim); }
+  .sends-track { display: inline-block; margin: 2px 4px 0 0; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--text); font-size: 11px; }
+  .sends-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 12px; }
+  .sends-detail label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-dim); }
+  .sends-detail-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .sends-empty { padding: 24px 0; color: var(--text-dim); }
+  .sends-studio-bar { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
+  .sends-how { margin-top: 22px; max-width: 640px; }
+  .btn-link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; font-size: inherit; }
+  .btn-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .send-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+  .send-modal-overlay[hidden] { display: none; }
+  .send-modal { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; width: 420px; max-width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .send-modal h3 { font-size: 14px; margin-bottom: 12px; color: var(--text); }
+  .send-modal label { display: block; margin-top: 10px; }
+  .send-modal input, .send-modal select, .send-modal textarea { width: 100%; }
+  .send-modal .actions { justify-content: flex-end; margin-top: 16px; }
+  .send-modal-msg { min-height: 1.2em; margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+  .send-link-row { display: flex; gap: 6px; }
+  .send-link-row input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .send-modal .hint { margin-top: 10px; }
+  @media (max-width: 640px) { .sends-row { grid-template-columns: 1fr; } .sends-row-actions { justify-content: flex-start; } }
 </style>
 </head>
 <body>
@@ -1499,6 +1546,8 @@
             <button class="btn btn-small" id="btnCopyAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="copyLink">Copier le lien</button>
             <button class="btn btn-small" id="btnShareAdReelUrl" type="button" style="flex:1; font-size:11px;" data-i18n="shareBtn">Partager</button>
             <button class="btn btn-small" id="btnEmbedAdReelTracks" type="button" style="flex:1; font-size:11px;" data-i18n="embedBtn">Code d'intégration</button>
+            <!-- Suivi des envois (23/11, feu vert sends_tracking) : lien rien qu'à un destinataire (50-envois.js). -->
+            <button class="btn btn-small" id="btnSendAdReel" type="button" style="flex:1 1 100%; font-size:11px;" data-i18n="sendToBtn" hidden>Envoyer à…</button>
           </div>
         </div>
         <div class="content-appearance-toggle">
@@ -1576,6 +1625,13 @@
         <span class="nav-item-label">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M12 20V4M20 20v-7"/></svg>
           <span data-i18n="navAnalytics">Analytics</span>
+        </span>
+      </button>
+      <!-- Suivi des envois (23/11) : caché tant que le feu vert sends_tracking est fermé (14-connexion-abonnement-admin.js). -->
+      <button class="nav-item" data-tab="sends" type="button" id="navItemSends" hidden>
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10 14"/><path d="M21 3 14.5 21l-4.5-7-7-4.5z"/></svg>
+          <span data-i18n="navSends">Envois</span>
         </span>
       </button>
       <a class="nav-item" id="navLinkCatalog" href="shop.html" hidden>
@@ -1945,6 +2001,30 @@
         </div>
       </div>
 
+      <!-- Suivi des envois (23/11, 50-envois.js) -->
+      <div class="backstage-panel" data-panel="sends">
+        <div class="sends-head">
+          <h2 data-i18n="navSends">Envois</h2>
+          <button class="btn btn-small btn-primary" id="btnNewSend" type="button" data-i18n="sendsNewBtn">+ Nouvel envoi</button>
+        </div>
+        <div class="sub" data-i18n="sendsPanelSub">À qui tu as envoyé tes AdReels, qui a écouté, qui relancer.</div>
+        <div class="sends-toolbar">
+          <input type="search" id="sendsSearch" data-i18n-placeholder="sendsSearchPlaceholder" placeholder="Chercher un studio, une personne, une note…">
+          <select id="sendsStatusFilter">
+            <option value="" data-i18n="sendsFilterAll">Tous les statuts</option>
+            <option value="sent" data-i18n="sendsStatus_sent">Envoyé</option>
+            <option value="listened" data-i18n="sendsStatus_listened">Écouté</option>
+            <option value="replied" data-i18n="sendsStatus_replied">Répondu</option>
+            <option value="signed" data-i18n="sendsStatus_signed">Signé</option>
+            <option value="dropped" data-i18n="sendsStatus_dropped">Sans suite</option>
+          </select>
+        </div>
+        <div id="sendsStudioBar" class="sends-studio-bar" hidden></div>
+        <div id="sendsRemind" class="sends-remind" hidden></div>
+        <div id="sendsList"></div>
+        <p class="hint sends-how" data-i18n="sendsHowItWorks">LayerPitch ne voit pas ta boîte mail.</p>
+      </div>
+
       <div class="backstage-panel" data-panel="projects">
         <h2 data-i18n="navProjects">Projet(s)</h2>
         <div class="sub" data-i18n="projectsPanelSub">Espace de travail collaboratif compositeur/développeur pour une collaboration continue en préproduction (suivi de travail en cours, annotations timées) — pas un pitch ponctuel.</div>
@@ -2235,6 +2315,39 @@
   </div>
 </div>
 
+<!-- Fenêtre « Envoyer à… » (23/11, 50-envois.js) -->
+<div id="sendModalOverlay" class="send-modal-overlay" hidden>
+  <div class="send-modal" role="dialog" aria-modal="true" aria-labelledby="sendModalTitle">
+    <div id="sendFormStep">
+      <h3 id="sendModalTitle" data-i18n="sendModalTitle">Envoyer un AdReel</h3>
+      <label for="sendAdReel" data-i18n="sendsAdreelLabel">AdReel</label>
+      <select id="sendAdReel"></select>
+      <label for="sendStudio" data-i18n="sendsStudioLabel">Studio ou entreprise</label>
+      <input type="text" id="sendStudio" maxlength="120" list="sendStudioSuggestions" autocomplete="off" data-i18n-placeholder="sendsStudioPlaceholder" placeholder="ex : Ubisoft Paris">
+      <datalist id="sendStudioSuggestions"></datalist>
+      <label for="sendPerson" data-i18n="sendsPersonLabel">Personne (facultatif)</label>
+      <input type="text" id="sendPerson" maxlength="120" autocomplete="off" data-i18n-placeholder="sendsPersonPlaceholder" placeholder="ex : Marie, directrice audio">
+      <label for="sendNote" data-i18n="sendsNoteLabel">Note (facultatif)</label>
+      <textarea id="sendNote" rows="3" maxlength="4000" data-i18n-placeholder="sendsNotePlaceholder"></textarea>
+      <div class="send-modal-msg" id="sendModalMsg" role="alert"></div>
+      <div class="actions">
+        <button class="btn btn-small" id="sendCancel" type="button" data-i18n="cancel">Annuler</button>
+        <button class="btn btn-small btn-primary" id="sendOk" type="button" data-i18n="sendsCreateBtn">Créer le lien</button>
+      </div>
+    </div>
+    <div id="sendDoneStep" hidden>
+      <h3 id="sendDoneTitle"></h3>
+      <div class="send-link-row">
+        <input type="text" id="sendLinkOut" readonly>
+        <button class="btn btn-small btn-primary" id="sendCopy" type="button" data-i18n="copyLink">Copier le lien</button>
+      </div>
+      <p class="hint" id="sendDoneHint"></p>
+      <div class="actions">
+        <button class="btn btn-small" id="sendClose" type="button" data-i18n="sendsDoneClose">Terminé</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="newAdReelModalOverlay">
   <div id="newAdReelModal">
     <h3 data-i18n="newAdreelTitle">Nouvel AdReel</h3>
@@ -2381,20 +2494,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1795382088892"></script>
-<script src="layerpitch-i18n.js?v=1795382088892"></script>
-<script src="layerpitch-import-engine.js?v=1795382088892"></script>
-<script src="layerpitch-appearance.js?v=1795382088892"></script>
-<script src="layerpitch-font-picker.js?v=1795382088892"></script>
-<script src="layerpitch-album-shared.js?v=1795382088892"></script>
-<script src="layerpitch-album-editor.js?v=1795382088892"></script>
-<script src="layerpitch-shell.js?v=1795382088892"></script>
-<script src="layerpitch-social-icons.js?v=1795382088892"></script>
-<script src="layerpitch-notify.js?v=1795382088892"></script>
-<script src="layerpitch-guide.js?v=1795382088892"></script>
-<script src="layerpitch-lesson-previews.js?v=1795382088892"></script>
-<script src="layerpitch-help.js?v=1795382088892"></script>
-<script src="player.js?v=1795382088892"></script>
+<script src="layerpitch-tuto.js?v=1795449133033"></script>
+<script src="layerpitch-i18n.js?v=1795449133033"></script>
+<script src="layerpitch-import-engine.js?v=1795449133033"></script>
+<script src="layerpitch-appearance.js?v=1795449133033"></script>
+<script src="layerpitch-font-picker.js?v=1795449133033"></script>
+<script src="layerpitch-album-shared.js?v=1795449133033"></script>
+<script src="layerpitch-album-editor.js?v=1795449133033"></script>
+<script src="layerpitch-shell.js?v=1795449133033"></script>
+<script src="layerpitch-social-icons.js?v=1795449133033"></script>
+<script src="layerpitch-notify.js?v=1795449133033"></script>
+<script src="layerpitch-guide.js?v=1795449133033"></script>
+<script src="layerpitch-lesson-previews.js?v=1795449133033"></script>
+<script src="layerpitch-help.js?v=1795449133033"></script>
+<script src="player.js?v=1795449133033"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2870,6 +2983,9 @@ async function renderAdminOnlyPanels(session) {
   // Bloc invisible « Aperçu du lien » (22/11) : même règle, admin seulement jusqu'au feu vert ; grisé quand l'AdReel en a déjà un.
   const linkPreviewBlockBtn = document.getElementById('btnAddLinkPreviewBlock');
   if (linkPreviewBlockBtn) linkPreviewBlockBtn.hidden = !flagOpen('adreel_link_preview_block');
+  // Suivi des envois (23/11) : bouton « Envoyer à… » et onglet Envois, admin seulement jusqu'au feu vert (50-envois.js).
+  const sendsOn = flagOpen('sends_tracking');
+  ['navItemSends', 'btnSendAdReel'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !sendsOn; });
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)
@@ -3214,6 +3330,7 @@ function openTab(tabName) {
   if (tabName === 'analytics') loadAnalyticsIfNeeded();
   if (tabName === 'videoLibrary') renderVideoLibrary();
   if (tabName === 'albums') loadAlbums();
+  if (tabName === 'sends' && typeof loadSends === 'function') loadSends(true); // suivi des envois (50-envois.js) : toujours frais à l'ouverture
   try { if (typeof maybeOfferSectionTour === 'function') maybeOfferSectionTour(tabName); } catch (e) { /* une visite ne doit jamais bloquer l'ouverture d'un onglet ni le démarrage */ } // mini-visite à la première arrivée (43a-visites-de-section.js)
 }
 // Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
@@ -20310,6 +20427,294 @@ function syncUiLevel() {
     if (btn) { e.preventDefault(); setUiAdvanced(true); }
   });
 })();
+// ============================================================================
+// Suivi des envois (23/11, cadrage layerpitch-docs/2026-11-23-suivi-des-envois-cadrage.md ; migration 20261123010000).
+// « Envoyer à… » : le compositeur déclare à qui il envoie un AdReel (studio, personne, note) et reçoit un lien rien qu'à ce
+// destinataire (adresse habituelle + #r=<code>). Il le colle dans SON mail : LayerPitch ne lit jamais sa boîte, créer le
+// lien = enregistrer l'envoi. Onglet « Envois » : tous les envois, la liste « à relancer » en haut, statuts, écoutes.
+// Réservé à l'admin jusqu'au feu vert 'sends_tracking' (bouton et onglet cachés sinon, barrière aussi côté serveur).
+// ============================================================================
+
+// Délais de la liste « à relancer » (en jours) -- à ajuster après les premiers essais.
+const SENDS_REMIND_UNHEARD_DAYS = 10; // envoyé, jamais écouté
+const SENDS_REMIND_HEARD_DAYS = 5;    // écouté, toujours sans réponse
+let sendsCache = null;       // { tier, detailed, sends: [...] }
+let sendsLoading = false;
+let sendsFilter = { text: '', status: '', studio: '' };
+let sendsOpenId = null;      // envoi dont le détail est déplié
+
+function sendsRpc(name, args) { return window.LayerPitchSupabaseClient.getClient().rpc(name, args || {}); }
+function sendsDays(iso) { return iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null; }
+function sendsDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString(currentLang() === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  catch (e) { return iso.slice(0, 10); }
+}
+function sendsAgo(iso) {
+  const d = sendsDays(iso);
+  if (d == null) return '';
+  return d <= 0 ? tr('sendsToday') : d === 1 ? tr('sendsYesterday') : tr('sendsDaysAgo', { n: d });
+}
+// Statut affiché : « Écouté » n'est pas stocké, il se déduit des visites tant que le compositeur n'a rien choisi d'autre.
+function sendShownStatus(s) { return s.status === 'sent' && s.listened ? 'listened' : s.status; }
+function sendLink(s) {
+  const base = computeAdReelUrl(s.adReelId);
+  return base ? `${base}#r=${s.code}` : null;
+}
+// Raison de relancer, ou null.
+function sendRemindReason(s) {
+  if (s.status !== 'sent' || s.adReelExists === false) return null;
+  if (!s.listened) {
+    const since = s.followedUpAt && s.followedUpAt > s.createdAt ? s.followedUpAt : s.createdAt;
+    const d = sendsDays(since);
+    if (d >= SENDS_REMIND_UNHEARD_DAYS) return s.followedUpAt ? tr('sendsRemindUnheardAfterFollowUp', { n: d }) : tr('sendsRemindUnheard', { n: d });
+    return null;
+  }
+  const since = s.followedUpAt && s.followedUpAt > s.firstVisitAt ? s.followedUpAt : s.firstVisitAt;
+  const d = sendsDays(since);
+  if (d >= SENDS_REMIND_HEARD_DAYS) {
+    return s.visits != null && s.visits > 1 ? tr('sendsRemindHeardMany', { n: s.visits, d: sendsDays(s.lastVisitAt) }) : tr('sendsRemindHeard', { d: sendsDays(s.lastVisitAt) });
+  }
+  return null;
+}
+
+async function loadSends(force) {
+  if (!flagOpen('sends_tracking')) return;
+  if (sendsLoading) return;
+  if (sendsCache && !force) { renderSends(); return; }
+  sendsLoading = true;
+  const host = document.getElementById('sendsList');
+  if (host && !sendsCache) host.innerHTML = `<div class="hint">${tr('sendsLoading')}</div>`;
+  try {
+    await loadPostgresReadScripts();
+    const { data, error } = await sendsRpc('list_my_adreel_sends');
+    if (error) throw error;
+    sendsCache = data;
+  } catch (e) {
+    if (host) host.innerHTML = `<div class="hint">${escapeHtml(tr('errorPrefix', { message: (e && e.message) || String(e) }))}</div>`;
+    sendsLoading = false;
+    return;
+  }
+  sendsLoading = false;
+  renderSends();
+}
+
+function sendRowHtml(s, remind) {
+  const shown = sendShownStatus(s);
+  const who = escapeHtml(s.studio) + (s.person ? ` <span class="sends-person">· ${escapeHtml(s.person)}</span>` : '');
+  const adreel = escapeHtml(s.adReelLabel || s.adReelId) + (s.adReelExists === false ? ` <span class="sends-gone">${tr('sendsAdreelGone')}</span>` : '');
+  let listen = '';
+  if (s.listened) {
+    listen = sendsCache.detailed
+      ? tr(s.visits > 1 ? 'sendsVisitsMany' : 'sendsVisitsOne', { n: s.visits }) + (s.plays ? ' · ' + tr(s.plays > 1 ? 'sendsPlaysMany' : 'sendsPlaysOne', { n: s.plays }) : '') + ' · ' + tr('sendsLastVisit', { ago: sendsAgo(s.lastVisitAt) })
+      : tr('sendsLastVisit', { ago: sendsAgo(s.lastVisitAt) });
+  } else listen = tr('sendsNotHeard');
+  const statusSel = `<select class="sends-status sends-status-${shown}" data-send-status="${s.id}" aria-label="${escapeAttr(tr('sendsStatusLabel'))}">
+      ${['sent', 'replied', 'signed', 'dropped'].map(k => `<option value="${k}"${s.status === k ? ' selected' : ''}>${escapeHtml(tr(k === 'sent' && s.listened ? 'sendsStatus_listened' : 'sendsStatus_' + k))}</option>`).join('')}
+    </select>`;
+  // Le détail ne s'ouvre que dans la liste principale ; depuis « À relancer », un clic l'y ouvre et y descend.
+  const open = !remind && sendsOpenId === s.id;
+  return `<div class="sends-row${open ? ' is-open' : ''}" data-send-id="${s.id}">
+    <div class="sends-row-main">
+      <button type="button" class="sends-who" ${remind ? `data-send-jump="${s.id}"` : `data-send-toggle="${s.id}" aria-expanded="${open}"`}>${who}</button>
+      <div class="sends-meta">${adreel} · ${escapeHtml(tr('sendsSentOn', { date: sendsDate(s.createdAt) }))}</div>
+      ${remind ? `<div class="sends-remind-reason">${escapeHtml(remind)}</div>` : `<div class="sends-listen${s.listened ? ' is-heard' : ''}">${escapeHtml(listen)}</div>`}
+    </div>
+    <div class="sends-row-actions">
+      ${statusSel}
+      <button type="button" class="btn btn-small" data-send-copy="${s.id}"${s.adReelExists === false ? ' disabled' : ''}>${tr('copyLink')}</button>
+      ${remind ? `<button type="button" class="btn btn-small" data-send-followup="${s.id}">${tr('sendsFollowedUpBtn')}</button>` : ''}
+    </div>
+    ${open ? sendDetailHtml(s, listen) : ''}
+  </div>`;
+}
+
+function sendDetailHtml(s, listen) {
+  const titleOf = id => { const t = library.find(x => x.id === id); return t ? (t.title || t.id) : id; };
+  let heard = '';
+  if (s.listened && sendsCache.detailed) {
+    heard = `<div class="sends-detail-line">${escapeHtml(listen)} · ${escapeHtml(tr('sendsFirstVisit', { date: sendsDate(s.firstVisitAt) }))}</div>`
+      + (s.trackIds && s.trackIds.length ? `<div class="sends-detail-line">${escapeHtml(tr('sendsTracksHeard'))} ${s.trackIds.map(id => `<span class="sends-track">${escapeHtml(titleOf(id))}</span>`).join(' ')}</div>` : '');
+  } else if (s.listened) {
+    heard = `<div class="sends-detail-line">${escapeHtml(listen)}</div><div class="sends-detail-line hint">${escapeHtml(tr('sendsDetailLocked'))}</div>`;
+  }
+  const history = sendsCache.sends.filter(o => o.id !== s.id && o.studio.toLowerCase() === s.studio.toLowerCase());
+  return `<div class="sends-detail">
+    ${heard}
+    ${s.followedUpAt ? `<div class="sends-detail-line">${escapeHtml(tr('sendsFollowedUpOn', { date: sendsDate(s.followedUpAt) }))} <button type="button" class="btn-link" data-send-unfollowup="${s.id}">${tr('sendsUndo')}</button></div>` : ''}
+    <div class="sends-detail-grid">
+      <label>${tr('sendsStudioLabel')}<input type="text" maxlength="120" data-send-field="studio" value="${escapeAttr(s.studio)}"></label>
+      <label>${tr('sendsPersonLabel')}<input type="text" maxlength="120" data-send-field="person" value="${escapeAttr(s.person)}"></label>
+    </div>
+    <label class="sends-note-label">${tr('sendsNoteLabel')}<textarea rows="3" maxlength="4000" data-send-field="note">${escapeHtml(s.note)}</textarea></label>
+    ${history.length ? `<div class="sends-detail-line"><button type="button" class="btn-link" data-send-studio="${escapeAttr(s.studio)}">${escapeHtml(tr('sendsStudioHistory', { n: history.length, studio: s.studio }))}</button></div>` : ''}
+    <div class="sends-detail-actions">
+      <button type="button" class="btn btn-small btn-danger" data-send-delete="${s.id}">${tr('sendsDelete')}</button>
+      <button type="button" class="btn btn-small btn-primary" data-send-save="${s.id}">${tr('sendsSave')}</button>
+    </div>
+  </div>`;
+}
+
+function renderSends() {
+  const host = document.getElementById('sendsList');
+  const remindHost = document.getElementById('sendsRemind');
+  if (!host || !sendsCache) return;
+  const all = sendsCache.sends || [];
+  // Liste « à relancer »
+  const reminders = all.map(s => ({ s, why: sendRemindReason(s) })).filter(x => x.why);
+  remindHost.hidden = !reminders.length;
+  remindHost.innerHTML = reminders.length ? `<h3 class="sends-h3">${tr('sendsRemindTitle')} <span class="sends-count">${reminders.length}</span></h3>` + reminders.map(x => sendRowHtml(x.s, x.why)).join('') : '';
+  // Filtre par studio (historique) : bandeau pour revenir à tout
+  const studioBar = document.getElementById('sendsStudioBar');
+  studioBar.hidden = !sendsFilter.studio;
+  studioBar.innerHTML = sendsFilter.studio ? `${escapeHtml(tr('sendsStudioFilterOn', { studio: sendsFilter.studio }))} <button type="button" class="btn-link" data-send-studio="">${tr('sendsShowAll')}</button>` : '';
+  const text = sendsFilter.text.trim().toLowerCase();
+  const rows = all.filter(s => {
+    if (sendsFilter.studio && s.studio.toLowerCase() !== sendsFilter.studio.toLowerCase()) return false;
+    if (sendsFilter.status && sendShownStatus(s) !== sendsFilter.status) return false;
+    if (text && ![s.studio, s.person, s.note, s.adReelLabel].join(' ').toLowerCase().includes(text)) return false;
+    return true;
+  });
+  if (!all.length) { host.innerHTML = `<div class="sends-empty">${tr('sendsEmpty')}</div>`; return; }
+  host.innerHTML = `<h3 class="sends-h3">${tr('sendsAllTitle')} <span class="sends-count">${rows.length}</span></h3>`
+    + (rows.length ? rows.map(s => sendRowHtml(s, null)).join('') : `<div class="sends-empty">${tr('sendsNoMatch')}</div>`);
+  const dl = document.getElementById('sendStudioSuggestions');
+  if (dl) dl.innerHTML = [...new Set(all.map(s => s.studio))].map(n => `<option value="${escapeAttr(n)}"></option>`).join('');
+}
+
+// Copie du lien destinataire (rappels mot de passe / lien magique comme pour le lien normal).
+async function copySendLink(s) {
+  const ar = adReels.find(a => a.id === s.adReelId);
+  if (ar && ar.accessMode === 'magic') {
+    // Le jeton magique n'est montré qu'une fois à sa création : on ne peut pas refaire le lien complet. Le compositeur ajoute le code.
+    const piece = `&r=${s.code}`;
+    try { await navigator.clipboard.writeText(piece); } catch (e) { /* le texte reste lisible dans le message */ }
+    window.LayerPitchNotify.info(tr('sendsMagicHint', { piece }));
+    return;
+  }
+  const url = sendLink(s);
+  if (!url) { window.LayerPitchNotify.info(adReelUrlMissingText(ar)); return; }
+  try { await navigator.clipboard.writeText(url); window.LayerPitchNotify.success ? window.LayerPitchNotify.success(tr('sendsLinkCopied')) : window.LayerPitchNotify.info(tr('sendsLinkCopied')); }
+  catch (e) { window.LayerPitchNotify.error(tr('copyFailedAlert')); return; }
+  if (ar && ar.accessMode === 'password') window.LayerPitchNotify.info(tr('sharePasswordReminder'));
+}
+
+async function updateSend(id, patch) {
+  const { error } = await sendsRpc('update_adreel_send', { p_id: id, p: patch });
+  if (error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: error.message })); return false; }
+  await loadSends(true);
+  return true;
+}
+
+// ---- Fenêtre « Envoyer à… » ----
+function openSendModal(adReelId) {
+  const sel = document.getElementById('sendAdReel');
+  const real = adReels.filter(a => !isExample(a));
+  sel.innerHTML = real.map(a => `<option value="${escapeAttr(a.id)}">${escapeHtml(a.label || a.id)}</option>`).join('');
+  sel.value = real.some(a => a.id === adReelId) ? adReelId : (real[0] ? real[0].id : '');
+  ['sendStudio', 'sendPerson', 'sendNote'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('sendFormStep').hidden = false;
+  document.getElementById('sendDoneStep').hidden = true;
+  document.getElementById('sendModalMsg').textContent = '';
+  document.getElementById('sendModalOverlay').hidden = false;
+  if (!sendsCache) loadSends(); // suggestions de studios déjà connus
+  document.getElementById('sendStudio').focus();
+}
+function closeSendModal() { document.getElementById('sendModalOverlay').hidden = true; }
+
+async function createSendFromModal() {
+  const msg = document.getElementById('sendModalMsg');
+  const adReelId = document.getElementById('sendAdReel').value;
+  const studio = document.getElementById('sendStudio').value.trim();
+  if (!studio) { msg.textContent = tr('sendsStudioRequired'); document.getElementById('sendStudio').focus(); return; }
+  if (!computeAdReelUrl(adReelId)) { msg.textContent = adReelUrlMissingText(adReels.find(a => a.id === adReelId)); return; }
+  msg.textContent = '…';
+  await loadPostgresReadScripts();
+  const { data, error } = await sendsRpc('create_adreel_send', {
+    p_ad_reel_id: adReelId, p_studio: studio,
+    p_person: document.getElementById('sendPerson').value.trim(), p_note: document.getElementById('sendNote').value,
+  });
+  if (error) { msg.textContent = /AdReel introuvable/.test(error.message) ? tr('sendsPublishFirst') : tr('errorPrefix', { message: error.message }); return; }
+  msg.textContent = '';
+  const s = { id: data.id, code: data.code, adReelId, studio };
+  const ar = adReels.find(a => a.id === adReelId);
+  const out = document.getElementById('sendLinkOut');
+  const hint = document.getElementById('sendDoneHint');
+  if (ar && ar.accessMode === 'magic') { out.value = `&r=${s.code}`; hint.textContent = tr('sendsMagicHint', { piece: out.value }); }
+  else { out.value = sendLink(s); hint.textContent = ar && ar.accessMode === 'password' ? tr('sendsDoneHintPassword') : tr('sendsDoneHint'); }
+  document.getElementById('sendDoneTitle').textContent = tr('sendsDoneTitle', { studio });
+  document.getElementById('sendFormStep').hidden = true;
+  document.getElementById('sendDoneStep').hidden = false;
+  out.select();
+  trackBackstageEvent('send_created', {});
+  loadSends(true);
+}
+
+document.getElementById('btnSendAdReel').addEventListener('click', () => openSendModal(currentAdReelId));
+document.getElementById('btnNewSend').addEventListener('click', () => openSendModal(currentAdReelId));
+document.getElementById('sendCancel').addEventListener('click', closeSendModal);
+document.getElementById('sendClose').addEventListener('click', () => { closeSendModal(); });
+document.getElementById('sendOk').addEventListener('click', createSendFromModal);
+document.getElementById('sendModalOverlay').addEventListener('click', e => { if (e.target.id === 'sendModalOverlay') closeSendModal(); });
+document.getElementById('sendModalOverlay').addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSendModal();
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT' && !document.getElementById('sendFormStep').hidden) { e.preventDefault(); createSendFromModal(); }
+});
+document.getElementById('sendCopy').addEventListener('click', async () => {
+  const input = document.getElementById('sendLinkOut');
+  try { await navigator.clipboard.writeText(input.value); document.getElementById('sendCopy').textContent = tr('copiedStatus'); setTimeout(() => { document.getElementById('sendCopy').textContent = tr('copyLink'); }, 1500); }
+  catch (e) { input.select(); }
+});
+
+// ---- Onglet Envois ----
+document.getElementById('sendsSearch').addEventListener('input', e => { sendsFilter.text = e.target.value; renderSends(); });
+document.getElementById('sendsStatusFilter').addEventListener('change', e => { sendsFilter.status = e.target.value; renderSends(); });
+document.querySelector('[data-panel="sends"]').addEventListener('change', async e => {
+  const sel = e.target.closest('[data-send-status]');
+  if (sel) await updateSend(sel.dataset.sendStatus, { status: sel.value });
+});
+document.querySelector('[data-panel="sends"]').addEventListener('click', async e => {
+  const find = id => (sendsCache && sendsCache.sends || []).find(s => s.id === id);
+  const t = e.target;
+  const toggle = t.closest('[data-send-toggle]');
+  if (toggle) { sendsOpenId = sendsOpenId === toggle.dataset.sendToggle ? null : toggle.dataset.sendToggle; renderSends(); return; }
+  const jump = t.closest('[data-send-jump]');
+  if (jump) {
+    sendsOpenId = jump.dataset.sendJump;
+    sendsFilter = { text: '', status: '', studio: '' };
+    document.getElementById('sendsSearch').value = ''; document.getElementById('sendsStatusFilter').value = '';
+    renderSends();
+    const row = document.querySelector(`#sendsList [data-send-id="${sendsOpenId}"]`);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const copy = t.closest('[data-send-copy]');
+  if (copy) { const s = find(copy.dataset.sendCopy); if (s) copySendLink(s); return; }
+  const fu = t.closest('[data-send-followup]');
+  if (fu) { await updateSend(fu.dataset.sendFollowup, { followedUp: true }); return; }
+  const unfu = t.closest('[data-send-unfollowup]');
+  if (unfu) { await updateSend(unfu.dataset.sendUnfollowup, { followedUp: false }); return; }
+  const studio = t.closest('[data-send-studio]');
+  if (studio) { sendsFilter.studio = studio.dataset.sendStudio; renderSends(); return; }
+  const save = t.closest('[data-send-save]');
+  if (save) {
+    const row = save.closest('.sends-row');
+    const patch = {};
+    row.querySelectorAll('[data-send-field]').forEach(f => { patch[f.dataset.sendField] = f.value; });
+    if (!patch.studio || !patch.studio.trim()) { window.LayerPitchNotify.info(tr('sendsStudioRequired')); return; }
+    if (await updateSend(save.dataset.sendSave, patch)) window.LayerPitchNotify.success ? window.LayerPitchNotify.success(tr('sendsSaved')) : null;
+    return;
+  }
+  const del = t.closest('[data-send-delete]');
+  if (del) {
+    const s = find(del.dataset.sendDelete);
+    if (!s || !(await window.LayerPitchNotify.confirm(tr('sendsDeleteConfirm', { studio: s.studio }), { okLabel: tr('sendsDelete'), danger: true }))) return;
+    const { error } = await sendsRpc('delete_adreel_send', { p_id: s.id });
+    if (error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: error.message })); return; }
+    sendsOpenId = null;
+    await loadSends(true);
+  }
+});
 </script>
 <script type="text/javascript">
   // Bandeau de consentement cookies (Microsoft Clarity uniquement -- 17 septembre). RGPD/CNIL,

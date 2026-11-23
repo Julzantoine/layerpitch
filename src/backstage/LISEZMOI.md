@@ -65,6 +65,7 @@ Les fichiers sont des **tranches de la même page**, collées dans l'ordre de le
 | 44-recherche-rapide.js | Cmd+P / Ctrl+P : recherche rapide (onglets, morceaux, Sfx, AdReels, packs, collections, albums), feu vert quick_search |
 | 45-exemples.js | exemples préchargés (4/11) : ajout au chargement, étiquette « Exemple », garde-fous (fichiers, protection, copie, pages publiques), « Retirer les exemples » |
 | 46-questions-de-profil.js | questions de profil en fin de visite (4/11), « Tes essentiels » en tête du menu Tutoriel, bouton « autre voie » |
+| 50-envois.js | suivi des envois : « Envoyer à… » (lien par destinataire), onglet Envois, liste à relancer (23/11) |
 | 90-fin.html | fin du script principal, petit script de fin, fermeture de la page |
 
 Après modification : `npm run build` (et `npm run bump-version` si un `.js` servi aux navigateurs a changé).

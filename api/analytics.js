@@ -62,5 +62,12 @@
     return { entity: data, error: null };
   }
 
-  window.LayerPitchAnalytics = { getMyAnalytics, getMyAnalyticsOverview, getMyAnalyticsEntity, logAnalyticsEvent };
+  // Suivi des envois (23/11) : la page d'un AdReel ouverte avec #r=<code> rattache sa visite à l'envoi. Muet, jamais bloquant.
+  async function registerSendVisit(code, sessionId, adReelId, ownerId) {
+    try {
+      await getClient().rpc('register_send_visit', { p_code: code, p_session_id: sessionId, p_ad_reel_id: adReelId, p_owner_id: ownerId || null });
+    } catch (e) { /* jamais bloquant */ }
+  }
+
+  window.LayerPitchAnalytics = { getMyAnalytics, getMyAnalyticsOverview, getMyAnalyticsEntity, logAnalyticsEvent, registerSendVisit };
 })();
