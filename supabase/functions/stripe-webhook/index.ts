@@ -425,13 +425,15 @@ Deno.serve(async (req) => {
     event = await stripe.webhooks.constructEventAsync(body, signature!, platformSecret);
   } catch (platformErr) {
     if (!connectSecret) {
-      return new Response(`Signature invalide : ${String(platformErr && platformErr.message || platformErr)}`, { status: 400 });
+      console.error('stripe-webhook: signature', platformErr); // M7 : détail en journal, pas dans la réponse
+      return new Response('Signature invalide', { status: 400 });
     }
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature!, connectSecret);
       viaConnectEndpoint = true;
     } catch (connectErr) {
-      return new Response(`Signature invalide : ${String(connectErr && connectErr.message || connectErr)}`, { status: 400 });
+      console.error('stripe-webhook: signature (Connect)', connectErr);
+      return new Response('Signature invalide', { status: 400 });
     }
   }
 
