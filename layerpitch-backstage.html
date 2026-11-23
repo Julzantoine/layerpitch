@@ -11,8 +11,8 @@
      avant tout autre script ; le paramètre est ensuite retiré de l'adresse, pour qu'un rechargement (bouton FR/EN) ne le réimpose pas.
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
-<script src="https://unpkg.com/wasm-media-encoders/dist/umd/WasmMediaEncoder.min.js"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795382088892">
+<script src="https://unpkg.com/wasm-media-encoders@0.7.0/dist/umd/WasmMediaEncoder.min.js" integrity="sha384-jnL9yi4lELMxvcNwE9FNSNbrTe8Gstx6L6uycidp2ar4UTa3JrZzgbtG2ouao2z6" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795463603134">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -1332,6 +1332,14 @@
 .tr-chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border, #e2e2e6); color: var(--text-dim, #888); }
 .tr-body { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tr-reply { margin: 4px 0 0 12px; padding-left: 8px; border-left: 2px solid var(--border, #e2e2e6); font-size: 13px; }
+
+/* Repère « admin seulement » (23/11) : fonctions dont le feu vert n'est pas encore ouvert au public */
+.lp-admin-only { outline: 1.5px dashed #8a5cc0; outline-offset: 2px; position: relative; }
+.lp-admin-only::after { content: 'ADMIN'; position: absolute; top: -7px; right: -4px; font-size: 8px; font-weight: 700; letter-spacing: .04em; background: #8a5cc0; color: #fff; padding: 1px 4px; border-radius: 6px; pointer-events: none; line-height: 1.2; }
+.admin-only-pill { position: fixed; left: 12px; bottom: 12px; z-index: 900; font-size: 12px; }
+.admin-only-pill-btn { background: #8a5cc0; color: #fff; border: 0; border-radius: 14px; padding: 5px 11px; cursor: pointer; font-size: 12px; }
+.admin-only-pill-list { position: absolute; bottom: 34px; left: 0; background: var(--panel-bg, #fff); color: var(--text, #222); border: 1px solid #8a5cc0; border-radius: 8px; padding: 8px 12px; max-height: 50vh; overflow: auto; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+.admin-only-pill-list ul { margin: 6px 0 0; padding-left: 16px; }
 </style>
 </head>
 <body>
@@ -2403,22 +2411,22 @@
 
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
-<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="layerpitch-tuto.js?v=1795382088892"></script>
-<script src="layerpitch-i18n.js?v=1795382088892"></script>
-<script src="layerpitch-import-engine.js?v=1795382088892"></script>
-<script src="layerpitch-appearance.js?v=1795382088892"></script>
-<script src="layerpitch-font-picker.js?v=1795382088892"></script>
-<script src="layerpitch-album-shared.js?v=1795382088892"></script>
-<script src="layerpitch-album-editor.js?v=1795382088892"></script>
-<script src="layerpitch-shell.js?v=1795382088892"></script>
-<script src="layerpitch-social-icons.js?v=1795382088892"></script>
-<script src="layerpitch-notify.js?v=1795382088892"></script>
-<script src="layerpitch-guide.js?v=1795382088892"></script>
-<script src="layerpitch-lesson-previews.js?v=1795382088892"></script>
-<script src="layerpitch-help.js?v=1795382088892"></script>
-<script src="player.js?v=1795382088892"></script>
-<script src="layerpitch-review-state.js?v=1795382088892"></script>
+<script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
+<script src="layerpitch-tuto.js?v=1795463603134"></script>
+<script src="layerpitch-i18n.js?v=1795463603134"></script>
+<script src="layerpitch-import-engine.js?v=1795463603134"></script>
+<script src="layerpitch-appearance.js?v=1795463603134"></script>
+<script src="layerpitch-font-picker.js?v=1795463603134"></script>
+<script src="layerpitch-album-shared.js?v=1795463603134"></script>
+<script src="layerpitch-album-editor.js?v=1795463603134"></script>
+<script src="layerpitch-shell.js?v=1795463603134"></script>
+<script src="layerpitch-social-icons.js?v=1795463603134"></script>
+<script src="layerpitch-notify.js?v=1795463603134"></script>
+<script src="layerpitch-guide.js?v=1795463603134"></script>
+<script src="layerpitch-lesson-previews.js?v=1795463603134"></script>
+<script src="layerpitch-help.js?v=1795463603134"></script>
+<script src="player.js?v=1795463603134"></script>
+<script src="layerpitch-review-state.js?v=1795463603134"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2652,6 +2660,9 @@ function loadPostgresReadScripts() {
   return Promise.all(list.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = (src.startsWith('http') || !version) ? src : src + '?v=' + version;
+    // Sécurité (audit 16/11, I3) : empreinte attendue du SDK Supabase (test_cdn_integrity.js vérifie la cohérence).
+    const integrity = { 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js': 'sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O' }[src];
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
     s.async = false;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Échec du chargement de ' + s.src));
@@ -2677,7 +2688,7 @@ async function fetchSiteData() {
   if (error) throw new Error('Aucune session active — connecte-toi avant de recharger (' + error + ').');
   loadedComposerId = composerId; // clé du brouillon automatique (un par compte)
   await seedMyExamplesIfNeeded(); // exemples préchargés (4/11, 45-exemples.js) : copiés une fois, AVANT la lecture
-  return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId);
+  return window.LayerPitchSiteData.loadSiteDataFromPostgres(composerId, { withContacts: true });
 }
 
 /* ---------------- Connexion Postgres (lien magique) — minimum nécessaire pour débloquer les RPC
@@ -2808,6 +2819,8 @@ let myEntitlements = {};
 function can(feature) { const e = myEntitlements[feature]; return !!(e && e.allowed); }
 // Feux verts (feature_flags) vus par le compte connecté : ouvert si le feu vert est donné OU si le compte est admin.
 let myFlags = {};
+// État RÉEL des feux verts (released = ouvert à tout le monde), distinct de myFlags qui vaut « oui » aussi pour un admin.
+let myFlagsReleased = {};
 function flagOpen(key) { return !!myFlags[key]; }
 // Fonctions audio : le feu vert global 'audio_fx' ouvre tout, sinon chaque sous-clé (pitch, triggers, rtpc…) séparément.
 function fxOpen(key) { return flagOpen('audio_fx') || flagOpen(key); }
@@ -2821,12 +2834,47 @@ async function loadMyEntitlements() {
   const flags = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
   if (flags.error) { console.warn('my_feature_flags() en erreur, feux verts inchangés :', flags.error.message || flags.error); return; }
   const nf = {};
-  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; });
+  const nr = {};
+  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; nr[r.key] = !!r.released; });
   myFlags = nf;
+  myFlagsReleased = nr;
   if (window.LayerPitchShell && window.LayerPitchShell.setHelpAllowed) window.LayerPitchShell.setHelpAllowed(!!nf.help_toggle); // bouton « ? » de la barre
   // Les droits arrivent parfois APRÈS l'ouverture de l'onglet Vidéo (11/11, retour de Jules-Antoine : « Atelier » au lieu des projets) :
   // la colonne des projets se remet alors d'accord avec le vrai droit et charge la liste.
   try { if (typeof preloadVideoProjectList === 'function' && document.getElementById('videoCols')) preloadVideoProjectList(); } catch (e) { /* onglet Vidéo pas prêt */ }
+}
+// Repère « fonction non ouverte au public » (23/11) : pour un admin, tout élément piloté par un feu vert encore fermé
+// reçoit un liseré violet en pointillés + une étiquette ADMIN, et une pastille flottante liste tous les feux fermés.
+// Les éléments créés à la volée (cartes, listes) ne sont pas listés ici : ils figurent dans la pastille.
+const ADMIN_ONLY_MARK_TARGETS = {
+  video_upload: ['#navItemVideoLibrary'],
+  studio_space: ['#accountMenuStudio', '#navSectionStudio', '#navLinkStudioLibrary', '#navLinkStudioTeam', '#navLinkStudioPlan'],
+  composer_directory: ['#accountMenuDirectory', '#navLinkDirectory'],
+  projects: ['#accountMenuProjects', '#navLinkProjects'],
+  shop: ['#navLinkCatalog'],
+  adreel_socials: ['#btnAddSocialsBlock'],
+  adreel_link_preview_block: ['#btnAddLinkPreviewBlock'],
+  bulk_drop: ['#libraryFolderImport', '#sfxLibraryDrop']
+};
+function renderAdminOnlyMarks(isAdmin) {
+  document.querySelectorAll('.lp-admin-only').forEach(el => { el.classList.remove('lp-admin-only'); el.removeAttribute('data-admin-only-flag'); });
+  let pill = document.getElementById('adminOnlyPill');
+  const closed = isAdmin ? Object.keys(myFlagsReleased).filter(k => !myFlagsReleased[k]) : [];
+  if (!isAdmin || !closed.length) { if (pill) pill.remove(); return; }
+  closed.forEach(k => (ADMIN_ONLY_MARK_TARGETS[k] || []).forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => { el.classList.add('lp-admin-only'); el.setAttribute('data-admin-only-flag', k); });
+  }));
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.id = 'adminOnlyPill';
+    pill.className = 'admin-only-pill';
+    document.body.appendChild(pill);
+  }
+  pill.innerHTML = '<button type="button" class="admin-only-pill-btn" aria-expanded="false">Admin seulement : ' + closed.length + '</button>' +
+    '<div class="admin-only-pill-list" hidden><strong>Pas encore ouvert au public</strong><ul>' +
+    closed.map(k => '<li><code>' + escapeHtml(k) + '</code></li>').join('') + '</ul></div>';
+  const btn = pill.querySelector('button'), list = pill.querySelector('.admin-only-pill-list');
+  btn.addEventListener('click', () => { list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); });
 }
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
@@ -2905,6 +2953,7 @@ async function renderAdminOnlyPanels(session) {
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
+  renderAdminOnlyMarks(isAdmin);
   const sfxDrop = document.getElementById('sfxLibraryDrop');
   if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !flagOpen('bulk_drop'));
   const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');
@@ -15755,8 +15804,22 @@ document.getElementById('btnView').addEventListener('click', () => {
 /* ---------------- Conversion WAV -> OGG ---------------- */
 // Le niveau sonore n'est plus corrigé fichier par fichier ici : on se contente de MESURER chaque fichier (voir
 // 40a-niveau-sonore-lufs.js), le gain unique du morceau est calculé une fois tous ses fichiers connus (publication).
+// Sécurité (audit 16/11, I3) : la bibliothèque d'encodage télécharge son moteur (ogg.wasm) à part, hors du contrôle
+// d'empreinte de la balise <script>. On le télécharge nous-mêmes, on vérifie son empreinte, puis on le lui donne.
+// Version et empreinte à changer EN MÊME TEMPS que la balise de src/backstage/01-tete.html.
+const OGG_WASM_URL = 'https://unpkg.com/wasm-media-encoders@0.7.0/wasm/ogg.wasm';
+const OGG_WASM_SHA384 = 'ppdbvMbJ0Kpo809cSarkc3X2O26gmL9RXsO8Nd0B/mxVn4pZVoZjjjie2lhcIE8S';
+async function loadVerifiedOggWasm() {
+  const res = await fetch(OGG_WASM_URL);
+  if (!res.ok) throw new Error('Encodeur OGG introuvable (' + res.status + ')');
+  const buf = await res.arrayBuffer();
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-384', buf));
+  let bin = ''; for (let i = 0; i < digest.length; i++) bin += String.fromCharCode(digest[i]);
+  if (btoa(bin) !== OGG_WASM_SHA384) throw new Error('Encodeur OGG refusé : le fichier reçu ne correspond pas à la version attendue');
+  return buf;
+}
 async function wavFileToOgg(file) {
-  if (!oggEncoder) oggEncoder = await WasmMediaEncoder.createOggEncoder();
+  if (!oggEncoder) oggEncoder = await WasmMediaEncoder.createEncoder('audio/ogg', await loadVerifiedOggWasm());
   const arrayBuf = await file.arrayBuffer();
   const actx = new (window.AudioContext || window.webkitAudioContext)();
   const audioBuf = await actx.decodeAudioData(arrayBuf.slice(0));

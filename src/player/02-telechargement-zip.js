@@ -11,7 +11,7 @@ function ensureJSZipLoaded() {
   if (!jsZipLoadPromise) {
     jsZipLoadPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; s.integrity = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG'; s.crossOrigin = 'anonymous';
       s.onload = resolve;
       s.onerror = () => reject(new Error('JSZip introuvable (bloqué ou hors ligne)'));
       document.head.appendChild(s);

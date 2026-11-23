@@ -1316,3 +1316,11 @@
 .tr-chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border, #e2e2e6); color: var(--text-dim, #888); }
 .tr-body { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tr-reply { margin: 4px 0 0 12px; padding-left: 8px; border-left: 2px solid var(--border, #e2e2e6); font-size: 13px; }
+
+/* Repère « admin seulement » (23/11) : fonctions dont le feu vert n'est pas encore ouvert au public */
+.lp-admin-only { outline: 1.5px dashed #8a5cc0; outline-offset: 2px; position: relative; }
+.lp-admin-only::after { content: 'ADMIN'; position: absolute; top: -7px; right: -4px; font-size: 8px; font-weight: 700; letter-spacing: .04em; background: #8a5cc0; color: #fff; padding: 1px 4px; border-radius: 6px; pointer-events: none; line-height: 1.2; }
+.admin-only-pill { position: fixed; left: 12px; bottom: 12px; z-index: 900; font-size: 12px; }
+.admin-only-pill-btn { background: #8a5cc0; color: #fff; border: 0; border-radius: 14px; padding: 5px 11px; cursor: pointer; font-size: 12px; }
+.admin-only-pill-list { position: absolute; bottom: 34px; left: 0; background: var(--panel-bg, #fff); color: var(--text, #222); border: 1px solid #8a5cc0; border-radius: 8px; padding: 8px 12px; max-height: 50vh; overflow: auto; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+.admin-only-pill-list ul { margin: 6px 0 0; padding-left: 16px; }

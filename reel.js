@@ -393,7 +393,9 @@ const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
 // onSubmit (facultatif, vitrines de Projet, 28/09) : la page fournit elle-même l'envoi ({ name, email, message } ->
 // { ok, error }) ; sans lui, comportement de l'AdReel (relais submit-contact-message vers l'e-mail du compositeur).
 function renderContactBlockItem(container, profile, onSubmit) {
-  const hasContactEmail = profile && profile.contactEmail && profile.contactEmail.trim();
+  // hasContact : drapeau public posé par la base (l'adresse elle-même est privée depuis le 18/11, audit sécurité I1) ;
+  // contactEmail : aperçu du Backstage et faux serveur du tutoriel, qui ont encore l'adresse sous la main.
+  const hasContactEmail = profile && (profile.hasContact === true || (profile.contactEmail && String(profile.contactEmail).trim()));
   if (!hasContactEmail && !onSubmit) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
   const el = section(tr('contactSection'), '');
   el.innerHTML += `
@@ -419,6 +421,8 @@ function renderContactBlockItem(container, profile, onSubmit) {
     statusEl.className = 'contact-form-status';
     try {
       const adReelId = (window.__lpTrackContext && window.__lpTrackContext.id) || 'main';
+      // Le même identifiant d'AdReel (« main ») existe chez chaque compositeur : on précise lequel.
+      const ownerId = (window.__lpTrackContext && window.__lpTrackContext.ownerId) || null;
       const formData = new FormData(form);
       if (onSubmit) {
         const r = await onSubmit({ name: formData.get('name'), email: formData.get('email'), message: formData.get('message') });
@@ -431,6 +435,7 @@ function renderContactBlockItem(container, profile, onSubmit) {
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
         body: JSON.stringify({
           adReelId,
+          ownerId,
           name: formData.get('name'),
           email: formData.get('email'),
           message: formData.get('message'),
