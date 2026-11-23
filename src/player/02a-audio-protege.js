@@ -45,6 +45,10 @@ async function signedAudioFor(trackId) {
       // AdReel privé (6/10) : les secrets déjà ouverts sur cet ordinateur prouvent le droit d'écoute des morceaux protégés qu'ils contiennent.
       const proofs = window.LpPrivateAccess.proofs();
       if (proofs.length) body.proofs = proofs;
+      // Relecture client (23/11) : la page relecture.html pose { slug, secret } du lien ouvert ; il ne vaut que pour le morceau relu
+      // (et les sections d'un hybride, leurs Sfx) — vérifié côté serveur (can_hear_track_by_review / can_hear_sfx_by_review).
+      const rp = window.LpReviewProof;
+      if (rp && typeof rp.slug === 'string' && typeof rp.secret === 'string' && rp.slug && rp.secret) body.review = { slug: rp.slug, secret: rp.secret };
       const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier

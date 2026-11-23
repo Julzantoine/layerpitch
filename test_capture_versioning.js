@@ -54,9 +54,9 @@ const path = require('path');
           return { data: Object.assign({}, store.link, { secret }), error: null };
         }
         if (name === 'list_video_review_comments') return { data: JSON.parse(JSON.stringify(store.comments)), error: null };
-        if (name === 'reply_video_review_comment') { const par = store.comments.find(c => c.id === args.p_parent_id); store.comments.push({ id: 'r' + store.comments.length, versionKey: par.versionKey, parentId: par.id, t: par.t, author: args.p_author, fromOwner: true, body: args.p_body, resolved: false }); return { data: { ok: true }, error: null }; }
-        if (name === 'resolve_video_review_comment') { store.comments.find(c => c.id === args.p_id).resolved = args.p_resolved; return { data: null, error: null }; }
-        if (name === 'delete_video_review_comment') { store.comments = store.comments.filter(c => c.id !== args.p_id && c.parentId !== args.p_id); return { data: null, error: null }; }
+        if (name === 'reply_review_comment') { const par = store.comments.find(c => c.id === args.p_parent_id); store.comments.push({ id: 'r' + store.comments.length, versionKey: par.versionKey, parentId: par.id, t: par.t, author: args.p_author, fromOwner: true, body: args.p_body, resolved: false }); return { data: { ok: true }, error: null }; }
+        if (name === 'resolve_review_comment') { store.comments.find(c => c.id === args.p_id).resolved = args.p_resolved; return { data: null, error: null }; }
+        if (name === 'delete_review_comment') { store.comments = store.comments.filter(c => c.id !== args.p_id && c.parentId !== args.p_id); return { data: null, error: null }; }
         if (name === 'set_video_capture_version_export') { const r = store.rows.find(x => x.id === args.p_id); if (r) r.lastExportVideoId = args.p_video_id; return { data: null, error: null }; }
         return { data: null, error: { message: 'inconnu' } };
       } }) };

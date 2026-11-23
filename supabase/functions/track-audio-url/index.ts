@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, authHeader ? { global: { headers: { Authorization: authHeader } } } : undefined);
     const adminClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const { trackId, sfxId, proofs } = await req.json().catch(() => ({}));
+    const { trackId, sfxId, proofs, review } = await req.json().catch(() => ({}));
     // AdReels privés (6/10) : secrets déjà ouverts par le visiteur ({ adReelId, secret }), essayés un par un -- can_hear_track / can_hear_sfx
     // à 3 paramètres ne les accepte que pour un morceau (ou Sfx) réellement dans cet AdReel.
     const privateProofs: { p_ad_reel_id: string; p_secret: string }[] = (Array.isArray(proofs) ? proofs : []).slice(0, 8)
@@ -51,6 +51,14 @@ Deno.serve(async (req) => {
     for (const proof of privateProofs) {
       if (allowed || accessError) break;
       ({ data: allowed, error: accessError } = await askRight(proof));
+    }
+    // Relecture client (23/11, migration 20261123010000) : { review: { slug, secret } } du lien /relecture/<nom> ouvert par le client ;
+    // ne vaut que pour le morceau relu, les morceaux de ses sections (hybride) et leurs Sfx.
+    if (!allowed && !accessError && review && typeof review.slug === 'string' && typeof review.secret === 'string' && review.slug && review.secret) {
+      const args = { p_slug: review.slug.slice(0, 60), p_secret: review.secret.slice(0, 200) };
+      ({ data: allowed, error: accessError } = isSfx
+        ? await callerClient.rpc('can_hear_sfx_by_review', { p_sfx_id: id, ...args })
+        : await callerClient.rpc('can_hear_track_by_review', { p_track_id: id, ...args }));
     }
     if (accessError) { console.error('track-audio-url: can_hear', accessError); return json({ error: 'Erreur interne. Réessaie dans un instant.' }, 500); }
     if (!allowed) return json({ error: isSfx ? 'Cet effet sonore est protégé.' : 'Ce morceau est réservé aux acheteurs.' }, 403);

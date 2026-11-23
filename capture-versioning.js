@@ -47,9 +47,9 @@
     // o : { enabled, slug, mode: 'magic'|'password', password, rotate } — tout est facultatif sauf à la création (adresse).
     setLink: (captureId, o) => rpc('set_video_review_link', { p_capture_id: captureId, p_enabled: o.enabled == null ? null : o.enabled, p_slug: o.slug || null, p_mode: o.mode || null, p_password: o.password || null, p_rotate: !!o.rotate }),
     listComments: captureId => rpc('list_video_review_comments', { p_capture_id: captureId }),
-    reply: (parentId, body, author) => rpc('reply_video_review_comment', { p_parent_id: parentId, p_body: body, p_author: author }),
-    resolve: (id, resolved) => rpc('resolve_video_review_comment', { p_id: id, p_resolved: resolved }),
-    removeComment: id => rpc('delete_video_review_comment', { p_id: id }),
+    reply: (parentId, body, author) => rpc('reply_review_comment', { p_parent_id: parentId, p_body: body, p_author: author }),
+    resolve: (id, resolved) => rpc('resolve_review_comment', { p_id: id, p_resolved: resolved }),
+    removeComment: id => rpc('delete_review_comment', { p_id: id }),
   };
   // Statuts de relecture d'une version vidéo (9/11, idée Pibox) : même liste que la contrainte de la migration 20261109010000.
   const STATUSES = ['draft', 'sent', 'changes_requested', 'approved'];

@@ -31,5 +31,6 @@
     return client;
   }
 
-  window.LayerPitchSupabaseClient = { getClient };
+  // url / publishableKey : pour un appel de fonction qui doit partir même quand la page se ferme (fetch keepalive, relecture.html).
+  window.LayerPitchSupabaseClient = { getClient, url: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY };
 })();

@@ -358,6 +358,10 @@ async function signedAudioFor(trackId) {
       // AdReel privé (6/10) : les secrets déjà ouverts sur cet ordinateur prouvent le droit d'écoute des morceaux protégés qu'ils contiennent.
       const proofs = window.LpPrivateAccess.proofs();
       if (proofs.length) body.proofs = proofs;
+      // Relecture client (23/11) : la page relecture.html pose { slug, secret } du lien ouvert ; il ne vaut que pour le morceau relu
+      // (et les sections d'un hybride, leurs Sfx) — vérifié côté serveur (can_hear_track_by_review / can_hear_sfx_by_review).
+      const rp = window.LpReviewProof;
+      if (rp && typeof rp.slug === 'string' && typeof rp.secret === 'string' && rp.slug && rp.secret) body.review = { slug: rp.slug, secret: rp.secret };
       const { data, error } = await sb.getClient().functions.invoke('track-audio-url', { body });
       if (error || !data || !data.ok || data.protected === false || !data.files) {
         _signedAudio.set(trackId, { none: true, until: Date.now() + 60000 }); // pas d'accès (ou pas protégé) : on ne redemande pas à chaque fichier
@@ -6644,23 +6648,25 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
     vrBlockFillEls.forEach(el => { if (el) el.style.width = '0%'; });
     vrCurrentSectionOriginalIndex = -1;
   }
+  // Un ordonnanceur de sections neuf (vrai démarrage, ou remise en place d'un état noté par la relecture client).
+  function vrMakeScheduler(hasIntro) {
+    vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
+    return createSectionPlaybackScheduler(
+      vrPlayableSectionRefs,
+      {
+        randomize: !!track.randomizeSections, hasIntro, hasOutro: !!outroBuffer,
+        // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
+        // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
+        get maxChainLoops() { return track.maxChainLoops || null; }
+      }
+    );
+  }
   function playVerticalRandom(isContinuation) {
     stopVerticalRandom();
     // Un vrai démarrage (pas une reprise après pause/veille) repart de zéro : nouvel ordre de sections
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
-    if (!isContinuation || !sectionScheduler) {
-      vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
-      sectionScheduler = createSectionPlaybackScheduler(
-        vrPlayableSectionRefs,
-        {
-          randomize: !!track.randomizeSections, hasIntro: !!introBuffer && !chainSkipIntro, hasOutro: !!outroBuffer,
-          // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
-          // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
-          get maxChainLoops() { return track.maxChainLoops || null; }
-        }
-      );
-    }
+    if (!isContinuation || !sectionScheduler) sectionScheduler = vrMakeScheduler(!!introBuffer && !chainSkipIntro);
     vrNextStartCtxTime = engineStartTime(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
     sectionSchedulerTick();
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);
@@ -7239,6 +7245,160 @@ function initTrackPlayer(track, wrapper, elementColors, opts) {
         return next;
       },
     };
+  }
+
+  // ---- Relecture client (23/11, migration 20261123010000) : l'état entendu au moment d'un commentaire, et sa remise en place ----
+  // wrapper.lpReview.state() : objet JSON court (enregistré avec le commentaire) — instant `t` (secondes, dans le fichier, le bloc ou le
+  // cycle en cours), `where` (boucle, section ou emplacement entendu), position propre au mode (seq / embr / vr / pos), intensité,
+  // voix coupées / en solo / volumes, événements actifs, curseurs. Les noms sont ceux du compositeur, pour un affichage sans le lecteur.
+  // wrapper.lpReview.apply(état) : attend le chargement, puis rejoue le morceau DANS cet état, en passant par la reprise exacte après
+  // pause (resumeFromPause) : même bloc / boucle / section, même position, mêmes réglages. Ce qui ne peut pas être remis (un tirage au
+  // sort déjà passé, la suite de la chaîne) repart normalement à partir de là.
+  {
+    const r2 = x => Math.round((Number(x) || 0) * 100) / 100;
+    const r4 = x => Math.round((Number(x) || 0) * 10000) / 10000;
+    const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    const voiceLabel = key => {
+      const m = /^layer-(\d+)$/.exec(key);
+      if (m) { const l = (track.layers || [])[+m[1]]; return (l && l.label) || t('layerFallback', { n: +m[1] + 1 }); }
+      const el = wrapper.querySelector(`[data-role="voiceCurrent-${String(key).replace(/^pool-/, '')}"]`);
+      return (el && el.textContent.trim()) || key;
+    };
+    function lpReviewState() {
+      const st = { v: 1, mode: track.mode, t: 0, where: '', playing: !!playing };
+      if (isSequential) {
+        let k = null;
+        if (playing && currentSeqBlockInfo) {
+          const b = currentSeqBlockInfo;
+          k = { kind: b.kind, buffer: b.buffer, gain: b.gain, totalSec: b.totalSec, terminal: b.terminal, slotIdx: b.slotIdx,
+            offsetSec: Math.max(0, Math.min(b.totalSec - 0.05, ctx.currentTime - b.virtualZero)), label: seqCurrentEl ? seqCurrentEl.textContent : '' };
+        } else if (!playing && pausedResume && pausedResume.kind === 'sequential') {
+          const r = pausedResume;
+          k = { kind: r.blockKind, buffer: r.buffer, gain: r.gain, totalSec: r.totalSec, terminal: r.terminal, slotIdx: r.slotIdx, offsetSec: r.offsetSec, label: r.label };
+        }
+        if (k) {
+          // Une transition se remet au début de l'emplacement qu'elle rejoint.
+          const inTransition = k.kind === 'transition';
+          const slotIdx = inTransition ? (currentTransitionEdge ? currentTransitionEdge.to : -1) : (k.slotIdx != null ? k.slotIdx : -1);
+          const alts = slotIdx >= 0 ? (slotBuffers[slotIdx] || []) : [];
+          st.seq = { kind: inTransition ? 'segment' : k.kind, slotIdx, altIdx: Math.max(0, alts.indexOf(k.buffer)),
+            offsetSec: inTransition ? 0 : r2(k.offsetSec), totalSec: inTransition ? null : r2(k.totalSec), gain: inTransition ? null : r4(k.gain) };
+          st.t = st.seq.offsetSec;
+          st.where = String(k.label || '').trim();
+        }
+      } else if (isEmbrVert) {
+        const idx = playing ? (embrActiveLoopIdx >= 0 ? embrActiveLoopIdx : embrReferenceIdx)
+          : (pausedResume && pausedResume.kind === 'embrVert' ? pausedResume.embrLoopIdx : -1);
+        if (idx >= 0) {
+          const dur = embrWaveDurationSec();
+          const pos = playing ? embrFilePosSec(embrNominalAt(ctx.currentTime)) : null;
+          st.embr = { loopIdx: idx, frac: pos != null && dur > 0 ? r4(pos / dur) : null };
+          st.t = pos != null ? r2(pos) : 0;
+          const l = (track.loops || [])[idx];
+          st.where = (l && l.label) || t('loopFallback', { n: idx + 1 });
+        }
+      } else if (isVerticalRandom) {
+        let origIdx = -1, frac = 0;
+        if (playing && vrCurrentSectionOriginalIndex >= 0) {
+          origIdx = vrCurrentSectionOriginalIndex;
+          const timing = sectionTiming(resolveVRSection(track, origIdx));
+          frac = timing.cycleLength > 0 ? clamp((currentPlaybackOffset() - timing.loopInSec) / timing.cycleLength, 0, 1) : 0;
+        } else if (!playing && pausedResume && pausedResume.kind === 'verticalRandom') {
+          origIdx = pausedResume.origIdx; frac = pausedResume.frac;
+        }
+        if (origIdx >= 0) {
+          const timing = sectionTiming(resolveVRSection(track, origIdx));
+          st.vr = { origIdx, frac: r4(frac) };
+          st.t = r2(timing.loopInSec + frac * timing.cycleLength);
+          const s = (track.sections || [])[origIdx];
+          st.where = (s && s.label) || t('sectionFallback', { n: origIdx + 1 });
+        }
+      } else {
+        st.pos = r2(playing ? computeElapsed() : offsetAt);
+        st.t = st.pos;
+      }
+      if (track.mode === 'vertical' && profiles.length > 1) { st.level = level; st.levelCount = profiles.length; }
+      const keys = new Set([...mutedVoices, ...soloedVoices, ...layerVolumes.keys()]);
+      if (mutedVoices.size) st.muted = [...mutedVoices];
+      if (soloedVoices.size) st.soloed = [...soloedVoices];
+      const vols = {}; layerVolumes.forEach((v, k) => { if (Math.abs(v - 1) > 0.005) vols[k] = r2(v); });
+      if (Object.keys(vols).length) st.volumes = vols;
+      if (keys.size) { st.voiceLabels = {}; keys.forEach(k => { st.voiceLabels[k] = String(voiceLabel(k)).slice(0, 60); }); }
+      if (fxActiveTriggerIds.length) st.triggers = fxActiveTriggerIds.slice(0, 20).map(id => ({ id, label: String(((fxTriggerDefs.get(id) || {}).label) || '').slice(0, 60) }));
+      if (fxSliders.length) st.sliders = fxSliders.slice(0, 20).map(sl => ({ id: sl.id, label: String(sl.label || '').slice(0, 60), value: r4(fxSliderValueOf(sl.id)), def: r4(sl.def) }));
+      return st;
+    }
+    function lpReviewWaitReady() {
+      if (ready) return Promise.resolve(true);
+      return new Promise(res => {
+        let waited = 0;
+        const timer = setInterval(() => { waited += 100; if (ready || waited > 120000) { clearInterval(timer); res(!!ready); } }, 100);
+      });
+    }
+    async function lpReviewApply(st) {
+      if (!st || typeof st !== 'object' || st.mode !== track.mode) return false;
+      if (!(await lpReviewWaitReady())) return false;
+      if (playing) stopAllSources(false);
+      pausedResume = null;
+      // Voix : coupées, en solo, volumes.
+      mutedVoices.clear(); soloedVoices.clear(); layerVolumes.clear();
+      (Array.isArray(st.muted) ? st.muted : []).forEach(k => mutedVoices.add(String(k)));
+      (Array.isArray(st.soloed) ? st.soloed : []).forEach(k => soloedVoices.add(String(k)));
+      Object.entries(st.volumes && typeof st.volumes === 'object' ? st.volumes : {}).forEach(([k, v]) => { if (Number.isFinite(+v)) layerVolumes.set(k, clamp(+v, 0, 1.5)); });
+      wrapper.querySelectorAll('[data-voice-action]').forEach(btn => btn.classList.toggle('active', (btn.dataset.voiceAction === 'solo' ? soloedVoices : mutedVoices).has(btn.dataset.voiceKey)));
+      wrapper.querySelectorAll('.voice-volume-slider').forEach(sl => {
+        const k = sl.dataset.voiceKey, v = layerVolumes.has(k) ? layerVolumes.get(k) : 1;
+        sl.value = v;
+        const valueEl = wrapper.querySelector(`[data-role="volumeValue-${k}"]`);
+        if (valueEl) valueEl.textContent = Math.round(v * 100) + '%';
+      });
+      // Position propre au mode, rejouée par la reprise exacte après pause.
+      let after = null;
+      if (isSequential && st.seq) {
+        const s = st.seq, slots = track.segmentSlots || [];
+        let kind = s.kind, buffer = null, terminal = false;
+        if (kind === 'intro') buffer = introBuffer;
+        else if (kind === 'outro') { buffer = outroBuffer; terminal = true; }
+        else { kind = 'segment'; const alts = slotBuffers[s.slotIdx] || []; buffer = alts[s.altIdx] || alts.find(Boolean) || null; }
+        if (buffer) {
+          // La chaîne repart comme si ce bloc venait d'être choisi : la suite s'enchaîne ensuite normalement.
+          chainState = { cyclesCompleted: 0, capReached: false };
+          seqVisitedSlotIds = new Set(); seqMapFrontierIdx = -1; seqRoundPlayedIds = new Set(); seqRoundLastIdx = -1;
+          if (kind === 'segment') { currentSlotIndex = s.slotIdx; currentSlotRepeatsPlayed = 0; pickNextSegmentSlot(); }
+          else currentSlotIndex = (track.randomizeSections && slots.length) ? advanceChainIndex(-1, slots.length, chainState, track.maxChainLoops, true) : 0;
+          const total = Number(s.totalSec) > 0 ? +s.totalSec : buffer.duration;
+          pausedResume = { kind: 'sequential', blockKind: kind, buffer, gain: Number.isFinite(+s.gain) && s.gain != null ? +s.gain : 1, totalSec: total, terminal,
+            slotIdx: kind === 'segment' ? s.slotIdx : -1, offsetSec: clamp(Number(s.offsetSec) || 0, 0, Math.max(0, total - 0.05)),
+            label: String(st.where || ''), descHtml: trackDescEl ? trackDescEl.innerHTML : '', goToEndRequested: false, pendingNextSegmentId: null };
+        }
+      } else if (isEmbrVert && st.embr && embrLoopBuffers[st.embr.loopIdx]) {
+        pausedResume = { kind: 'embrVert', embrLoopIdx: st.embr.loopIdx };
+        if (Number.isFinite(st.embr.frac)) { const frac = st.embr.frac; after = () => seekEmbrVertical(frac); }
+      } else if (isVerticalRandom && st.vr) {
+        const origIdx = Number(st.vr.origIdx), pIdx = playableSectionOriginalIndex.indexOf(origIdx);
+        if (pIdx >= 0) {
+          // Ordonnanceur placé sur cette section (sans l'intro), pour que la suite vienne après elle.
+          sectionScheduler = vrMakeScheduler(false);
+          for (let i = 0; i < playableSectionOriginalIndex.length * 4 + 2; i++) { const n = sectionScheduler.decideNext(); if (!n || (n.type === 'section' && n.index === pIdx)) break; }
+          pausedResume = { kind: 'verticalRandom', origIdx, frac: clamp(Number(st.vr.frac) || 0, 0, 0.999) };
+        }
+      } else if (!isSequential && !isEmbrVert && !isVerticalRandom && Number.isFinite(Number(st.pos))) {
+        offsetAt = clamp(Number(st.pos), 0, progressMaxSec());
+        if (useQuantizedLoop && loops) offsetAt = clampSeekToLoopExit(offsetAt, { loopOutSec });
+      }
+      if (track.mode === 'vertical' && Number.isInteger(st.level) && profiles.length > 1) level = clamp(st.level, 0, profiles.length - 1);
+      resumeAudioContext();
+      playThisTrack(false, false);
+      if (after) after();
+      // Événements et curseurs par-dessus l'état de départ ; l'intensité ensuite (un curseur de structure la règle aussi).
+      resetFxTriggers();
+      (Array.isArray(st.triggers) ? st.triggers : []).forEach(x => { const id = x && typeof x === 'object' ? x.id : x; if (fxTriggerDefs.has(id)) setFxTrigger(id, true, 0.05, 'composer'); });
+      (Array.isArray(st.sliders) ? st.sliders : []).forEach(x => { if (x && fxSliders.some(s => s.id === x.id) && Number.isFinite(Number(x.value))) setFxSlider(x.id, clamp(Number(x.value), 0, 1), false); });
+      if (track.mode === 'vertical' && Number.isInteger(st.level) && !fxStructureSlider && profiles.length > 1) applyIntensityLevel(level, true);
+      refreshVoiceGains();
+      return true;
+    }
+    wrapper.lpReview = { state: lpReviewState, apply: lpReviewApply };
   }
 
   // Vertical-random (fusionné le 30/07) : pas de recherche par glissement — avec plusieurs sections
@@ -8195,6 +8355,23 @@ function initHybridPlayer(track, wrapper, elementColors) {
     canRefreshPool: () => false, refreshPool: () => false,
     layerCount: () => 0, layerKind: () => 'layers', layerLabels: () => null, layerAuto: () => 0, intensityLevel: () => 0, setIntensity() {},
     sequenceCount: () => 0, sequenceLabels: () => null, sequenceCurrent: () => -1, sequenceReachable: () => [], sequencePending: () => -1, goToSequence: () => false,
+  };
+  // Relecture client (23/11) : la section entendue et l'état de son lecteur sont notés ; la remise en place se limite à relancer le
+  // morceau depuis le début (le chef d'orchestre ne sait pas encore démarrer au milieu d'une section).
+  wrapper.lpReview = {
+    state() {
+      const sec = sections[cur], p = players[cur];
+      const child = p && p.row.lpReview ? p.row.lpReview.state() : null;
+      const label = sec ? String(sec.label || (sec.track && sec.track.title) || '').trim() : '';
+      return { v: 1, mode: track.mode, t: child ? child.t : 0, where: [label, child && child.where].filter(Boolean).join(' · '), playing,
+        hybrid: { sectionIdx: cur, child } };
+    },
+    async apply(st) {
+      if (!st || st.mode !== track.mode) return false;
+      if (playing) stopAll();
+      play();
+      return true;
+    },
   };
 }
 /* ---------------- Init ---------------- */

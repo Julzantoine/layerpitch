@@ -84,6 +84,7 @@
     if (trackSfxSelectorHost) buildSfxSelectorWidget(trackSfxSelectorHost, track.sfxIds, () => { hasUnsavedEdits = true; }, isExample(track));
 
     detailHost.appendChild(el);
+    if (trackReviewOpen.has(track.id)) trackReviewRender(track, ti, el); // panneau « Relecture client » resté ouvert (23/11)
   });
 }
 

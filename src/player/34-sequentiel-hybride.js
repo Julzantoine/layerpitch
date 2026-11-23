@@ -406,4 +406,21 @@ function initHybridPlayer(track, wrapper, elementColors) {
     layerCount: () => 0, layerKind: () => 'layers', layerLabels: () => null, layerAuto: () => 0, intensityLevel: () => 0, setIntensity() {},
     sequenceCount: () => 0, sequenceLabels: () => null, sequenceCurrent: () => -1, sequenceReachable: () => [], sequencePending: () => -1, goToSequence: () => false,
   };
+  // Relecture client (23/11) : la section entendue et l'état de son lecteur sont notés ; la remise en place se limite à relancer le
+  // morceau depuis le début (le chef d'orchestre ne sait pas encore démarrer au milieu d'une section).
+  wrapper.lpReview = {
+    state() {
+      const sec = sections[cur], p = players[cur];
+      const child = p && p.row.lpReview ? p.row.lpReview.state() : null;
+      const label = sec ? String(sec.label || (sec.track && sec.track.title) || '').trim() : '';
+      return { v: 1, mode: track.mode, t: child ? child.t : 0, where: [label, child && child.where].filter(Boolean).join(' · '), playing,
+        hybrid: { sectionIdx: cur, child } };
+    },
+    async apply(st) {
+      if (!st || st.mode !== track.mode) return false;
+      if (playing) stopAll();
+      play();
+      return true;
+    },
+  };
 }

@@ -40,7 +40,7 @@
   check('le lien magique est créé : adresse en minuscules, actif, clé longue montrée une fois', link.slug === 'traversee-v2' && link.enabled === true && link.mode === 'magic' && typeof link.secret === 'string' && link.secret.length >= 64);
   const g = (await q(`select public.get_video_review_link('cap1', false) as l`))[0].l;
   check('relire le lien ne redonne JAMAIS la clé', g.slug === 'traversee-v2' && g.mode === 'magic' && g.enabled === true && !('secret' in g) && !('token' in g));
-  const stored = (await q(`select secret_hash, iterations from public.video_review_links where capture_id = 'cap1'`))[0];
+  const stored = (await q(`select secret_hash, iterations from public.review_links where capture_id = 'cap1'`))[0];
   check('seule l\'empreinte est gardée (pas la clé en clair)', stored.secret_hash && stored.secret_hash !== link.secret && stored.iterations === 1);
   const S = link.secret;
   await as(1);
@@ -83,11 +83,11 @@
   check('« Demander des modifs » : le statut change tout seul, avec le prénom', st.review_status === 'changes_requested' && st.review_status_by === 'Camille');
 
   // --- Frein : 10 secrets faux par 10 minutes ---
-  const fl = (await q(`select count(*)::int as n from public.video_review_access_failures where capture_id = 'cap1'`))[0].n;
+  const fl = (await q(`select count(*)::int as n from public.review_access_failures f join public.review_links l on l.id = f.link_id where l.capture_id = 'cap1'`))[0].n;
   check('les essais ratés sont comptés', fl >= 3);
   for (let i = fl; i < 10; i++) await q(`select public.get_video_review('traversee-v2', $1) as r`, ['faux' + i]);
   check('après 10 essais ratés : même la bonne clé est bloquée (trop d\'essais)', await fails(`select public.get_video_review('traversee-v2', $1)`, [S]));
-  await db.query(`delete from public.video_review_access_failures`);
+  await db.query(`delete from public.review_access_failures`);
   check('le frein se relâche', (await q(`select public.get_video_review('traversee-v2', $1) as r`, [S]))[0].r !== null);
 
   // --- Retour au compositeur ---
@@ -98,14 +98,14 @@
   check('la liste des versions montre qui a changé le statut', vs.find(v => v.id === 'verA').statusBy === 'Camille' && vs.find(v => v.id === 'verA').status === 'changes_requested');
   await db.query(`select public.set_video_capture_version_status('verA', 'sent', false)`);
   check('si le compositeur change le statut, « par qui » est effacé', (await q(`select review_status_by from public.video_capture_versions where id = 'verA'`))[0].review_status_by === null);
-  await db.query(`select public.reply_video_review_comment($1, 'Je baisse le drone', 'Danny', false)`, [first.id]);
+  await db.query(`select public.reply_review_comment($1, 'Je baisse le drone', 'Danny', false)`, [first.id]);
   const list2 = (await q(`select public.list_video_review_comments('cap1', false) as l`))[0].l;
   check('la réponse du compositeur est marquée comme la sienne', list2.some(c => c.fromOwner && c.author === 'Danny' && c.parentId === first.id));
-  await db.query(`select public.resolve_video_review_comment($1, true, false)`, [first.id]);
+  await db.query(`select public.resolve_review_comment($1, true, false)`, [first.id]);
   check('« traité » est enregistré', (await q(`select public.list_video_review_comments('cap1', false) as l`))[0].l.find(c => c.id === first.id).resolved === true);
   await as(2);
-  check('un autre compte ne peut ni répondre ni résoudre ni supprimer', await fails(`select public.reply_video_review_comment($1, 'x', 'x', false)`, [first.id])
-    && await fails(`select public.resolve_video_review_comment($1, true, false)`, [first.id]) && await fails(`select public.delete_video_review_comment($1, false)`, [first.id]));
+  check('un autre compte ne peut ni répondre ni résoudre ni supprimer', await fails(`select public.reply_review_comment($1, 'x', 'x', false)`, [first.id])
+    && await fails(`select public.resolve_review_comment($1, true, false)`, [first.id]) && await fails(`select public.delete_review_comment($1, false)`, [first.id]));
   await as(1);
 
   // --- Lien désactivé / clé renouvelée / mot de passe / renommé ---
@@ -124,7 +124,7 @@
   await as(null);
   check('mot de passe : le mode est annoncé', (await q(`select public.get_video_review_access('traversee-v2') as r`))[0].r.mode === 'password');
   check('mot de passe : le bon ouvre, l\'ancienne clé magique non', (await q(`select public.get_video_review('traversee-v2', 'sesame-2026') as r`))[0].r !== null && (await q(`select public.get_video_review('traversee-v2', $1) as r`, [rot.secret]))[0].r === null);
-  const pwStored = (await q(`select iterations from public.video_review_links where capture_id = 'cap1'`))[0];
+  const pwStored = (await q(`select iterations from public.review_links where capture_id = 'cap1'`))[0];
   check('mot de passe : salé et haché en 10 000 tours', pwStored.iterations === 10000);
   await as(1);
   const ren = (await q(SET, ['cap1', null, 'nouvelle-adresse', null, null, false]))[0].l;
@@ -138,14 +138,14 @@
 
   // --- Suppression ---
   await as(1);
-  await db.query(`select public.delete_video_review_comment($1, false)`, [first.id]);
-  check('supprimer un commentaire emporte ses réponses', (await q(`select count(*)::int as n from public.video_review_comments where id = $1 or parent_id = $1`, [first.id]))[0].n === 0);
+  await db.query(`select public.delete_review_comment($1, false)`, [first.id]);
+  check('supprimer un commentaire emporte ses réponses', (await q(`select count(*)::int as n from public.review_comments where id = $1 or parent_id = $1`, [first.id]))[0].n === 0);
   // PGlite tourne en superutilisateur (pas de simulation de rôles) : on vérifie plutôt dans le catalogue que les tables sont fermées
   // (sécurité de ligne activée, AUCUNE règle d'accès direct), comme video_captures.
-  const rls = await q(`select relname, relrowsecurity from pg_class where relname in ('video_review_links', 'video_review_comments', 'video_review_access_failures') order by relname`);
-  const pols = await q(`select count(*)::int as n from pg_policies where tablename in ('video_review_links', 'video_review_comments', 'video_review_access_failures')`);
-  check('tables fermées : sécurité de ligne activée, aucune règle d\'accès direct', rls.length === 3 && rls.every(x => x.relrowsecurity) && pols[0].n === 0);
-  const anonGrants = await q(`select count(*)::int as n from information_schema.routine_privileges where grantee = 'anon' and routine_name in ('get_video_review_link','set_video_review_link','list_video_review_comments','reply_video_review_comment','resolve_video_review_comment','delete_video_review_comment','video_review_capture')`);
+  const rls = await q(`select relname, relrowsecurity from pg_class where relname in ('review_links', 'review_comments', 'review_access_failures', 'review_notices') order by relname`);
+  const pols = await q(`select count(*)::int as n from pg_policies where tablename in ('review_links', 'review_comments', 'review_access_failures', 'review_notices')`);
+  check('tables fermées : sécurité de ligne activée, aucune règle d\'accès direct', rls.length === 4 && rls.every(x => x.relrowsecurity) && pols[0].n === 0);
+  const anonGrants = await q(`select count(*)::int as n from information_schema.routine_privileges where grantee = 'anon' and routine_name in ('get_video_review_link','set_video_review_link','list_video_review_comments','reply_review_comment','resolve_review_comment','delete_review_comment','video_review_capture','review_link_open','review_link_save','get_track_review_link','set_track_review_link','list_track_review_comments','my_review_updates','claim_review_notices','release_review_notices')`);
   check('les fonctions du compositeur ne sont pas ouvertes à anon', anonGrants[0].n === 0);
 
   console.log(failures ? `\n${failures} échec(s)` : '\nTous les tests passent.');

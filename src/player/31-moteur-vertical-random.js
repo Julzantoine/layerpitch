@@ -198,23 +198,25 @@
     vrBlockFillEls.forEach(el => { if (el) el.style.width = '0%'; });
     vrCurrentSectionOriginalIndex = -1;
   }
+  // Un ordonnanceur de sections neuf (vrai démarrage, ou remise en place d'un état noté par la relecture client).
+  function vrMakeScheduler(hasIntro) {
+    vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
+    return createSectionPlaybackScheduler(
+      vrPlayableSectionRefs,
+      {
+        randomize: !!track.randomizeSections, hasIntro, hasOutro: !!outroBuffer,
+        // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
+        // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
+        get maxChainLoops() { return track.maxChainLoops || null; }
+      }
+    );
+  }
   function playVerticalRandom(isContinuation) {
     stopVerticalRandom();
     // Un vrai démarrage (pas une reprise après pause/veille) repart de zéro : nouvel ordre de sections
     // (rebrassé si "randomiser" est coché), intro rejouée si présente. Une reprise continue la chaîne là
     // où elle en était — même convention que playSequential(isContinuation) pour le séquentiel.
-    if (!isContinuation || !sectionScheduler) {
-      vrPlayableSectionRefs = playableSectionOriginalIndex.map(origIdx => ({ maxLoops: resolveVRSection(track, origIdx).maxLoops }));
-      sectionScheduler = createSectionPlaybackScheduler(
-        vrPlayableSectionRefs,
-        {
-          randomize: !!track.randomizeSections, hasIntro: !!introBuffer && !chainSkipIntro, hasOutro: !!outroBuffer,
-          // Getter plutôt qu'une valeur figée à la création : le sélecteur visiteur mute track.maxChainLoops
-          // directement (voir plus bas), donc chaque cycle voit la valeur à jour sans recréer le scheduler.
-          get maxChainLoops() { return track.maxChainLoops || null; }
-        }
-      );
-    }
+    if (!isContinuation || !sectionScheduler) sectionScheduler = vrMakeScheduler(!!introBuffer && !chainSkipIntro);
     vrNextStartCtxTime = engineStartTime(); // toutes les voix du premier cycle sur un même instant (voir startSoon)
     sectionSchedulerTick();
     vrSchedulerTimer = setInterval(sectionSchedulerTick, 200);

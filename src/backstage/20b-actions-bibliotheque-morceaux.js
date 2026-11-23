@@ -139,6 +139,10 @@ document.getElementById('libraryContainer').addEventListener('click', async e =>
     });
     return;
   }
+  if (btn.dataset.action === 'track-review') { // relecture client (23/11) : panneau des liens et commentaires
+    trackReviewToggle(ti, btn.closest('.list-block'));
+    return;
+  }
   if (btn.dataset.action === 'preview-track') {
     togglePreview(ti, btn.closest('.list-block'));
     trackBackstageEvent('preview_play', {});

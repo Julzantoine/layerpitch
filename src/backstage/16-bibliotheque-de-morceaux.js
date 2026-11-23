@@ -594,7 +594,8 @@ function buildPreviewTrack(track) {
   };
 }
 
-function togglePreview(ti, cardEl) {
+// opts.autoplay === false : pas de lecture automatique (« Écouter dans cet état » de la relecture client lance elle-même la lecture).
+function togglePreview(ti, cardEl, opts) {
   const host = cardEl.querySelector('[data-role="previewHost"]');
   if (host.dataset.active === '1') {
     const previewId = host.dataset.previewId;
@@ -654,7 +655,7 @@ function togglePreview(ti, cardEl) {
   // l'aperçu est refermé ou remplacé entre-temps, ou si le chargement échoue, rien ne démarre.
   const previewPlayBtn = row.querySelector('[data-role="playBtn"]');
   try { if (window.LayerPlayerCore && window.LayerPlayerCore.resumeAudio) window.LayerPlayerCore.resumeAudio(); } catch (e) { /* le bouton Lecture reste disponible */ }
-  if (previewPlayBtn) {
+  if (previewPlayBtn && !(opts && opts.autoplay === false)) {
     // Numéro de lancement (22/10) : l'identifiant de l'aperçu est le même à chaque relance ; sans ce numéro, le minuteur d'une relance
     // précédente (aperçu relancé à chaque clic sur la flèche d'un champ) cliquait encore sur SON bouton Lecture -> lectures superposées.
     const gen = host._previewGen;

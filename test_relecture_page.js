@@ -26,7 +26,7 @@ const path = require('path');
     beforeParse(win) {
       win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async (name, args) => {
         state.calls.push([name, JSON.parse(JSON.stringify(args))]);
-        if (name === 'get_video_review_access') return { data: args.p_slug === state.slug ? { mode: state.mode } : null, error: null };
+        if ((name === 'get_video_review_access' || name === 'get_review_access')) return { data: args.p_slug === state.slug ? { mode: state.mode } : null, error: null };
         if (name === 'get_video_review') return { data: secretOk(args) ? JSON.parse(JSON.stringify(state.data)) : null, error: null };
         if (name === 'add_video_review_comment') {
           if (!secretOk(args)) return { data: { ok: false, error: 'invalid' }, error: null };
@@ -114,7 +114,7 @@ const path = require('path');
 
   // Pages sans accès
   const noRpc = (url, access) => new JSDOM(html, { url, runScripts: 'dangerously', beforeParse(win) {
-    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async name => ({ data: name === 'get_video_review_access' ? access : null, error: null }) }) }; } });
+    win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async name => ({ data: (name === 'get_video_review_access' || name === 'get_review_access') ? access : null, error: null }) }) }; } });
   let d2 = noRpc('http://localhost/relecture.html?s=inconnu&lang=fr#k=zzz', null); await tick(3);
   check('nom inconnu ou lien désactivé : message clair, aucun lecteur', d2.window.document.getElementById('page').textContent.includes('plus actif') && !d2.window.document.getElementById('vid'));
   d2 = noRpc('http://localhost/relecture.html?lang=fr', null); await tick(3);
@@ -129,7 +129,7 @@ const path = require('path');
   const dp = new JSDOM(html, { url: 'http://localhost/relecture.html?s=' + state.slug + '&lang=fr', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse(win) {
     win.LayerPitchSupabaseClient = { getClient: () => ({ rpc: async (name, args) => {
       state.calls.push([name, JSON.parse(JSON.stringify(args))]);
-      if (name === 'get_video_review_access') return { data: { mode: state.mode }, error: null };
+      if ((name === 'get_video_review_access' || name === 'get_review_access')) return { data: { mode: state.mode }, error: null };
       if (name === 'get_video_review') return { data: secretOk(args) ? JSON.parse(JSON.stringify(state.data)) : null, error: null };
       return { data: null, error: null };
     } }) };

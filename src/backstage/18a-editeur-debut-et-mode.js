@@ -59,12 +59,14 @@ function renderLibrary() {
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-small" data-action="preview-track" data-ti="${ti}" type="button">${tr('previewBtn')}</button>
+          ${trackReviewButtonHtml(track, ti)}
           ${isExample(track) ? exampleBadgeHtml() : ''}
           ${flagOpen('alt_drag_delete') && !isExample(track) ? `<button class="btn btn-small" data-action="duplicate-track" data-ti="${ti}" type="button" title="${escapeAttr(tr('trackCopyTitle'))}">${tr('trackCopyBtn')}</button>` : ''}
           <button class="btn btn-small btn-danger" data-action="remove-track" data-ti="${ti}">${tr('deleteBtn')}</button>
         </div>
       </div>
       <div data-role="previewHost"></div>
+      <div data-role="reviewHost"></div>
       ${isExample(track) ? `<div class="hint-inline lp-example-notice">${escapeHtml(tr('exampleTrackNotice'))}</div>` : ''}
       <div class="list-block-body" data-role="trackBody">
       ${isSequential ? `

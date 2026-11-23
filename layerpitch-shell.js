@@ -354,7 +354,7 @@
   }
   async function fetchInbox() {
     const client = window.LayerPitchSupabaseClient.getClient();
-    const [ann, reads, contact, updates, invitations, sectionUpdates, accessReqs] = await Promise.all([
+    const [ann, reads, contact, updates, invitations, sectionUpdates, accessReqs, reviews] = await Promise.all([
       client.from('admin_messages').select('id, body, title, created_at').order('created_at', { ascending: false }).limit(20),
       client.from('admin_message_reads').select('message_id'),
       client.from('contact_messages').select('id, ad_reel_label, sender_name, sender_email, created_at, seen_at').order('created_at', { ascending: false }).limit(20),
@@ -362,6 +362,7 @@
       countInvitations(client).catch(() => 0),
       client.rpc('my_section_updates'), // canaux de section suivis (migration 20261007070000) ; absent ou fermé = liste vide
       client.rpc('get_pending_access_requests'), // demandes d'accès à la bêta en attente : liste vide pour un compte non admin (filtrée par is_admin() côté base)
+      client.rpc('my_review_updates'), // relecture client (23/11, migration 20261123010000) : remarques et décisions reçues ; base pas migrée = erreur, ignorée
     ]);
     const seen = new Set((reads.data || []).map(r => r.message_id));
     const L = lang();
@@ -383,6 +384,17 @@
         text: pending.length === 1 ? (newest.message || '') : tr('inboxAccessLatest', { email: newest.email }),
         href: 'admin.html?section=access' });
     }
+    // Relecture client : une ligne par lien (un client), qui mène au morceau (Backstage) ou au montage (atelier). Elle disparaît quand
+    // le propriétaire ouvre les remarques de ce lien.
+    (Array.isArray(reviews && reviews.data) ? reviews.data : []).forEach(u => {
+      const what = [u.comments ? tr('inboxReviewComments', { n: u.comments }) : '', u.decisions ? tr('inboxReviewDecisions', { n: u.decisions }) : ''].filter(Boolean).join(' · ');
+      const excerpt = u.lastKind === 'decision' ? String(u.lastExcerpt || '').replace(/:.*$/, '') : (u.lastExcerpt || '');
+      list.push({ key: 'review:' + u.linkId + ':' + u.latestAt, kind: 'review', unread: true, createdAt: u.latestAt,
+        title: tr('inboxReviewTitle', { title: u.title || '', who: u.label ? ' (' + u.label + ')' : '', what }),
+        text: `${u.lastAuthor || ''} : « ${excerpt} »`,
+        href: u.kind === 'track' ? 'layerpitch-backstage.html?tab=library&review=' + encodeURIComponent(u.targetId)
+          : 'atelier.html?' + new URLSearchParams(Object.assign(u.packId ? { id: u.packId } : {}, { montage: u.targetId })).toString() });
+    });
     if (invitations) list.push({ key: 'invitations:' + invitations, kind: 'invitation', unread: true, createdAt: new Date().toISOString(),
       title: tr('inboxInvitations', { n: invitations }), text: '', href: 'invitation.html' });
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
