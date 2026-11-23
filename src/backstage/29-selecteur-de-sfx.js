@@ -130,6 +130,66 @@ function refreshSocialsBlockCards() {
   refreshAllBlockSummaries();
 }
 
+// Bloc invisible « Aperçu du lien » (22/11) : titre, description et image de la carte qu'affichent les messageries quand on colle le
+// lien de CET AdReel. Rien ne s'affiche sur la page publique (le moteur d'affichage ignore ce type) ; get_share_preview le lit en
+// priorité, avant le réglage du compte (rubrique Réseaux sociaux) puis le profil. Un seul par AdReel. L'image choisie attend la
+// publication (block.pendingFile), comme les autres images, et est ajustée au format 1200 × 630 si la case est cochée.
+function buildLinkPreviewBlockCard(block) {
+  const { card, body } = makeCardShell(block);
+  if (block.autoFit === undefined) block.autoFit = true;
+  if (block.fitMode !== 'contain') block.fitMode = 'fill';
+  if (!/^#[0-9a-f]{6}$/i.test(block.fitColor || '')) block.fitColor = '#ffffff';
+  body.innerHTML = `<div class="hint-inline" style="margin:0 0 10px">${tr('linkPreviewBlockHint')}</div>
+    <label>${tr('sharePreviewTitleLabel')}</label>
+    <input type="text" data-role="lpTitle" maxlength="90">
+    <label>${tr('sharePreviewDescLabel')}</label>
+    <textarea data-role="lpDesc" rows="3" maxlength="200"></textarea>
+    <label>${tr('sharePreviewImageLabel')}</label>
+    <div data-role="lpImageCtrl"></div>
+    <div class="hint-inline">${tr('sharePreviewImageHint')}</div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin:10px 0 0"><input type="checkbox" data-role="lpAutoFit" style="width:auto;margin:2px 0 0 0"><span style="font-size:12px;line-height:1.5">${tr('sharePreviewAutoFitLabel')}</span></label>
+    <select data-role="lpFitMode" style="max-width:360px;margin-top:6px"><option value="fill">${tr('sharePreviewFitFill')}</option><option value="contain">${tr('sharePreviewFitContain')}</option></select>
+    <label data-role="lpFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:normal;font-size:12px"><span>${tr('sharePreviewFitColorLabel')}</span><input type="color" data-role="lpFitColor" style="width:44px;padding:0"></label>
+    <div data-role="lpMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>`;
+  const $ = r => body.querySelector(`[data-role="${r}"]`);
+  let pendingUrl = null;
+  const redraw = () => {
+    $('lpMock').innerHTML = sharePreviewMockHtml(block, block.pendingFile ? (pendingUrl || '') : '');
+    $('lpFitMode').disabled = block.autoFit === false;
+    $('lpFitColorWrap').style.display = block.fitMode === 'contain' && block.autoFit !== false ? 'flex' : 'none';
+    refreshAllBlockSummaries();
+  };
+  const touch = () => { hasUnsavedEdits = true; redraw(); };
+  $('lpTitle').value = block.title || ''; $('lpDesc').value = block.description || '';
+  $('lpAutoFit').checked = block.autoFit !== false; $('lpFitMode').value = block.fitMode; $('lpFitColor').value = block.fitColor;
+  $('lpTitle').addEventListener('input', e => { block.title = e.target.value; touch(); });
+  $('lpDesc').addEventListener('input', e => { block.description = e.target.value; touch(); });
+  $('lpAutoFit').addEventListener('change', e => { block.autoFit = e.target.checked; touch(); });
+  $('lpFitMode').addEventListener('change', e => { block.fitMode = e.target.value; touch(); });
+  $('lpFitColor').addEventListener('input', e => { block.fitColor = e.target.value; touch(); });
+  const ctrl = $('lpImageCtrl');
+  ctrl.innerHTML = fileCtrlHtml(tr('chooseSharePreviewImage'), `<button type="button" class="btn btn-small btn-danger" data-role="lpRemoveImage">${tr('removeSharePreviewImage')}</button>`);
+  const rm = ctrl.querySelector('[data-role="lpRemoveImage"]');
+  const refreshRm = () => { rm.hidden = !(block.pendingFile || block.image); };
+  wireFileControl(ctrl, 'image/*', () => block.pendingFile || null, () => block.image || null, f => {
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    block.pendingFile = f || null;
+    if (f) pendingUrl = URL.createObjectURL(f);
+    refreshRm(); touch();
+  }, () => block.imageOriginalName || null);
+  refreshRm();
+  rm.addEventListener('click', () => {
+    // L'image publiée est effacée du stockage à la prochaine publication (file d'orphelins), comme pour le réglage du compte.
+    if (block.image) queueR2Delete('images/' + block.image);
+    block.image = null; block.imageOriginalName = null; block.pendingFile = null;
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    fillCtrl(); refreshRm(); touch();
+  });
+  function fillCtrl() { const st = ctrl.querySelector('[data-role="fileStatus"]'); if (st) updateFileStatus(st, null, null, null); }
+  redraw();
+  return card;
+}
+
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   // « Atelier vidéo » (21/10) : faire une vidéo avec la musique d'un pack (onglet Vidéo → Atelier), puis la choisir ici dans la bibliothèque.
@@ -340,7 +400,7 @@ function buildVideoCard(block) {
   return card;
 }
 
-const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, contact: buildContactBlockCard };
+const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, linkpreview: buildLinkPreviewBlockCard, contact: buildContactBlockCard };
 
 function renderImgPreview(el, pendingFile, remoteFile) {
   if (pendingFile) el.innerHTML = `<img src="${URL.createObjectURL(pendingFile)}">`;
@@ -373,7 +433,8 @@ function buildCardForBlock(block) {
     // de presets au niveau général -- masqué ici plutôt que dans chacun des ~9 builders, même choke
     // point que l'injection elle-même. Les réglages déjà enregistrés par un compositeur passé ensuite en
     // Free restent en base (block.appearance n'est jamais touché ici), juste plus montrés/appliqués.
-    if (currentEffectivePlan !== 'free') {
+    // Bloc invisible « Aperçu du lien » : rien à styler, il n'apparaît pas sur la page.
+    if (currentEffectivePlan !== 'free' && block.type !== 'linkpreview') {
       appendBlockAppearanceSection(body, block);
       appendElementAppearanceSection(body, block);
     }
@@ -781,6 +842,16 @@ document.getElementById('btnAddSocialsBlock').addEventListener('click', () => {
   blockCards[b.id] = buildCardForBlock(b);
   hasUnsavedEdits = true;
   trackBackstageEvent('block_add', { blockType: 'socials' });
+  layoutBlocks();
+});
+document.getElementById('btnAddLinkPreviewBlock').addEventListener('click', () => {
+  if (!flagOpen('adreel_link_preview_block')) return;
+  if (blocks.some(b => b.type === 'linkpreview')) return; // un seul par AdReel : un lien n'a qu'un aperçu
+  const b = { id: genId(), type: 'linkpreview', title: '', description: '', image: null, imageOriginalName: null, autoFit: true, fitMode: 'fill', fitColor: '#ffffff' };
+  blocks.push(b);
+  blockCards[b.id] = buildCardForBlock(b);
+  hasUnsavedEdits = true;
+  trackBackstageEvent('block_add', { blockType: 'linkpreview' });
   layoutBlocks();
 });
 document.getElementById('btnAddContactBlock').addEventListener('click', () => {

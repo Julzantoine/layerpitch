@@ -20,6 +20,8 @@ Key facts:
 - [For composers and sound designers](https://www.layerpitch.com/en/composers): AdReels, presenting adaptive music to studios
 - [For studios](https://www.layerpitch.com/en/studios): Project space, Moodboard, working with a composer
 - [FAQ](https://www.layerpitch.com/en/faq): access, AdReels, projects, pricing, ownership and data
+- [LayerPitch vs Wwise and FMOD](https://www.layerpitch.com/en/layerpitch-vs-wwise-fmod): how LayerPitch differs from audio middleware (presenting and validating music before integration)
+- [LayerPitch vs DISCO, Dropbox and SoundCloud](https://www.layerpitch.com/en/layerpitch-vs-disco-dropbox): how LayerPitch differs from file and catalogue sharing tools (playing adaptive music vs sharing linear tracks)
 - [About](https://www.layerpitch.com/en/about): why LayerPitch exists
 
 ## Pages (français)
@@ -28,6 +30,8 @@ Key facts:
 - [Compositeurs et sound designers](https://www.layerpitch.com/compositeurs)
 - [Studios](https://www.layerpitch.com/studios)
 - [FAQ](https://www.layerpitch.com/faq)
+- [LayerPitch vs Wwise et FMOD](https://www.layerpitch.com/layerpitch-vs-wwise-fmod)
+- [LayerPitch vs DISCO, Dropbox et SoundCloud](https://www.layerpitch.com/layerpitch-vs-disco-dropbox)
 - [À propos](https://www.layerpitch.com/a-propos)
 
 ## Optional

@@ -12,7 +12,7 @@
      Nouvelle langue un jour : l'ajouter à la liste ci-dessous (et dans layerpitch-i18n.js). -->
 <script>try { const u = new URL(location.href), l = u.searchParams.get('lang'); if (l) { if (['fr', 'en'].includes(l)) localStorage.setItem('layerpitch_lang', l); u.searchParams.delete('lang'); history.replaceState(history.state, '', u.pathname + u.search.replace(/=(?=&|$)/g, '') + u.hash); } } catch (e) {}</script>
 <script src="https://unpkg.com/wasm-media-encoders@0.7.0/dist/umd/WasmMediaEncoder.min.js" integrity="sha384-jnL9yi4lELMxvcNwE9FNSNbrTe8Gstx6L6uycidp2ar4UTa3JrZzgbtG2ouao2z6" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795044365594">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795462688859">
 <style>
   :root {
     /* Hiérarchie de surfaces à trois niveaux (05/08 -> refonte lisibilité) : --bg-sidebar (le plus
@@ -383,6 +383,9 @@
   .nav-item.nav-home-btn:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
   .nav-item.nav-home-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   a.nav-item { text-decoration: none; box-sizing: border-box; }
+  /* Tutoriels (21/11) : lien mis en valeur en haut du menu, même teinte que l'Accueil mais un cran plus discret. */
+  .nav-item.nav-tuto-link { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+  .nav-item.nav-tuto-link:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(1.08); }
   .nav-item:hover:not(:disabled) { background: var(--bg); }
   .nav-item.active { background: #24262b; color: #fff; }
   .nav-item:disabled { color: var(--text-dimmer); cursor: default; }
@@ -1306,6 +1309,14 @@
     .home-learn-pop { position: fixed; inset: 0; width: auto; max-width: none; border-radius: 0; overflow-y: auto; z-index: 9000; }
     .home-choices .btn { flex: 1 1 100%; }
   }
+
+/* Repère « admin seulement » (23/11) : fonctions dont le feu vert n'est pas encore ouvert au public */
+.lp-admin-only { outline: 1.5px dashed #8a5cc0; outline-offset: 2px; position: relative; }
+.lp-admin-only::after { content: 'ADMIN'; position: absolute; top: -7px; right: -4px; font-size: 8px; font-weight: 700; letter-spacing: .04em; background: #8a5cc0; color: #fff; padding: 1px 4px; border-radius: 6px; pointer-events: none; line-height: 1.2; }
+.admin-only-pill { position: fixed; left: 12px; bottom: 12px; z-index: 900; font-size: 12px; }
+.admin-only-pill-btn { background: #8a5cc0; color: #fff; border: 0; border-radius: 14px; padding: 5px 11px; cursor: pointer; font-size: 12px; }
+.admin-only-pill-list { position: absolute; bottom: 34px; left: 0; background: var(--panel-bg, #fff); color: var(--text, #222); border: 1px solid #8a5cc0; border-radius: 8px; padding: 8px 12px; max-height: 50vh; overflow: auto; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+.admin-only-pill-list ul { margin: 6px 0 0; padding-left: 16px; }
 </style>
 </head>
 <body>
@@ -1468,6 +1479,13 @@
   <button class="btn phone-menu-fab" id="phoneMenuBtn" type="button" data-i18n="phoneMenuBtn">☰ Menu</button>
   <div class="backstage-layout">
     <nav class="backstage-sidebar">
+      <!-- Tutoriels (21/11) : lien mis en valeur vers la page publique « Tous les tutoriels », nouvel onglet. -->
+      <a class="nav-item nav-tuto-link" id="navItemTutorials" href="tutoriels.html" target="_blank" rel="noopener">
+        <span class="nav-item-label">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/></svg>
+          <span data-i18n="navTutorials">Tutoriels</span>
+        </span>
+      </a>
       <!-- Accueil (13/11, feu vert home_dashboard) : page d'arrivée du Backstage ; caché tant que le feu vert est fermé (48-accueil.js). -->
       <button class="nav-item nav-home-btn" data-tab="home" type="button" id="navItemHome" hidden>
         <span class="nav-item-label">
@@ -1965,6 +1983,7 @@
           <button class="btn btn-small" id="btnAddContactBlock" data-i18n="addContactBlock">+ Bloc contact</button>
           <!-- Admin seulement jusqu'au feu vert 'adreel_socials' (28/09) : affiché par renderAdminOnlyPanels(). -->
           <button class="btn btn-small" id="btnAddSocialsBlock" data-adv data-i18n="addSocialsBlock" hidden>+ Bloc réseaux sociaux</button>
+          <button class="btn btn-small" id="btnAddLinkPreviewBlock" data-adv data-i18n="addLinkPreviewBlock" hidden>+ Bloc aperçu du lien</button>
         </div>
       </div>
 
@@ -2370,20 +2389,20 @@
 <!-- Décodeur Ogg Vorbis de secours (Safari/iOS, qui ne sait pas décoder l'Ogg nativement) — chargé en
      differé, n'est utilisé que si le décodage natif échoue, voir decodeAudioDataCompat dans player.js -->
 <script defer src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
-<script src="layerpitch-tuto.js?v=1795044365594"></script>
-<script src="layerpitch-i18n.js?v=1795044365594"></script>
-<script src="layerpitch-import-engine.js?v=1795044365594"></script>
-<script src="layerpitch-appearance.js?v=1795044365594"></script>
-<script src="layerpitch-font-picker.js?v=1795044365594"></script>
-<script src="layerpitch-album-shared.js?v=1795044365594"></script>
-<script src="layerpitch-album-editor.js?v=1795044365594"></script>
-<script src="layerpitch-shell.js?v=1795044365594"></script>
-<script src="layerpitch-social-icons.js?v=1795044365594"></script>
-<script src="layerpitch-notify.js?v=1795044365594"></script>
-<script src="layerpitch-guide.js?v=1795044365594"></script>
-<script src="layerpitch-lesson-previews.js?v=1795044365594"></script>
-<script src="layerpitch-help.js?v=1795044365594"></script>
-<script src="player.js?v=1795044365594"></script>
+<script src="layerpitch-tuto.js?v=1795462688859"></script>
+<script src="layerpitch-i18n.js?v=1795462688859"></script>
+<script src="layerpitch-import-engine.js?v=1795462688859"></script>
+<script src="layerpitch-appearance.js?v=1795462688859"></script>
+<script src="layerpitch-font-picker.js?v=1795462688859"></script>
+<script src="layerpitch-album-shared.js?v=1795462688859"></script>
+<script src="layerpitch-album-editor.js?v=1795462688859"></script>
+<script src="layerpitch-shell.js?v=1795462688859"></script>
+<script src="layerpitch-social-icons.js?v=1795462688859"></script>
+<script src="layerpitch-notify.js?v=1795462688859"></script>
+<script src="layerpitch-guide.js?v=1795462688859"></script>
+<script src="layerpitch-lesson-previews.js?v=1795462688859"></script>
+<script src="layerpitch-help.js?v=1795462688859"></script>
+<script src="player.js?v=1795462688859"></script>
 <script>
 const { buildTrackRow, initTrackPlayer, layerHasSource } = window.LayerPlayerCore;
 
@@ -2776,6 +2795,8 @@ let myEntitlements = {};
 function can(feature) { const e = myEntitlements[feature]; return !!(e && e.allowed); }
 // Feux verts (feature_flags) vus par le compte connecté : ouvert si le feu vert est donné OU si le compte est admin.
 let myFlags = {};
+// État RÉEL des feux verts (released = ouvert à tout le monde), distinct de myFlags qui vaut « oui » aussi pour un admin.
+let myFlagsReleased = {};
 function flagOpen(key) { return !!myFlags[key]; }
 // Fonctions audio : le feu vert global 'audio_fx' ouvre tout, sinon chaque sous-clé (pitch, triggers, rtpc…) séparément.
 function fxOpen(key) { return flagOpen('audio_fx') || flagOpen(key); }
@@ -2789,11 +2810,47 @@ async function loadMyEntitlements() {
   const flags = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
   if (flags.error) { console.warn('my_feature_flags() en erreur, feux verts inchangés :', flags.error.message || flags.error); return; }
   const nf = {};
-  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; });
+  const nr = {};
+  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; nr[r.key] = !!r.released; });
   myFlags = nf;
+  myFlagsReleased = nr;
+  if (window.LayerPitchShell && window.LayerPitchShell.setHelpAllowed) window.LayerPitchShell.setHelpAllowed(!!nf.help_toggle); // bouton « ? » de la barre
   // Les droits arrivent parfois APRÈS l'ouverture de l'onglet Vidéo (11/11, retour de Jules-Antoine : « Atelier » au lieu des projets) :
   // la colonne des projets se remet alors d'accord avec le vrai droit et charge la liste.
   try { if (typeof preloadVideoProjectList === 'function' && document.getElementById('videoCols')) preloadVideoProjectList(); } catch (e) { /* onglet Vidéo pas prêt */ }
+}
+// Repère « fonction non ouverte au public » (23/11) : pour un admin, tout élément piloté par un feu vert encore fermé
+// reçoit un liseré violet en pointillés + une étiquette ADMIN, et une pastille flottante liste tous les feux fermés.
+// Les éléments créés à la volée (cartes, listes) ne sont pas listés ici : ils figurent dans la pastille.
+const ADMIN_ONLY_MARK_TARGETS = {
+  video_upload: ['#navItemVideoLibrary'],
+  studio_space: ['#accountMenuStudio', '#navSectionStudio', '#navLinkStudioLibrary', '#navLinkStudioTeam', '#navLinkStudioPlan'],
+  composer_directory: ['#accountMenuDirectory', '#navLinkDirectory'],
+  projects: ['#accountMenuProjects', '#navLinkProjects'],
+  shop: ['#navLinkCatalog'],
+  adreel_socials: ['#btnAddSocialsBlock'],
+  adreel_link_preview_block: ['#btnAddLinkPreviewBlock'],
+  bulk_drop: ['#libraryFolderImport', '#sfxLibraryDrop']
+};
+function renderAdminOnlyMarks(isAdmin) {
+  document.querySelectorAll('.lp-admin-only').forEach(el => { el.classList.remove('lp-admin-only'); el.removeAttribute('data-admin-only-flag'); });
+  let pill = document.getElementById('adminOnlyPill');
+  const closed = isAdmin ? Object.keys(myFlagsReleased).filter(k => !myFlagsReleased[k]) : [];
+  if (!isAdmin || !closed.length) { if (pill) pill.remove(); return; }
+  closed.forEach(k => (ADMIN_ONLY_MARK_TARGETS[k] || []).forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => { el.classList.add('lp-admin-only'); el.setAttribute('data-admin-only-flag', k); });
+  }));
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.id = 'adminOnlyPill';
+    pill.className = 'admin-only-pill';
+    document.body.appendChild(pill);
+  }
+  pill.innerHTML = '<button type="button" class="admin-only-pill-btn" aria-expanded="false">Admin seulement : ' + closed.length + '</button>' +
+    '<div class="admin-only-pill-list" hidden><strong>Pas encore ouvert au public</strong><ul>' +
+    closed.map(k => '<li><code>' + escapeHtml(k) + '</code></li>').join('') + '</ul></div>';
+  const btn = pill.querySelector('button'), list = pill.querySelector('.admin-only-pill-list');
+  btn.addEventListener('click', () => { list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); });
 }
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
@@ -2858,6 +2915,9 @@ async function renderAdminOnlyPanels(session) {
   // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
   const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
+  // Bloc invisible « Aperçu du lien » (22/11) : même règle, admin seulement jusqu'au feu vert ; grisé quand l'AdReel en a déjà un.
+  const linkPreviewBlockBtn = document.getElementById('btnAddLinkPreviewBlock');
+  if (linkPreviewBlockBtn) linkPreviewBlockBtn.hidden = !flagOpen('adreel_link_preview_block');
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)
@@ -2869,6 +2929,7 @@ async function renderAdminOnlyPanels(session) {
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
+  renderAdminOnlyMarks(isAdmin);
   const sfxDrop = document.getElementById('sfxLibraryDrop');
   if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !flagOpen('bulk_drop'));
   const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');
@@ -3224,7 +3285,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   });
 });
 
-const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), contact: tr('blockLabelContact') };
+const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), linkpreview: tr('blockLabelLinkPreview'), contact: tr('blockLabelContact') };
 const SINGLETON_TYPES = ['header', 'bio', 'testimonials', 'tracks'];
 const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo', 'video'];
 
@@ -6203,6 +6264,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'collections') clone.collectionIds = (b.collectionIds || []).slice();
     if (b.type === 'sfx') clone.sfxIds = (b.sfxIds || []).slice();
     if (b.type === 'socials') clone.socialIds = (b.socialIds || []).slice();
+    if (b.type === 'linkpreview') { clone.image = null; clone.imageOriginalName = null; clone.pendingFile = null; } // le texte suit ; l'image reste à l'AdReel d'origine (un fichier publié n'a qu'un propriétaire)
     return clone;
   }).filter(Boolean);
   // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.
@@ -11476,6 +11538,10 @@ function blockSummaryText(block) {
       const n = socialsShownInBlock(block).length;
       return n ? trCount(n, 'blockSummarySocialsSingular', 'blockSummarySocials') : tr('blockSummarySocialsNone');
     }
+    case 'linkpreview': {
+      const t = (block.title || '').trim();
+      return (t ? truncateSummary(t) + ' · ' : '') + tr('blockSummaryLinkPreviewHidden');
+    }
     case 'contact': {
       return hasContactFormEndpoint() ? tr('blockSummaryContactReady') : tr('blockSummaryContactMissing');
     }
@@ -11527,7 +11593,7 @@ function layoutBlocks() {
 // de doublon, pas de bouton inutile qui traînerait alors que le bloc existe déjà.
 function updateSingletonAddButtons() {
   const presentTypes = new Set(blocks.map(b => b.type));
-  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock' };
+  const map = { header: 'btnAddHeaderBlock', bio: 'btnAddBioBlock', testimonials: 'btnAddTestimonialsBlock', tracks: 'btnAddTracksBlock', linkpreview: 'btnAddLinkPreviewBlock' }; // linkpreview : un seul par AdReel
   Object.entries(map).forEach(([type, btnId]) => {
     const btn = document.getElementById(btnId);
     if (btn) btn.style.display = presentTypes.has(type) ? 'none' : '';
@@ -12226,6 +12292,66 @@ function refreshSocialsBlockCards() {
   refreshAllBlockSummaries();
 }
 
+// Bloc invisible « Aperçu du lien » (22/11) : titre, description et image de la carte qu'affichent les messageries quand on colle le
+// lien de CET AdReel. Rien ne s'affiche sur la page publique (le moteur d'affichage ignore ce type) ; get_share_preview le lit en
+// priorité, avant le réglage du compte (rubrique Réseaux sociaux) puis le profil. Un seul par AdReel. L'image choisie attend la
+// publication (block.pendingFile), comme les autres images, et est ajustée au format 1200 × 630 si la case est cochée.
+function buildLinkPreviewBlockCard(block) {
+  const { card, body } = makeCardShell(block);
+  if (block.autoFit === undefined) block.autoFit = true;
+  if (block.fitMode !== 'contain') block.fitMode = 'fill';
+  if (!/^#[0-9a-f]{6}$/i.test(block.fitColor || '')) block.fitColor = '#ffffff';
+  body.innerHTML = `<div class="hint-inline" style="margin:0 0 10px">${tr('linkPreviewBlockHint')}</div>
+    <label>${tr('sharePreviewTitleLabel')}</label>
+    <input type="text" data-role="lpTitle" maxlength="90">
+    <label>${tr('sharePreviewDescLabel')}</label>
+    <textarea data-role="lpDesc" rows="3" maxlength="200"></textarea>
+    <label>${tr('sharePreviewImageLabel')}</label>
+    <div data-role="lpImageCtrl"></div>
+    <div class="hint-inline">${tr('sharePreviewImageHint')}</div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:normal;margin:10px 0 0"><input type="checkbox" data-role="lpAutoFit" style="width:auto;margin:2px 0 0 0"><span style="font-size:12px;line-height:1.5">${tr('sharePreviewAutoFitLabel')}</span></label>
+    <select data-role="lpFitMode" style="max-width:360px;margin-top:6px"><option value="fill">${tr('sharePreviewFitFill')}</option><option value="contain">${tr('sharePreviewFitContain')}</option></select>
+    <label data-role="lpFitColorWrap" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:normal;font-size:12px"><span>${tr('sharePreviewFitColorLabel')}</span><input type="color" data-role="lpFitColor" style="width:44px;padding:0"></label>
+    <div data-role="lpMock" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:420px;background:var(--bg-card, #fff)"></div>`;
+  const $ = r => body.querySelector(`[data-role="${r}"]`);
+  let pendingUrl = null;
+  const redraw = () => {
+    $('lpMock').innerHTML = sharePreviewMockHtml(block, block.pendingFile ? (pendingUrl || '') : '');
+    $('lpFitMode').disabled = block.autoFit === false;
+    $('lpFitColorWrap').style.display = block.fitMode === 'contain' && block.autoFit !== false ? 'flex' : 'none';
+    refreshAllBlockSummaries();
+  };
+  const touch = () => { hasUnsavedEdits = true; redraw(); };
+  $('lpTitle').value = block.title || ''; $('lpDesc').value = block.description || '';
+  $('lpAutoFit').checked = block.autoFit !== false; $('lpFitMode').value = block.fitMode; $('lpFitColor').value = block.fitColor;
+  $('lpTitle').addEventListener('input', e => { block.title = e.target.value; touch(); });
+  $('lpDesc').addEventListener('input', e => { block.description = e.target.value; touch(); });
+  $('lpAutoFit').addEventListener('change', e => { block.autoFit = e.target.checked; touch(); });
+  $('lpFitMode').addEventListener('change', e => { block.fitMode = e.target.value; touch(); });
+  $('lpFitColor').addEventListener('input', e => { block.fitColor = e.target.value; touch(); });
+  const ctrl = $('lpImageCtrl');
+  ctrl.innerHTML = fileCtrlHtml(tr('chooseSharePreviewImage'), `<button type="button" class="btn btn-small btn-danger" data-role="lpRemoveImage">${tr('removeSharePreviewImage')}</button>`);
+  const rm = ctrl.querySelector('[data-role="lpRemoveImage"]');
+  const refreshRm = () => { rm.hidden = !(block.pendingFile || block.image); };
+  wireFileControl(ctrl, 'image/*', () => block.pendingFile || null, () => block.image || null, f => {
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    block.pendingFile = f || null;
+    if (f) pendingUrl = URL.createObjectURL(f);
+    refreshRm(); touch();
+  }, () => block.imageOriginalName || null);
+  refreshRm();
+  rm.addEventListener('click', () => {
+    // L'image publiée est effacée du stockage à la prochaine publication (file d'orphelins), comme pour le réglage du compte.
+    if (block.image) queueR2Delete('images/' + block.image);
+    block.image = null; block.imageOriginalName = null; block.pendingFile = null;
+    if (pendingUrl) { URL.revokeObjectURL(pendingUrl); pendingUrl = null; }
+    fillCtrl(); refreshRm(); touch();
+  });
+  function fillCtrl() { const st = ctrl.querySelector('[data-role="fileStatus"]'); if (st) updateFileStatus(st, null, null, null); }
+  redraw();
+  return card;
+}
+
 function buildVideoCard(block) {
   const { card, body } = makeCardShell(block);
   // « Atelier vidéo » (21/10) : faire une vidéo avec la musique d'un pack (onglet Vidéo → Atelier), puis la choisir ici dans la bibliothèque.
@@ -12436,7 +12562,7 @@ function buildVideoCard(block) {
   return card;
 }
 
-const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, contact: buildContactBlockCard };
+const CARD_BUILDERS = { header: buildHeaderCard, bio: buildBioCard, testimonials: buildTestimonialsCard, tracks: buildTracksCard, text: buildTextCard, photo: buildPhotoCard, video: buildVideoCard, packs: buildPacksBlockCard, collections: buildCollectionsBlockCard, sfx: buildSfxBlockCard, socials: buildSocialsBlockCard, linkpreview: buildLinkPreviewBlockCard, contact: buildContactBlockCard };
 
 function renderImgPreview(el, pendingFile, remoteFile) {
   if (pendingFile) el.innerHTML = `<img src="${URL.createObjectURL(pendingFile)}">`;
@@ -12469,7 +12595,8 @@ function buildCardForBlock(block) {
     // de presets au niveau général -- masqué ici plutôt que dans chacun des ~9 builders, même choke
     // point que l'injection elle-même. Les réglages déjà enregistrés par un compositeur passé ensuite en
     // Free restent en base (block.appearance n'est jamais touché ici), juste plus montrés/appliqués.
-    if (currentEffectivePlan !== 'free') {
+    // Bloc invisible « Aperçu du lien » : rien à styler, il n'apparaît pas sur la page.
+    if (currentEffectivePlan !== 'free' && block.type !== 'linkpreview') {
       appendBlockAppearanceSection(body, block);
       appendElementAppearanceSection(body, block);
     }
@@ -12877,6 +13004,16 @@ document.getElementById('btnAddSocialsBlock').addEventListener('click', () => {
   blockCards[b.id] = buildCardForBlock(b);
   hasUnsavedEdits = true;
   trackBackstageEvent('block_add', { blockType: 'socials' });
+  layoutBlocks();
+});
+document.getElementById('btnAddLinkPreviewBlock').addEventListener('click', () => {
+  if (!flagOpen('adreel_link_preview_block')) return;
+  if (blocks.some(b => b.type === 'linkpreview')) return; // un seul par AdReel : un lien n'a qu'un aperçu
+  const b = { id: genId(), type: 'linkpreview', title: '', description: '', image: null, imageOriginalName: null, autoFit: true, fitMode: 'fill', fitColor: '#ffffff' };
+  blocks.push(b);
+  blockCards[b.id] = buildCardForBlock(b);
+  hasUnsavedEdits = true;
+  trackBackstageEvent('block_add', { blockType: 'linkpreview' });
   layoutBlocks();
 });
 document.getElementById('btnAddContactBlock').addEventListener('click', () => {
@@ -14743,14 +14880,19 @@ async function sharePreviewFit(file, mode, color) {
     return new File([blob], 'share-preview.' + (jpeg ? 'jpg' : 'png'), { type: blob.type });
   } finally { URL.revokeObjectURL(url); }
 }
+// HTML de la carte d'aperçu (maquette) pour un état { title, description, image, autoFit, fitMode, fitColor } ; pendingUrl = image choisie
+// mais pas encore publiée. Partagée par la carte du compte (rubrique Réseaux sociaux) et par le bloc invisible « Aperçu du lien » d'un AdReel.
+function sharePreviewMockHtml(state, pendingUrl) {
+  const src = pendingUrl || (state.image ? MEDIA_BASE + 'images/' + state.image : '');
+  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${state.autoFit !== false && state.fitMode !== 'contain' ? 'cover' : 'contain'};background:${state.autoFit !== false && state.fitMode === 'contain' ? escapeAttr(state.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
+  const title = (state.title || '').trim() || tr('sharePreviewMockTitleFallback');
+  const desc = (state.description || '').trim();
+  return `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+}
 function renderSharePreviewMock() {
   const mock = document.getElementById('sharePreviewMock');
   if (!mock) return;
-  const src = sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : (sharePreview.image ? MEDIA_BASE + 'images/' + sharePreview.image : '');
-  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${sharePreview.autoFit !== false && sharePreview.fitMode !== 'contain' ? 'cover' : 'contain'};background:${sharePreview.autoFit !== false && sharePreview.fitMode === 'contain' ? escapeAttr(sharePreview.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
-  const title = (sharePreview.title || '').trim() || tr('sharePreviewMockTitleFallback');
-  const desc = (sharePreview.description || '').trim();
-  mock.innerHTML = `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+  mock.innerHTML = sharePreviewMockHtml(sharePreview, sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : '');
 }
 let sharePreviewPendingFileUrl = null;
 function fillSharePreviewFields() {
@@ -16809,6 +16951,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
         else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
+        else if (b.type === 'linkpreview') out = { id: b.id, type: 'linkpreview', title: (b.title || '').trim(), description: (b.description || '').trim(), image: b.image || null, imageOriginalName: b.imageOriginalName || null, autoFit: b.autoFit !== false, fitMode: b.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(b.fitColor || '') ? b.fitColor : '#ffffff' };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de
@@ -16924,7 +17067,7 @@ async function publishAll() {
         try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
       }
       const bytes = new Uint8Array(await toSend.arrayBuffer());
-      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      const fileName = `${myComposerId}/share-preview-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi (même raison que pour le bloc « Aperçu du lien »)
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -16977,6 +17120,18 @@ async function publishAll() {
             img.file = fileName; img.originalFileName = img.pendingFile.name; img.pendingFile = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
           }
+        }
+        // Image du bloc invisible « Aperçu du lien » : images/<son id>/<id du bloc>-share.<ext>, ajustée au format 1200 × 630 si la case est cochée.
+        if (b.type === 'linkpreview' && b.pendingFile) {
+          let toSend = b.pendingFile;
+          if (b.autoFit !== false) {
+            try { toSend = await sharePreviewFit(b.pendingFile, b.fitMode, b.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = b.pendingFile; }
+          }
+          const bytes = new Uint8Array(await toSend.arrayBuffer());
+          const fileName = `${myComposerId}/${b.id}-share-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi : sinon l'ancien nom (mis en file d'effacement au retrait) efface aussi le nouveau fichier, et le navigateur garde l'ancienne image en mémoire
+          await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+          b.image = fileName; b.imageOriginalName = b.pendingFile.name; b.pendingFile = null;
+          log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
         }
         if (b.type === 'video') {
           for (let i = 0; i < b.videos.length; i++) {
@@ -17418,7 +17573,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch']; // 'preprod' (leçons Projet sur « Dernier Étage ») refermé le 19/11 le temps que Jules-Antoine les vérifie ; accord Protocol Interactive reçu
 // `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
 function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
@@ -18672,10 +18827,10 @@ const LESSONS = [
   ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
-  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
-  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
-  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
-  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Ouvertes à tous le 19/11 (accord de Protocol Interactive
+  // reçu pour les images de « Something Is Wrong » : media.layerpitch.com/tuto/, captures PNG).
+  { id: 'pj-vitrine', theme: 'preprod', public: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
@@ -19344,7 +19499,7 @@ async function seedMyDemoProjectNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
     if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
-    if (data && data.seeded) {
+    if (data && (data.seeded || data.updated)) {
       try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
     }
   } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }
@@ -19763,7 +19918,7 @@ function homeMenuEntries() {
     const key = el.dataset.tab || el.id;
     const label = (el.querySelector('[data-i18n]') || el).textContent.trim();
     return { el, key, label, flagHidden: el.hidden && !el.classList.contains('nav-user-hidden') };
-  }).filter(e => e.key && !HOME_MENU_KEEP.includes(e.key) && e.label && !e.el.classList.contains('nav-feedback-btn') && !e.flagHidden);
+  }).filter(e => e.key && !HOME_MENU_KEEP.includes(e.key) && e.label && !e.el.classList.contains('nav-feedback-btn') && !e.el.classList.contains('nav-tuto-link') && !e.flagHidden);
 }
 function applyHomeMenu() {
   const hidden = homeOpen() ? ((homePrefs && homePrefs.menu_hidden) || []) : [];

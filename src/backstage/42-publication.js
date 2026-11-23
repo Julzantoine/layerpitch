@@ -148,6 +148,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
         else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
+        else if (b.type === 'linkpreview') out = { id: b.id, type: 'linkpreview', title: (b.title || '').trim(), description: (b.description || '').trim(), image: b.image || null, imageOriginalName: b.imageOriginalName || null, autoFit: b.autoFit !== false, fitMode: b.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(b.fitColor || '') ? b.fitColor : '#ffffff' };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de
@@ -263,7 +264,7 @@ async function publishAll() {
         try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
       }
       const bytes = new Uint8Array(await toSend.arrayBuffer());
-      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      const fileName = `${myComposerId}/share-preview-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi (même raison que pour le bloc « Aperçu du lien »)
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -316,6 +317,18 @@ async function publishAll() {
             img.file = fileName; img.originalFileName = img.pendingFile.name; img.pendingFile = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
           }
+        }
+        // Image du bloc invisible « Aperçu du lien » : images/<son id>/<id du bloc>-share.<ext>, ajustée au format 1200 × 630 si la case est cochée.
+        if (b.type === 'linkpreview' && b.pendingFile) {
+          let toSend = b.pendingFile;
+          if (b.autoFit !== false) {
+            try { toSend = await sharePreviewFit(b.pendingFile, b.fitMode, b.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = b.pendingFile; }
+          }
+          const bytes = new Uint8Array(await toSend.arrayBuffer());
+          const fileName = `${myComposerId}/${b.id}-share-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi : sinon l'ancien nom (mis en file d'effacement au retrait) efface aussi le nouveau fichier, et le navigateur garde l'ancienne image en mémoire
+          await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+          b.image = fileName; b.imageOriginalName = b.pendingFile.name; b.pendingFile = null;
+          log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
         }
         if (b.type === 'video') {
           for (let i = 0; i < b.videos.length; i++) {

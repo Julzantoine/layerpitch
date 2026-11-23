@@ -126,6 +126,8 @@ let myEntitlements = {};
 function can(feature) { const e = myEntitlements[feature]; return !!(e && e.allowed); }
 // Feux verts (feature_flags) vus par le compte connecté : ouvert si le feu vert est donné OU si le compte est admin.
 let myFlags = {};
+// État RÉEL des feux verts (released = ouvert à tout le monde), distinct de myFlags qui vaut « oui » aussi pour un admin.
+let myFlagsReleased = {};
 function flagOpen(key) { return !!myFlags[key]; }
 // Fonctions audio : le feu vert global 'audio_fx' ouvre tout, sinon chaque sous-clé (pitch, triggers, rtpc…) séparément.
 function fxOpen(key) { return flagOpen('audio_fx') || flagOpen(key); }
@@ -139,11 +141,47 @@ async function loadMyEntitlements() {
   const flags = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
   if (flags.error) { console.warn('my_feature_flags() en erreur, feux verts inchangés :', flags.error.message || flags.error); return; }
   const nf = {};
-  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; });
+  const nr = {};
+  (flags.data || []).forEach(r => { nf[r.key] = !!r.allowed; nr[r.key] = !!r.released; });
   myFlags = nf;
+  myFlagsReleased = nr;
+  if (window.LayerPitchShell && window.LayerPitchShell.setHelpAllowed) window.LayerPitchShell.setHelpAllowed(!!nf.help_toggle); // bouton « ? » de la barre
   // Les droits arrivent parfois APRÈS l'ouverture de l'onglet Vidéo (11/11, retour de Jules-Antoine : « Atelier » au lieu des projets) :
   // la colonne des projets se remet alors d'accord avec le vrai droit et charge la liste.
   try { if (typeof preloadVideoProjectList === 'function' && document.getElementById('videoCols')) preloadVideoProjectList(); } catch (e) { /* onglet Vidéo pas prêt */ }
+}
+// Repère « fonction non ouverte au public » (23/11) : pour un admin, tout élément piloté par un feu vert encore fermé
+// reçoit un liseré violet en pointillés + une étiquette ADMIN, et une pastille flottante liste tous les feux fermés.
+// Les éléments créés à la volée (cartes, listes) ne sont pas listés ici : ils figurent dans la pastille.
+const ADMIN_ONLY_MARK_TARGETS = {
+  video_upload: ['#navItemVideoLibrary'],
+  studio_space: ['#accountMenuStudio', '#navSectionStudio', '#navLinkStudioLibrary', '#navLinkStudioTeam', '#navLinkStudioPlan'],
+  composer_directory: ['#accountMenuDirectory', '#navLinkDirectory'],
+  projects: ['#accountMenuProjects', '#navLinkProjects'],
+  shop: ['#navLinkCatalog'],
+  adreel_socials: ['#btnAddSocialsBlock'],
+  adreel_link_preview_block: ['#btnAddLinkPreviewBlock'],
+  bulk_drop: ['#libraryFolderImport', '#sfxLibraryDrop']
+};
+function renderAdminOnlyMarks(isAdmin) {
+  document.querySelectorAll('.lp-admin-only').forEach(el => { el.classList.remove('lp-admin-only'); el.removeAttribute('data-admin-only-flag'); });
+  let pill = document.getElementById('adminOnlyPill');
+  const closed = isAdmin ? Object.keys(myFlagsReleased).filter(k => !myFlagsReleased[k]) : [];
+  if (!isAdmin || !closed.length) { if (pill) pill.remove(); return; }
+  closed.forEach(k => (ADMIN_ONLY_MARK_TARGETS[k] || []).forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => { el.classList.add('lp-admin-only'); el.setAttribute('data-admin-only-flag', k); });
+  }));
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.id = 'adminOnlyPill';
+    pill.className = 'admin-only-pill';
+    document.body.appendChild(pill);
+  }
+  pill.innerHTML = '<button type="button" class="admin-only-pill-btn" aria-expanded="false">Admin seulement : ' + closed.length + '</button>' +
+    '<div class="admin-only-pill-list" hidden><strong>Pas encore ouvert au public</strong><ul>' +
+    closed.map(k => '<li><code>' + escapeHtml(k) + '</code></li>').join('') + '</ul></div>';
+  const btn = pill.querySelector('button'), list = pill.querySelector('.admin-only-pill-list');
+  btn.addEventListener('click', () => { list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); });
 }
 async function renderAdminOnlyPanels(session) {
   let isAdmin = false;
@@ -208,6 +246,9 @@ async function renderAdminOnlyPanels(session) {
   // modifiable et s'affiche sur la page publique ; seul l'ajout d'un nouveau bloc est verrouillé.
   const socialsBlockBtn = document.getElementById('btnAddSocialsBlock');
   if (socialsBlockBtn) socialsBlockBtn.hidden = !flagOpen('adreel_socials');
+  // Bloc invisible « Aperçu du lien » (22/11) : même règle, admin seulement jusqu'au feu vert ; grisé quand l'AdReel en a déjà un.
+  const linkPreviewBlockBtn = document.getElementById('btnAddLinkPreviewBlock');
+  if (linkPreviewBlockBtn) linkPreviewBlockBtn.hidden = !flagOpen('adreel_link_preview_block');
   const folderImportHost = document.getElementById('libraryFolderImport');
   if (folderImportHost) folderImportHost.hidden = !flagOpen('bulk_drop'); // import d'un dossier -> morceau (11/10), même feu vert que les dépôts groupés
   if (typeof refreshPendingImports === 'function') refreshPendingImports(); // imports déposés par un assistant IA (feu vert assistant_import)
@@ -219,6 +260,7 @@ async function renderAdminOnlyPanels(session) {
   // un admin verrait le pitch grisé jusqu'au prochain clic (renderLibrary() no-op si le panneau n'est pas
   // monté, voir sa garde en tête de fonction).
   renderLibrary();
+  renderAdminOnlyMarks(isAdmin);
   const sfxDrop = document.getElementById('sfxLibraryDrop');
   if (sfxDrop) sfxDrop.classList.toggle('is-disabled', !flagOpen('bulk_drop'));
   const sfxDropHint = document.getElementById('sfxBatchDropAdminHint');

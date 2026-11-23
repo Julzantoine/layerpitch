@@ -49,6 +49,7 @@
     video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/>',
     account: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/>',
     appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
+    tutorials: '<circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/>',
     pricing: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01"/>',
   };
   const icon = k => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ''}</svg>`;
@@ -63,6 +64,9 @@
   .lp-nav a.lp-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; color: var(--text, #24262b); text-decoration: none; font-size: 13.5px; line-height: 1.25; }
   .lp-nav a.lp-item:hover { background: rgba(47, 128, 192, .08); }
   .lp-nav a.lp-item[aria-current="page"] { background: var(--bg-card, #ffffff); color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px var(--border, #e2e2e6); }
+  .lp-nav a.lp-item.lp-highlight { background: rgba(47, 128, 192, .12); color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px rgba(47, 128, 192, .35); margin-bottom: 4px; }
+  .lp-nav a.lp-item.lp-highlight:hover { background: rgba(47, 128, 192, .2); }
+  .lp-nav a.lp-item.lp-highlight svg { opacity: 1; }
   .lp-nav a.lp-item svg { flex: 0 0 auto; opacity: .8; }
   .lp-nav a.lp-sub { padding: 5px 10px 5px 35px; font-size: 12.5px; color: var(--text-dim, #5f636b); }
   .lp-nav a.lp-sub[aria-current="page"] { box-shadow: none; background: transparent; }
@@ -234,6 +238,7 @@
   const HELP_CSS = `
   .lp-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; flex: 0 0 auto;
     border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-help-btn[hidden] { display: none !important; }
   .lp-help-btn:hover { background: rgba(47, 128, 192, .08); border-color: var(--border, #e2e2e6); color: var(--accent, #2f80c0); }
   .lp-help-btn[aria-pressed="true"] { background: rgba(47, 128, 192, .14); border-color: var(--accent, #2f80c0); color: var(--accent, #2f80c0); }
   .lp-nav-top .lp-help-btn { margin-left: auto; margin-right: 4px; }
@@ -261,12 +266,18 @@
     const attempt = n => helpFlagAllowed(ctx).then(ok => {
       if (ok) { b.hidden = false; helpSyncFromAccount(); }
       else if (ok === null && n < 3 && !ctx) setTimeout(() => attempt(n + 1), 1500 * (n + 1)); // session pas encore prête : on réessaie
-      else b.remove();
+      // sinon : le bouton reste caché (la page peut encore le montrer par setHelpAllowed, voir plus bas)
     });
     attempt(0);
     return b;
   }
   window.addEventListener('storage', e => { if (e.key === HOME_PREFS_LOCAL) helpBroadcast(); });
+  // Le Backstage connaît déjà ses feux verts (14-connexion-abonnement-admin.js) : il le dit ici, sans attendre une 2e lecture.
+  function setHelpAllowed(ok) {
+    helpFlagPromise = Promise.resolve(!!ok);
+    document.querySelectorAll('.lp-help-btn').forEach(b => { b.hidden = !ok; });
+    if (ok) helpSyncFromAccount();
+  }
 
   // Barre repliée : le libellé caché d'une rubrique apparaît en infobulle au survol (calculé au moment du survol, pour
   // suivre la langue affichée ; une infobulle déjà prévue par la page n'est jamais remplacée).
@@ -578,6 +589,8 @@
     const link = (it, sub) => `<a class="lp-item${sub ? ' lp-sub' : ''}" href="${esc(withLang(it.href))}"${state.active === it.id || (!sub && !it.children && isActive(it.id)) ? ' aria-current="page"' : ''}>
         ${sub ? '' : icon(it.icon)}<span>${esc(tr(it.label || 'item_' + it.id))}</span>${it.badge ? `<span class="lp-badge">${esc(it.badge)}</span>` : ''}</a>`;
     let html = `<div class="lp-nav-top"><a class="lp-nav-brand" href="${esc(withLang(ctx.composerId ? 'layerpitch-backstage.html' : 'mon-compte.html'))}">LayerPitch</a></div>`;
+    // Tutoriels (21/11) : lien mis en valeur en haut de la barre, pour les compositeurs comme pour les studios ; la page est publique.
+    html += `<a class="lp-item lp-highlight" href="${esc(withLang('tutoriels.html'))}">${icon('tutorials')}<span>${esc(tr('item_tutorials'))}</span></a>`;
     for (const s of items(ctx)) {
       html += `<div class="lp-nav-section">${esc(tr(s.label))}</div>`;
       for (const it of s.items) {
@@ -738,5 +751,5 @@
     if (window.LayerPitchAuth.onAuthStateChange) window.LayerPitchAuth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN') resumeTrack(session); });
   }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, setHelpAllowed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();

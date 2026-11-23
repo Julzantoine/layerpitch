@@ -40,7 +40,7 @@ async function seedMyDemoProjectNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
     if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
-    if (data && data.seeded) {
+    if (data && (data.seeded || data.updated)) {
       try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
     }
   } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }

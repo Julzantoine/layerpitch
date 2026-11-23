@@ -169,7 +169,7 @@ const { JSDOM } = require('jsdom');
     const PJv = DPr.create({ seedVitrine: true });
     const as = (await PJv.content()).data.assets;
     check('vitrine : quatre images, le montage vidéo et deux morceaux ★ dans la réserve', as.filter(a => a.kind === 'image').length === 4 && as.some(a => a.kind === 'montage' && a.montageId === 'cap-dernier-etage') && as.filter(a => a.kind === 'track' && a.starred && a.trackId).length === 2);
-    check('vitrine : images lues depuis media.layerpitch.com/tuto/dernier-etage/', /^https:\/\/media\.layerpitch\.com\/tuto\/dernier-etage\//.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
+    check('vitrine : images lues depuis media.layerpitch.com/tuto/ (captures PNG)', /^https:\/\/media\.layerpitch\.com\/tuto\/Capture%20d%E2%80%99%C3%A9cran/.test((await PJv.fileUrl(as.find(a => a.kind === 'image').fileId)).data));
     check('vitrine : aucune vitrine au départ de la leçon « construire »', (await PJv.vitrines()).data.length === 0);
     const img = as.find(a => a.kind === 'image');
     const r = await PJv.saveVitrine('demo-dernier-etage', { audience: 'players', display: 'page', title: 'Dernier Étage', subtitle: '', slug: 'dernier-etage', published: false, theme: {}, bgAssetId: img.id, blocks: [{ id: 'b1', type: 'photo', assetIds: [img.id] }] });
@@ -180,7 +180,8 @@ const { JSDOM } = require('jsdom');
     const vhtml = read('vitrine.html');
     check('vitrine.html?tuto : lue depuis le navigateur, ni statistiques ni message envoyé', /TUTO_KEY = 'layerpitch_tuto_vitrine_v1'/.test(vhtml) && /if \(!TUTO\) startVitrineStats/.test(vhtml) && /if \(TUTO\) return \{ ok: true \}/.test(vhtml) && DPr.TUTO_VITRINE_KEY === 'layerpitch_tuto_vitrine_v1');
     const bs = read('src/backstage/43-visite-guidee.js');
-    check('vitrine : deux leçons en fin de menu, réservées aux admins pour l’instant', /pj-vitrine', theme: 'preprod', public: true, adminOnly: true/.test(bs) && /pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true/.test(bs));
+    check('page Projets : « leçon suivante » recharge la page (étape « Ouvre le projet ») au lieu de jouer le tchat sur la liste', /startLesson: id => \{\s*if \(\/\\\/projets\(\?:\\\.html\)\?\$\/\.test\(location\.pathname\) && id !== 'pj-create'\) \{ location\.href = '\.\/projets\.html\?tuto&lesson='/.test(read('projet-lecons.js')));
+    check('vitrine : deux leçons en fin de menu, ouvertes à tous depuis l’accord de Protocol Interactive (19/11)', /pj-vitrine', theme: 'preprod', public: true, page: 'projet'/.test(bs) && /pj-vitrine-look', theme: 'preprod', public: true, page: 'projet'/.test(bs));
     const pl = read('projet.html');
     check('éditeur de vitrine : le texte des blocs est gardé quand on ajoute un bloc', /collect\(\); syncVitrineBlocks\(panel\);\n    const k = b\.dataset\.addblock/.test(pl));
   }

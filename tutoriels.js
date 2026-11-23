@@ -41,8 +41,8 @@
     ['versioning-adreel', 'preprod', 'lvaTitle', 'lvaDesc', true],
     ['versioning-pas', 'preprod', 'lvpTitle', 'lvpDesc', true],
     ['pj-annotate', 'preprod', 'plAnnTitle', 'plAnnDesc', true],
-    ['pj-vitrine', 'preprod', 'plVitTitle', 'plVitDesc', true],
-    ['pj-vitrine-look', 'preprod', 'plLookTitle', 'plLookDesc', true],
+    ['pj-vitrine', 'preprod', 'plVitTitle', 'plVitDesc'],
+    ['pj-vitrine-look', 'preprod', 'plLookTitle', 'plLookDesc'],
   ].map(a => ({ id: a[0], theme: a[1], titleKey: a[2], descKey: a[3], adminOnly: !!a[4] }));
   const DONE_STORAGE = 'layerpitch_lessons_done_v1'; // même clé que le menu du Backstage : les leçons faites s'y retrouvent cochées
 

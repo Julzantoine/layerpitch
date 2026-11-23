@@ -306,7 +306,12 @@
         const i = LESSON_LIST.findIndex(l => l.id === lessonId), next = i >= 0 ? LESSON_LIST[i + 1] : null;
         return next ? { lesson: next, n: i + 1 + 1 } : null;
       },
-      startLesson: id => start(id),
+      // Sur la page « Projets » (liste), seule « Créer un projet » se joue sur place ; les autres leçons se jouent DANS le projet :
+      // on recharge la page avec ?lesson=<id>, qui commence par l'étape « Ouvre le projet » (leçon pj-open).
+      startLesson: id => {
+        if (/\/projets(?:\.html)?$/.test(location.pathname) && id !== 'pj-create') { location.href = './projets.html?tuto&lesson=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(ctx.lang || 'fr'); return; }
+        start(id);
+      },
       // Fin de la visite de la démo : le tutoriel complet (Projet d'exemple « Music City ») s'ouvre dans un nouvel onglet.
       choiceAction: action => { if (action === 'tuto') window.open('./tutoriels.html?lang=' + encodeURIComponent(ctx.lang || 'fr'), '_blank', 'noopener'); },
       onLessonDone: id => { try { const d = JSON.parse(localStorage.getItem('layerpitch_lessons_done_v1') || '{}'); d[id] = true; localStorage.setItem('layerpitch_lessons_done_v1', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ } },
@@ -327,6 +332,25 @@
       { titleKey: 'stEndTitle', textKey: ctx.demo ? 'stPjDemoEndText' : 'stPjEndText', enter: openTab('board'), choices: ctx.demo ? [{ labelKey: 'stPjDemoLearn', action: 'tuto' }] : [{ labelKey: 'stLearn', lesson: 'pj-chat' }],
         beta: !!ctx.demo, betaPsKey: 'stPjDemoBetaPs', betaLinkKey: 'stPjDemoBetaLink' },
     ];
+    // Visite d'une COPIE de la démo dans le compte d'un testeur (19/11) : même parcours, mais la discussion et les sections sont repliées d'office
+    // (toute la place au contenu) : la visite les ouvre le temps de leur bulle, puis les referme. Pas de « rien ne se modifie » (la copie est à lui),
+    // pas de PS bêta (il est déjà testeur), et on lui montre le bouton « Supprimer la démo ».
+    if (ctx.demoCopy) {
+      const panels = (sec, chat) => () => { if (ctx.setPanels) ctx.setPanels(sec, chat); };
+      lessons['pj-tour'] = [
+        { titleKey: 'stPjCopyTourTitle', textKey: 'stPjCopyTourText' },
+        { selector: '.tabs', titleKey: 'stPjTabsTitle', textKey: 'stPjTabsText', enter: () => { openTab('board')(); panels(false, false)(); } },
+        { selector: '#panel', titleKey: 'stPjBoardTitle', textKey: 'stPjBoardText', enter: openTab('board') },
+        { selector: '#secNav', titleKey: 'stPjCopySecTitle', textKey: 'stPjCopySecText', enter: () => { openTab('board')(); panels(true, false)(); } },
+        { selector: '#chat', titleKey: 'stPjChatTitle', textKey: 'stPjCopyChatText', enter: () => { openTab('board')(); panels(false, true)(); } },
+        { selector: '#panel', titleKey: 'stPjMapTitle', textKey: 'stPjMapText', enter: () => { panels(false, false)(); openTab('map')(); } },
+        { selector: '#panel', titleKey: 'stPjMusicTitle', textKey: 'stPjMusicText', enter: openTab('music') },
+        { selector: '#panel', titleKey: 'stPjVideosTitle', textKey: 'stPjVideosText', enter: openTab('videos') },
+        { selector: '#panel', titleKey: 'stPjShowcaseTitle', textKey: 'stPjShowcaseText', enter: openTab('showcase') },
+        { selector: '#panel', titleKey: 'stPjMembersTitle', textKey: 'stPjMembersText', enter: openTab('members') },
+        { titleKey: 'stEndTitle', textKey: 'stPjCopyEndText', enter: () => { openTab('board')(); panels(false, false)(); }, choices: [{ labelKey: 'stPjDemoLearn', action: 'tuto' }] },
+      ];
+    }
     function start(id) {
       const steps = lessons[id];
       const meta = LESSON_LIST.find(l => l.id === id);
