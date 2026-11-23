@@ -41,6 +41,10 @@ function lpDeviceType() {
   try { return (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ? 'mobile' : 'desktop'; }
   catch (e) { return null; }
 }
+// Exposée aux pages (23/11) : index.html, pack.html et collection.html l'appellent pour leur événement « page_open », mais ce
+// fichier est enfermé dans une fonction -- sans cette ligne, l'appel échouait en silence depuis le 23/09 (aucune ouverture de
+// page comptée dans les Analytics, et aucune visite rattachée à un envoi).
+window.lpDeviceType = lpDeviceType;
 
 // Dupliqué à l'identique dans index.html et pack.html : chaque script a sa propre closure, pas d'accès
 // croisé possible. Jamais bloquant, silencieux si Umami n'est pas chargé.

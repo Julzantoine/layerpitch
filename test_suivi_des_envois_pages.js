@@ -13,7 +13,8 @@ check('index.html : capturé avant la remise en place de l\'adresse jolie', capt
 check('index.html : lu dans le fragment, pas dans la requête', /const sendCodeFromUrl[\s\S]{0,120}location\.hash/.test(index));
 const open = index.indexOf("'page_open'");
 const reg = index.indexOf('registerSendVisit(sendCodeFromUrl');
-check('index.html : visite rattachée juste après page_open (pas en mode aperçu)', open > 0 && reg > open && reg - open < 400);
+check("index.html : visite rattachée juste après page_open, dans son propre bloc, pas en mode aperçu", open > 0 && reg > open && reg - open < 700 && /sendCodeFromUrl && !previewActive/.test(index));
+check("player.js : lpDeviceType exposé aux pages (sinon page_open échoue en silence)", /window\.lpDeviceType = lpDeviceType/.test(fs.readFileSync("src/player/01-contexte-audio-ios.js", "utf8")));
 
 const api = fs.readFileSync('api/analytics.js', 'utf8');
 check('api/analytics.js : registerSendVisit exposé et muet', /registerSendVisit/.test(api) && /register_send_visit/.test(api) && /catch \(e\) \{ \/\* jamais bloquant/.test(api));
