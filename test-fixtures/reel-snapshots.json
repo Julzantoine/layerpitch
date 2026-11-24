@@ -33,7 +33,7 @@
   "rootStyle": "--separator-color: #E2E2E6; --separator-width: 1px; --font-body: 'Inter', sans-serif; --bg: #ffffff; --text: #000000; --text-title: #000000;",
   "head": "",
   "containerClass": "",
-  "blocks": "<div class=\"block text-block\" style=\"text-align: left;\"><p>Ancien AdReel</p></div><div class=\"header\">\n    \n    <div class=\"header-title\">Vieux</div>\n    \n  </div><div class=\"block\"><div class=\"section-label\">Musique</div><div class=\"empty\">Aucun morceau publié pour l'instant.</div></div>",
+  "blocks": "<div class=\"block text-block\" style=\"text-align: left;\"><p>Ancien AdReel</p></div>",
   "contact": "",
   "credit": "<div class=\"layerpitch-credit\" id=\"layerpitchCredit\"><a href=\"https://layerpitch.com\" target=\"_blank\" rel=\"noopener\">AdReel for A, powered by LayerPitch</a></div>",
   "title": "",

@@ -600,10 +600,7 @@ function buildBlocksForNewAdReel(source, importExtraBlocks) {
     if (b.type === 'linkpreview') { clone.image = null; clone.imageOriginalName = null; clone.pendingFile = null; } // le texte suit ; l'image reste à l'AdReel d'origine (un fichier publié n'a qu'un propriétaire)
     return clone;
   }).filter(Boolean);
-  // Garde-fou : garantit la présence des 4 blocs obligatoires même si l'un manquait dans la source.
-  SINGLETON_TYPES.forEach(t => {
-    if (!blocks.some(b => b.type === t)) blocks.push({ id: genId(), type: t });
-  });
+  // Aucun bloc n'est obligatoire (24/11) : plus de réinjection des blocs absents de la source.
   return blocks;
 }
 function openNewAdReelModal(duplicateFromId) {

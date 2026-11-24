@@ -21,9 +21,7 @@ function migrateBlocks(data) {
     if (b.type === 'photo' && !b.images) b.images = b.file ? [{ file: b.file }] : [];
     if (b.type === 'video' && !b.videos) b.videos = (b.title || b.url) ? [{ title: b.title || '', url: b.url || '' }] : [];
   });
-  ['header', 'testimonials', 'tracks'].forEach(t => {
-    if (!blocks.some(b => b.type === t)) blocks.push({ id: genId(), type: t });
-  });
+  // Aucun bloc n'est obligatoire (24/11) : on ne réinjecte plus En-tête / Témoignages / Morceaux -- un bloc retiré reste retiré.
   return blocks;
 }
 
