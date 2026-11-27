@@ -46,6 +46,10 @@ Deno.serve(async (req) => {
     if (source.example_source_id) return json({ error: 'Exemple : il ne peut pas être copié. Pour ta propre musique, crée un nouveau morceau.' }, 409);
     const { data: existing } = await adminClient.from('tracks').select('id').eq('id', toTrackId).maybeSingle();
     if (existing) return json({ error: 'La destination existe déjà.' }, 409);
+    // Audit sécurité 16/11 (M5) : le dossier de destination audio/<toTrackId>/ est réservé à ce compte (même règle que
+    // create-media-signed-url) ; refusé s'il est déjà réservé par un autre compte.
+    const { data: claimed, error: claimError } = await adminClient.rpc('claim_media_prefix', { p_kind: 'tracks', p_entity_id: toTrackId, p_composer_id: composerId, p_studio_id: null });
+    if (claimError || claimed !== true) return json({ error: 'La destination existe déjà.' }, 409);
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!;
     // Copie d'un morceau protégé (12/11, protection par défaut) : on lit dans le stockage PRIVÉ et on écrit dans le stockage public, car la

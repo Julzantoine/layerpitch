@@ -52,7 +52,10 @@ Deno.serve(async (req) => {
     if (action === 'upload') {
       if (!authHeader) return json({ error: 'Connexion requise.' }, 401);
       const { data, error } = await callerClient.rpc('reserve_project_file', { p_project_id: body.projectId, p_name: body.name, p_size: body.size });
-      if (error || !data) return json({ error: error?.message || 'Envoi refusé.' }, 400);
+      // Audit sécurité 16/11 (M7) : seuls les refus voulus de reserve_project_file (raise exception, code P0001 : quota,
+      // type de fichier…) sont montrés tels quels ; tout autre message de la base reste dans le journal.
+      if (error) console.error('project-file-url: reserve_project_file', error);
+      if (error || !data) return json({ error: (error && error.code === 'P0001' && error.message) || 'Envoi refusé.' }, 400);
       path = data.path; fileId = data.fileId; method = 'PUT'; expires = 900;
       headers = { 'content-type': data.mimeType, 'content-length': String(data.size) };
       if (data.mimeType === 'application/pdf') headers['content-disposition'] = 'attachment';

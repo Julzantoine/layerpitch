@@ -209,12 +209,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Audit sécurité 16/11 (M6) : sans compte, ce formulaire fait partir un e-mail vers l'adresse saisie. Avec plusieurs
+    // adresses IP, quelqu'un pouvait en faire envoyer des centaines à une victime (et autant de notifications à
+    // l'admin), ce qui abîme la réputation d'envoi de LayerPitch. Désormais :
+    //  - même adresse déjà reçue dans les dernières 24 h : rien de plus (ni ligne, ni e-mail), réponse identique ;
+    //  - plus de 30 demandes en une heure, toutes adresses confondues : la demande est gardée, mais sans e-mails.
+    const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count: sameEmailCount, error: dupError } = await adminClient.from('access_requests')
+      .select('id', { count: 'exact', head: true }).ilike('email', v_email.replace(/[\\%_]/g, (c) => '\\' + c)).gte('created_at', since24h);
+    if (dupError) console.error('submit-access-request: lecture des doublons', dupError);
+    if (!dupError && (sameEmailCount || 0) > 0) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const since1h = new Date(Date.now() - 3600 * 1000).toISOString();
+    const { count: hourCount } = await adminClient.from('access_requests').select('id', { count: 'exact', head: true }).gte('created_at', since1h);
+    const quietMode = (hourCount || 0) >= 30;
+
     const { error: insertError } = await adminClient.from('access_requests').insert({
       email: v_email, source, intent: v_intent, message: v_message,
       utm_source: v_utm_source, utm_medium: v_utm_medium, utm_campaign: v_utm_campaign,
     });
     if (insertError) {
-      return new Response(JSON.stringify({ error: insertError.message }), {
+      // Audit sécurité 16/11 (M7) : détail en journal, jamais renvoyé au navigateur.
+      console.error('submit-access-request: insertion', insertError);
+      return new Response(JSON.stringify({ error: 'Erreur interne. Réessaie dans un instant.' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -223,6 +241,10 @@ Deno.serve(async (req) => {
     // l'email de confirmation échoue (secrets manquants, Resend indisponible) -- jamais perdre une
     // vraie demande pour un souci d'email de courtoisie.
     const fromTutorial = !!(v_message && v_message.startsWith('Depuis le tutoriel'));
+    if (quietMode) {
+      console.warn('submit-access-request: plus de 30 demandes en une heure — demande gardée, e-mails non envoyés');
+      return new Response(JSON.stringify({ ok: true, emailSent: false }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const emailResult = await sendConfirmationEmail(v_email, v_lang, fromTutorial ? null : (v_intent === 'studio' ? 'studio' : 'composer'));
     if (!emailResult.ok) {
       console.error('submit-access-request: email de confirmation non envoyé —', emailResult.error);
