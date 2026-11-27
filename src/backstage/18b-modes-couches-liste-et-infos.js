@@ -105,13 +105,15 @@
           ` : ''}
           <label data-help="trackDescription" style="margin-top:14px">${tr('descriptionLabel')}</label>
           <textarea class="linkable" data-field="description" data-ti="${ti}">${escapeHtml(track.description)}</textarea>
+          <div data-adv>
           <label style="margin-top:14px">${tr('trackTagsLabel')}</label>
           <input type="text" data-field="tags" data-ti="${ti}" value="${escapeAttr(track.tags || '')}">
           <div class="hint-inline">${tr('trackTagsHint')}</div>
-          ${trackNormalizeHtml(track, ti)}
-          ${trackPitchFxHtml(track, ti)}
-          ${fxTriggersEditorHtml(track, ti)}
-          <div data-role="fxSlidersHost">${fxSlidersEditorHtml(track, ti)}</div>
+          </div>
+          ${advHtml(trackNormalizeHtml(track, ti))}
+          ${advHtml(trackPitchFxHtml(track, ti))}
+          ${advHtml(fxTriggersEditorHtml(track, ti))}
+          <div data-role="fxSlidersHost" data-adv>${fxSlidersEditorHtml(track, ti)}</div>
         `;
         modeDetailHost.appendChild(infoEl);
         if (isStatic) {
@@ -120,6 +122,7 @@
           const layer0 = track.layers[0];
           staticCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'));
           const staticFxHost = infoEl.querySelector('[data-role="staticFxHost"]');
+          if (staticFxHost) staticFxHost.setAttribute('data-adv', '');
           if (staticFxHost) staticFxHost.innerHTML = layerFxHtml(layer0, ti, null);
           wireFileControl(staticCtrlHost, '.wav,audio/wav,.mp3,audio/mp3,audio/mpeg',
             () => layer0.pendingFile, () => layer0.remoteFile,

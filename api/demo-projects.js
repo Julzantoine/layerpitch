@@ -9,69 +9,72 @@
 (function () {
   const ME = { id: 'demo-user', email: 'demo@layerpitch.com' };
 
-  // ---------- Données de départ (fil rouge fictif « Music City », 02/11 : remplace « Alone in the Barque ») ----------
-  // Le jeu de Joshua, mis en musique par le compositeur Daniel (le même que dans les leçons AdReel et album du Backstage) : quatre villes, un seul tempo (110 bpm), et la musique
-  // de la série « Jazz Hi/Lo » de Jules-Antoine. Rock City est le carrefour : toutes les rues y mènent.
+  // ---------- Données de départ (fil rouge fictif « Dernier Étage », 18/11 : remplace « Music City » dans l'espace Projet) ----------
+  // Jeu d'horreur psychologique sur le burn-out en entreprise, mis en musique par le compositeur Daniel (le même que dans les leçons AdReel et album
+  // du Backstage). Données recopiées de scripts/seed-demo-dernier-etage.js (le Projet de démo réel), allégées. Images de gameplay : Protocol Interactive
+  // (« Something Is Wrong »), avec leur aimable autorisation : le crédit est la première note du Moodboard.
+  const STEAM = 'https://store.steampowered.com/app/3895130/Something_is_wrong/';
   const SEED = {
-    project: { title: 'Music City', description: 'Jeu d’exploration musicale. Quatre villes (Jazz City, Rock City, Disco City, Synth City), un style par ville, et toute la ville bat au même tempo.' },
+    project: { title: 'Dernier Étage', description: 'Projet fictif : jeu d’horreur psychologique sur le burn-out en entreprise. Une tour de bureaux, des étages de plus en plus sombres, et deux versions de la musique à comparer.' },
     members: [
-      { email: 'joshua@musiccity.example', role: 'admin' },
-      { email: 'lea@musiccity.example', role: 'editor' },
-      { email: 'malik@musiccity.example', role: 'editor' },
+      { email: 'ines@dernier-etage.example', role: 'admin' },
+      { email: 'karim@dernier-etage.example', role: 'editor' },
       { email: 'daniel.orcman@example.com', role: 'editor' }, // le compositeur
     ],
     // [heure d’hier, auteur, texte] — discussion fictive.
     messages: [
-      ['10:02', 'Joshua', 'Version 1 de la vidéo de gameplay en ligne : la balade dans Jazz City, de la rue jusqu’au club.'],
-      ['10:09', 'Léa', 'Je l’ai vue. L’image passe bien, mais la musique est plate : quand on entre dans le club, rien ne change.'],
-      ['10:14', 'Joshua', 'C’est la musique provisoire. Il faudrait que la ville respire avec le joueur.'],
-      ['10:21', 'Daniel', 'Je propose une ambiance par ville, toutes au même tempo pour passer de l’une à l’autre sans casser le rythme. Et dans le club, des couches qui s’ajoutent quand la salle se remplit.'],
-      ['10:25', 'Malik', 'Côté jeu, je peux t’envoyer le nombre de clients dans le club, en continu.'],
-      ['10:27', 'Daniel', 'Parfait : la contrebasse seule quand c’est vide, la batterie quand ça se remplit, le clavier quand c’est plein.'],
-      ['10:31', 'Léa', 'Et au bar ? J’aimerais entendre les glaçons dans les verres.'],
-      ['10:34', 'Daniel', 'Ça, c’est un Sfx : il se joue par-dessus la musique, avec une variante différente à chaque fois.'],
-      ['10:38', 'Joshua', 'Et Rock City ? C’est le carrefour, toutes les rues y mènent.'],
-      ['10:40', 'Léa', 'Je prépare la carte des quatre villes.'],
-      ['10:44', 'Daniel', 'Je pose la vraie musique sur la vidéo : ce sera la version 2.'],
-      ['10:46', 'Malik', 'Garde la v1 à côté, qu’on compare les deux d’un coup d’œil.'],
-      ['10:49', 'Joshua', 'Validé. On présente la v2 jeudi.'],
+      ['10:02', 'Inès', 'Première scène en ligne : O. traverse l’open space jusqu’à la photocopieuse, puis monte à l’étage sombre et finit dans la salle d’archives.'],
+      ['10:08', 'Karim', 'Je l’ai vue. Les piles de dossiers partout, ça dit déjà tout : personne ne range, personne ne part. Et la musique ?'],
+      ['10:12', 'Daniel', 'J’ai préparé deux versions. A : une mélodie douce posée sur les couches. B : aucune mélodie, juste de la texture. Je voulais qu’on les compare sur la même image.'],
+      ['10:15', 'Inès', 'Dans le bureau, je veux que ça sonne presque normal. Un quotidien qui tient debout, mais un peu trop propre.'],
+      ['10:19', 'Daniel', 'C’est la version A pour la première partie : la mélodie rassure, comme le bureau. Les couches arrivent au fil des déplacements : une quand O. passe à la photocopieuse, une autre quand elle reprend son document.'],
+      ['10:24', 'Karim', 'Et quand elle prend l’ascenseur ? Je voudrais que le joueur sente qu’il n’y a plus de retour en arrière.'],
+      ['10:27', 'Daniel', 'Un effet ponctuel à l’ouverture des portes, et la musique du bureau s’arrête net. Ensuite un drone seul, pour tout l’étage sombre.'],
+      ['10:31', 'Inès', 'J’aime ça. Le silence du bureau qui disparaît, c’est le moment où ce n’est plus le travail, c’est la tête.'],
+      ['10:36', 'Karim', 'Version B sur la même scène, alors. Sans mélodie, le joueur n’a plus rien pour se raccrocher, même au bureau. Ça change la lecture.'],
+      ['10:40', 'Daniel', 'Oui. A rassure puis lâche. B inquiète dès le premier pas. Je les ai rangées côte à côte dans le montage, tu peux basculer de l’une à l’autre.'],
+      ['10:45', 'Inès', 'Dans la salle d’archives, vide et dans le noir, quand O. trouve la lampe : je ne veux presque rien entendre. Un grésillement, un souffle.'],
+      ['10:49', 'Karim', 'La lampe est aussi un objet de jeu : elle éclaire un rayon de plus en plus court, comme le temps qui reste.'],
+      ['10:53', 'Daniel', 'Parfait : plus la batterie baisse, plus la texture se resserre. Je prépare la carte du niveau avec les zones : bureau, couloir, archives.'],
+      ['10:58', 'Inès', 'Validé. On garde les deux versions de l’ouverture pour le test joueurs de jeudi.'],
     ],
-    // Les quatre villes du jeu, comme sections du Projet.
-    sections: ['Jazz City', 'Rock City', 'Disco City', 'Synth City'],
+    // Les sections du Projet.
+    sections: ['Direction artistique', 'Musique : mélodie ou texture ?', 'Bruitages du bureau', 'Scènes clés'],
     // Notes de Moodboard de départ (au Moodboard général).
     notes: [
-      ['Direction sonore', 'Un tempo pour toute la ville (110 bpm), un style par quartier. On passe d’une ville à l’autre sans jamais casser le rythme.'],
-      ['Jazz City la nuit', 'Rues mouillées, enseignes au néon bleu et ambre, saxophone qui s’échappe d’une porte entrouverte.'],
-      ['Le club', 'Petite salle en sous-sol, scène au fond, bar en cuivre. Plus la salle se remplit, plus l’orchestre s’étoffe.'],
+      ['À propos de cette démo : projet fictif et crédits', 'Ce Projet est fictif : il a été imaginé pour la démonstration de LayerPitch. Les images de gameplay sont fournies avec l’aimable autorisation de Protocol Interactive (Joris Balzanelli et Samir Bensadoun), développeurs de « Something Is Wrong », un jeu en développement. Allez voir leur jeu sur Steam : ' + STEAM],
+      ['Un bureau trop propre', 'Open space aux lumières froides, moquette grise, écrans allumés. Presque rassurant, avec quelque chose qui sonne faux.'],
+      ['La lampe', 'Objet de jeu et symbole : elle éclaire de moins en moins loin, comme l’énergie qui s’épuise.'],
     ],
-    // Références musicales déjà épinglées au Moodboard (liens vérifiés le 02/11). Les autres se déposent pendant la leçon (LESSON_LINKS).
+    // Références déjà épinglées au Moodboard. D'autres se déposent pendant la leçon (LESSON_LINKS).
     links: [
-      ['Banjo-Kazooie : Gruntilda’s Lair', 'https://www.youtube.com/watch?v=O5yOvsl0ftQ', 'Le même thème change d’instruments selon la zone, sans couper : notre idée d’une ville, un tempo, un style par quartier.'],
-      ['Cuphead : l’enregistrement de « Floral Fury »', 'https://www.youtube.com/watch?v=v6h1vM9W2NM', 'Big band jazz enregistré en live : la couleur de Jazz City et du club.'],
+      ['Réf. musicale : Mica Levi, « Love » (Under the Skin)', 'https://www.youtube.com/watch?v=Z_Cc20I-maM', 'Cordes qui glissent, rien de mélodique à quoi se raccrocher. Le malaise par la texture.'],
+      ['Réf. graphique : Edward Hopper, « Office at Night »', 'https://en.wikipedia.org/wiki/Office_at_Night', 'Une lumière froide, deux personnes dans un bureau qui ne se parlent pas. Le malaise par le cadrage.'],
     ],
   };
-  // Leçons Vitrine (02/11) : images tirées des clips de la vidéo de gameplay, la vidéo elle-même et deux morceaux favoris (★, repris
-  // d'office par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers dans media.layerpitch.com/tuto/music-city/.
-  const MC_DIR = 'https://media.layerpitch.com/tuto/music-city/';
-  const SHOWCASE_IMAGES = [['La rue de Jazz City, la nuit', 'rue.jpg'], ['L’escalier du club', 'escalier.jpg'], ['Dans le club', 'club.jpg'], ['La scène', 'scene.jpg']]
-    .map(([title, file]) => ({ title, name: file, url: MC_DIR + file }));
-  const SHOWCASE_VIDEO = { title: 'Music City : de la rue au club (gameplay)', name: 'music-city-gameplay-musique1.mp4', url: 'https://media.layerpitch.com/tuto/music-city-gameplay-musique1.mp4' };
-  const SHOWCASE_TRACKS = [['bmvilh6aprhhug', 'Jazz Hi Static'], ['bmvidtfhvfa5tt', 'Jazz Hi Lay. Add.']];
-  const SHOWCASE_PITCH = 'Music City est un jeu d’exploration musicale. Tu traverses quatre villes, Jazz City, Rock City, Disco City et Synth City : la musique change de style à chaque quartier, sans jamais perdre le tempo.';
+  // Leçons Vitrine (18/11, refaites pour « Dernier Étage ») : quatre images du jeu, le montage vidéo « Short SIW Test #1 » et deux morceaux favoris (★, repris d'office
+  // par le bloc « Morceaux » d'une nouvelle vitrine). Fichiers à déposer dans media.layerpitch.com/tuto/dernier-etage/ (dossier medias-dernier-etage/ de
+  // Jules-Antoine). Images et extrait : Protocol Interactive, « Something Is Wrong » (en développement), accord demandé le 18/11 : TANT QU'IL N'EST PAS CONFIRMÉ,
+  // les deux leçons restent réservées aux admins (adminOnly dans src/backstage/43-visite-guidee.js).
+  const MC_DIR = 'https://media.layerpitch.com/tuto/';
+  // Captures de Jules-Antoine, déposées telles quelles (PNG, noms d'origine) dans tuto/ ; encodées pour l'adresse (apostrophe courbe, accents).
+  const SHOWCASE_IMAGES = [['Le bureau d’Allrisk Solutions', '11.13.22'], ['L’écran d’ordinateur du jeu', '11.14.07'], ['Le couloir sombre', '11.14.23'], ['L’écran-titre', '11.14.58']]
+    .map(([title, t]) => { const name = 'Capture d’écran 2026-11-18 à ' + t + '.png'; return { title, name, url: MC_DIR + encodeURIComponent(name) }; });
+  const SHOWCASE_TRACKS = [['bmwb6s3d467w77', 'Welcome to the Office'], ['bmw3ds8idckeds', 'Drone Urbex #2']];
+  const SHOWCASE_PITCH = 'Vous êtes employé(e) dans une tour de bureaux qui ne ferme jamais. Les dossiers s’empilent, les néons bourdonnent, et chaque étage est un peu plus sombre que le précédent. Un jeu à l’ambiance lente, où la musique ne dit pas quoi ressentir : elle suit votre fatigue.';
   // Vitrine « déjà construite » (leçon apparence) : le résultat de la leçon « construire ».
-  const SHOWCASE_LINKS = ['https://www.instagram.com/musiccity.exemple', 'https://store.steampowered.com/search/?term=music%20city%20exemple'];
+  const SHOWCASE_LINKS = ['https://www.instagram.com/dernier.etage.exemple', STEAM];
   const TUTO_VITRINE_KEY = 'layerpitch_tuto_vitrine_v1'; // aperçu : lu par vitrine.html?tuto
 
-  // Carte de la balade : celle de Jules-Antoine (Projet réel « Music City », 02/11), recopiée telle quelle.
-  const WALK_MAP = {"edges":[{"id":"emvzsj6ph03ug","to":"n3","from":"n1","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e3","to":"n4","from":"n3","enemy":false,"label":"","sounds":{"main":[{"id":"bmvzsfnd1c3n9o","kind":"track","title":"Street+Footsteps"}],"room":[],"combat":[]},"transition":null},{"id":"e4","to":"n5","from":"n3","enemy":false,"label":"","sounds":{"main":[{"id":"bmvzsfnd1c3n9o","kind":"track","title":"Street+Footsteps"}],"room":[],"combat":[]},"transition":null}],"nodes":[{"x":-240,"y":0,"id":"n1","note":"","side":false,"type":"start","label":"Jazz City","anchor":null,"sounds":{"main":[{"id":"bmvill7tqkvevl","kind":"track","title":"Jazz Lo Static"}],"room":[],"combat":[]},"transition":null},{"x":0,"y":0,"id":"n3","note":"","side":false,"type":"place","label":"Rock City","anchor":null,"sounds":{"main":[{"id":"bmvzs0mx1ifoqg","kind":"track","title":"Jazz Hi Rock City 4M 110bpm"}],"room":[],"combat":[]},"transition":null},{"x":260,"y":-110,"id":"n4","note":"La boîte de nuit de Disco City : sa carte est au niveau 2.","side":false,"type":"place","label":"Disco City","anchor":null,"sounds":{"main":[{"id":"bmvzrzt5b2xy8n","kind":"track","title":"Jazz Hi Disco City"}],"room":[],"combat":[]},"transition":null},{"x":260,"y":110,"id":"n5","note":"","side":false,"type":"place","label":"Synth City","anchor":null,"sounds":{"main":[{"id":"bmvzs1ea70wix6","kind":"track","title":"Jazz Hi Synth city"}],"room":[],"combat":[]},"transition":null}],"defaults":{"transition":{"sec":2,"sync":"bar","style":"crossfade"}},"roomTone":{"id":"bmvzsorsis6wyd","kind":"track","title":"City Birds"},"roomToneDb":-14};
+  // Carte de la balade (18/11) : le niveau 1 du projet de démo « Dernier Étage » (landing studio), recopiée telle quelle depuis la base (lecture publique).
+  const WALK_MAP = {"edges":[{"id":"e1","to":"photocop","from":"poste","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e2","to":"bureauchef","from":"photocop","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e3","to":"ascenseur","from":"bureauchef","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e4","to":"couloir","from":"ascenseur","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e5","to":"archives","from":"couloir","enemy":false,"label":"","sounds":{"main":[{"id":"bmwla2l74uxhxw","kind":"track","title":"RoomTone"}],"room":[],"combat":[]},"transition":null},{"id":"e6","to":"lampe","from":"archives","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e7","to":"porte","from":"archives","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"id":"e8","to":"secrete","from":"porte","enemy":false,"label":"","sounds":{"main":[],"room":[],"combat":[]},"transition":null}],"modes":[],"nodes":[{"x":90,"y":250,"id":"poste","note":"O. commence ici, au milieu des piles de dossiers.","side":false,"type":"start","label":"Poste de travail","layer":1,"anchor":null,"sounds":{"main":[{"id":"bmwb6s3d467w77","kind":"track","title":"Welcome to the Office Dynamic Edition Alt 1"}],"room":[],"combat":[]},"transition":null},{"x":230,"y":130,"id":"photocop","note":"Le son régulier qui rythme la journée. O. y prend un document.","side":false,"type":"place","label":"Photocopieuse","layer":2,"anchor":null,"sounds":{"main":[{"id":"bmwb6s3d467w77","kind":"track","title":"Welcome to the Office Dynamic Edition Alt 1"}],"room":[],"combat":[]},"transition":null},{"x":290,"y":250,"id":"bureauchef","note":"Le petit enjeu qui fait tout peser.","side":false,"type":"place","label":"Bureau où apporter le document","layer":3,"anchor":null,"sounds":{"main":[{"id":"bmwb6s3d467w77","kind":"track","title":"Welcome to the Office Dynamic Edition Alt 1"}],"room":[],"combat":[]},"transition":null},{"x":385,"y":200,"id":"ascenseur","note":"Seule sortie. À l'ouverture des portes, la musique du bureau s'arrête.","side":false,"type":"place","label":"Ascenseur","anchor":null,"sounds":{"main":[{"id":"bmw40wgx1bwy7y","kind":"sfx","title":"Short Elevator"}],"room":[],"combat":[]},"transition":null},{"x":510,"y":200,"id":"couloir","note":"On déambule, lumières éteintes. Un seul drone.","side":false,"type":"place","label":"Couloir sombre","anchor":null,"sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"x":740,"y":200,"id":"archives","note":"Vide et dans le noir. Des étagères nues.","side":false,"type":"place","label":"Salle d'archives","anchor":null,"sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"x":830,"y":120,"id":"lampe","note":"Première lumière du niveau. Elle éclaire de moins en moins loin.","side":false,"type":"treasure","label":"La lampe","anchor":null,"sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"x":800,"y":330,"id":"porte","note":"Derrière la dernière étagère, une porte qu'on n'avait pas vue.","side":false,"type":"place","label":"Porte dissimulée","anchor":null,"sounds":{"main":[],"room":[],"combat":[]},"transition":null},{"x":780,"y":440,"id":"secrete","note":"Ce que le bureau ne montre pas.","side":false,"type":"place","label":"Salle secrète","anchor":null,"sounds":{"main":[],"room":[],"combat":[]},"transition":null}],"zones":[{"h":260,"w":360,"x":40,"y":60,"id":"z-bureau","note":"Open space, lumières froides, piles de dossiers partout.","color":"#2f80c0","label":"Bureau","shape":"rect","sounds":{"main":[],"room":[],"combat":[]},"keepMusic":false,"transition":null},{"h":90,"w":240,"x":400,"y":160,"id":"z-couloir","note":"L'étage sombre où l'on déambule.","color":"#5f6b7a","label":"Couloir","shape":"rect","sounds":{"main":[],"room":[],"combat":[]},"keepMusic":false,"transition":null},{"h":270,"w":260,"x":640,"y":60,"id":"z-archives","note":"Vide et dans le noir.","color":"#b8862e","label":"Salle d'archives","shape":"rect","sounds":{"main":[{"id":"bmw41gclr2m44q","kind":"track","title":"Drone Urbex#1_Joris"}],"room":[],"combat":[]},"keepMusic":false,"transition":null},{"h":210,"w":200,"x":680,"y":330,"id":"z-secrete","note":"Accessible seulement depuis les archives.","color":"#7a5cc0","label":"Salle secrète","shape":"rect","sounds":{"main":[{"id":"bmw3ds8idckeds","kind":"track","title":"Drone Urbex#2_Joris"}],"room":[],"combat":[]},"keepMusic":false,"transition":null}],"defaults":{"transition":{"sec":2,"sync":"bar","style":"crossfade"}},"roomTone":{"id":"bmwla2l74uxhxw","kind":"track","title":"RoomTone"},"background":null,"roomDuckDb":3,"roomToneDb":-14};
 
   // Aperçus de liens préremplis : adresse -> { provider, title, author, thumbnail, embedUrl, embedHeight }. Une adresse absente reçoit
   // un aperçu construit depuis son adresse.
   const LINK_PREVIEWS = {
-    'https://www.youtube.com/watch?v=O5yOvsl0ftQ': { provider: 'youtube', title: 'Gruntilda’s Lair (Medley)', author: 'Banjo-Kazooie, Grant Kirkhope', thumbnail: 'https://i.ytimg.com/vi/O5yOvsl0ftQ/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/O5yOvsl0ftQ' },
-    'https://www.youtube.com/watch?v=v6h1vM9W2NM': { provider: 'youtube', title: 'The Music of Cuphead: Recording Floral Fury', author: 'Studio MDHR', thumbnail: 'https://i.ytimg.com/vi/v6h1vM9W2NM/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/v6h1vM9W2NM' },
-    'https://www.youtube.com/watch?v=O2i1Vq3Odbg': { provider: 'youtube', title: 'Hi-Fi RUSH | Launch Trailer', author: 'Xbox', thumbnail: 'https://i.ytimg.com/vi/O2i1Vq3Odbg/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/O2i1Vq3Odbg' },
-    'https://open.spotify.com/album/4pJT0WKggr4xk149X8A6KC': { provider: 'spotify', title: 'PERSONA5 ORIGINAL SOUNDTRACK', author: 'ATLUS Sound Team', embedUrl: 'https://open.spotify.com/embed/album/4pJT0WKggr4xk149X8A6KC', embedHeight: 352 },
+    'https://www.youtube.com/watch?v=Z_Cc20I-maM': { provider: 'youtube', title: 'Mica Levi, « Love » (Under the Skin)', thumbnail: 'https://i.ytimg.com/vi/Z_Cc20I-maM/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/Z_Cc20I-maM' },
+    'https://open.spotify.com/album/5XjZ6xhbPbALPVGd5Zx0Cw': { provider: 'spotify', title: 'SILENT HILL2 (Original Soundtrack)', author: 'Akira Yamaoka', embedUrl: 'https://open.spotify.com/embed/album/5XjZ6xhbPbALPVGd5Zx0Cw', embedHeight: 352 },
+    'https://www.youtube.com/watch?v=aM_HhU_CV44': { provider: 'youtube', title: 'Hildur Guðnadóttir, « Bridge of Death » (Chernobyl)', thumbnail: 'https://i.ytimg.com/vi/aM_HhU_CV44/hqdefault.jpg', embedUrl: 'https://www.youtube-nocookie.com/embed/aM_HhU_CV44' },
   };
 
   const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
@@ -100,7 +103,7 @@
     let created = false; // leçon « créer un projet » : la liste des projets est vide tant qu'on n'en a pas créé un (opts.startEmpty)
     const activity = (kind, payload) => log.unshift({ kind, payload: payload || {}, createdAt: now(), actorEmail: ME.email });
 
-    const project = { id: 'demo-music-city', title: SEED.project.title, description: SEED.project.description, ownerKind: 'composer', archived: false, createdAt: stamp('09:00'), updatedAt: now() };
+    const project = { id: 'demo-dernier-etage', title: SEED.project.title, description: SEED.project.description, ownerKind: 'composer', archived: false, createdAt: stamp('09:00'), updatedAt: now() };
     const members = SEED.members.map((m, i) => ({ profileId: 'm' + i, email: m.email, status: 'active', source: 'team', role: m.role, me: false }));
     members.unshift({ profileId: ME.id, email: ME.email, status: 'active', source: 'owner', role: 'admin', me: true });
 
@@ -115,15 +118,15 @@
     let secPins = [];                  // { sectionId, assetId, position, starred }
     const annotations = [];
     // Musique du Projet : un pack déjà partagé par un autre compositeur ; le pack du compositeur fictif (api/demo-client.js) se partage en leçon.
-    const PACK_TITLES = { 'p-music-city': 'Music City : le club de jazz (exemple)' };
-    const sharedPacks = [{ packId: 'p-cities', title: 'Music City : les quatre villes (pack de Daniel)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'daniel.orcman@example.com' }];
+    const PACK_TITLES = { 'p-music-city': 'Dernier Étage : le bureau (exemple)' };
+    const sharedPacks = [{ packId: 'p-cities', title: 'Dernier Étage : les ambiances (pack de Daniel)', illustration: null, mode: 'share', priceEurCents: null, subscriberCredits: null, mine: false, sharedByEmail: 'daniel.orcman@example.com' }];
     const maps = [];
     // Leçons « musique » (opts.seedMap) et « balade » (opts.seedMapMusic) : la carte de Jules-Antoine (WALK_MAP), sans ses sons pour la
     // leçon « musique » (on les y pose un à un), complète pour la balade ; ses morceaux sont dans api/demo-client.js (DEMO_TRACKS_CITY_MAP).
     if (opts.seedMap || opts.seedMapMusic) {
       const data = JSON.parse(JSON.stringify(WALK_MAP));
-      if (!opts.seedMapMusic) { data.nodes.concat(data.edges).forEach(x => { x.sounds = { main: [], room: [], combat: [] }; }); data.roomTone = null; }
-      maps.push({ id: 'map-music-city', title: 'Music City', updatedAt: now(), data });
+      if (!opts.seedMapMusic) { data.nodes.concat(data.edges, data.zones || []).forEach(x => { x.sounds = { main: [], room: [], combat: [] }; }); data.roomTone = null; }
+      maps.push({ id: 'map-dernier-etage', title: 'Niveau 1 : le bureau, le couloir, les archives', updatedAt: now(), data });
     }
     const snapshots = [];
     let appearance = {};
@@ -132,11 +135,13 @@
     const vitrines = [];
     if (opts.seedVitrine || opts.seedVitrineBuilt) {
       const fileAsset = (kind, f, mime) => { const fileId = nid('f'); files[fileId] = { name: f.name, size: 0, type: mime, url: f.url };
-        const a = { id: nid('a'), kind, origin: 'own', title: f.title, body: '', url: null, fileId, fileName: f.name, mimeType: mime, createdAt: now(), authorEmail: 'lea@musiccity.example', preview: null }; assets.push(a); return a; };
-      const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/jpeg'));
-      const vid = fileAsset('video', SHOWCASE_VIDEO, 'video/mp4');
+        const a = { id: nid('a'), kind, origin: 'own', title: f.title, body: '', url: null, fileId, fileName: f.name, mimeType: mime, createdAt: now(), authorEmail: 'ines@dernier-etage.example', preview: null }; assets.push(a); return a; };
+      const imgs = SHOWCASE_IMAGES.map(f => fileAsset('image', f, 'image/png'));
+      // Bloc « Vidéo » : le montage « Short SIW Test #1 » (menu des versions) (plus d'extrait mp4 à héberger : le bloc lit le montage directement).
+      const vid = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Scène d’ouverture : version A (mélodie) et version B (texture)', body: '', montageId: 'cap-dernier-etage', montageTitle: 'Short SIW Test #1', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+      assets.push(vid);
       const trk = SHOWCASE_TRACKS.map(([trackId, title]) => { const a = { id: nid('a'), kind: 'track', origin: 'own', title, trackId, starred: true, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null }; assets.push(a); return a; });
-      if (opts.seedVitrineBuilt) vitrines.push({ id: 'vit-music-city', audience: 'players', display: 'page', title: 'Music City', subtitle: 'Quatre villes, un tempo : la ville qui joue avec toi.', slug: 'music-city',
+      if (opts.seedVitrineBuilt) vitrines.push({ id: 'vit-dernier-etage', audience: 'players', display: 'page', title: 'Dernier Étage', subtitle: 'Un jeu d’horreur psychologique : le burn-out, étage par étage.', slug: 'dernier-etage',
         published: false, secretToken: null, logoAssetId: null, bgAssetId: null, theme: {},
         blocks: [{ id: 'vb1', type: 'header' }, { id: 'vb2', type: 'tracks', assetIds: trk.map(a => a.id) }, { id: 'vb3', type: 'text', title: 'Le pitch', content: SHOWCASE_PITCH, align: 'left' },
           { id: 'vb4', type: 'video', assetIds: [vid.id] }, { id: 'vb5', type: 'photo', assetIds: imgs.map(a => a.id), caption: '' },
@@ -148,7 +153,7 @@
       (v.blocks || []).forEach(b => (b.assetIds || []).forEach(id => ids.add(id)));
       const map = {}, fileUrls = {};
       ids.forEach(id => { const a = assets.find(x => x.id === id); if (!a) return;
-        map[id] = { kind: a.kind, title: a.title, fileId: a.fileId || null, trackId: a.trackId || null, url: a.url || null, preview: a.preview || null, packId: a.packId || null };
+        map[id] = { kind: a.kind, title: a.title, fileId: a.fileId || null, trackId: a.trackId || null, url: a.url || null, preview: a.preview || null, packId: a.packId || null, montageId: a.montageId || null, montageTitle: a.montageTitle || null };
         if (a.fileId && files[a.fileId]) fileUrls[a.fileId] = files[a.fileId].url; });
       const trackIds = Object.values(map).filter(a => a.trackId).map(a => a.trackId);
       let tracks = [];
@@ -160,11 +165,12 @@
     const addNote = (title, body, pin) => { const a = { id: nid('a'), kind: 'note', origin: 'own', title, body, url: null, fileId: null, createdAt: now(), authorEmail: ME.email, preview: null }; assets.push(a); if (pin) moodboard.push(a.id); return a; };
     SEED.notes.forEach(([t, b]) => addNote(t, b, true));
     // Comme sur la vraie page, une adresse YouTube/Vimeo devient une vidéo, les autres un lien.
-    SEED.links.forEach(([title, url, body]) => { const a = { id: nid('a'), kind: /youtube\.com|youtu\.be|vimeo\.com/.test(url) ? 'video' : 'link', origin: 'external', title, body, url, fileId: null, createdAt: now(), authorEmail: 'lea@musiccity.example', preview: previewFromUrl(url) }; assets.push(a); moodboard.push(a.id); });
-    // Leçon « Annoter un montage » (21/10) : le montage de « Music City » (deux musiques, api/demo-client.js : cap-music-city) déjà ajouté au Projet.
+    SEED.links.forEach(([title, url, body]) => { const a = { id: nid('a'), kind: /youtube\.com|youtu\.be|vimeo\.com/.test(url) ? 'video' : 'link', origin: 'external', title, body, url, fileId: null, createdAt: now(), authorEmail: 'ines@dernier-etage.example', preview: previewFromUrl(url) }; assets.push(a); moodboard.push(a.id); });
+    // Leçon « Annoter un montage » (21/10, refaite le 18/11) : le montage « Short SIW Test #1 » de « Dernier Étage » (version d'origine + « Version alternative #2 »,
+    // api/demo-client.js : cap-dernier-etage) déjà ajouté au Projet.
     if (opts.seedMontage) {
-      const m = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Music City : de la rue au club', body: 'Deux musiques sur la même scène : laquelle garde-t-on ?',
-        montageId: 'cap-music-city', montageTitle: 'Music City : de la rue au club', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
+      const m = { id: nid('a'), kind: 'montage', origin: 'own', title: 'Scène d’ouverture : version A (mélodie) et version B (texture)', body: 'Bureau, photocopieuse, ascenseur, étage sombre : deux musiques sur la même scène. Laquelle garde-t-on ? Images de gameplay : Protocol Interactive, « Something Is Wrong » (en développement), avec leur aimable autorisation.',
+        montageId: 'cap-dernier-etage', montageTitle: 'Short SIW Test #1', url: null, fileId: null, createdAt: now(), authorEmail: 'daniel.orcman@example.com', preview: null };
       assets.push(m); moodboard.push(m.id);
     }
 
@@ -298,7 +304,7 @@
       // Vitrines : gardées dans la page (jamais publiées) ; l'aperçu passe par le navigateur (storePreview).
       vitrines: async () => ok(vitrines.map(v => Object.assign({}, v))), vitrineStats: async () => ok(null), getVitrine: async () => ok(null),
       saveVitrine: async (id, p) => {
-        const doc = JSON.parse(JSON.stringify(p)); doc.slug = doc.slug || 'music-city'; doc.secretToken = null;
+        const doc = JSON.parse(JSON.stringify(p)); doc.slug = doc.slug || 'dernier-etage'; doc.secretToken = null;
         const i = vitrines.findIndex(v => v.id === doc.id);
         if (i >= 0) vitrines[i] = Object.assign({}, vitrines[i], doc); else { doc.id = nid('vit'); vitrines.push(doc); }
         const v = i >= 0 ? vitrines[i] : doc;

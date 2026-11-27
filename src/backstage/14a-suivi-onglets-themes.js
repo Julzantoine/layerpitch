@@ -28,13 +28,19 @@ function switchTab(tabName) {
 // Ouvre un onglet et lance son chargement à la demande (appel RPC get_my_analytics() etc. -- jamais au chargement du
 // backstage, seulement quand le compositeur ouvre vraiment l'onglet).
 function openTab(tabName) {
+  const leaving = document.querySelector('.backstage-panel.active');
+  if (leaving && leaving.dataset.panel !== tabName && typeof homeNoteLeavingTab === 'function') homeNoteLeavingTab(leaving.dataset.panel); // « Continuer » de l'Accueil (48-accueil.js)
   switchTab(tabName);
+  if (tabName === 'home' && typeof renderHome === 'function') { renderHome(); loadHomeActivity(); }
   if (tabName === 'analytics') loadAnalyticsIfNeeded();
   if (tabName === 'videoLibrary') renderVideoLibrary();
   if (tabName === 'albums') loadAlbums();
+  try { if (typeof maybeOfferSectionTour === 'function') maybeOfferSectionTour(tabName); } catch (e) { /* une visite ne doit jamais bloquer l'ouverture d'un onglet ni le démarrage */ } // mini-visite à la première arrivée (43a-visites-de-section.js)
 }
 // Au rafraîchissement, on revient sur l'onglet où on était (pas de retour forcé sur l'AdReel).
 function restoreBackstageTab() {
+  // Accueil ouvert pour cette personne (13/11) : toujours l'Accueil à l'arrivée, rafraîchissement compris (le feu vert n'est pas encore connu ici : on se fie au dernier état).
+  if (typeof homeHintOn === 'function' && homeHintOn() && !isTutoMode()) { openTab('home'); return; }
   let name = null;
   try { name = sessionStorage.getItem(BACKSTAGE_TAB_STORAGE) || localStorage.getItem(BACKSTAGE_TAB_STORAGE); } catch (e) { return; }
   if (!name || name === 'content') return;
@@ -51,7 +57,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   });
 });
 
-const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), contact: tr('blockLabelContact') };
+const BLOCK_LABELS = { header: tr('blockLabelHeader'), bio: tr('blockLabelBio'), testimonials: tr('blockLabelTestimonials'), tracks: tr('blockLabelTracks'), text: tr('blockLabelText'), photo: tr('blockLabelPhoto'), video: tr('blockLabelVideo'), packs: tr('blockLabelPacks'), collections: tr('blockLabelCollections'), sfx: tr('blockLabelSfx'), socials: tr('blockLabelSocials'), linkpreview: tr('blockLabelLinkPreview'), contact: tr('blockLabelContact') };
 const SINGLETON_TYPES = ['header', 'bio', 'testimonials', 'tracks'];
 const KNOWN_TYPES = ['header', 'bio', 'testimonials', 'tracks', 'text', 'photo', 'video'];
 

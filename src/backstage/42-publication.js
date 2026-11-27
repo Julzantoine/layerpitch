@@ -49,7 +49,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         descriptionFr: sl.descriptionFr || '', descriptionEn: sl.descriptionEn || '',
         nextOptions: (sl.nextOptions && sl.nextOptions.length) ? sl.nextOptions.map(opt => ({
           targetId: opt.targetId, label: opt.label || '',
-          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
+          transition: (opt.transition && (opt.transition.remoteFile || opt.transition.pendingFile)) ? { label: opt.transition.label || '', bars: opt.transition.bars || 4, durationUnit: opt.transition.durationUnit || null, bpm: opt.transition.bpm, beatsPerBar: opt.transition.beatsPerBar, fadeOutBeat: opt.transition.fadeOutBeat, nextInBeat: opt.transition.nextInBeat, duration: opt.transition.duration, durationSeconds: opt.transition.durationSeconds, durationBeats: opt.transition.durationBeats, file: opt.transition.remoteFile || null, localUrl: opt.transition.remoteFile ? null : pendingPreviewUrl(opt.transition.pendingFile), originalFileName: opt.transition.originalFileName || null, gain: opt.transition.gain || 1, descriptionFr: opt.transition.descriptionFr || '', descriptionEn: opt.transition.descriptionEn || '', fx: opt.transition.fx || null } : null,
           fxActions: opt.fxActions || null
         })) : null,
         alternatives: sl.referencesSlotId ? [] : (sl.alternatives || []).map(a => ({ label: a.label || '', bars: a.bars || 8, file: a.remoteFile || null, localUrl: a.remoteFile ? null : pendingPreviewUrl(a.pendingFile), originalFileName: a.originalFileName || null, gain: a.gain || 1, volumeDb: a.volumeDb || 0 })),
@@ -70,7 +70,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         transition: (l.transition && (l.transition.remoteFile || l.transition.pendingFile)) ? {
           label: l.transition.label || '', durationUnit: l.transition.durationUnit || null,
           bars: l.transition.bars, durationBeats: l.transition.durationBeats, durationSeconds: l.transition.durationSeconds,
-          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar,
+          bpm: l.transition.bpm, beatsPerBar: l.transition.beatsPerBar, fadeOutBeat: l.transition.fadeOutBeat, nextInBeat: l.transition.nextInBeat, duration: l.transition.duration,
           file: l.transition.remoteFile || null, localUrl: l.transition.remoteFile ? null : pendingPreviewUrl(l.transition.pendingFile), originalFileName: l.transition.originalFileName || null,
           fx: l.transition.fx || null
         } : null,
@@ -148,6 +148,7 @@ function buildDataSnapshot(effectivePlan, publishedAt) {
         else if (b.type === 'collections') out = { id: b.id, type: 'collections', presentation: b.presentation || '', collectionIds: b.collectionIds || [] };
         else if (b.type === 'sfx') out = { id: b.id, type: 'sfx', sfxIds: b.sfxIds || [] };
         else if (b.type === 'socials') out = { id: b.id, type: 'socials', socialIds: b.socialIds || [] };
+        else if (b.type === 'linkpreview') out = { id: b.id, type: 'linkpreview', title: (b.title || '').trim(), description: (b.description || '').trim(), image: b.image || null, imageOriginalName: b.imageOriginalName || null, autoFit: b.autoFit !== false, fitMode: b.fitMode === 'contain' ? 'contain' : 'fill', fitColor: /^#[0-9a-f]{6}$/i.test(b.fitColor || '') ? b.fitColor : '#ffffff' };
         else out = { id: b.id, type: b.type };
         // Champ commun à tous les types de bloc, sans exception (décision : réglages par bloc partout) —
         // ajouté une seule fois ici plutôt que dupliqué dans chacune des branches ci-dessus. Image de
@@ -263,7 +264,7 @@ async function publishAll() {
         try { toSend = await sharePreviewFit(sharePreviewPendingFile, sharePreview.fitMode, sharePreview.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = sharePreviewPendingFile; }
       }
       const bytes = new Uint8Array(await toSend.arrayBuffer());
-      const fileName = `${myComposerId}/share-preview.${extOf(toSend.name)}`;
+      const fileName = `${myComposerId}/share-preview-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi (même raison que pour le bloc « Aperçu du lien »)
       await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
       sharePreview.image = fileName; sharePreview.imageOriginalName = sharePreviewPendingFile.name; sharePreviewPendingFile = null;
       log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
@@ -316,6 +317,18 @@ async function publishAll() {
             img.file = fileName; img.originalFileName = img.pendingFile.name; img.pendingFile = null;
             log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
           }
+        }
+        // Image du bloc invisible « Aperçu du lien » : images/<son id>/<id du bloc>-share.<ext>, ajustée au format 1200 × 630 si la case est cochée.
+        if (b.type === 'linkpreview' && b.pendingFile) {
+          let toSend = b.pendingFile;
+          if (b.autoFit !== false) {
+            try { toSend = await sharePreviewFit(b.pendingFile, b.fitMode, b.fitColor); } catch (e) { log(tr('sharePreviewFitFailed', { error: e && e.message ? e.message : String(e) }), 'warn'); toSend = b.pendingFile; }
+          }
+          const bytes = new Uint8Array(await toSend.arrayBuffer());
+          const fileName = `${myComposerId}/${b.id}-share-${Date.now().toString(36)}.${extOf(toSend.name)}`; // nom neuf à chaque envoi : sinon l'ancien nom (mis en file d'effacement au retrait) efface aussi le nouveau fichier, et le navigateur garde l'ancienne image en mémoire
+          await r2PutFile(`images/${fileName}`, bytes, imageContentType(extOf(fileName)));
+          b.image = fileName; b.imageOriginalName = b.pendingFile.name; b.pendingFile = null;
+          log(tr('uploadedImageGeneric', { file: fileName }), 'ok');
         }
         if (b.type === 'video') {
           for (let i = 0; i < b.videos.length; i++) {
@@ -590,6 +603,27 @@ async function publishAll() {
     }
     log(`Écriture en base : ${data.library.length} morceau(x) OK.`, 'ok');
 
+    // Protection par défaut (retour bêta du 11/11, décision du 12/11) : un morceau publié POUR LA PREMIÈRE FOIS est protégé tout de
+    // suite (fichiers dans le stockage privé, liens temporaires, plus de téléchargement direct). Seulement les nouveaux : ceux qui
+    // étaient déjà en base gardent le choix du compositeur. Une panne ne bloque pas la publication : le morceau reste public et un
+    // avertissement le dit. Admin seulement jusqu'au feu vert 'protect_by_default'.
+    if (flagOpen('protect_by_default') && publishedCatalog) {
+      const fresh = data.library.filter(t => t.id && !publishedCatalog.tracks.has(t.id) && !isExample(t) && !t.protected);
+      for (const t of fresh) {
+        log(tr('protectingNewTrack', { title: t.title || t.id }));
+        let r;
+        try { r = await window.LayerPitchTracks.setTrackProtected(t.id, true); }
+        catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+        if (r.ok) {
+          const live = library.find(x => x.id === t.id);
+          if (live) live.protected = true;
+          log(tr('protectedNewTrack', { title: t.title || t.id }), 'ok');
+        } else {
+          log(tr('protectNewTrackFailed', { title: t.title || t.id, error: r.error }), 'warn');
+        }
+      }
+    }
+
     log('Écriture en base : packs...');
     const pgPackErrors = [];
     for (const pack of data.packs) {
@@ -682,4 +716,5 @@ async function publishAll() {
 }
 
 // Retour sur l'onglet précédent après un rafraîchissement (sauf si l'adresse en demande un : ?tab=...).
-if (!new URLSearchParams(location.search).get('tab')) restoreBackstageTab();
+// Différé d'un cran (microtâche) : tout le script de la page (fichiers 43 à 48…) doit être lu avant d'ouvrir un onglet, sinon les « const/let » définis plus bas sont inaccessibles (13-14/11).
+if (!new URLSearchParams(location.search).get('tab')) Promise.resolve().then(() => { try { restoreBackstageTab(); } catch (e) { console.error('restoreBackstageTab', e); } });

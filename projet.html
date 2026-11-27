@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1794512239931">
-<link rel="stylesheet" href="player.css?v=1794512239931">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795462688859">
+<link rel="stylesheet" href="player.css?v=1795462688859">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -32,6 +32,14 @@
   .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
   .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  /* Image de fond (apparence du Projet) : l'image reste intacte, le texte posé directement dessus
+     repose sur une bande translucide floutée (verre dépoli) pour rester lisible. */
+  html.lp-has-bg-image .top, html.lp-has-bg-image .desc, html.lp-has-bg-image .tabs, html.lp-has-bg-image .lp-crumbs {
+    background: color-mix(in srgb, var(--bg-card) 68%, transparent); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1);
+    border-radius: 12px; padding: 8px 14px; }
+  html.lp-has-bg-image .lp-crumbs { width: fit-content; }
+  html.lp-has-bg-image .desc { margin: 4px 0 12px; padding: 10px 14px; }
+  html.lp-has-bg-image .tabs { margin: 12px 0 16px; width: fit-content; max-width: 100%; }
   .hint { font-size: 12.5px; line-height: 1.6; color: var(--text-dim); margin: 0 0 8px; }
   .btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: 12.5px; color: var(--text); text-decoration: none; display: inline-block; }
   .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
@@ -41,7 +49,7 @@
   .icon-btn { border: 1px solid var(--border); background: var(--bg-card); border-radius: 6px; min-width: 28px; height: 28px; cursor: pointer; color: var(--text-dim); font-size: 12px; }
   .icon-btn.on { color: var(--accent); border-color: var(--accent); }
   label { display: block; font-size: 12px; color: var(--text-dim); margin: 10px 0 4px; }
-  input[type="text"], input[type="email"], input[type="search"], input[type="url"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
+  input[type="text"], input[type="email"], input[type="search"], input[type="url"], input[type="date"], textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--bg-card); color: var(--text); }
   textarea { min-height: 64px; resize: vertical; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .msg { font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 1em; overflow-wrap: anywhere; }
@@ -117,8 +125,70 @@
   .sec-pick { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; cursor: pointer; }
   .sec-pick input { width: auto; margin: 0; }
   @media (max-width: 900px) { .sec-layout { grid-template-columns: minmax(0, 1fr); } .sec-nav { position: static; max-height: none; } }
+  /* Colonne Sections repliable (retour Joris 18/11) : repliée d'office, un onglet vertical comme la Discussion. */
+  .sec-layout.sec-collapsed { grid-template-columns: 44px minmax(0, 1fr); }
+  .sec-nav.collapsed { padding: 0; border: none; background: transparent; box-shadow: none; overflow: visible; }
+  /* Colonne de filtres façon boutique (19/11) */
+  .fct-applied { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; }
+  .fct-applied-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+  .fct-applied-top a { font-size: 12px; color: var(--text); text-decoration: underline; }
+  .fct-chip { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-top: 6px; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; background: var(--bg-card); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+  .fct-chip small { color: var(--text-dim); font-weight: 600; }
+  .fct-facet { border-top: 1px solid var(--border); padding: 10px 0; }
+  .fct-facet h4 { margin: 0 0 6px; font-size: 13px; }
+  .fct-row { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .fct-row:hover { background: var(--bg); }
+  .fct-row.on { background: var(--accent-soft); }
+  .fct-row input { margin: 0; width: 16px; height: 16px; flex: 0 0 auto; accent-color: var(--accent); }
+  .fct-name { min-width: 0; overflow-wrap: anywhere; }
+  .fct-row .meta { margin-left: auto; }
+  .fct-mode { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; font-size: 12px; color: var(--text-dim); }
+  .fct-mode label { cursor: pointer; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--bg-card); }
+  .fct-mode input { display: none; }
+  .fct-mode label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .sec-rail.on { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 900px) { .sec-layout.sec-collapsed { grid-template-columns: minmax(0, 1fr); } .sec-rail { flex-direction: row; width: auto; min-height: 0; padding: 8px 14px; } .sec-rail .chat-rail-label { writing-mode: horizontal-tb; } }
   /* Tableau */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  /* Moodboard : le visuel domine (retour Joris). Grille régulière, visuels recadrés en 4/3, étiquette de catégorie en tête. */
+  .mood-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  .mood-grid .item { padding: 0; gap: 0; overflow: hidden; }
+  .item .edit-form { display: flex; flex-direction: column; gap: 6px; }
+  .item .edit-form textarea { min-height: 90px; }
+  .item [hidden] { display: none; }
+  .mood-grid .item[hidden] { display: none; } /* sans cela, display:flex de .item l'emporte sur l'attribut hidden et les filtres n'ont aucun effet */
+  .mood-grid .item > :not(.item-visual) { margin-left: 14px; margin-right: 14px; }
+  .mood-grid .item > .item-kind { margin-top: 12px; }
+  .mood-grid .item > .item-title { margin-top: 4px; font-size: 17px; font-weight: 600; }
+  .mood-grid .item > .item-body { margin-top: 4px; }
+  .mood-grid .item > .meta { margin-top: 6px; }
+  .mood-grid .item > .item-actions { margin-top: 10px; margin-bottom: 12px; }
+  .mood-grid .item-visual { margin: 0; }
+  .mood-grid .item-visual img { width: 100%; aspect-ratio: 4 / 3; max-height: none; object-fit: cover; border-radius: 0; display: block; }
+  .mood-grid .item-visual .preview-thumb, .mood-grid .item-visual .lp-montage video { border-radius: 0; }
+  .mood-grid .item-visual .preview-thumb img { aspect-ratio: 4 / 3; max-height: none; }
+  .mood-grid .item-visual .preview-meta { padding: 6px 14px 0; }
+  /* Vignette de remplacement (note, lien sans aperçu, morceau…) : carte régulière, grande icône de catégorie, invitation à poser une image */
+  .item-ph { position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); font-size: 44px; }
+  .item-ph .ph-add { position: absolute; right: 8px; bottom: 8px; font-size: 12px; padding: 3px 10px; border: 1px dashed var(--accent); border-radius: 999px; background: var(--bg-card); color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; opacity: .85; }
+  .item-ph .ph-add:hover { opacity: 1; }
+  .item .cover-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .item .cover-edit img { width: 64px; height: 48px; object-fit: cover; border-radius: 4px; }
+  .mood-grid .item-kind { font-size: 11px; font-weight: 600; color: var(--accent); }
+  .mood-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .mood-filters .f { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); }
+  .mood-filters .f.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mood-grid[data-filter]:not([data-filter="all"]) .drag-handle { display: none; }
+  .drop-zone { border: 1.5px dashed var(--border); border-radius: 10px; padding: 14px; text-align: center; color: var(--text-dim); font-size: 13px; }
+  .drop-zone:hover { border-color: var(--accent); color: var(--accent); }
+  /* Formulaires d'ajout repliés : le contenu passe avant l'outil (retour Joris). */
+  .add-fold { margin-bottom: 14px; }
+  .add-fold > summary { cursor: pointer; display: inline-block; list-style: none; border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--accent); background: var(--bg-card); }
+  .add-fold > summary::-webkit-details-marker { display: none; }
+  .add-fold[open] > summary { margin-bottom: 10px; }
+  /* Montages vidéo : un lecteur par ligne, grand (retour Joris : « au moins à cette taille »). */
+  .grid.grid-wide { grid-template-columns: minmax(0, 1fr); max-width: 880px; }
+  .grid.grid-wide .item { padding: 16px; gap: 10px; }
   .item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .item.pitch { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
   .item-kind { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); }
@@ -171,15 +241,44 @@
   .tuto-banner { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; background: #e6f0fa; border: 1px solid #b9d3ec; border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; font-size: 12px; color: #1d4a73; }
   .tuto-banner .btn { padding: 3px 10px; font-size: 12px; }
   .demo-banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--text); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-  body.demo #chat { pointer-events: none; opacity: .55; user-select: none; }
-  .demo-shell { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; background: #eceef2; border-right: 1px solid var(--border); padding: 18px 14px; overflow: auto; pointer-events: none; user-select: none; opacity: .6; }
+  /* Démo : le tchat se lit (la liste des messages défile) mais on n'y écrit pas. */
+  body.demo #chat { opacity: .55; user-select: none; }
+  body.demo #chat > :not(#thread) { pointer-events: none; }
+  body.demo #chat .bubble button, body.demo #chat .bubble input { pointer-events: none; }
+  .demo-shell { position: fixed; left: 0; top: 0; bottom: 0; width: 48px; background: #eceef2; border-right: 1px solid var(--border); padding: 14px 0; overflow: hidden; pointer-events: none; user-select: none; opacity: .6; text-align: center; }
   .demo-shell b { display: block; font-family: var(--font-title); font-size: 17px; margin-bottom: 14px; }
   .demo-shell small { display: block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dimmer); margin: 14px 0 4px; }
   .demo-shell span { display: block; padding: 6px 8px; border-radius: 6px; }
   .demo-shell span.on { background: #fff; color: var(--accent); font-weight: 600; }
-  body.demo .page { margin-left: 232px; max-width: none; }
+  /* Colonne repliée d'office dans la démo publique (19/11) : toute la place va au projet. La tirette (seul élément cliquable) la déplie pendant la
+     manipulation, après la visite guidée. */
+  .demo-shell-toggle { pointer-events: auto; cursor: pointer; border: 1px solid var(--border); background: #fff; border-radius: 999px; width: 30px; height: 30px; font-size: 15px; color: var(--accent); line-height: 1; padding: 0; }
+  .demo-shell-body { display: none; padding: 14px 14px 0; text-align: left; }
+  body.demo-shell-open .demo-shell { width: 232px; opacity: .9; text-align: right; padding-right: 14px; }
+  body.demo-shell-open .demo-shell-body { display: block; opacity: .75; }
+  body.demo .page { margin-left: 64px; max-width: none; }
+  body.demo.demo-shell-open .page { margin-left: 248px; }
   @media (max-width: 900px) { .demo-shell { display: none; } body.demo .page { margin-left: auto; } }
   [data-demo-locked] { opacity: .5; cursor: not-allowed; }
+  /* Onglet « Tâches » (4/11) */
+  .task-add { display: flex; gap: 8px; margin: 10px 0 4px; }
+  .task-add input { flex: 1 1 auto; }
+  .task-group h3 { font-size: 12px; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text-dimmer); margin: 16px 0 2px; }
+  .task-row { align-items: flex-start; flex-wrap: nowrap; gap: 8px; }
+  .task-row input[type="checkbox"] { width: 17px; height: 17px; margin: 3px 0 0; flex: 0 0 auto; cursor: pointer; }
+  .task-row .task-main { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  .task-row .task-title { overflow-wrap: anywhere; }
+  .task-row .task-notes { color: var(--text-dim); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; max-height: 3.2em; overflow: hidden; }
+  .task-row .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
+  .task-row.done .task-title { text-decoration: line-through; color: var(--text-dimmer); }
+  .pill.overdue { color: #b5442e; background: rgba(181, 68, 46, .12); }
+  .task-link { font-size: 11.5px; padding: 2px 8px; }
+  .sec-dialog .task-form label { display: block; margin: 10px 0 4px; font-size: 12.5px; }
+  .sec-dialog .task-form input, .sec-dialog .task-form select, .sec-dialog .task-form textarea { width: 100%; box-sizing: border-box; }
+/* Interface simple / avancée (14/11) */
+body.lp-ui-simple [data-adv] { display: none !important; }
+.lp-adv-hint { margin: 12px 0 4px; font-size: 11px; opacity: .75; }
+.lp-adv-hint .lp-adv-show { background: none; border: 0; padding: 0; margin-left: 4px; font: inherit; color: #2f80c0; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -187,31 +286,34 @@
   <div class="top"><div class="presence" id="presence" style="margin-left:auto"></div></div>
   <div id="content"></div>
 </div>
-<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis/dist/ogg-vorbis-decoder.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="layerpitch-i18n.js?v=1794512239931"></script>
-<script src="layerpitch-notify.js?v=1794512239931"></script>
-<script src="player.js?v=1794512239931"></script>
-<script src="api/supabase-client.js?v=1794512239931"></script>
-<script src="api/auth.js?v=1794512239931"></script>
-<script src="layerpitch-appearance.js?v=1794512239931"></script>
-<script src="layerpitch-shell.js?v=1794512239931"></script>
-<script src="api/tracks.js?v=1794512239931"></script>
-<script src="api/packs.js?v=1794512239931"></script>
-<script src="api/albums.js?v=1794512239931"></script>
-<script src="api/studio.js?v=1794512239931"></script>
-<script src="api/adreels.js?v=1794512239931"></script>
-<script src="api/demo-client.js?v=1794512239931"></script>
-<script src="api/demo-projects.js?v=1794512239931"></script>
-<script src="layerpitch-tuto.js?v=1794512239931"></script>
-<script src="layerpitch-guide.js?v=1794512239931"></script>
-<script src="layerpitch-lesson-previews.js?v=1794512239931"></script>
-<script src="projet-lecons.js?v=1794512239931"></script>
-<script src="layerpitch-video-versions.js?v=1794512239931"></script>
-<script src="api/projects.js?v=1794512239931"></script>
-<script src="api/sfx.js?v=1794512239931"></script>
-<script src="projet-carte-audio.js?v=1794512239931"></script>
-<script src="projet-carte.js?v=1794512239931"></script>
+<script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+<script src="layerpitch-i18n.js?v=1795462688859"></script>
+<script src="layerpitch-notify.js?v=1795462688859"></script>
+<script src="player.js?v=1795462688859"></script>
+<script src="api/supabase-client.js?v=1795462688859"></script>
+<script src="api/auth.js?v=1795462688859"></script>
+<script src="layerpitch-appearance.js?v=1795462688859"></script>
+<script src="layerpitch-font-picker.js?v=1795462688859"></script>
+<script src="layerpitch-help.js?v=1795462688859"></script>
+<script src="layerpitch-help-engine.js?v=1795462688859"></script>
+<script src="layerpitch-shell.js?v=1795462688859"></script>
+<script src="api/tracks.js?v=1795462688859"></script>
+<script src="api/packs.js?v=1795462688859"></script>
+<script src="api/albums.js?v=1795462688859"></script>
+<script src="api/studio.js?v=1795462688859"></script>
+<script src="api/adreels.js?v=1795462688859"></script>
+<script src="api/demo-client.js?v=1795462688859"></script>
+<script src="api/demo-projects.js?v=1795462688859"></script>
+<script src="layerpitch-tuto.js?v=1795462688859"></script>
+<script src="layerpitch-guide.js?v=1795462688859"></script>
+<script src="layerpitch-lesson-previews.js?v=1795462688859"></script>
+<script src="projet-lecons.js?v=1795462688859"></script>
+<script src="layerpitch-video-versions.js?v=1795462688859"></script>
+<script src="api/projects.js?v=1795462688859"></script>
+<script src="api/sfx.js?v=1795462688859"></script>
+<script src="projet-carte-audio.js?v=1795462688859"></script>
+<script src="projet-carte.js?v=1795462688859"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).
@@ -225,10 +327,10 @@ const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k)
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo'); // Projet de démonstration public, en lecture seule
 // MODE TUTORIEL (?tuto, 20/10) : Projet fictif « Music City » sur un faux serveur local (api/demo-projects.js), où l'on peut
-// écrire librement ; rien n'est enregistré, tout repart de zéro au rechargement. Fermé au public tant que Jules-Antoine ne l'a pas
-// ouvert (comme le tutoriel du Backstage) : seul un admin réellement connecté y entre. Pour ouvrir à tous : tutoPublicOpen() -> true.
+// écrire librement ; rien n'est enregistré, tout repart de zéro au rechargement. Ouvert au public (16/11) selon le feu vert
+// `public_tutorial`, comme le tutoriel du Backstage : feu vert fermé = seul un admin réellement connecté y entre (layerpitch-tuto.js).
 const TUTO = params.has('tuto') && !DEMO;
-const tutoReady = TUTO ? window.LayerPitchTuto.enter('./projets.html', { adminOnly: true }) : Promise.resolve(); // porte d'entrée unique : layerpitch-tuto.js
+const tutoReady = TUTO ? window.LayerPitchTuto.enter('./projets.html') : Promise.resolve(); // porte d'entrée unique : layerpitch-tuto.js
 const projectId = params.get('id') || (DEMO ? 'demo' : (TUTO ? 'demo-music-city' : null));
 const pageLang = (params.get('lang') || localStorage.getItem('layerpitch_lang') || 'fr') === 'en' ? 'en' : 'fr';
 function tr(key, vars) {
@@ -251,11 +353,15 @@ function demoProjects() {
   const reads = {
     get: async () => ({ data: S.demoProject, error: null }),
     content: async () => ({ data: S.demo.content, error: null }),
+    listMaps: async () => ({ data: S.demo.maps || [], error: null }),
     messages: async () => ({ data: (S.demo.messages || []).map(names), error: null }),
     activity: async () => ({ data: (S.demo.activity || []).map(names), error: null }),
     annotations: async (id, tt, tid) => ({ data: (S.demo.annotations || []).filter(n => (!tt || n.targetType === tt) && (!tid || n.targetId === tid)).map(names), error: null }),
     vitrines: async () => ({ data: (S.demo.vitrines || []).map(v => Object.assign({ audience: 'players', published: true, secretToken: null, blocks: [], theme: {} }, v)), error: null }),
     snapshots: async () => ({ data: [], error: null }),
+    // Carte : on peut la manier et y déposer les sons du pack pour essayer ; rien n'est enregistré (tout reste dans la page).
+    saveMap: async (id, p) => { const ms = S.demo.maps = S.demo.maps || []; const i = ms.findIndex(m => m.id === p.id); if (i >= 0) ms[i] = Object.assign({}, ms[i], p); else ms.push(Object.assign({ id: p.id || 'demo-' + Date.now() }, p)); return { data: { id: p.id || ms[ms.length - 1].id }, error: null }; },
+    deleteMap: async mapId => { S.demo.maps = (S.demo.maps || []).filter(m => m.id !== mapId); return { data: null, error: null }; },
     markRead: async () => ({ data: null, error: null }), markSeen: async () => ({ data: null, error: null }),
     fileUrl: (fileId) => realPJ.fileUrl(fileId),
   };
@@ -270,9 +376,11 @@ const S = { tab: 'board', project: null, content: null, messages: [], query: '',
 // « Détacher » depuis l'onglet Carte ; pratique sur un deuxième écran). L'onglet d'origine attend qu'elle se ferme.
 const SOLO_MAP = params.get('solo') === 'map' && !DEMO && !TUTO;
 if (SOLO_MAP) { S.tab = 'map'; S.openMapId = params.get('map') || null; document.body.classList.add('solo-map'); }
+// Onglet demandé par l'adresse (?tab=map…) : l'Accueil de l'espace studio y mène directement. Un onglet absent pour ce compte (ex. Tâches fermé) retombe sur le Moodboard.
+if (!SOLO_MAP && ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members'].includes(params.get('tab'))) S.tab = params.get('tab');
 
 // Leçons guidées du mode tutoriel (projet-lecons.js) : créées tout de suite, utilisées seulement quand TUTO.
-const TUTO_LESSONS = Object.assign({ started: false }, TUTO ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $ }) : { list: [], start: () => false });
+const TUTO_LESSONS = Object.assign({ started: false }, (TUTO || DEMO) ? window.LayerPitchProjetLessons.init({ lang: pageLang, S, $, demo: DEMO }) : { list: [], start: () => false });
 // Les leçons se lancent depuis le menu des tutos (?lesson=…) ; exposées pour les tests, qui les enchaînent sur une seule page.
 if (TUTO) window.LayerPitchTutoLessons = TUTO_LESSONS;
 // ---- Sections (7/10, étape 1) : arbre libre ; un objet peut être dans plusieurs sections ; sans section = « Sans section » ----
@@ -282,6 +390,14 @@ const SECTION_TABS = ['board', 'images', 'videos', 'music']; // sur « Moodboard
 S.appearance = null; // apparence d'équipe : null = pas ouverte, {} = rien de réglé
 S.secPins = []; S.selMode = false; S.selected = new Set(); S.chan = null; S.chanState = []; S.secMsgs = []; S.secMore = false; // S.chan = canal du tchat : null = général, sinon une section
 S.sections = null; S.sel = 'all'; S.secEdit = null; S.secLocked = false;
+// Filtres (colonne de gauche, façon boutique, 19/11) : plusieurs étiquettes cochées élargissent (« l'une ou l'autre », réglable en
+// « toutes »), le type et les étiquettes se combinent en réduisant. S.sel reste « l'unique étiquette cochée » pour ce qui en dépend
+// (rangement d'un objet ajouté, tchat, tâches, actions groupées) : 'all' dès qu'il y en a zéro ou plusieurs.
+S.fTags = new Set(); S.fKinds = new Set();
+S.fMode = (() => { try { return localStorage.getItem('layerpitch_project_filter_mode') === 'all' ? 'all' : 'any'; } catch (e) { return 'any'; } })();
+const filtersActive = () => S.fTags.size > 0 || S.fKinds.size > 0;
+function syncSel() { S.sel = S.fTags.size === 1 ? [...S.fTags][0] : 'all'; }
+function setFilterTo(id) { S.fTags = id && id !== 'all' ? new Set([id]) : new Set(); S.fKinds = new Set(); syncSel(); }
 async function loadSections() {
   if (DEMO || S.secLocked) return;
   const r = await PJ.sections(projectId);
@@ -291,6 +407,8 @@ async function loadSections() {
   const cs = await PJ.sectionChatState(projectId); S.chanState = cs.error ? [] : (cs.data || []);
   if (S.chan && !secById(S.chan)) S.chan = null;
   if (S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
+  [...S.fTags].forEach(id => { if (id !== 'none' && !secById(id)) S.fTags.delete(id); });
+  if (S.fTags.size) syncSel();
 }
 const secById = id => S.sections && S.sections.sections.find(x => x.id === id);
 const secKids = pid => S.sections.sections.filter(x => (x.parentId || null) === (pid || null));
@@ -298,14 +416,15 @@ function secDescendants(id) { const out = [id]; for (const k of secKids(id)) out
 const assetSectionIds = assetId => S.sections.links.filter(l => l.assetId === assetId).map(l => l.sectionId);
 function secCount(id) { const ids = new Set(secDescendants(id)); return new Set(S.sections.links.filter(l => ids.has(l.sectionId)).map(l => l.assetId)).size; }
 function inSelection(a) {
-  if (!S.sections || S.sel === 'all') return true;
+  if (!S.sections || !S.fTags.size) return true;
   const mine = assetSectionIds(a.id);
-  if (S.sel === 'none') return !mine.length;
-  const ids = new Set(secDescendants(S.sel));
-  return mine.some(i => ids.has(i));
+  const has = t => t === 'none' ? !mine.length : mine.includes(t);
+  return S.fMode === 'all' ? [...S.fTags].every(has) : [...S.fTags].some(has);
 }
+const inKinds = a => !S.fKinds.size || S.fKinds.has(moodCategory(a));
 // Moodboard à l'écran : null = le général, sinon l'identifiant de la section choisie (sur « Sans section », le général).
-const boardSection = () => S.sections && S.tab === 'board' && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null;
+// Un seul Moodboard par Projet : l'étiquette ne fait plus que filtrer (décision du 19/11 ; les épingles par section restent en base).
+const boardSection = () => null;
 const sectionPinned = (secId) => S.secPins.filter(k => k.sectionId === secId).sort((a, b) => a.position - b.position);
 const forSel = list => S.sections ? list.filter(inSelection) : list;
 // Un objet ajouté pendant qu'une section est choisie y est rangé tout de suite (il reste de toute façon dans la réserve).
@@ -318,45 +437,72 @@ async function addAsset(id, payload, pin) {
 const secBtn = (a, cls) => S.sections ? `<button class="${cls || 'icon-btn'}" type="button" data-secassign="${esc(a.id)}" title="${esc(tr('secAssign'))}">🗂${assetSectionIds(a.id).length ? ' ' + assetSectionIds(a.id).length : ''}</button>` : '';
 async function sectionsChanged() { await loadSections(); renderPanel(); broadcast('sections'); }
 function secError(r) { if (r && r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return true; } return false; }
+// Colonne de filtres, façon boutique en ligne (19/11) : filtres appliqués, Type (Moodboard seulement), Étiquettes = les sections, à plat.
+const FACET_KINDS = ['music', 'images', 'videos', 'links', 'notes'];
+const kindLabel = k => tr('filter' + k[0].toUpperCase() + k.slice(1));
+function secPath(id) { const x = secById(id); if (!x) return ''; const par = x.parentId && secById(x.parentId); return par ? secPath(par.id) + ' › ' + x.title : x.title; }
 function renderSecNav() {
   const nav = $('secNav'); if (!nav || !S.sections) return;
-  const assets = S.content.assets || [];
-  const none = assets.filter(a => !assetSectionIds(a.id).length).length;
-  const editRow = (depth, value) => `<div class="sec-row" style="padding-left:${6 + depth * 14}px"><input type="text" id="secInput" maxlength="120" value="${esc(value || '')}" placeholder="${esc(tr('secNamePlaceholder'))}"></div>`;
-  const walk = (pid, depth) => secKids(pid).map(x => {
-    const on = S.sel === x.id;
-    const head = S.secEdit && S.secEdit.rename === x.id ? editRow(depth, x.title)
-      : `<div class="sec-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}" data-secdrag="${esc(x.id)}" draggable="true" style="padding-left:${6 + depth * 14}px"><button type="button" class="sec-name" data-pick="${esc(x.id)}">${esc(x.title)}</button><span class="meta">${S.tab === 'board' ? sectionPinned(x.id).length : secCount(x.id)}</span>${chanUnread(x.id) ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${chanUnread(x.id)}</span>` : ''}
-        ${on ? `<span class="sec-acts">${[['add', '＋', 'secActSub', 'secAddSub'], ['rename', '✎', 'secActRename', 'secRename'], ['move', '⇄', 'secActMove', 'secMove'], ['chat', '💬', 'secActChat', 'chanOpen'], ['map', '🗺', 'secActMap', 'secMapLink'], ['del', '✕', 'secActDel', 'secDelete']].map(([act, ic, lab, tip]) => `<button class="sec-act${act === 'del' ? ' danger' : ''}" type="button" data-secact="${act}" data-id="${esc(x.id)}" title="${esc(tr(tip))}">${ic} ${esc(tr(lab))}</button>`).join('')}</span>` : ''}</div>`;
-    return head + (S.secEdit && S.secEdit.add === x.id ? editRow(depth + 1) : '') + walk(x.id, depth + 1);
+  const board = S.tab === 'board';
+  // Objets de l'onglet, pour les compteurs : le Moodboard compte ses épingles, les autres onglets leurs objets.
+  const tabAssets = board ? (S.content.moodboard || []).map(assetById).filter(Boolean)
+    : (S.content.assets || []).filter(a => (S.tab === 'images' && a.kind === 'image') || (S.tab === 'videos' && (a.kind === 'video' || a.kind === 'montage')) || (S.tab === 'music' && (a.kind === 'track' || a.kind === 'audio')));
+  const tagCount = id => tabAssets.filter(a => assetSectionIds(a.id).includes(id)).length;
+  const noneCount = tabAssets.filter(a => !assetSectionIds(a.id).length).length;
+  const picked = S.fTags.size === 1 && S.sel !== 'none' ? secById(S.sel) : null;
+  const n = S.fTags.size + (board ? S.fKinds.size : 0);
+  const layout = nav.closest('.sec-layout');
+  if (layout) layout.classList.toggle('sec-collapsed', !S.secOpen);
+  nav.classList.toggle('collapsed', !S.secOpen);
+  if (!S.secOpen) {
+    // Replié : un onglet vertical, mis en avant quand un filtre est actif (sinon l'onglet paraîtrait vide).
+    nav.innerHTML = `<button class="chat-rail sec-rail${n ? ' on' : ''}" id="secOpenBtn" type="button" title="${esc(tr('secOpen'))}">🗂<span class="chat-rail-label">${esc(tr('filtersTitle'))}${n ? ' · ' + n : ''}</span></button>`;
+    $('secOpenBtn').onclick = () => setSecOpen(true);
+    return;
+  }
+  const tagTitle = id => id === 'none' ? tr('tagNone') : secPath(id);
+  const chips = [...(board ? [...S.fKinds].map(k => ['kind', k, tr('facetType'), kindLabel(k)]) : []), ...[...S.fTags].map(t => ['tag', t, tr('facetTags'), tagTitle(t)])];
+  const editRow = value => `<div class="sec-row"><input type="text" id="secInput" maxlength="120" value="${esc(value || '')}" placeholder="${esc(tr('secNamePlaceholder'))}"></div>`;
+  const tagRows = secFlat().map(x => {
+    if (S.secEdit && S.secEdit.rename === x.id) return editRow(x.title);
+    const on = S.fTags.has(x.id), unread = chanUnread(x.id);
+    return `<label class="fct-row${on ? ' on' : ''}" data-dropsec="${esc(x.id)}"><input type="checkbox" data-ftag="${esc(x.id)}"${on ? ' checked' : ''}><span class="fct-name">${esc(secPath(x.id))}</span>${unread ? `<span class="sec-unread" title="${esc(tr('chanUnread'))}">${unread}</span>` : ''}<span class="meta">${tagCount(x.id)}</span></label>`
+      + (picked && picked.id === x.id ? `<span class="sec-acts">${[['rename', '✎', 'secActRename', 'secRename'], ['chat', '💬', 'secActChat', 'chanOpen'], ['map', '🗺', 'secActMap', 'secMapLink'], ['del', '✕', 'secActDel', 'secDelete']].map(([act, ic, lab, tip]) => `<button class="sec-act${act === 'del' ? ' danger' : ''}" type="button" data-secact="${act}" data-id="${esc(x.id)}" title="${esc(tr(tip))}">${ic} ${esc(tr(lab))}</button>`).join('')}</span>` : '');
   }).join('');
-  const picked = S.sel !== 'all' && S.sel !== 'none' ? secById(S.sel) : null;
-  nav.innerHTML = `<h3>${esc(tr('secTitle'))}<span>${S.tab !== 'board' ? `<button class="icon-btn${S.selMode ? ' on' : ''}" type="button" data-secact="select" title="${esc(tr('selToggle'))}">☑</button>` : ''}</span></h3>
-    ${S.tab === 'board' ? `<div class="sec-row${S.sel === 'all' || S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secBoardGeneral'))}</button><span class="meta">${(S.content.moodboard || []).length}</span></div>`
-    : `<div class="sec-row${S.sel === 'all' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="all">${esc(tr('secAll'))}</button><span class="meta">${assets.length}</span></div>
-    <div class="sec-row${S.sel === 'none' ? ' on' : ''}"><button type="button" class="sec-name" data-pick="none">${esc(tr('secNone'))}</button><span class="meta">${none}</span></div>`}
-    <div class="sec-sep"></div>
-    ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
-    ${walk(null, 0)}${S.secEdit && S.secEdit.add === '' ? editRow(0) : ''}
-    <div class="sec-sep"></div><button class="btn" type="button" data-secact="download" style="width:100%">⬇ ${esc(tr(picked ? 'dlSection' : 'dlAll'))}</button>
-    <button class="btn" type="button" data-secact="add" data-id="" style="width:100%;margin-top:6px">＋ ${esc(tr('secAdd'))}</button>
-    ${picked && picked.mapId ? `<div class="sec-sep"></div><button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
-    ${picked ? `<div class="sec-sep"></div><div class="meta">${esc(tr(S.tab === 'board' ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
-  nav.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.sel = b.dataset.pick; S.secEdit = null; renderPanel(); });
+  nav.innerHTML = `<h3>${esc(tr('filtersTitle'))}<span><button class="icon-btn" type="button" data-secact="collapse" title="${esc(tr('secCollapse'))}">«</button>${!board ? `<button class="icon-btn${S.selMode ? ' on' : ''}" type="button" data-secact="select" title="${esc(tr('selToggle'))}">☑</button>` : ''}</span></h3>
+    ${n ? `<div class="fct-applied"><div class="fct-applied-top"><b>${esc(tr('filtersApplied', { n }))}</b><a href="#" data-fclear>${esc(tr('filtersClear'))}</a></div>${chips.map(c => `<button type="button" class="fct-chip" data-fremove="${c[0]}" data-fval="${esc(c[1])}"><b>✕</b><span><small>${esc(c[2])} :</small> ${esc(c[3])}</span></button>`).join('')}</div>` : ''}
+    ${board ? `<div class="fct-facet"><h4>${esc(tr('facetType'))}</h4>${FACET_KINDS.map(k => `<label class="fct-row${S.fKinds.has(k) ? ' on' : ''}"><input type="checkbox" data-fkind="${k}"${S.fKinds.has(k) ? ' checked' : ''}><span class="fct-name">${esc(kindLabel(k))}</span><span class="meta">${tabAssets.filter(a => moodCategory(a) === k).length}</span></label>`).join('')}</div>` : ''}
+    <div class="fct-facet"><h4>${esc(tr('facetTags'))}</h4>
+      ${S.sections.sections.length || (S.secEdit && S.secEdit.add === '') ? '' : `<div class="meta">${esc(tr('secEmpty'))}</div>`}
+      ${tagRows}
+      <label class="fct-row${S.fTags.has('none') ? ' on' : ''}"><input type="checkbox" data-ftag="none"${S.fTags.has('none') ? ' checked' : ''}><span class="fct-name">${esc(tr('tagNone'))}</span><span class="meta">${noneCount}</span></label>
+      ${S.fTags.size > 1 ? `<div class="fct-mode">${esc(tr('filtersMode'))} <label><input type="radio" name="fmode" value="any"${S.fMode === 'any' ? ' checked' : ''}><span>${esc(tr('filtersModeAny'))}</span></label><label><input type="radio" name="fmode" value="all"${S.fMode === 'all' ? ' checked' : ''}><span>${esc(tr('filtersModeAll'))}</span></label></div>` : ''}
+      ${S.secEdit && S.secEdit.add === '' ? editRow('') : ''}
+      <button class="btn" type="button" data-secact="add" data-id="" style="width:100%;margin-top:8px">＋ ${esc(tr('tagAdd'))}</button>
+    </div>
+    <button class="btn" type="button" data-secact="download" style="width:100%;margin-top:8px">⬇ ${esc(tr(picked ? 'dlSection' : 'dlAll'))}</button>
+    ${picked && picked.mapId ? `<button class="btn" type="button" data-openmap="${esc(picked.mapId)}" style="width:100%;margin-top:6px">🗺 ${esc(tr('secMapOpen'))}</button>` : ''}
+    ${picked ? `<div class="meta" style="margin-top:8px">${esc(tr(board ? 'secBoardHere' : 'secFilesHere', { title: picked.title }))}</div>` : ''}`;
+  const toggle = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); S.secEdit = null; syncSel(); renderPanel(); };
+  nav.querySelectorAll('[data-ftag]').forEach(i => i.onchange = () => toggle(S.fTags, i.dataset.ftag));
+  nav.querySelectorAll('[data-fkind]').forEach(i => i.onchange = () => toggle(S.fKinds, i.dataset.fkind));
+  nav.querySelectorAll('[data-fremove]').forEach(b => b.onclick = () => toggle(b.dataset.fremove === 'kind' ? S.fKinds : S.fTags, b.dataset.fval));
+  const clr = nav.querySelector('[data-fclear]'); if (clr) clr.onclick = e => { e.preventDefault(); S.fTags = new Set(); S.fKinds = new Set(); syncSel(); renderPanel(); };
+  nav.querySelectorAll('[name="fmode"]').forEach(r => r.onchange = () => { S.fMode = r.value; try { localStorage.setItem('layerpitch_project_filter_mode', r.value); } catch (e) {} renderPanel(); });
   nav.querySelectorAll('[data-secact]').forEach(b => b.onclick = async () => {
     const id = b.dataset.id, act = b.dataset.secact;
-    if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
+    if (act === 'collapse') setSecOpen(false);
+    else if (act === 'add') { S.secEdit = { add: id }; renderSecNav(); }
     else if (act === 'rename') { S.secEdit = { rename: id }; renderSecNav(); }
     else if (act === 'select') { S.selMode = !S.selMode; S.selected = new Set(); renderSecNav(); decorateSelection(); }
     else if (act === 'download') downloadFiles(picked ? picked.id : null);
     else if (act === 'chat') openChannel(id);
     else if (act === 'map') openMapLinkDialog(id);
-    else if (act === 'move') openMoveDialog(id);
     else if (act === 'del') {
       const x = secById(id);
       if (!(await window.LayerPitchNotify.confirm(tr('secDeleteConfirm', { title: x.title }), { okLabel: tr('secDelete'), danger: true }))) return;
       if (secError(await PJ.deleteSection(id))) return;
-      if (S.sel === id) S.sel = x.parentId || 'all';
+      S.fTags.delete(id); syncSel();
       await sectionsChanged();
     }
     const input = $('secInput'); if (input) { input.focus(); input.select(); }
@@ -369,7 +515,7 @@ function renderSecNav() {
     const title = input.value.trim(), ed = S.secEdit; if (!title || !ed) { S.secEdit = null; return renderSecNav(); }
     S.secEdit = null;
     if (ed.rename) { if (secError(await PJ.renameSection(ed.rename, title))) return renderSecNav(); }
-    else { const r = await PJ.createSection(projectId, title, ed.add || null); if (secError(r)) return renderSecNav(); if (r.data && r.data.id) S.sel = r.data.id; }
+    else { const r = await PJ.createSection(projectId, title, ed.add || null); if (secError(r)) return renderSecNav(); }
     await sectionsChanged();
   };
 }
@@ -480,7 +626,7 @@ async function selectionAction(act) {
 let jsZipPromise = null;
 function loadJSZip() {
   if (window.JSZip) return Promise.resolve();
-  if (!jsZipPromise) jsZipPromise = new Promise((res, rej) => { const el = document.createElement('script'); el.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; el.onload = res; el.onerror = () => rej(new Error('JSZip')); document.head.appendChild(el); });
+  if (!jsZipPromise) jsZipPromise = new Promise((res, rej) => { const el = document.createElement('script'); el.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; el.integrity = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG'; el.crossOrigin = 'anonymous'; el.onload = res; el.onerror = () => rej(new Error('JSZip')); document.head.appendChild(el); });
   return jsZipPromise;
 }
 const safeName = t => String(t || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80) || 'sans-titre';
@@ -721,13 +867,16 @@ async function fileUrl(fileId) {
 async function loadDemo() {
   let d = null;
   if (params.get('demo') === 'fixture') { try { d = await (await fetch('./test-fixtures/public-demo.json')).json(); } catch (e) {} } // aperçu local, sans base
-  else { const r = await realPJ.publicDemo(); d = r.data; }
+  else { const r = await realPJ.publicDemo(); d = r.data; if (d) { const m = await realPJ.publicDemoMaps(); d.maps = m.data || []; } }
   if (!d) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('demoUnavailable'))}</p></div>`; return; }
   S.demo = d; S.me = { id: 'demo', email: '' };
   S.demoProject = Object.assign({}, d.project, { role: 'viewer', archived: false, members: (d.members || []).map(m => ({ email: m.name, status: 'active', source: 'guest', role: m.role, me: false })) });
   S.project = S.demoProject; S.content = d.content || { assets: [], moodboard: [], packs: [], albums: [] };
   document.title = tr('pageTitleProject', { title: S.project.title });
   await loadMessages(); computeUnread(); render();
+  // Visite guidée proposée d'emblée à la première ouverture (puis relançable par le bouton du bandeau).
+  let seen = false; try { seen = localStorage.getItem('layerpitch_demo_tour_seen_v1') === '1'; localStorage.setItem('layerpitch_demo_tour_seen_v1', '1'); } catch (e) { /* stockage indisponible */ }
+  if (!seen && !params.get('tab')) setTimeout(() => TUTO_LESSONS.start('pj-tour'), 500);
 }
 async function load() {
   if (DEMO) return loadDemo();
@@ -737,12 +886,22 @@ async function load() {
   const p = await PJ.get(projectId);
   if (p.error) { content.innerHTML = `<div class="card"><p class="hint">${esc(tr('errorPrefix', { message: p.error }))}</p></div>`; return; }
   S.project = p.data;
+  // Copie de la démo (19/11) : visite guidée adaptée (sections et discussion repliées d'office, ouvertes le temps de leur bulle), proposée à la
+  // première ouverture ; relançable par le bouton du bandeau.
+  if (p.data.isDemo && !TUTO && !TUTO_LESSONS.guide) {
+    Object.assign(TUTO_LESSONS, window.LayerPitchProjetLessons.init({ lang: pageLang, S, $, demo: false, demoCopy: true,
+      setPanels: (sec, chat) => { if (!!S.secOpen !== sec) setSecOpen(sec); if (!!S.chatOpen !== chat) setChatOpen(chat); } }));
+    let seen = false; try { seen = localStorage.getItem('layerpitch_demo_copy_tour_seen_v1') === '1'; localStorage.setItem('layerpitch_demo_copy_tour_seen_v1', '1'); } catch (e) { /* stockage indisponible */ }
+    if (!seen && !params.get('tab')) setTimeout(() => TUTO_LESSONS.start('pj-tour'), 700);
+  }
   if (window.LayerPitchShell) window.LayerPitchShell.update({ crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: p.data.title }] });
   document.title = SOLO_MAP ? tr('map_title') + ' · ' + S.project.title : tr('pageTitleProject', { title: S.project.title });
   const [c, composer] = await Promise.all([PJ.content(projectId), LayerPitchAuth.getMyComposerId()]);
   S.content = c.data || { assets: [], moodboard: [], packs: [], albums: [] };
   S.myComposerId = composer.composerId || null;
   await loadSections();
+  await loadTasks();
+  await loadUiLevel();
   const ap = await PJ.appearance(projectId); S.appearance = ap.error ? null : (ap.data || {}); applyProjectAppearance(); // null = pas ouvert
   S.demoStatus = (await PJ.demoStatus()).data || { eligible: false }; // interrupteur « Démo publique » (admins et compte de démo)
   PJ.markRead(projectId);
@@ -777,7 +936,8 @@ function joinChannel() {
         renderChat();
       }
       else if (payload.what === 'sections') { await loadSections(); if (SECTION_TABS.includes(S.tab) && !S.secEdit) renderPanel(); }
-      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && S.mapView.state.dirty)) renderPanel(); }
+      else if (payload.what === 'tasks') { await loadTasks(); if (S.tab === 'tasks' && !document.querySelector('.sec-overlay')) renderPanel(); }
+      else if (payload.what === 'maps' && S.tab === 'map') { if (!(S.mapView && (S.mapView.state.dirty || S.mapView.state.maximized))) renderPanel(); } // jamais pendant l'édition ni en plein écran
       else if (payload.what === 'notes' && S.video) { await loadVideoNotes(); renderPanel(); }
     });
     S.channel.subscribe(status => { if (status === 'SUBSCRIBED') S.channel.track({ email: S.me.email }); });
@@ -791,7 +951,21 @@ function markProjectSeen(force) {
   if (!force && Date.now() - lastSeenPush < 30000) return;
   lastSeenPush = Date.now(); PJ.markSeen(projectId);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) markProjectSeen(true); else markProjectSeen(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return markProjectSeen(true);
+  markProjectSeen();
+  refreshAfterReturn();
+});
+// Retour sur la page (après un tour dans le Backstage pour ajouter un morceau à un pack) : on relit tout ce qui vient du compositeur.
+// La carte garde son travail en cours : seule sa bibliothèque est mise à jour, la carte n'est pas remontée.
+async function refreshAfterReturn() {
+  if (!S.project || DEMO || TUTO) return;
+  invalidateComposerCaches();
+  try {
+    if (S.tab === 'map' && S.mapView && S.mapView.setLibraries) S.mapView.setLibraries(await buildMapLibraries());
+    else if (S.tab === 'music' && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) await renderPanel();
+  } catch (e) { console.warn('actualisation au retour', e); }
+}
 window.addEventListener('pagehide', () => markProjectSeen(true));
 function broadcast(what, extra) { try { if (S.channel) S.channel.send({ type: 'broadcast', event: 'changed', payload: Object.assign({ what }, extra || {}) }); } catch (e) {} }
 function renderPresence() {
@@ -802,22 +976,83 @@ function renderPresence() {
 }
 
 // ---- Rendu ----
-const TABS = ['board', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
+const TABS = ['board', 'tasks', 'map', 'videos', 'images', 'music', 'showcase', 'activity', 'members']; // la Discussion est dans la colonne de droite
+// « Tâches » n'apparaît que si son feu vert est ouvert pour ce compte (S.tasks rempli, voir loadTasks).
+const visibleTabs = () => TABS.filter(t => (t !== 'tasks' || S.tasks) && !(t === 'activity' && S.uiSimple));
+
+// ---- Interface simple / avancée (14/11, feu vert simple_advanced_ui) ----
+// Même choix que le Backstage (home_prefs.ui_advanced du compte, repli dans ce navigateur) ; niveau de départ : simple. Les éléments portant
+// data-adv sont masqués en simple (classe lp-ui-simple sur <body>), l'onglet Activité aussi ; un repère « N options avancées masquées · Afficher »
+// passe en avancée. Pas actif en démonstration ni dans le tutoriel. Classement : layerpitch-docs/2026-11-14-interface-simple-avancee-cadrage.md
+S.uiSimple = false;
+const UI_PREFS_LOCAL = 'lp_home_prefs_v1';
+async function loadUiLevel() {
+  S.uiSimple = false;
+  if (!DEMO && !TUTO && window.LayerPitchStudio && window.LayerPitchStudio.myFeatureFlags) {
+    try {
+      const f = await window.LayerPitchStudio.myFeatureFlags();
+      if (f.flags && f.flags.simple_advanced_ui) {
+        let prefs = {}; try { prefs = JSON.parse(localStorage.getItem(UI_PREFS_LOCAL) || '{}') || {}; } catch (e) { /* stockage indisponible */ }
+        const { data } = await window.LayerPitchSupabaseClient.getClient().from('profiles').select('home_prefs').maybeSingle();
+        if (data && data.home_prefs) prefs = Object.assign({}, prefs, data.home_prefs);
+        S.uiSimple = !prefs.ui_advanced;
+      }
+    } catch (e) { S.uiSimple = false; }
+  }
+  applyUiLevel();
+}
+function applyUiLevel() {
+  document.body.classList.toggle('lp-ui-simple', !!S.uiSimple);
+  if (S.uiSimple && S.tab === 'activity') S.tab = 'board';
+  refreshAdvHint();
+}
+let advObserver = null, advRaf = 0;
+function refreshAdvHint() {
+  if (advObserver) advObserver.disconnect();
+  try {
+    document.querySelectorAll('.lp-adv-hint').forEach(h => h.remove());
+    const panel = document.getElementById('panel');
+    if (S.uiSimple && panel) {
+      const n = 1 + [...document.querySelectorAll('[data-adv]')].filter(el => !(el.parentElement && el.parentElement.closest('[data-adv]'))
+        && (el.textContent.trim() || el.querySelector('input, select, textarea, button'))).length; // 1 = l'onglet Activité
+      const hint = document.createElement('div');
+      hint.className = 'lp-adv-hint';
+      hint.innerHTML = '<span></span> <button type="button" class="lp-adv-show"></button>';
+      hint.querySelector('span').textContent = tr(n > 1 ? 'uiAdvHintMany' : 'uiAdvHintOne').replace('{n}', String(n));
+      hint.querySelector('button').textContent = tr('uiAdvShow');
+      hint.querySelector('button').onclick = showAdvanced;
+      panel.appendChild(hint);
+    }
+  } finally {
+    const ws = document.getElementById('ws');
+    if (advObserver && ws) advObserver.observe(ws, { childList: true, subtree: true });
+  }
+}
+async function showAdvanced() {
+  S.uiSimple = false;
+  try { const cur = JSON.parse(localStorage.getItem(UI_PREFS_LOCAL) || '{}') || {}; cur.ui_advanced = true; localStorage.setItem(UI_PREFS_LOCAL, JSON.stringify(cur)); } catch (e) { /* stockage indisponible */ }
+  try { await window.LayerPitchSupabaseClient.getClient().rpc('set_my_home_prefs', { p: { ui_advanced: true } }); } catch (e) { /* le choix reste dans ce navigateur */ }
+  applyUiLevel();
+  render();
+}
+advObserver = new MutationObserver(() => { if (!S.uiSimple || advRaf) return; advRaf = requestAnimationFrame(() => { advRaf = 0; refreshAdvHint(); }); });
 function render() {
   const p = S.project;
   if (SOLO_MAP) { content.innerHTML = `<div id="panel" style="min-width:0"></div>`; renderPanel(); return; }
+  if (!visibleTabs().includes(S.tab)) S.tab = 'board'; // onglet demandé mais absent pour ce compte
   content.innerHTML = `
     ${TUTO ? `<div class="tuto-banner"><span>${esc(tr('tutoBannerText'))}</span><a class="btn" href="./projets.html?lang=${pageLang}">${esc(tr('tutoQuit'))}</a></div>` : ''}
-    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></div>` : ''}
+    ${DEMO ? `<div class="demo-banner"><span>${esc(tr('demoBanner'))}</span><span><button class="btn" type="button" id="demoTourBtn">${esc(tr('demoTour'))}</button> <a class="btn" id="demoTutoBtn" href="./tutoriels.html?lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoTutorial'))}</a> <a class="btn primary" href="https://layerpitch.com/">${esc(tr('demoCta'))}</a></span></div>` : ''}
+    ${p.isDemo && !DEMO && !TUTO ? `<div class="demo-banner"><span>${esc(tr('demoCopyBanner'))}</span><span><button class="btn" type="button" id="demoCopyTourBtn">${esc(tr('demoTour'))}</button> <button class="btn danger" type="button" id="demoCopyRemoveBtn">${esc(tr('demoCopyRemove'))}</button></span></div>` : ''}
     <div class="top"><h1 id="pTitle">${esc(p.title)}</h1>
       <div class="bar">${S.content.openAnnotations ? `<button class="btn" id="openNotesBtn" type="button" title="${esc(tr('openNotesHint'))}">💬 ${esc(tr('openNotes', { n: S.content.openAnnotations }))}</button>` : ''}${p.archived ? `<span class="pill">${esc(tr('archived'))}</span>` : ''}
-        ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
-        ${DEMO || S.appearance == null ? '' : `<button class="btn" id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
-        ${DEMO ? '' : `<button class="btn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
+        ${DEMO || !(S.demoStatus && S.demoStatus.eligible) ? '' : `<label class="demo-switch" title="${esc(tr('demoSwitchHint'))}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin-right:6px"><input type="checkbox" id="demoSwitch" ${S.demoStatus.projectId === p.id ? 'checked' : ''} style="width:auto;margin:0"> ${esc(tr('demoSwitchLabel'))}</label>${S.demoStatus.projectId === p.id ? `<button class="btn" type="button" id="demoPublishBtn" title="${esc(tr('demoPublishHint'))}">${esc(tr('demoPublishBtn'))}</button>` : ''}${S.demoStatus.projectId ? `<a class="btn" href="./projet.html?demo&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('demoViewLink'))}</a>` : ''}`}
+        ${DEMO || S.appearance == null ? '' : `<button class="btn" data-adv data-help="projet_appearanceBtn" id="appearanceBtn" type="button" title="${esc(tr('appTitle'))}">🎨 ${esc(tr('appBtn'))}</button>`}
+        ${DEMO ? '' : `<button class="btn" data-help="projet_editBtn" id="editBtn" type="button">${esc(tr('editProject'))}</button>`}
         ${p.role === 'admin' ? `<button class="btn" id="archiveBtn" type="button">${esc(tr(p.archived ? 'restoreProject' : 'archiveProject'))}</button>
         <button class="btn danger" id="deleteBtn" type="button">${esc(tr('deleteProject'))}</button>` : ''}</div></div>
     ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
-    <div class="tabs" role="tablist">${TABS.map(t => `<button class="tab" role="tab" type="button" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
+    <div class="tabs" role="tablist">${visibleTabs().map(t => `<button class="tab" role="tab" type="button" data-help="projet_tab_${t}" data-tab="${t}" aria-selected="${S.tab === t}">${esc(tr('tab_' + t))}</button>`).join('')}</div>
     <div id="openNotesBox"></div>
     <div class="workspace" id="ws"><div id="panel" style="min-width:0"></div><aside class="chat" id="chat" aria-label="${esc(tr('tab_thread'))}"></aside></div>`;
   content.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; stopMedia(); render(); });
@@ -833,8 +1068,21 @@ function render() {
     window.LayerPitchNotify.info(tr(on ? 'demoSwitchedOn' : 'demoSwitchedOff'));
     render();
   };
+  if ($('demoPublishBtn')) $('demoPublishBtn').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('demoPublishConfirm'), { okLabel: tr('demoPublishBtn') }))) return;
+    const r = await PJ.publishDemoUpdate();
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    window.LayerPitchNotify.info(tr('demoPublished', { n: r.data && r.data.version }));
+  };
   if ($('openNotesBtn')) $('openNotesBtn').onclick = () => { S.showOpenNotes = !S.showOpenNotes; renderOpenNotes(); };
   renderOpenNotes();
+  if ($('demoCopyTourBtn')) $('demoCopyTourBtn').onclick = () => TUTO_LESSONS.start('pj-tour');
+  if ($('demoCopyRemoveBtn')) $('demoCopyRemoveBtn').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('demoCopyConfirm'), { okLabel: tr('demoCopyRemove'), danger: true }))) return;
+    const r = await PJ.removeDemoCopy();
+    if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
+    location.href = './projets.html?lang=' + pageLang;
+  };
   if ($('archiveBtn')) $('archiveBtn').onclick = async () => { await PJ.archive(projectId, !p.archived); await load(); };
   if ($('deleteBtn')) $('deleteBtn').onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('deleteConfirm', { title: p.title }), { okLabel: tr('deleteProject'), danger: true }))) return;
@@ -844,7 +1092,7 @@ function render() {
   };
   renderPanel();
   renderChat();
-  if (DEMO) lockDemo();
+  if (DEMO) { lockDemo(); const tb = $('demoTourBtn'); if (tb) tb.onclick = () => TUTO_LESSONS.start('pj-tour'); }
 }
 // Notes non résolues de tout le Projet (clic sur le compteur à côté du titre) : sur quoi, qui, quoi, et « Voir » qui mène
 // à l'objet (onglet Vidéos, Images ou Moodboard, notes ouvertes).
@@ -876,7 +1124,9 @@ async function renderOpenNotes() {
 async function renderPanel() {
   const panel = $('panel');
   if (!panel) return;
+  if (S.lastPanelTab !== S.tab) { S.lastPanelTab = S.tab; invalidateComposerCaches(); } // changer d'onglet = relire les packs et morceaux
   if (S.tab === 'map') return renderMap(panel);
+  if (S.tab === 'tasks') return renderTasks(panel);
   // Moodboard / Images / Vidéos / Musique : colonne « Sections » à gauche (si le feu vert est ouvert), l'onglet à droite.
   let host = panel;
   if (S.sections && SECTION_TABS.includes(S.tab)) {
@@ -952,7 +1202,12 @@ async function editProject() {
 // lien ou une pièce jointe, une barre « Ranger dans : Moodboard / Vidéos » (sur décision d'un membre, jamais automatique).
 const CHAT_KEY = 'layerpitch_project_chat_open';
 const isPhone = () => window.matchMedia('(max-width: 900px)').matches;
-S.chatOpen = (() => { try { return localStorage.getItem(CHAT_KEY) !== '0'; } catch (e) { return true; } })();
+// Repliée d'office (retour Joris 18/11), sauf dans la démo et le tutoriel, qui montrent le tchat et les sections tout de suite.
+// Un nouveau message reste signalé : pastille sur l'onglet replié et titre de la page.
+S.chatOpen = (() => { try { const v = localStorage.getItem(CHAT_KEY); return DEMO || TUTO ? v !== '0' : v === '1'; } catch (e) { return !!(DEMO || TUTO); } })();
+const SEC_KEY = 'layerpitch_project_sections_open';
+S.secOpen = (() => { try { const v = localStorage.getItem(SEC_KEY); return DEMO || TUTO ? v !== '0' : v === '1'; } catch (e) { return !!(DEMO || TUTO); } })();
+function setSecOpen(open) { S.secOpen = open; try { localStorage.setItem(SEC_KEY, open ? '1' : '0'); } catch (e) {} renderSecNav(); }
 S.chatPhoneOpen = false; S.unread = 0; S.pending = [];
 const VIDEO_URL = /^https:\/\/(www\.|m\.)?(youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/)/i;
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -1060,7 +1315,7 @@ function renderSectionChat(aside) {
         ${attachmentsHtml(m)}
         ${m.attachments && m.attachments.length ? `<div class="meta">${esc(tr('chanFiled', { title: x.title }))}</div>` : ''}
         ${rangeBarHtml(m, rangeItems(m), a => !!(a && a.id && S.secPins.some(k => k.sectionId === S.chan && k.assetId === a.id)))}
-        ${m.mine || S.project.role === 'admin' ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+        ${m.mine || S.project.role === 'admin' || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-adv data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine || S.project.role === 'admin' ? `<button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr('chanEmpty', { title: x.title }))}</div>`}</div>
     <div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -1090,6 +1345,7 @@ function renderSectionChat(aside) {
   $('chanSel').onchange = e => openChannel(e.target.value);
   $('followBtn').onclick = async () => { if (secError(await PJ.setSectionFollow(S.chan, !followed))) return; await loadSections(); if ($('secNav')) renderSecNav(); renderChat(); };
   if ($('olderBtn')) $('olderBtn').onclick = async () => { await loadSecMessages(true); renderChat(); };
+  aside.querySelectorAll('.bubble [data-act="totask"]').forEach(b => b.onclick = () => taskFromMessage(S.secMsgs.find(y => y.id === b.closest('.bubble').dataset.id), S.chan));
   aside.querySelectorAll('.bubble [data-act="delete"]').forEach(b => b.onclick = async () => {
     if (!(await window.LayerPitchNotify.confirm(tr('deleteMessageConfirm'), { okLabel: tr('delete'), danger: true }))) return;
     if (secError(await PJ.deleteSectionMessage(b.closest('.bubble').dataset.id))) return;
@@ -1120,7 +1376,7 @@ function renderChat() {
         ${m.body ? `<div class="bubble-body">${linkifyText(m.body)}</div>` : ''}
         ${attachmentsHtml(m)}
         ${rangeBarHtml(m, rangeItems(m))}
-        ${m.mine ? `<div class="bar" style="margin-top:4px"><button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button></div>` : ''}
+        ${m.mine || S.tasks ? `<div class="bar" style="margin-top:4px">${S.tasks ? `<button class="icon-btn" data-adv data-act="totask" type="button" title="${esc(tr('taskFromMessage'))}">☑</button>` : ''}${m.mine ? `<button class="icon-btn" data-act="edit" type="button" title="${esc(tr('edit'))}">✎</button><button class="icon-btn" data-act="delete" type="button" title="${esc(tr('delete'))}">✕</button>` : ''}</div>` : ''}
       </div>`).join('') : `<div class="empty">${esc(tr(S.query ? 'noSearchResult' : 'noMessages'))}</div>`}</div>
     ${S.query ? '' : `<div class="composer" id="composer">
       <div class="pending" id="pending">${S.pending.map((f, i) => `<span class="pending-chip">${esc(f.name)} <button type="button" data-unpend="${i}" title="${esc(tr('delete'))}">×</button></span>`).join('')}</div>
@@ -1155,6 +1411,7 @@ function renderChat() {
       if (r.error) { btn.disabled = false; return say('threadMsg', tr('errorPrefix', { message: r.error })); }
       await reloadContent(); renderChat(); if (['board', 'videos', 'music'].includes(S.tab)) renderPanel(); broadcast('content');
     });
+    const tk = b.querySelector('[data-act="totask"]'); if (tk) tk.onclick = () => taskFromMessage(m);
     const ed = b.querySelector('[data-act="edit"]'), del = b.querySelector('[data-act="delete"]');
     // Modification en place : le texte devient un champ, Enregistrer / Annuler.
     if (ed) ed.onclick = () => {
@@ -1216,6 +1473,13 @@ function wireComposer(aside) {
 // Les notes pointent vers l'objet : elles le suivent d'une section à l'autre.
 const assetById = id => (S.content.assets || []).find(a => a.id === id);
 const assetTitle = a => a.title || (a.preview && a.preview.title) || a.trackTitle || a.packTitle || a.albumTitle || a.montageTitle || a.fileName || a.url || '';
+// Tout ce que le Projet lit chez le compositeur (ses packs, morceaux, Sfx, dossiers ; le contenu des packs partagés) est gardé en mémoire
+// pour ne pas tout relire à chaque clic. Quand le contenu a pu changer ailleurs (ajout d'un morceau à un pack dans le Backstage), on
+// vide ces mémoires : c'est le SEUL endroit à compléter si on ajoute une nouvelle lecture de ce genre.
+function invalidateComposerCaches() {
+  S.myPacksLoaded = false; S.myTracksLoaded = false; S.mySfxLoaded = false; S.mapFoldersLoaded = false;
+  S.packLibCache = null; S.allPacksCache = null; S.demoSoundsLoaded = false;
+}
 async function ensureMyPacks() {
   if (S.myPacksLoaded || !S.myComposerId) return;
   const r = await LayerPitchPacks.listPacks({ ownerId: S.myComposerId });
@@ -1230,16 +1494,21 @@ async function renderBoard(panel) {
   await Promise.all([ensureMyPacks(), ensureMyTracks(), ensureMyMontages()]);
   const sec = boardSection();
   // Moodboard d'une section : ses propres épingles (ordre, ★), sur les mêmes objets de la réserve.
-  const pins = sec ? sectionPinned(sec).map(k => { const a = assetById(k.assetId); return a ? Object.assign({}, a, { starred: k.starred }) : null; }).filter(Boolean)
+  const allPins = sec ? sectionPinned(sec).map(k => { const a = assetById(k.assetId); return a ? Object.assign({}, a, { starred: k.starred }) : null; }).filter(Boolean)
     : (S.content.moodboard || []).map(assetById).filter(Boolean);
+  const pins = allPins.filter(a => inSelection(a) && inKinds(a)); // filtres de la colonne de gauche
   const unpinned = sec ? (S.content.assets || []).filter(a => !sectionPinned(sec).some(k => k.assetId === a.id)) : (S.content.assets || []).filter(a => !a.pinned);
   const shared = S.content.packs || [];
   const packChoices = [...S.myPacks.map(p => ({ id: p.id, title: p.title })), ...shared.filter(s => !S.myPacks.some(p => p.id === s.packId)).map(s => ({ id: s.packId, title: s.title }))];
+  // Entête allégé (retour Joris) : une zone de dépôt visible, et le formulaire d'ajout replié derrière « + Ajouter ».
+  // Ouvert d'office dans le tutoriel et la démo, dont les leçons pointent ses champs.
   panel.innerHTML = `<div class="card">
       <h2>${esc(tr('boardTitle'))}${sec ? ' · ' + esc(secById(sec).title) : ''}</h2>
-      <p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>
-      <div class="bar">
-        <select id="addKind" style="max-width:240px">
+      ${pins.length ? '' : `<p class="hint">${esc(tr(sec ? 'boardSectionIntro' : 'boardIntro'))}</p>`}
+      <div class="drop-zone">⬇ ${esc(tr('dropZone'))}</div>
+      <details class="add-fold" id="boardAddFold" style="margin:10px 0 0"${S.boardAddOpen || TUTO || DEMO ? ' open' : ''}><summary>${esc(tr('boardAddOpen'))}</summary>
+      <div class="bar" style="margin-top:8px">
+        <select id="addKind" data-help="projet_addKind" style="max-width:240px">
           <option value="link">${esc(tr('kind_link'))}</option><option value="note">${esc(tr('kind_note'))}</option>
           <option value="upload">${esc(tr('kind_upload'))}</option>
           ${S.myTracks && S.myTracks.length ? `<option value="track">${esc(tr('kind_track'))}</option>` : ''}
@@ -1250,16 +1519,16 @@ async function renderBoard(panel) {
         <span class="meta">${esc(tr('pitchHint'))}</span>
       </div>
       <div id="addForm"></div>
-      <div class="meta" style="margin-top:6px">${esc(tr('dropHint'))}</div>
+      </details>
       <div class="msg" id="boardMsg"></div>
     </div>
-    <div class="grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('boardEmpty'))}</div>`}</div>
+    <div class="grid mood-grid" id="grid">${pins.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr(allPins.length ? 'filterNone' : 'boardEmpty'))}</div>`}</div>
     ${sec ? '' : `<div class="card" style="margin-top:14px">
       <h2>${esc(tr('versionsTitle'))}</h2>
       <p class="hint">${esc(tr('versionsIntro'))}</p>
-      <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
+      <div class="bar"><input type="text" id="snapLabel" placeholder="${esc(tr('snapPlaceholder'))}" style="flex:1 1 220px"><button class="btn" data-help="projet_snapBtn" id="snapBtn" type="button">${esc(tr('snapBtn'))}</button></div>
       <div class="bar" style="margin-top:8px"><label for="autoSnap" style="margin:0">${esc(tr('autoSnapLabel'))}</label>
-        <select id="autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
+        <select id="autoSnap" data-help="projet_autoSnap" style="max-width:200px" ${S.project.role === 'admin' ? '' : 'disabled'}>${['off', 'daily', 'weekly'].map(m => `<option value="${m}"${(S.content.autoSnapshot || 'weekly') === m ? ' selected' : ''}>${esc(tr('autoSnap_' + m))}</option>`).join('')}</select>
         <span class="meta">${esc(tr('autoSnapHint'))}</span></div>
       <div id="snapList" class="scroll-list" style="margin-top:8px"></div><div class="msg" id="snapMsg"></div>
     </div>`}`;
@@ -1275,14 +1544,16 @@ async function renderBoard(panel) {
     if (kind === 'pack') f.innerHTML = `<label>${esc(tr('kind_pack'))}</label><select id="fPack">${packChoices.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
     if (kind === 'montage') f.innerHTML = `<label>${esc(tr('kind_montage'))}</label><select id="fMontage">${S.myMontages.map(c => `<option value="${esc(c.id)}">${esc(c.title || tr('untitledMontage'))}</option>`).join('')}</select><label>${esc(tr('itemBody'))}</label><textarea id="fBody"></textarea>`;
     if (kind === 'fromProject') f.innerHTML = `<label>${esc(tr('fromProjectLabel'))}</label><select id="fAsset">${unpinned.map(a => `<option value="${esc(a.id)}">${esc(tr('kind_' + a.kind))} · ${esc(assetTitle(a))}</option>`).join('')}</select>`;
-    f.insertAdjacentHTML('beforeend', `${boardSection() ? `<label class="choice" style="margin-top:8px"><input type="checkbox" id="alsoGeneral"> ${esc(tr('alsoGeneral'))}</label>` : ''}<div class="bar" style="margin-top:8px"><button class="btn primary" id="addBtn" type="button">${esc(tr('addToBoard'))}</button></div>`);
+    f.insertAdjacentHTML('beforeend', `${boardSection() ? `<label class="choice" style="margin-top:8px"><input type="checkbox" id="alsoGeneral"> ${esc(tr('alsoGeneral'))}</label>` : ''}<div class="bar" style="margin-top:8px"><button class="btn primary" id="addBtn" type="button">${esc(tr('addToBoard'))}</button> <button class="btn" id="addFoldClose" type="button">${esc(tr('boardAddClose'))}</button></div>`);
     $('addBtn').onclick = addItem;
+    $('addFoldClose').onclick = () => { $('boardAddFold').open = false; }; // l'événement « toggle » mémorise l'état replié
   };
+  $('boardAddFold').addEventListener('toggle', e => { S.boardAddOpen = e.target.open; });
   $('addKind').onchange = renderAddForm;
   renderAddForm();
   const grid = $('grid');
-  for (const a of pins) grid.appendChild(await assetCard(a, pins));
-  if (pins.length > 1) {
+  for (const a of pins) grid.appendChild(await assetCard(a, filtersActive() ? [a] : pins));
+  if (pins.length > 1 && !filtersActive()) { // réordonner : seulement sans filtre (sinon l'ordre porterait sur une partie)
     grid.dataset.sortable = 'grid';
     makeSortable(grid, async (f, t) => {
       const ids = pins.map(x => x.id); ids.splice(t, 0, ids.splice(f, 1)[0]);
@@ -1399,7 +1670,7 @@ function assetThumbHtml(a) {
   const src = pv || (y ? `https://i.ytimg.com/vi/${y}/default.jpg` : null);
   if (src) return `<span style="${box}"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover"></span>`;
   if (a.kind === 'image' && a.fileId) return `<span style="${box}"><img data-thumbfile="${esc(a.fileId)}" alt="" style="width:100%;height:100%;object-fit:cover"></span>`;
-  return `<span style="${box}">${a.kind === 'video' ? '🎬' : a.kind === 'audio' ? '🎧' : a.kind === 'track' ? '♪' : a.kind === 'pack' ? '📦' : '•'}</span>`;
+  return `<span style="${box}">${a.kind === 'video' || a.kind === 'montage' ? '🎬' : a.kind === 'audio' ? '🎧' : a.kind === 'track' ? '♪' : a.kind === 'pack' ? '📦' : '•'}</span>`;
 }
 function fillThumbs(root) { root.querySelectorAll('img[data-thumbfile]').forEach(async img => { const u = await fileUrl(img.dataset.thumbfile); if (u) img.src = u; }); }
 // Fichier déjà envoyé dans le Projet (même nom, même taille) : proposer de réutiliser l'objet existant plutôt qu'une copie.
@@ -1446,6 +1717,36 @@ function makeSortable(host, onMove) {
   host.addEventListener('dragend', () => { from = -1; clear(); host.classList.remove('is-reordering'); items().forEach(el => { el.classList.remove('dragging'); el.draggable = false; }); });
 }
 function youtubeId(url) { const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/); return m ? m[1] : null; }
+// Catégories du Moodboard (filtres par icône) : musique, images, vidéos, liens, notes et documents.
+const MOOD_FILTERS = ['all', 'music', 'images', 'videos', 'links', 'notes'];
+const MUSIC_PROVIDERS = ['soundcloud', 'spotify', 'deezer', 'bandcamp'];
+function moodCategory(a) {
+  if (a.kind === 'track' || a.kind === 'audio' || a.kind === 'pack') return 'music';
+  if (a.kind === 'image') return 'images';
+  if (a.kind === 'video' || a.kind === 'montage') return 'videos';
+  if (a.kind === 'link') return a.preview && MUSIC_PROVIDERS.includes(a.preview.provider) ? 'music' : a.preview && ['youtube', 'vimeo'].includes(a.preview.provider) ? 'videos' : 'links';
+  return 'notes';
+}
+const MOOD_ICONS = { music: '♪', images: '🖼', videos: '🎬', links: '🔗', notes: '📝' };
+// Choisir l'image de vignette d'un objet : ouvre le sélecteur de fichiers, envoie l'image dans le Projet, puis la pose sur l'objet.
+function pickCover(a, after) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return window.LayerPitchNotify.error(tr('coverNotImage'));
+    const up = await PJ.upload(projectId, f);
+    if (up.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: up.error }));
+    await setCover(a, up.data.fileId, after);
+  };
+  inp.click();
+}
+// fileId = null : retire l'image choisie (la vignette redevient automatique) et efface le fichier devenu inutile.
+async function setCover(a, fileId, after) {
+  const old = a.coverFileId;
+  const r = await PJ.updateAsset(a.id, { coverFileId: fileId });
+  if (!r.error && old && old !== fileId) PJ.deleteFile(old).catch(() => {});
+  return after(r);
+}
 async function assetCard(a, pins) {
   const el = document.createElement('div');
   el.className = 'item' + (a.starred ? ' pitch' : '');
@@ -1459,15 +1760,27 @@ async function assetCard(a, pins) {
   if (a.kind === 'pack') media = `<a class="btn" href="./pack.html?id=${encodeURIComponent(a.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`;
   if (a.kind === 'track') media = `<div data-role="player"></div>`;
   if (a.kind === 'montage') media = montagePlayerHtml();
-  el.innerHTML = `<div class="item-kind">${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
+  const cat = moodCategory(a); el.dataset.cat = cat;
+  // Un visuel (image, miniature, montage) passe en tête de carte ; les lecteurs et boutons restent sous le titre.
+  // Vignette au choix (19/11, cover_file_id) : sur les objets qui n'ont pas de visuel propre (ni image, ni vidéo, ni montage) ;
+  // sans image choisie ni visuel, une vignette de remplacement (icône de catégorie) garde la grille régulière.
+  const ownVisual = ['image', 'video', 'montage'].includes(a.kind) || (a.kind === 'link' && a.preview && !a.preview.failed);
+  const canCover = !['image', 'video', 'montage'].includes(a.kind);
+  const coverSrc = canCover && a.coverFileId ? await fileUrl(a.coverFileId) : null;
+  const visual = ownVisual && !coverSrc;
+  const topVisual = coverSrc ? `<div class="item-visual"><img src="${esc(coverSrc)}" alt=""></div>`
+    : visual ? `<div class="item-visual">${media}</div>`
+    : canCover ? `<div class="item-visual item-ph" aria-hidden="false"><span aria-hidden="true">${MOOD_ICONS[cat]}</span><button class="ph-add" type="button" data-act="cover">${esc(tr('coverAdd'))}</button></div>` : '';
+  el.innerHTML = `${topVisual}<div class="item-kind">${MOOD_ICONS[cat]} ${esc(tr('kind_' + a.kind))} · ${esc(tr('origin_' + a.origin))}${a.starred ? ' · ★ ' + esc(tr('inPitch')) : ''}</div>
     <div class="item-title">${esc(assetTitle(a))}</div>
-    ${media}
+    ${visual ? '' : media}
     ${a.body ? `<div class="item-body">${esc(a.body)}</div>` : ''}
     <div class="meta">${esc(a.authorEmail || '')}</div>
     <div class="item-actions">
       <button class="icon-btn${a.starred ? ' on' : ''}" type="button" data-act="star" title="${esc(tr('pitchToggle'))}">★</button>
       ${pins.length > 1 ? dragHandle() : ''}
       ${secBtn(a)}${S.sections && S.sections.sections.length ? `<button class="icon-btn" type="button" data-act="moodcopy" title="${esc(tr('moodCopy'))}">⎘</button>` : ''}
+      ${['note', 'link', 'image', 'video', 'file', 'audio'].includes(a.kind) ? `<button class="icon-btn" type="button" data-act="edit" title="${esc(tr('edit'))}">✎</button>` : ''}
       <button class="icon-btn" type="button" data-act="notes" title="${esc(tr('notesToggle'))}">💬${a.notes ? ' ' + esc(a.notes) : ''}</button>
       <button class="icon-btn" type="button" data-act="unpin" title="${esc(tr('unpin'))}">⊖</button>
       <button class="icon-btn" type="button" data-act="del" title="${esc(tr('deleteFromProject'))}">✕</button>
@@ -1485,6 +1798,23 @@ async function assetCard(a, pins) {
   act('unpin').onclick = async () => after(sec ? await PJ.pinInSection(sec, a.id, false) : await PJ.pin(a.id, false));
   if (act('moodcopy')) act('moodcopy').onclick = () => openMoodboardsDialog(a.id);
   act('del').onclick = () => deleteAsset(a);
+  // Modifier le titre et le commentaire sur place (une note épinglée se corrige sans la recréer) ; update_project_asset existait déjà.
+  if (act('edit')) act('edit').onclick = () => {
+    if (el.querySelector('.edit-form')) return;
+    const titleEl = el.querySelector('.item-title'), bodyEl = el.querySelector('.item-body');
+    const form = document.createElement('div'); form.className = 'edit-form';
+    form.innerHTML = `<input type="text" class="e-title" maxlength="300" value="${esc(a.title || '')}" placeholder="${esc(tr('itemTitle'))}"><textarea class="e-body" rows="5" placeholder="${esc(tr('itemBody'))}">${esc(a.body || '')}</textarea>
+      ${canCover ? `<div class="cover-edit">${coverSrc ? `<img src="${esc(coverSrc)}" alt="">` : ''}<button class="btn" type="button" data-x="cover">${esc(tr(coverSrc ? 'coverChange' : 'coverAdd'))}</button>${coverSrc ? `<button class="btn" type="button" data-x="uncover">${esc(tr('coverRemove'))}</button>` : ''}</div>` : ''}
+      <div class="bar"><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button><button class="btn" type="button" data-x="cancel">${esc(tr('cancel'))}</button></div>`;
+    titleEl.hidden = true; if (bodyEl) bodyEl.hidden = true;
+    titleEl.after(form);
+    form.querySelector('.e-title').focus();
+    form.querySelector('[data-x="cancel"]').onclick = () => { form.remove(); titleEl.hidden = false; if (bodyEl) bodyEl.hidden = false; };
+    form.querySelector('[data-x="save"]').onclick = async () => after(await PJ.updateAsset(a.id, { title: form.querySelector('.e-title').value.trim(), body: form.querySelector('.e-body').value }));
+    const cv = form.querySelector('[data-x="cover"]'); if (cv) cv.onclick = () => pickCover(a, after);
+    const uc = form.querySelector('[data-x="uncover"]'); if (uc) uc.onclick = () => setCover(a, null, after);
+  };
+  if (act('cover')) act('cover').onclick = () => pickCover(a, after);
   act('notes').onclick = () => { S.openNotes[a.id] = !S.openNotes[a.id]; const box = el.querySelector('[data-role="notes"]'); box.hidden = !S.openNotes[a.id]; if (!box.hidden) renderNotes(box, 'asset', a.id, mediaFor(el, a)); };
   if (S.openNotes[a.id]) renderNotes(el.querySelector('[data-role="notes"]'), 'asset', a.id, mediaFor(el, a));
   return el;
@@ -1503,6 +1833,7 @@ function mountMontagePlayer(host, a) {
 async function ensureMyMontages() {
   if (S.myMontagesLoaded) return;
   S.myMontagesLoaded = true; S.myMontages = [];
+  if (DEMO) return; // visiteur de la démo : pas de compte, donc pas de montages à lister (évitait deux erreurs 401)
   try {
     // Les miens (compositeur) et ceux de mon studio (montages du studio, 21/10, migration 20261021060000).
     const client = window.LayerPitchSupabaseClient.getClient();
@@ -1515,6 +1846,7 @@ async function deleteAsset(a) {
   if (!(await window.LayerPitchNotify.confirm(tr('deleteAssetConfirm', { title: assetTitle(a) }), { okLabel: tr('deleteFromProject'), danger: true }))) return false;
   const r = await PJ.deleteAsset(a.id);
   if (r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return false; }
+  if (a.coverFileId) PJ.deleteFile(a.coverFileId).catch(() => {}); // la vignette choisie n'est plus liée à rien
   if (S.video && S.video.id === a.id) S.video = null;
   await reloadContent(); renderPanel(); broadcast('content');
   return true;
@@ -1595,7 +1927,7 @@ function mediaFor(el, a) {
     if (!video) return null;
     const versionLabel = () => {
       const ctl = wrap.__lpVersions, cur = ctl && ctl.current();
-      return cur ? (cur.key === 'original' ? tr('videoVersionOriginal') : (cur.title || '')) : '';
+      return cur ? (cur.key === 'original' ? (cur.title || tr('videoVersionOriginal')) : (cur.title || '')) : '';
     };
     return { now: () => ({ seconds: video.currentTime || 0, part: versionLabel() }), seek: t => { video.currentTime = t; const p = video.play(); if (p && p.catch) p.catch(() => {}); }, hasParts: true };
   }
@@ -1613,13 +1945,13 @@ function wireNotes(box, list, refresh) {
 // ---- Images : toutes les images du Projet, d'où qu'elles viennent (Moodboard, discussion, cet onglet) — 28/09 ----
 async function renderImages(panel) {
   const imgs = forSel((S.content.assets || []).filter(a => a.kind === 'image'));
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('imagesTitle'))}</h2><p class="hint">${esc(tr('imagesIntro'))}</p>
+  panel.innerHTML = `${DEMO ? '' : `<details class="add-fold"><summary>${esc(tr('addImageOpen'))}</summary><div class="card"><p class="hint">${esc(tr('imagesIntro'))}</p>
       <div class="bar"><input type="file" id="iFile" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="flex:1 1 240px">
         <label class="choice" style="margin:0"><input type="checkbox" id="iReference"> ${esc(tr('uploadIsReference'))}</label>
         <button class="btn" id="iUploadBtn" type="button">${esc(tr('uploadImages'))}</button></div>
-      <div class="msg" id="iMsg"></div></div>
+      <div class="msg" id="iMsg"></div></div></details>`}
     <div class="grid" id="imgGrid">${imgs.length ? '' : `<div class="empty" style="grid-column:1/-1">${esc(tr('noImages'))}</div>`}</div>`;
-  $('iUploadBtn').onclick = async () => {
+  if ($('iUploadBtn')) $('iUploadBtn').onclick = async () => {
     const files = [...$('iFile').files]; if (!files.length) return say('iMsg', tr('chooseFile'));
     $('iUploadBtn').disabled = true;
     for (const f of files) {
@@ -1660,19 +1992,20 @@ async function renderImages(panel) {
 function renderVideos(panel) {
   const vids = forSel((S.content.assets || []).filter(a => a.kind === 'video'));
   const montages = forSel((S.content.assets || []).filter(a => a.kind === 'montage'));
-  panel.innerHTML = `<div class="card">
-      <h2>${esc(tr('videosTitle'))}</h2><p class="hint">${esc(tr('videosIntro'))}</p>
+  // Visiteur de la démo : il ne peut rien ajouter, donc ni formulaire d'ajout ni liste de vidéos vide (retour Joris).
+  panel.innerHTML = `${DEMO ? '' : `<details class="add-fold"><summary>${esc(tr('addVideoOpen'))}</summary><div class="card">
+      <p class="hint">${esc(tr('videosIntro'))}</p>
       <div class="bar"><input type="url" id="vUrl" placeholder="${esc(tr('videoLinkPlaceholder'))}" style="flex:1 1 240px"><button class="btn" id="vLinkBtn" type="button">${esc(tr('addVideoLink'))}</button></div>
       <div class="bar" style="margin-top:8px"><input type="file" id="vFile" accept="video/mp4,video/webm,video/quicktime,.mov" style="flex:1 1 240px"><button class="btn" id="vUploadBtn" type="button">${esc(tr('uploadVideo'))}</button></div>
       <label>${esc(tr('itemTitle'))}</label><input type="text" id="vTitle">
       <div class="msg" id="vMsg"></div>
-    </div>
-    <div class="card">${vids.length ? vids.map(v => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(v.id)}"` : ''}><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
+    </div></details>`}
+    ${DEMO && !vids.length ? '' : `<div class="card">${vids.length ? vids.map(v => `<div class="list-row"${S.sections ? ` draggable="true" data-dragasset="${esc(v.id)}"` : ''}><div class="list-main">${esc(v.title || tr('untitledVideo'))} <span class="meta">· ${esc(tr(v.url ? 'videoLink' : 'videoFile'))} · ${esc(tr('noteCount', { n: v.notes }))}</span>${v.pinned ? ` <span class="pill">${esc(tr('pinnedPill'))}</span>` : ''}</div>
         <button class="btn${S.video && S.video.id === v.id ? ' primary' : ''}" type="button" data-open="${esc(v.id)}">${esc(tr('openVideo'))}</button>
         <button class="btn" type="button" data-pin="${esc(v.id)}">${esc(tr(v.pinned ? 'unpin' : 'pinBtn'))}</button>
         ${secBtn(v, 'btn')}
-        <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>
-    ${montages.length ? `<div class="card"><h2>${esc(tr('montagesTitle'))}</h2><p class="hint">${esc(tr('montagesIntro'))}</p><div class="grid" id="montageGrid"></div></div>` : ''}
+        <button class="btn danger" type="button" data-delvideo="${esc(v.id)}">${esc(tr('delete'))}</button></div>`).join('') : `<div class="empty">${esc(tr('noVideos'))}</div>`}</div>`}
+    ${montages.length ? `<div class="card"><h2>${esc(tr('montagesTitle'))}</h2><p class="hint">${esc(tr('montagesIntro'))}</p><div class="grid grid-wide" id="montageGrid"></div></div>` : ''}
     <div id="videoStage"></div>`;
   // Montages vidéo du Projet : chacun avec son lecteur à versions (menu + étiquette), comme dans les AdReels.
   const mg = $('montageGrid');
@@ -1693,8 +2026,8 @@ function renderVideos(panel) {
     if (r.data && r.data.existed) window.LayerPitchNotify.info(tr('alreadyInProjectVideo'));
     await reloadContent(); renderVideos(panel); broadcast('content');
   };
-  $('vLinkBtn').onclick = addLink;
-  $('vUploadBtn').onclick = async () => {
+  if ($('vLinkBtn')) $('vLinkBtn').onclick = addLink;
+  if ($('vUploadBtn')) $('vUploadBtn').onclick = async () => {
     const file = $('vFile').files[0]; if (!file) return say('vMsg', tr('chooseFile'));
     $('vUploadBtn').disabled = true; say('vMsg', tr('uploading'), true);
     const up = await uploadOrReuse(file);
@@ -1706,7 +2039,7 @@ function renderVideos(panel) {
   panel.querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { S.video = vids.find(v => v.id === b.dataset.open); await openVideo(); renderVideos(panel); });
   panel.querySelectorAll('[data-pin]').forEach(b => b.onclick = async () => {
     const v = assetById(b.dataset.pin);
-    const r = await PJ.pin(v.id, !v.pinned); if (r.error) return say('vMsg', tr('errorPrefix', { message: r.error }));
+    const r = await PJ.pin(v.id, !v.pinned); if (r.error) return window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error }));
     await reloadContent(); renderVideos(panel); broadcast('content');
   });
   panel.querySelectorAll('[data-delvideo]').forEach(b => b.onclick = () => deleteAsset(assetById(b.dataset.delvideo)));
@@ -1795,7 +2128,7 @@ function renderVideoNotes() {
 // ---- Carte de niveau (6/10, migration 20261006020000) : dessiner un niveau puis y déposer des sons de la bibliothèque ----
 // Éditeur et fonctions pures : projet-carte.js. Sons proposés : morceaux et Sfx de la bibliothèque du compositeur, et l'audio du Projet.
 // Lecture de la carte : les sons de la bibliothèque jouent avec le vrai lecteur (morceaux adaptatifs, plusieurs EN MÊME TEMPS : fond
-// d'ambiance, morceau en cours, morceau qui entre) ; Sfx et audio du Projet sont décodés et bouclés. Les lecteurs de morceaux sont montés
+// d'ambiance, morceau en cours, morceau qui entre) ; les Sfx sont décodés et joués une fois (comme ailleurs), l'audio du Projet est bouclé. Les lecteurs de morceaux sont montés
 // hors de l'écran, une seule fois par morceau.
 function mapAudioEnv() {
   const P = window.LayerPlayerCore;
@@ -1812,7 +2145,8 @@ function mapAudioEnv() {
         const sfx = r.sfx && r.sfx[0];
         const alts = (sfx && sfx.alternatives || []).filter(a => a.file);
         if (!alts.length || !sfx.base) return null;
-        return { type: 'url', url: sfx.base + encodeURIComponent(alts[Math.floor(Math.random() * alts.length)].file), loop: true };
+        // Un Sfx n'a pas de réglage de boucle dans le Backstage : il se joue une fois, comme partout ailleurs.
+        return { type: 'url', url: sfx.base + encodeURIComponent(alts[Math.floor(Math.random() * alts.length)].file), loop: false };
       }
       if (ref.kind === 'asset') {
         const a = assetById(ref.id);
@@ -1870,27 +2204,80 @@ if (SOLO_MAP) window.addEventListener('pagehide', () => {
   try { const m = S.mapView && S.mapView.state; if (window.opener && m && m.current) window.opener.postMessage({ lpMapClosed: m.current }, location.origin); } catch (e) { /* onglet d'origine fermé */ }
 });
 if (!SOLO_MAP) window.addEventListener('message', ev => { if (ev.origin === location.origin && ev.data && ev.data.lpMapClosed) S.openMapId = String(ev.data.lpMapClosed); });
+// Musique des packs partagés au Projet : chaque pack devient un dossier de « Du Projet », avec ses morceaux et ses Sfx
+// (posés sur la carte comme n'importe quel morceau ou Sfx). Un pack introuvable ou illisible est simplement sauté.
+async function sharedPacksLibrary() {
+  const sig = (S.content.packs || []).map(p => p.packId).join(',');
+  if (S.packLibCache && S.packLibCache.sig === sig) return S.packLibCache.out;
+  const out = { items: [], folders: [] };
+  for (const sp of (S.content.packs || [])) {
+    try {
+      let pack = (await LayerPitchPacks.getPack(sp.packId)).pack;
+      // Le faux serveur du tutoriel ne sait pas lire un pack seul : on le retrouve dans la liste.
+      if (!pack) { if (!S.allPacksCache) S.allPacksCache = (await LayerPitchPacks.listPacks()).packs || []; pack = S.allPacksCache.find(x => x.id === sp.packId); }
+      if (!pack) continue;
+      const [tr_, sr] = await Promise.all([
+        pack.trackIds.length ? LayerPitchTracks.listTracksByIds(pack.trackIds) : { tracks: [] },
+        pack.sfxIds.length ? LayerPitchSfx.listSfxByIds(pack.sfxIds) : { sfx: [] },
+      ]);
+      const fid = 'pack:' + sp.packId;
+      const byId = (list, id) => (list || []).find(x => x.id === id);
+      const items = [];
+      pack.trackIds.forEach(id => { const t = byId(tr_.tracks, id); if (t) items.push({ id: t.id, title: t.title, hint: t.mode, kind: 'track', folderId: fid }); });
+      pack.sfxIds.forEach(id => { const x = byId(sr.sfx, id); if (x) items.push({ id: x.id, title: x.title, kind: 'sfx', folderId: fid }); });
+      if (items.length) { out.folders.push({ id: fid, label: sp.title || pack.title }); out.items.push(...items); }
+    } catch (e) { console.warn('pack partagé illisible', sp.packId, e); }
+  }
+  S.packLibCache = { sig, out };
+  return out;
+}
+// Démo publique : la bibliothèque de la carte propose les morceaux et Sfx des packs partagés du Projet (lisibles sans compte).
+async function ensureDemoPackSounds() {
+  if (S.demoSoundsLoaded) return;
+  S.demoSoundsLoaded = true; S.myTracks = []; S.mySfx = [];
+  for (const k of (S.content.packs || [])) {
+    const pk = (await LayerPitchPacks.getPack(k.packId)).pack; if (!pk) continue;
+    if ((pk.trackIds || []).length) S.myTracks.push(...((await LayerPitchTracks.listTracksByIds(pk.trackIds)).tracks || []));
+    if ((pk.sfxIds || []).length) S.mySfx.push(...((await LayerPitchSfx.listSfxByIds(pk.sfxIds)).sfx || []));
+  }
+}
+// Bibliothèques de la carte (Morceaux, Sfx, « Du Projet » avec un dossier par pack partagé). Reconstruite à chaque ouverture de la carte et
+// à chaque retour sur la page : un morceau ajouté à un pack (ou au Backstage) apparaît donc sans recharger.
+async function buildMapLibraries() {
+  if (DEMO) await ensureDemoPackSounds(); else await ensureMyTracks();
+  if (!DEMO && !S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
+  // Dossiers du Backstage (Morceaux, Sfx) et musique des packs partagés au Projet (un dossier par pack, dans « Du Projet »).
+  if (!DEMO && S.myComposerId && !S.mapFoldersLoaded) {
+    try {
+      const [tf, sf] = await Promise.all([LayerPitchTracks.listTrackFolders({ ownerId: S.myComposerId }), LayerPitchSfx.listSfxFolders({ ownerId: S.myComposerId })]);
+      S.mapFolders = { track: tf.folders || [], sfx: sf.folders || [] }; S.mapFoldersLoaded = true;
+    } catch (e) { S.mapFolders = { track: [], sfx: [] }; }
+  }
+  const packLib = DEMO ? { items: [], folders: [] } : await sharedPacksLibrary(); // la démo publique les met déjà dans « Morceaux » (ensureDemoPackSounds)
+  const libraries = {
+    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode, folderId: t.folderId || null })),
+    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title, folderId: x.folderId || null })),
+    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })).concat(packLib.items),
+    folders: { track: (S.mapFolders && S.mapFolders.track) || [], sfx: (S.mapFolders && S.mapFolders.sfx) || [], asset: packLib.folders },
+  };
+  return libraries;
+}
 async function renderMap(panel) {
   const r = await PJ.listMaps(projectId);
   if (r.error) {
     panel.innerHTML = `<div class="card"><h2>${esc(tr('map_title'))}</h2><p class="hint">${esc(/pas encore ouverte/.test(r.error) ? tr('map_locked') : tr('errorPrefix', { message: r.error }))}</p></div>`;
     return;
   }
-  await ensureMyTracks();
-  if (!S.mySfxLoaded && S.myComposerId) { const sr = await LayerPitchSfx.listSfx({ ownerId: S.myComposerId }); S.mySfx = sr.sfx || []; S.mySfxLoaded = true; }
-  const libraries = {
-    track: (S.myTracks || []).map(t => ({ id: t.id, title: t.title, hint: t.mode })),
-    sfx: (S.mySfx || []).map(x => ({ id: x.id, title: x.title })),
-    asset: (S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio').map(a => ({ id: a.id, title: assetTitle(a) })),
-  };
+  const libraries = await buildMapLibraries();
   if (S.mapView && S.mapView.destroy) S.mapView.destroy();
   S.mapView = null;
   if (mapPopupOpen()) return renderMapDetached(panel);
-  const openId = S.openMapId; S.openMapId = null;
+  const openId = S.openMapId, openNode = S.openMapNode; S.openMapId = null; S.openMapNode = null;
   S.mapView = LayerPitchLevelMap.mount(panel, {
-    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, downloadFiles: downloadMapFiles,
+    tr, canEdit: true, libraries, audio: mapAudioEnv(), openId, openNode, downloadFiles: downloadMapFiles,
     // Fenêtre à part : « Détacher » ici ; dans la fenêtre détachée, la carte remplit la fenêtre et « Rattacher » la ferme.
-    detach: SOLO_MAP ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
+    libUi: (S.mapLibUi = S.mapLibUi || { tab: 'track', query: '', open: new Set() }),
+    detach: (SOLO_MAP || DEMO) ? null : detachMap, attach: SOLO_MAP ? (() => window.close()) : null, fill: SOLO_MAP,
     // Fichier audio déposé depuis l'ordinateur : envoyé comme fichier du Projet, il devient un objet « audio » de la réserve (rangé dans la
     // section choisie), et la carte en garde la référence ; il apparaît aussi dans l'onglet « Du Projet » de la bibliothèque.
     uploadSound: async file => {
@@ -1935,11 +2322,12 @@ async function renderMusic(panel) {
   const albums = S.content.albums || [];
   const studioProject = S.project.ownerKind === 'studio';
   const musicAssets = forSel((S.content.assets || []).filter(a => a.kind === 'track' || a.kind === 'audio'));
-  panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2><p class="hint">${esc(tr('packsIntro'))}</p>
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('packsTitle'))}</h2>${shared.length ? '' : `<p class="hint">${esc(tr('packsIntro'))}</p>`}
       ${shared.length ? shared.map(p => `<div class="list-row"><div class="list-main">${esc(p.title)} <span class="pill">${esc(tr('mode_' + p.mode))}</span>
           <span class="meta">· ${esc(tr('sharedBy', { email: p.sharedByEmail || '' }))}</span></div>
-          ${TUTO ? '' : `<a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPack'))}</a>`}
-          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}</div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
+          ${TUTO ? '' : `<button class="btn" type="button" data-expandpack="${esc(p.packId)}" aria-expanded="false">${esc(tr('expandPack'))}</button><a class="btn" href="./pack.html?id=${encodeURIComponent(p.packId)}&lang=${pageLang}" target="_blank" rel="noopener">${esc(tr('openPackNewTab'))}</a>`}
+          ${p.mode === 'share' && (p.mine || S.project.role === 'admin') ? `<button class="btn" type="button" data-unshare="${esc(p.packId)}">${esc(tr('unshare'))}</button>` : ''}
+          <div class="pack-inline" data-packframe="${esc(p.packId)}" hidden style="flex:1 1 100%"></div></div>`).join('') : `<div class="empty">${esc(tr('noPacks'))}</div>`}
       ${S.myPacks.length ? `<label>${esc(tr('bringPack'))}</label><div class="bar"><select id="myPack" style="flex:1 1 200px">${S.myPacks.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select>
         <button class="btn" id="shareBtn" type="button">${esc(tr('sharePack'))}</button>
         ${studioProject ? `<button class="btn" id="offerBtn" type="button" title="${esc(tr('offerHelp'))}">${esc(tr('offerPack'))}</button>` : ''}</div>` : ''}
@@ -1960,6 +2348,19 @@ async function renderMusic(panel) {
   };
   if ($('shareBtn')) $('shareBtn').onclick = () => share('share');
   if ($('offerBtn')) $('offerBtn').onclick = () => share('offer');
+  // Pack déplié : mémorisé (S.openPacks), car la page se redessine seule (autre membre, retour sur l'onglet) et le repliait aussitôt.
+  // Dépliés d'office (retour 18/11 : la musique est le cœur du site) ; seul un repli volontaire est mémorisé.
+  S.collapsedPacks = S.collapsedPacks || new Set();
+  const setPackOpen = (id, open) => {
+    const box = panel.querySelector('[data-packframe="' + id + '"]'), b = panel.querySelector('[data-expandpack="' + id + '"]');
+    if (!box || !b) return;
+    if (open && !box.firstChild) box.innerHTML = `<iframe src="./pack.html?id=${encodeURIComponent(id)}&lang=${pageLang}&projet=1" title="Pack" loading="lazy" style="width:100%;height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`;
+    box.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+    b.textContent = tr(open ? 'collapsePack' : 'expandPack');
+    if (open) S.collapsedPacks.delete(id); else S.collapsedPacks.add(id);
+  };
+  panel.querySelectorAll('[data-expandpack]').forEach(b => { b.onclick = () => setPackOpen(b.dataset.expandpack, panel.querySelector('[data-packframe="' + b.dataset.expandpack + '"]').hidden); if (!TUTO && !S.collapsedPacks.has(b.dataset.expandpack)) setPackOpen(b.dataset.expandpack, true); });
   panel.querySelectorAll('[data-unshare]').forEach(b => b.onclick = async () => { const r = await PJ.unsharePack(projectId, b.dataset.unshare); if (r.error) return say('musicMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); });
   if ($('linkAlbumBtn')) $('linkAlbumBtn').onclick = async () => { const r = await PJ.linkAlbum(projectId, $('myAlbum').value, true); if (r.error) return say('albumMsg', tr('errorPrefix', { message: r.error })); await reloadContent(); renderMusic(panel); broadcast('content'); };
   panel.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => { await PJ.linkAlbum(projectId, b.dataset.unlink, false); await reloadContent(); renderMusic(panel); broadcast('content'); });
@@ -1971,8 +2372,19 @@ async function renderMusic(panel) {
 // de l'AdReel, qui pointent vers les objets du Projet ; même moteur d'affichage que les AdReels (reel.js). Tous les
 // membres préparent, les administrateurs publient. Fichiers privés autorisés partout, avec un avertissement (Q7).
 const VITRINE_BLOCK_TYPES = ['header', 'text', 'tracks', 'video', 'photo', 'packs', 'links', 'contact'];
-const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video'], photo: ['image'], packs: ['pack'] };
+const VITRINE_KINDS = { tracks: ['track', 'audio'], video: ['video', 'montage'], photo: ['image'], packs: ['pack'] };
 const VITRINE_FONTS = ['default', 'google:Space Grotesk', 'google:Fraunces', 'google:Zilla Slab', 'google:Manrope', 'google:Playfair Display', 'google:DM Serif Display', 'google:JetBrains Mono'];
+// Aperçu : chaque police s'affiche dans sa propre police dans les menus (une seule feuille Google Fonts, display=swap).
+// Le menu déroulant natif ignore la police des options : layerpitch-font-picker.js ouvre un menu maison à la place.
+const fontOptStyle = f => f === 'default' ? '' : ` style="font-family:'${esc(f.replace('google:', ''))}'"`;
+function ensureVitrineFontPreviews() {
+  if (document.getElementById('vitrineFontPreviews')) return;
+  const l = document.createElement('link');
+  l.id = 'vitrineFontPreviews'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?' + VITRINE_FONTS.filter(f => f !== 'default').map(f => 'family=' + f.replace('google:', '').replace(/ /g, '+')).join('&') + '&display=swap';
+  document.head.appendChild(l);
+}
+ensureVitrineFontPreviews();
 const vitrineUrl = v => v.audience === 'publisher'
   ? (v.secretToken ? `${location.origin}/vitrine/${encodeURIComponent(v.slug)}?k=${encodeURIComponent(v.secretToken)}` : '') // le lien secret porte aussi le nom du jeu
   : `${location.origin}/vitrine/${encodeURIComponent(v.slug)}`;
@@ -2076,7 +2488,7 @@ async function renderVitrineEditor(panel) {
     <div class="card"><h2>${esc(tr('vitrineAppearance'))}</h2>
       ${S.myAdReels && S.myAdReels.length ? `<div class="bar"><select id="vFromReel" style="flex:1 1 200px"><option value="">${esc(tr('copyAppearanceFrom'))}</option>${S.myAdReels.map(a => `<option value="${esc(a.id)}">${esc(a.label || a.id)}</option>`).join('')}</select><span class="meta">${esc(tr('copyAppearanceHint'))}</span></div>` : ''}
       <div style="display:flex;flex-wrap:wrap;gap:4px 18px">${color('bgColor', 'themeBg', '#f5f6f8')}${color('titleColor', 'themeTitle', '#24262b')}${color('contentColor', 'themeText', '#24262b')}${color('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
-      <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
+      <label>${esc(tr('themeFont'))}</label><select id="vFont">${VITRINE_FONTS.map(f => `<option value="${esc(f)}"${fontOptStyle(f)}${(t.font || 'default') === f ? ' selected' : ''}>${esc(f === 'default' ? tr('fontDefault') : f.replace('google:', ''))}</option>`).join('')}</select>
       <label class="choice" style="margin-top:10px"><input type="checkbox" id="vSep" ${t.separator && t.separator.visible ? 'checked' : ''}> ${esc(tr('themeSeparators'))}</label>
       <label>${esc(tr('vitrineBgImage'))}</label><div class="bar"><select id="vBg" style="flex:1 1 200px"><option value="">${esc(tr('none'))}</option>${images.map(a => `<option value="${esc(a.id)}"${v.bgAssetId === a.id ? ' selected' : ''}>${esc(assetTitle(a))}</option>`).join('')}</select>
         <label style="display:flex;align-items:center;gap:6px;margin:0">${esc(tr('bgOpacity'))}<input type="range" id="vBgOp" min="0.05" max="1" step="0.05" value="${esc(t.bgImageOpacity != null ? t.bgImageOpacity : 0.35)}" style="width:120px"></label></div>
@@ -2148,7 +2560,7 @@ function blockAppearanceHtml(b) {
   return `<details style="margin-top:8px"${Object.keys(ap).length ? ' open' : ''}><summary class="meta" style="cursor:pointer">🎨 ${esc(tr('blockAppearance'))}</summary>
     <div style="display:flex;flex-wrap:wrap;gap:0 16px">${row('bgColor', 'themeBg', '#ffffff')}${row('titleColor', 'themeTitle', '#24262b')}${row('contentColor', 'themeText', '#24262b')}${row('sectionLabelColor', 'themeLabels', '#2f80c0')}</div>
     <label class="choice" style="margin:4px 0"><input type="checkbox" data-apon="font" ${ap.font ? 'checked' : ''}> ${esc(tr('themeFont'))}
-      <select data-ap="font" style="max-width:200px">${VITRINE_FONTS.filter(f => f !== 'default').map(f => `<option value="${esc(f)}"${ap.font === f ? ' selected' : ''}>${esc(f.replace('google:', ''))}</option>`).join('')}</select></label></details>`;
+      <select data-ap="font" style="max-width:200px">${VITRINE_FONTS.filter(f => f !== 'default').map(f => `<option value="${esc(f)}"${fontOptStyle(f)}${ap.font === f ? ' selected' : ''}>${esc(f.replace('google:', ''))}</option>`).join('')}</select></label></details>`;
 }
 function renderVitrineBlocks(panel) {
   const v = S.vitrineDraft;
@@ -2199,6 +2611,199 @@ function renderActivity(panel) {
       <span class="meta">${esc(new Date(a.createdAt).toLocaleString(pageLang))}</span></div>`).join('') + '</div>' : `<div class="empty">${esc(tr('noActivity'))}</div>`}</div>`;
 }
 
+// ---- Tâches (4/11, migration 20261104020000 ; cadrage layerpitch-docs/2026-11-04-projet-onglet-taches-cadrage.md) ----
+// Liste partagée par l'équipe : case à cocher, titre, précisions, personne assignée, échéance, section facultative, lien vers UN
+// élément du Projet (objet, section, carte ou point de carte). S.tasks = null tant que le feu vert 'project_tasks' est fermé
+// (ou en démonstration, ou dans le tutoriel) : l'onglet n'apparaît pas. Le filtre de section est S.sel, partagé avec le Moodboard.
+S.tasks = null; S.taskMine = false; S.taskShowDone = false; S.taskMaps = null;
+async function loadTasks() {
+  if (DEMO || TUTO || typeof PJ.tasks !== 'function') { S.tasks = null; return; }
+  const r = await PJ.tasks(projectId);
+  S.tasks = r.error ? null : (r.data || []);
+  if (!S.tasks && S.tab === 'tasks') S.tab = 'board';
+}
+async function tasksChanged() { await loadTasks(); if (S.tab === 'tasks') renderPanel(); broadcast('tasks'); }
+function taskError(r) { if (r && r.error) { window.LayerPitchNotify.error(tr('errorPrefix', { message: r.error })); return true; } return false; }
+// Cartes de niveau (pour nommer et choisir un lien « carte ») : chargées une fois ; [] si la carte n'est pas ouverte pour ce compte.
+async function ensureTaskMaps(force) {
+  if (S.taskMaps && !force) return S.taskMaps;
+  const r = await PJ.listMaps(projectId);
+  S.taskMaps = r.error ? [] : (r.data || []);
+  return S.taskMaps;
+}
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const fmtDue = d => new Date(d + 'T00:00:00').toLocaleDateString(pageLang, { day: 'numeric', month: 'short', year: d.slice(0, 4) === String(new Date().getFullYear()) ? undefined : 'numeric' });
+function taskLinkLabel(link) {
+  if (!link) return null;
+  if (link.type === 'asset') { const a = assetById(link.id); return a ? (a.kind === 'video' ? '🎬 ' : a.kind === 'image' ? '🖼 ' : a.kind === 'track' || a.kind === 'audio' ? '♪ ' : '🔗 ') + assetTitle(a) : null; }
+  if (link.type === 'section') { const x = secById(link.id); return x ? '# ' + x.title : null; }
+  if (link.type === 'map') {
+    const m = (S.taskMaps || []).find(y => y.id === link.id); if (!m) return null;
+    const n = link.sub && ((m.data && m.data.nodes) || []).find(y => y.id === link.sub);
+    return '🗺 ' + (m.title || tr('map_untitled')) + (n ? ' · ' + (n.label || n.type || '') : '');
+  }
+  return null;
+}
+// Aller à l'élément lié : le bon onglet, la bonne section, la bonne carte (et son point sélectionné).
+function gotoTaskLink(link) {
+  if (!link) return;
+  if (link.type === 'asset') {
+    const a = assetById(link.id); if (!a) return;
+    if (a.kind === 'video') return openInVideos(a.id);
+    setFilterTo('all');
+    S.tab = a.kind === 'image' ? 'images' : ['track', 'audio', 'pack', 'album'].includes(a.kind) && !a.pinned ? 'music' : 'board';
+    S.openNotes[a.id] = true;
+  } else if (link.type === 'section') { if (!secById(link.id)) return; setFilterTo(link.id); S.tab = 'board'; }
+  else if (link.type === 'map') { S.openMapId = link.id; S.openMapNode = link.sub || null; S.tab = 'map'; }
+  stopMedia(); render();
+}
+// Tâches visibles d'après les filtres (section choisie et ses sous-sections, « sans section », « seulement les miennes »).
+function taskFilter(t) {
+  if (S.taskMine && t.assigneeId !== (S.me && S.me.id)) return false;
+  if (!S.sections || S.sel === 'all') return true;
+  if (S.sel === 'none') return !t.sectionId;
+  return !!t.sectionId && secDescendants(S.sel).includes(t.sectionId);
+}
+function taskRowHtml(t) {
+  const late = !t.done && t.dueDate && t.dueDate < todayStr();
+  const link = taskLinkLabel(t.link);
+  const who = t.assigneeId ? (t.assigneeId === (S.me && S.me.id) ? tr('taskMe') : (t.assigneeEmail || '')) : '';
+  return `<div class="list-row task-row${t.done ? ' done' : ''}" data-task="${esc(t.id)}">
+    ${t.done ? '' : `<span class="drag-handle" title="${esc(tr('dragToReorder'))}">${DRAG_HANDLE_SVG}</span>`}
+    <input type="checkbox" data-taskdone ${t.done ? 'checked' : ''} aria-label="${esc(t.title)}">
+    <div class="task-main" data-taskedit title="${esc(tr('taskEditHint'))}"><div class="task-title">${esc(t.title)}</div>
+      ${t.notes ? `<div class="task-notes">${esc(t.notes)}</div>` : ''}
+      <div class="task-meta">${who ? `<span class="pill">👤 ${esc(who)}</span>` : ''}
+        ${t.dueDate ? `<span class="pill${late ? ' overdue' : ''}">📅 ${esc(fmtDue(t.dueDate))}${late ? ' · ' + esc(tr('taskOverdue')) : ''}</span>` : ''}
+        ${t.link ? (link ? `<button class="btn task-link" type="button" data-adv data-tasklink>${esc(link)}</button>` : `<span class="meta">🔗 ${esc(tr('taskLinkGone'))}</span>`) : ''}
+        ${t.done && t.doneByEmail ? `<span class="meta">${esc(tr('taskDoneBy', { email: t.doneByEmail }))}</span>` : ''}</div></div></div>`;
+}
+async function renderTasks(panel) {
+  if (!S.tasks) { S.tab = 'board'; return render(); }
+  if (S.tasks.some(t => t.link && t.link.type === 'map')) await ensureTaskMaps();
+  if (S.sections && S.sel !== 'all' && S.sel !== 'none' && !secById(S.sel)) S.sel = 'all';
+  const todo = S.tasks.filter(t => !t.done && taskFilter(t)), done = S.tasks.filter(t => t.done && taskFilter(t));
+  // Toutes les sections : groupées par section (dans l'ordre de l'arbre), puis « Sans section ».
+  let groups;
+  if (S.sections && S.sel === 'all' && S.sections.sections.length) {
+    groups = secFlat().map(x => ({ id: x.id, title: '# ' + x.title, items: todo.filter(t => t.sectionId === x.id) })).filter(g => g.items.length);
+    const loose = todo.filter(t => !t.sectionId || !secById(t.sectionId));
+    if (loose.length) groups.push({ id: '', title: tr('secNone'), items: loose });
+  } else groups = [{ id: null, title: null, items: todo }];
+  const secOpts = S.sections ? `<select id="taskSec" data-adv style="width:auto">
+      <option value="all"${S.sel === 'all' ? ' selected' : ''}>${esc(tr('taskSectionAll'))}</option>
+      ${secFlat().map(x => `<option value="${esc(x.id)}"${S.sel === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}
+      <option value="none"${S.sel === 'none' ? ' selected' : ''}>${esc(tr('secNone'))}</option></select>` : '';
+  panel.innerHTML = `<div class="card"><h2>${esc(tr('tab_tasks'))}</h2><p class="hint">${esc(tr('tasksIntro'))}</p>
+    <div class="bar">${secOpts}<label class="choice" style="margin:0"><input type="checkbox" id="taskMine" ${S.taskMine ? 'checked' : ''}> ${esc(tr('taskFilterMine'))}</label></div>
+    <div class="task-add"><input type="text" id="taskNew" maxlength="200" placeholder="${esc(tr('taskAddPlaceholder'))}"><button class="btn primary" id="taskAddBtn" type="button">${esc(tr('taskAdd'))}</button><button class="icon-btn" id="taskMoreBtn" type="button" title="${esc(tr('taskNewTitle'))}">⋯</button></div>
+    ${todo.length ? groups.map(g => `<div class="task-group">${g.title ? `<h3 data-adv>${esc(g.title)}</h3>` : ''}<div data-taskgroup="${esc(g.id == null ? '*' : g.id)}">${g.items.map(taskRowHtml).join('')}</div></div>`).join('')
+      : `<div class="empty">${esc(tr(S.tasks.length ? 'taskEmptyFiltered' : 'taskEmpty'))}</div>`}
+    ${done.length ? `<div class="task-group"><h3><button class="btn" id="taskDoneToggle" type="button" aria-expanded="${S.taskShowDone}">${S.taskShowDone ? '▾' : '▸'} ${esc(tr('taskShowDone', { n: done.length }))}</button></h3>
+      ${S.taskShowDone ? done.map(taskRowHtml).join('') : ''}</div>` : ''}</div>`;
+  const add = async () => {
+    const title = $('taskNew').value.trim(); if (!title) return;
+    $('taskAddBtn').disabled = true;
+    const r = await PJ.createTask(projectId, { title, sectionId: S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null });
+    $('taskAddBtn').disabled = false;
+    if (taskError(r)) return;
+    await tasksChanged(); const box = $('taskNew'); if (box) box.focus();
+  };
+  $('taskAddBtn').onclick = add;
+  $('taskNew').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } };
+  $('taskMoreBtn').onclick = () => openTaskDialog(null, { title: $('taskNew').value.trim() });
+  if ($('taskSec')) $('taskSec').onchange = e => { setFilterTo(e.target.value); renderPanel(); };
+  $('taskMine').onchange = e => { S.taskMine = e.target.checked; renderPanel(); };
+  if ($('taskDoneToggle')) $('taskDoneToggle').onclick = () => { S.taskShowDone = !S.taskShowDone; renderPanel(); };
+  panel.querySelectorAll('[data-task]').forEach(row => {
+    const t = S.tasks.find(x => x.id === row.dataset.task); if (!t) return;
+    row.querySelector('[data-taskdone]').onchange = async e => { e.target.disabled = true; if (taskError(await PJ.setTaskDone(t.id, e.target.checked))) { e.target.disabled = false; e.target.checked = !e.target.checked; return; } await tasksChanged(); };
+    row.querySelector('[data-taskedit]').onclick = e => { if (e.target.closest('[data-tasklink]')) return; openTaskDialog(t); };
+    const ln = row.querySelector('[data-tasklink]'); if (ln) ln.onclick = () => gotoTaskLink(t.link);
+  });
+  // Ordre manuel (glisser par la poignée) à l'intérieur d'un groupe : les autres tâches gardent leur place.
+  panel.querySelectorAll('[data-taskgroup]').forEach(host => makeSortable(host, async (from, to) => {
+    const ids = [...host.querySelectorAll('[data-task]')].map(el => el.dataset.task);
+    const moved = ids.splice(from, 1)[0]; ids.splice(to, 0, moved);
+    const all = S.tasks.filter(t => !t.done).map(t => t.id), slots = new Set(ids);
+    let k = 0; const order = all.map(id => slots.has(id) ? ids[k++] : id);
+    if (taskError(await PJ.reorderTasks(projectId, order))) return;
+    await tasksChanged();
+  }));
+}
+// Création (task = null, prefill = valeurs de départ) ou modification d'une tâche.
+async function openTaskDialog(task, prefill) {
+  const maps = await ensureTaskMaps();
+  const specific = S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null;
+  const t = task || Object.assign({ title: '', notes: '', assigneeId: null, dueDate: null, sectionId: specific, link: null }, prefill || {});
+  const members = (S.project.members || []).filter(m => m.profileId && m.status === 'active');
+  const assets = (S.content.assets || []);
+  const flat = S.sections ? secFlat() : [];
+  const linkType = t.link ? t.link.type : '';
+  const types = [['', 'taskLinkNone'], assets.length ? ['asset', 'taskLinkAsset'] : null, flat.length ? ['section', 'taskLinkSection'] : null, maps.length ? ['map', 'taskLinkMap'] : null].filter(Boolean);
+  const { box, close } = openOverlay(`<h2>${esc(tr(task ? 'taskEditTitle' : 'taskNewTitle'))}</h2><div class="task-form">
+    <label for="tTitle">${esc(tr('taskFieldTitle'))}</label><input type="text" id="tTitle" maxlength="200" value="${esc(t.title)}">
+    <label for="tNotes">${esc(tr('taskFieldNotes'))}</label><textarea id="tNotes" rows="3" maxlength="4000">${esc(t.notes)}</textarea>
+    <label for="tWho">${esc(tr('taskFieldAssignee'))}</label><select id="tWho"><option value="">${esc(tr('taskNobody'))}</option>
+      ${members.map(m => `<option value="${esc(m.profileId)}"${t.assigneeId === m.profileId ? ' selected' : ''}>${esc(m.email || '')}${m.me ? ' (' + esc(tr('taskMe')) + ')' : ''}</option>`).join('')}</select>
+    <label for="tDue">${esc(tr('taskFieldDue'))}</label><input type="date" id="tDue" value="${esc(t.dueDate || '')}">
+    ${flat.length ? `<label for="tSec">${esc(tr('taskFieldSection'))}</label><select id="tSec"><option value="">${esc(tr('secNone'))}</option>
+      ${flat.map(x => `<option value="${esc(x.id)}"${t.sectionId === x.id ? ' selected' : ''}>${'  '.repeat(x.depth)}${esc(x.title)}</option>`).join('')}</select>` : ''}
+    ${types.length > 1 || linkType ? `<label for="tLinkType" data-adv>${esc(tr('taskFieldLink'))}</label><select id="tLinkType" data-adv>${types.map(([v, k]) => `<option value="${v}"${linkType === v ? ' selected' : ''}>${esc(tr(k))}</option>`).join('')}</select>
+      <div id="tLinkPick"></div>` : ''}
+  </div><div class="bar" style="margin-top:14px">${task && task.canDelete ? `<button class="btn danger" type="button" data-x="del">${esc(tr('taskDelete'))}</button>` : ''}
+    <span style="flex:1"></span><button class="btn" type="button" data-x="cancel">${esc(tr('secCancel'))}</button><button class="btn primary" type="button" data-x="save">${esc(tr('save'))}</button></div>`);
+  const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+  const fillPick = () => {
+    const pick = box.querySelector('#tLinkPick'); if (!pick) return;
+    const ty = box.querySelector('#tLinkType').value, cur = t.link && t.link.type === ty ? t.link : null;
+    if (ty === 'asset') pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${assets.map(a => opt(a.id, tr('kind_' + a.kind) + ' · ' + assetTitle(a), cur && cur.id === a.id)).join('')}</select>`;
+    else if (ty === 'section') pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${flat.map(x => opt(x.id, '  '.repeat(x.depth) + x.title, cur && cur.id === x.id)).join('')}</select>`;
+    else if (ty === 'map') {
+      pick.innerHTML = `<select id="tLinkId" style="margin-top:6px">${maps.map(m => opt(m.id, m.title || tr('map_untitled'), cur && cur.id === m.id)).join('')}</select><select id="tLinkSub" style="margin-top:6px"></select>`;
+      const fillNodes = () => {
+        const m = maps.find(y => y.id === box.querySelector('#tLinkId').value), nodes = (m && m.data && m.data.nodes) || [];
+        box.querySelector('#tLinkSub').innerHTML = opt('', tr('taskMapWhole'), !(cur && cur.sub)) + nodes.map(n => opt(n.id, n.label || n.type || n.id, cur && cur.sub === n.id)).join('');
+      };
+      box.querySelector('#tLinkId').onchange = fillNodes; fillNodes();
+    } else pick.innerHTML = '';
+  };
+  if (box.querySelector('#tLinkType')) { box.querySelector('#tLinkType').onchange = fillPick; fillPick(); }
+  const v = id => { const el = box.querySelector('#' + id); return el ? el.value : ''; };
+  box.querySelector('#tTitle').focus();
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  if (box.querySelector('[data-x="del"]')) box.querySelector('[data-x="del"]').onclick = async () => {
+    if (!(await window.LayerPitchNotify.confirm(tr('taskDeleteConfirm', { title: task.title }), { okLabel: tr('taskDelete'), danger: true }))) return;
+    if (taskError(await PJ.deleteTask(task.id))) return;
+    close(); await tasksChanged();
+  };
+  const save = async () => {
+    const title = v('tTitle').trim(); if (!title) { box.querySelector('#tTitle').focus(); return; }
+    const ty = v('tLinkType');
+    const p = { title, notes: v('tNotes').trim(), assigneeId: v('tWho') || null, dueDate: v('tDue') || null,
+      link: ty && v('tLinkId') ? { type: ty, id: v('tLinkId'), sub: ty === 'map' ? (v('tLinkSub') || null) : null } : null };
+    if (box.querySelector('#tSec')) p.sectionId = v('tSec') || null;
+    else if (!task) p.sectionId = t.sectionId || null;
+    if (!box.querySelector('#tLinkType') && task) delete p.link; // pas de choix possible : on ne touche pas au lien existant
+    const btn = box.querySelector('[data-x="save"]'); btn.disabled = true;
+    const r = task ? await PJ.updateTask(task.id, p) : await PJ.createTask(projectId, p);
+    btn.disabled = false;
+    if (taskError(r)) return;
+    close(); await tasksChanged();
+  };
+  box.querySelector('[data-x="save"]').onclick = save;
+  box.querySelector('#tTitle').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); save(); } };
+}
+// « Faire une tâche » depuis un message de la Discussion (général ou canal de section) : titre = première ligne, précisions = le message.
+function taskFromMessage(m, sectionId) {
+  if (!m || !S.tasks) return;
+  const body = String(m.body || '').trim();
+  const first = (body.split('\n').find(l => l.trim()) || '').trim();
+  const att = (m.attachments || []).map(a => a.assetId).find(id => id && assetById(id));
+  openTaskDialog(null, { title: first.slice(0, 200), notes: body + (m.authorEmail ? '\n— ' + m.authorEmail : ''),
+    sectionId: sectionId || (S.sections && S.sel !== 'all' && S.sel !== 'none' ? S.sel : null), link: att ? { type: 'asset', id: att } : null });
+}
+
 // ---- Membres ----
 function renderMembers(panel) {
   const p = S.project;
@@ -2234,7 +2839,7 @@ function renderMembers(panel) {
 
 if (!DEMO && !TUTO && !SOLO_MAP) window.LayerPitchShell && window.LayerPitchShell.mount({ active: 'projects', crumbs: [{ label: shellTr('item_projects'), href: 'projets.html' }, { label: '…' }] });
 // Démonstration : formulaires et boutons d'écriture grisés (la discussion et la barre latérale le sont par la feuille de style).
-const DEMO_WRITE = '[data-act], [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
+const DEMO_WRITE = '[data-act]:not([data-act="play"]):not([data-act="watch"]), [data-pin], [data-unpin], [data-star], [data-del], [data-delete], [data-edit], [data-unshare], [data-unlink], [data-bdel], [data-resolve], [data-range], [data-addlink], [data-dellink], #linkAlbumBtn, #shareBtn, #addBtn, #snapBtn, #iUploadBtn, #vLinkBtn, #vUploadBtn, [data-new], [data-stats]';
 function lockDemo() {
   // Formulaires d'ajout : retirés (rien à saisir en démo) ; le reste des contrôles d'écriture est grisé.
   const add = $('addKind'); if (add && add.closest('.bar')) add.closest('.bar').hidden = true;
@@ -2244,22 +2849,31 @@ function lockDemo() {
     const v = ((S.demo && S.demo.vitrines) || []).find(x => a.href.includes('id=' + x.id)); if (!v || !v.slug) return;
     a.href = location.origin + '/vitrine/' + encodeURIComponent(v.slug); a.textContent = tr('demoViewShowcase');
   });
-  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
+  // .lp-video-versions : changer de version vidéo ne modifie rien, le menu reste actif en démo.
+  document.querySelectorAll('#panel input, #panel textarea, #panel select, #panel ' + DEMO_WRITE.split(', ').join(', #panel ')).forEach(el => { if (!el.disabled && !el.closest('.lm-wrap, .lm-toolbar, .lp-video-versions')) { el.disabled = true; el.setAttribute('data-demo-locked', ''); } });
 }
 if (DEMO) {
   document.body.classList.add('demo');
   // Les onglets se dessinent après coup (données chargées, images) : on reverrouille à chaque changement.
   let lockTimer = null;
   new MutationObserver(() => { clearTimeout(lockTimer); lockTimer = setTimeout(lockDemo, 30); }).observe(content, { childList: true, subtree: true });
-  document.body.insertAdjacentHTML('afterbegin', `<aside class="demo-shell" aria-hidden="true"><b>LayerPitch</b>
+  document.body.insertAdjacentHTML('afterbegin', `<aside class="demo-shell"><button type="button" class="demo-shell-toggle" id="demoShellToggle" aria-expanded="false" title="${esc(tr('demoShellOpen'))}" aria-label="${esc(tr('demoShellOpen'))}">»</button><div class="demo-shell-body" aria-hidden="true"><b>LayerPitch</b>
     <small>${esc(shellTr('sectionComposer'))}</small><span>Backstage</span><span>${esc(tr('demoSales'))}</span>
     <small>${esc(shellTr('sectionStudio'))}</small><span>${esc(tr('demoPurchases'))}</span><span>${esc(tr('demoTeam'))}</span><span>${esc(tr('demoPlan'))}</span>
-    <small>${esc(shellTr('sectionCommon'))}</small><span class="on">${esc(shellTr('item_projects'))}</span><span>${esc(tr('demoInvites'))}</span><span>${esc(tr('demoAccount'))}</span></aside>`);
+    <small>${esc(shellTr('sectionCommon'))}</small><span class="on">${esc(shellTr('item_projects'))}</span><span>${esc(tr('demoInvites'))}</span><span>${esc(tr('demoAccount'))}</span></div></aside>`);
+  $('demoShellToggle').onclick = () => {
+    const open = document.body.classList.toggle('demo-shell-open');
+    const b = $('demoShellToggle'); b.textContent = open ? '«' : '»'; b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const t = tr(open ? 'demoShellClose' : 'demoShellOpen'); b.title = t; b.setAttribute('aria-label', t);
+  };
 }
 if (!projectId) content.innerHTML = `<div class="card"><p class="hint">${esc(tr('noProject'))}</p></div>`;
 else if (DEMO) load();
-else if (TUTO) tutoReady.then(() => LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load().then(() => { const l = params.get('lesson'); if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(l), 400); } }); }));
-else LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || !S.project) load(); });
+else if (TUTO) tutoReady.then(() => LayerPitchAuth.onAuthStateChange((event) => { if (event === 'INITIAL_SESSION' || !S.project) load().then(() => { const l = params.get('lesson'); if (l && !TUTO_LESSONS.started) { TUTO_LESSONS.started = true; setTimeout(() => TUTO_LESSONS.start(l), 400); } }); }));
+// Recharger seulement au premier état de session, ou si la personne connectée change. Chaque page ou cadre qui démarre (le pack
+// de l'onglet Musique est un cadre) rejoue « SIGNED_IN » vers cette page : recharger à chaque fois redessinait l'onglet en boucle
+// (le lecteur se remettait à zéro plusieurs fois par seconde).
+else LayerPitchAuth.onAuthStateChange((event, session) => { const uid = session && session.user && session.user.id; if (event === 'INITIAL_SESSION' || !S.project || (event === 'SIGNED_IN' && uid && S.me && uid !== S.me.id)) load(); });
 </script>
 </body>
 </html>

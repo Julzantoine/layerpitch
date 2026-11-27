@@ -97,7 +97,9 @@ const CASES = {
   ancien: { id: 'a', label: 'A', blocks: [{ id: 'x', type: 'text', content: 'Ancien AdReel' }], trackIds: [], profile: { title: 'Vieux', bgColor: '#ffffff', textColor: '#000000' } },
 };
 
-(async () => {
+// Aussi utilisé par test_media_names_guard.js (affichage d'un AdReel piégé) : le test ne se lance que s'il est appelé directement.
+module.exports = { render };
+if (require.main === module) (async () => {
   const update = process.argv.includes('--update');
   const got = {};
   for (const [name, ar] of Object.entries(CASES)) got[name] = await render(ar, extra);

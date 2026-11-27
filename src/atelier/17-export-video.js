@@ -28,7 +28,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // fichier est replacé exactement comme le lecteur l'a joué -- générations de boucles, queues de fin, coupures,
   // rampes de volume, effets, Sfx, tête. L'ancien mixage par filtres ffmpeg (fenêtres rognées, boucles non rebouclées,
   // calage approximatif) a été retiré. ffmpeg ne sert plus qu'à assembler ce son avec l'image.
-  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx });
+  const built = window.LayerCapturePlan.buildPlan(events, { findTrack: findCaptureTrack, findSfx: findCaptureSfx, trackMix: exportOptions.trackMix });
   const embrWindowsByTrack = built.windows.embr, seqWindowsByTrack = built.windows.seq, vrWindowsByTrack = built.windows.vr;
   const switchCount = Object.keys(embrWindowsByTrack).reduce((n, id) => n + embrWindowsByTrack[id].filter(w => w.isSwitch).length, 0);
   onProgress(tr('captureExportPreparing').replace('{n}', layerSegmentEvents.length).replace('{m}', switchCount).replace('{k}', stingerEvents.length));
@@ -76,7 +76,7 @@ async function exportCaptureVideo(events, videoFile, onProgress, laneOverrides, 
   // sans fontfile) -- on lui fournit celle déjà utilisée par le reste du site (JetBrains Mono, licence
   // libre, vendor/fonts/).
   onProgress(tr('captureFetchFont'));
-  await ffmpeg.writeFile('font.ttf', await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href));
+  await ffmpeg.writeFile('font.ttf', (await fetchAsUint8Array(new URL('./vendor/fonts/JetBrainsMono-Regular.ttf', location.href).href)).slice()); // copie : writeFile transfère les octets (cache partagé)
   // Plafonné à 720p (16 septembre, retour direct : un export de 3 min prenait ~10 min -- cet export
   // encodait la vidéo source à sa résolution d'origine, souvent 1080p+, SANS le plafond déjà appliqué
   // côté bibliothèque vidéo -- voir compressVideoForLibrary dans layerpitch-backstage.html). Le

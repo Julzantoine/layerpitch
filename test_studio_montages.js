@@ -84,9 +84,9 @@
   check('11e montage refusé (limite saved_montages : 10)', await fails(`select public.save_video_capture('cap11', 'p1', 'x', 'x', '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, true)`, [], /Nombre maximal/));
   const fs = require('fs'), read = f => fs.readFileSync(require('path').join(__dirname, f), 'utf8');
   const pack = read('src/atelier/16-sauvegarde-et-envois.js');
-  check('outil de capture : un compte studio agit au nom du studio (p_studio, asStudio)', /window\.__lpStudioBuyer && path\.startsWith\('video\/'\)/.test(pack) && /rpc\('save_video_capture', withStudio\(/.test(pack) && /asStudio: videoAsStudio\(\)/.test(pack));
+  check('outil de capture : un compte studio agit au nom du studio (p_studio, asStudio)', /window\.__lpStudioBuyer && \(path\.startsWith\('video\/'\)/.test(pack) && /rpc\('save_video_capture', withStudio\(/.test(pack) && /asStudio: videoAsStudio\(\)/.test(pack));
   check('outil de capture : un studio enregistre et versionne (plus de « provisoire »)', /window\.__lpVersioningLevel = lvl\('studio_versioning'\)/.test(read('src/atelier/19-bouton-de-capture.js')));
-  check('espace studio : onglet « Vidéos » (montages, bibliothèque, nettoyage)', /STUDIO_TABS = \['library', 'custom', 'video'/.test(read('studio.html')) && /clear_video_export_history', \{ p_studio: true \}/.test(read('studio.html')) && /studio\.video/.test(read('layerpitch-shell.js')));
+  check('espace studio : onglet « Vidéos » (montages, bibliothèque, nettoyage)', /STUDIO_TABS = \['(?:home', ')?library', 'custom', 'video'/.test(read('studio.html')) && /clear_video_export_history', \{ p_studio: true \}/.test(read('studio.html')) && /studio\.video/.test(read('layerpitch-shell.js')));
   check('envoi des fichiers : vidéo d’un studio au quota du studio', /reserve_video_upload_studio/.test(read('supabase/functions/create-media-signed-url/index.ts')) && /verifyStudioVideo/.test(read('supabase/functions/create-media-signed-url/index.ts')));
   check('envois vidéo d’un studio ouverts (fonction d’envoi redéployée le 21/10)', !/__lpStudioVideoUploadsReady/.test(pack) && !/captureStudioUploadSoon/.test(pack));
   console.log(failures ? failures + ' échec(s)' : 'Tout est OK');

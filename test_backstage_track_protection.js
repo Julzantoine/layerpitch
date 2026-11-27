@@ -18,7 +18,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
   click(doc.getElementById('btnAddLibraryTrack'));
   const track = w.eval('library[0]');
   const html = w.trackProtectionHtml(track, 0);
-  check('morceau public : badge « Publics » et bouton « Protéger »', /Publics/.test(html) && /Protéger/.test(html) && /data-action="toggle-track-protection"/.test(html));
+  check('morceau public : badge « Téléchargeables » et bouton « Protéger »', /Téléchargeables/.test(html) && /Protéger/.test(html) && /data-action="toggle-track-protection"/.test(html));
   track.protected = true;
   check('morceau protégé : badge 🔒 et bouton « Rendre publics »', /🔒/.test(w.trackProtectionHtml(track, 0)) && /Rendre publics/.test(w.trackProtectionHtml(track, 0)));
   track.protected = false;
@@ -43,7 +43,7 @@ const { loadBackstage } = require('./scripts/test-harness.js');
 
   // Effets sonores (packs) : même bloc et même appel, côté bibliothèque de Sfx
   const sfxHtml = w.sfxProtectionHtml({ id: 's1', protected: false }, 0);
-  check('Sfx public : badge « Publics » et bouton « Protéger » (data-action toggle-sfx-protection)', /Publics/.test(sfxHtml) && /toggle-sfx-protection/.test(sfxHtml) && /Protéger/.test(sfxHtml));
+  check('Sfx public : badge « Téléchargeables » et bouton « Protéger » (data-action toggle-sfx-protection)', /Téléchargeables/.test(sfxHtml) && /toggle-sfx-protection/.test(sfxHtml) && /Protéger/.test(sfxHtml));
   check('Sfx protégé : badge 🔒 et « Rendre publics »', /🔒/.test(w.sfxProtectionHtml({ id: 's1', protected: true }, 0)) && /Rendre publics/.test(w.sfxProtectionHtml({ id: 's1', protected: true }, 0)));
   check('bloc Sfx présent dans l\'onglet Identité de la bibliothèque de Sfx', /\$\{sfxProtectionHtml\(sfx, si\)\}/.test(page));
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');

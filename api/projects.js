@@ -20,10 +20,17 @@
   const P = {
     // Projet de démonstration public (sans compte, lecture seule) : voir la migration 20260929010000.
     publicDemo: () => rpc('get_public_demo'),
+    publicDemoMaps: () => rpc('get_public_demo_maps'), // cartes de niveau de la démo (migration 20261117010000)
     // Interrupteur « Démo publique » (administrateurs et compte de démo) : { eligible, projectId } et pose / retrait de la marque.
     demoStatus: () => rpc('get_public_demo_status'),
     setDemo: (id, on) => rpc('set_public_demo', { p_project_id: id, p_on: !!on }),
     listMine: () => rpc('list_my_projects'),
+    // Projet de démonstration copié dans le compte (18/11, migration 20261118020000) : ajout automatique une seule fois (le serveur décide :
+    // feu vert, accueil terminé, déjà fait), suppression en un clic de toutes les copies. { seeded, projectId } / { removed }.
+    seedDemoCopy: asStudio => rpc('seed_my_demo_project', { p_as_studio: !!asStudio }),
+    removeDemoCopy: () => rpc('remove_my_demo_project'),
+    // Publier une version de la démo aux copies des testeurs (admin, 19/11, migration 20261119010000) : { projectId, version }.
+    publishDemoUpdate: () => rpc('publish_demo_update'),
     // Carte de niveau (6/10, migration 20261006020000) : plusieurs cartes par Projet, une carte = un document JSON.
     listMaps: id => rpc('list_project_maps', { p_project_id: id }),
     saveMap: (id, p) => rpc('save_project_map', { p_project_id: id, p }),
@@ -52,6 +59,14 @@
     sectionChatState: id => rpc('section_chat_state', { p_project_id: id }),
     setSectionMap: (sectionId, mapId) => rpc('set_section_map', { p_section_id: sectionId, p_map_id: mapId || null }),
     removeAssetsFromSection: (sectionId, assetIds) => rpc('remove_assets_from_section', { p_section_id: sectionId, p_asset_ids: assetIds }),
+    // Tâches (4/11, migration 20261104020000) : liste partagée. p = { title, notes, sectionId, assigneeId, dueDate 'AAAA-MM-JJ',
+    // link: { type: 'asset'|'section'|'map', id, sub } } ; en modification, seuls les champs présents changent (vide = effacé).
+    tasks: id => rpc('list_project_tasks', { p_project_id: id }),
+    createTask: (id, p) => rpc('create_project_task', { p_project_id: id, p: p || {} }),
+    updateTask: (taskId, p) => rpc('update_project_task', { p_task_id: taskId, p: p || {} }),
+    setTaskDone: (taskId, done) => rpc('set_project_task_done', { p_task_id: taskId, p_done: !!done }),
+    reorderTasks: (id, taskIds) => rpc('reorder_project_tasks', { p_project_id: id, p_task_ids: taskIds || [] }),
+    deleteTask: taskId => rpc('delete_project_task', { p_task_id: taskId }),
     // Apparence d'équipe d'un Projet (migration 20261008010000) : { bg, image, opacity, fixed } ; {} = rien de réglé. Réglage : administrateur du Projet.
     appearance: id => rpc('get_project_appearance', { p_project_id: id }),
     setAppearance: (id, p) => rpc('set_project_appearance', { p_project_id: id, p: p || {} }),

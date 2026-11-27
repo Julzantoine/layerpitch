@@ -28,7 +28,9 @@ function renderSfxLibrary() {
   }
   const si = sfxLibrary.indexOf(sfx);
   if (!sfxSelectedEntry.has(sfx.id)) sfxSelectedEntry.set(sfx.id, 'identity');
-  const entrySel = sfxSelectedEntry.get(sfx.id);
+  // Interface simple (14/11) : « Comportement » et « Espace » sont avancés ; masqués, on retombe sur « Identité ».
+  const entrySelRaw = sfxSelectedEntry.get(sfx.id);
+  const entrySel = ((entrySelRaw === 'behavior' || entrySelRaw === 'space') && uiSimpleActive()) ? 'identity' : entrySelRaw;
 
   const wrap = document.createElement('div');
   if (isExample(sfx)) wrap.dataset.example = 'sfx'; // exemple préchargé (4/11) : fichiers son verrouillés, voir 45-exemples.js
@@ -51,9 +53,9 @@ function renderSfxLibrary() {
   const entryMasterHost = wrap.querySelector('[data-role="sfxEntryMaster"]');
   const entryDetailHost = wrap.querySelector('[data-role="sfxEntryDetail"]');
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'identity', entrySel === 'identity', `<div class="seq-master-item-label">${tr('trackSectionIdentity')}</div>`));
-  entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'behavior', entrySel === 'behavior', `<div class="seq-master-item-label">${tr('sectionBehavior')}</div>`));
+  { const advItem = simpleMasterItemEl('select-sfx-entry', 'si', si, 'behavior', entrySel === 'behavior', `<div class="seq-master-item-label">${tr('sectionBehavior')}</div>`); advItem.setAttribute('data-adv', ''); entryMasterHost.appendChild(advItem); }
   entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'variations', entrySel === 'variations', `<div class="seq-master-item-label">${tr('sfxVariationsShortLabel')}</div>`));
-  entryMasterHost.appendChild(simpleMasterItemEl('select-sfx-entry', 'si', si, 'space', entrySel === 'space', `<div class="seq-master-item-label">${tr('sfxEntrySpace')}</div>`));
+  { const advItem = simpleMasterItemEl('select-sfx-entry', 'si', si, 'space', entrySel === 'space', `<div class="seq-master-item-label">${tr('sfxEntrySpace')}</div>`); advItem.setAttribute('data-adv', ''); entryMasterHost.appendChild(advItem); }
 
   if (entrySel === 'identity') {
     // Titre éditable ici aussi (en plus de l'en-tête ci-dessus) -- synchronisé en direct sans re-rendu,
@@ -65,8 +67,8 @@ function renderSfxLibrary() {
       <textarea data-sfx-field="descriptionFr" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionFr)}</textarea>
       <label>${tr('descriptionLabelEn')}</label>
       <textarea data-sfx-field="descriptionEn" data-si="${si}" rows="3">${escapeAttr(sfx.descriptionEn)}</textarea>
-      <label>${tr('sfxTagLabel')}</label>
-      <input type="text" data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
+      <label data-adv>${tr('sfxTagLabel')}</label>
+      <input type="text" data-adv data-sfx-field="tag" data-si="${si}" value="${escapeAttr(sfx.tag || '')}">
       ${sfxProtectionHtml(sfx, si)}
     `;
   } else if (entrySel === 'behavior') {

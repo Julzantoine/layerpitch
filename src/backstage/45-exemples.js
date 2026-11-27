@@ -21,8 +21,8 @@ function hasAnyExample() {
 
 // Ajout au chargement : une seule tentative par ouverture de page ; le serveur décide (feu vert, déjà fait, langue).
 // examplesSeedPromise : les questions de profil (46) attendent la fin de l'ajout, pour ne pas s'ouvrir avant son message.
-let examplesSeedTried = false;
-let examplesSeedPromise = null;
+var examplesSeedTried = false; // « var » : lu très tôt par fetchSiteData si la page démarre dans un état inattendu
+var examplesSeedPromise = null;
 function seedMyExamplesIfNeeded() {
   if (examplesSeedTried || isTutoMode()) return examplesSeedPromise || Promise.resolve();
   examplesSeedTried = true;
@@ -30,6 +30,22 @@ function seedMyExamplesIfNeeded() {
   return examplesSeedPromise;
 }
 async function seedMyExamplesNow() {
+  await seedExampleTracksNow();
+  await seedMyDemoProjectNow();
+}
+// Projet de démonstration (18/11, feu vert example_project, migration 20261118020000) : même principe que les exemples, copié une
+// seule fois dans les Projets du compositeur (le serveur décide : feu vert, accueil terminé, déjà fait). Supprimable d'un clic depuis
+// la liste des Projets ou le Projet lui-même (bouton « Supprimer la démo »).
+async function seedMyDemoProjectNow() {
+  try {
+    const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_demo_project', { p_as_studio: false });
+    if (error) { console.warn('seed_my_demo_project() en erreur, aucun projet de démo ajouté :', error.message || error); return; }
+    if (data && (data.seeded || data.updated)) {
+      try { if (window.LayerPitchShell && window.LayerPitchShell.refreshInbox) await window.LayerPitchShell.refreshInbox(); } catch (e) { /* la cloche se met à jour d'elle-même */ }
+    }
+  } catch (e) { console.warn('seed_my_demo_project() injoignable :', e && e.message); }
+}
+async function seedExampleTracksNow() {
   try {
     const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('seed_my_examples', { p_lang: currentLang() });
     if (error) { console.warn('seed_my_examples() en erreur, aucun exemple ajouté :', error.message || error); return; }

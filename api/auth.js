@@ -7,7 +7,7 @@
 //
 // Nécessite le SDK Supabase + api/supabase-client.js chargés en amont via <script> (build UMD,
 // pas de module ES — voir contrainte 100% statique/file://) :
-//   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+//   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
 //   <script src="api/supabase-client.js"></script>
 //   <script src="api/auth.js"></script>
 //
@@ -198,6 +198,15 @@
     return { studioId: data, error: null };
   }
 
+  // Espace d'arrivée après connexion : 'studio' si le compte a un studio (le sien ou celui de son équipe) et
+  // aucun profil compositeur ; 'composer' sinon (comportement historique). Sert à ne pas envoyer un compte
+  // studio sur le Backstage compositeur.
+  async function getMyLandingSpace() {
+    const [c, st] = await Promise.all([getMyComposerId(), getMyStudioId()]);
+    if (st && st.studioId && !(c && c.composerId)) return 'studio';
+    return 'composer';
+  }
+
   // profiles.onboarding_completed (docs/infrastructure.md, chantier "flux d'inscription") —
   // lecture directe sur la table, pas de RPC nécessaire (policy RLS "own profile" déjà en place,
   // supabase/migrations/20260831102636_rls_policies.sql).
@@ -289,7 +298,7 @@
   window.LayerPitchAuth = { getAssistantStatus, createAssistantToken, revokeAssistantToken, getMySales, getAccountDeletion, requestAccountDeletion, cancelAccountDeletion,
     signInWithMagicLink, verifyEmailOtp, signOut, getSession, onAuthStateChange, inviteTester, getAdminPreview, setAdminPreview,
     getMyComposerId, getMyComposerHandle, ensureMyComposerProfile,
-    getMyStudioId, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
+    getMyStudioId, getMyLandingSpace, ensureMyStudioProfile, getMyProfile, markOnboardingComplete,
     suspendAccount, reinstateAccount, markAdminMessagesSeen,
     describeFunctionError,
   };

@@ -12,12 +12,12 @@ const path = require('path');
   const html = `<!DOCTYPE html><html><body><div id="host"></div>
   <script>${read('layerpitch-i18n.js')}</script><script>${read('player.js')}</script>
   <script>${read('capture-render.js')}</script><script>${read('capture-plan.js')}</script><script>${read('capture-retarget.js')}</script>
-  <script>${read('capture-versioning.js')}</script></body></html>`;
+  <script>${read('layerpitch-av-sync.js')}</script><script>${read('capture-versioning.js')}</script></body></html>`;
   const store = { rows: [], calls: [], missing: false, link: null, comments: [] };
   const dom = new JSDOM(html, {
     url: 'http://localhost/test.html', runScripts: 'dangerously', pretendToBeVisual: true,
     beforeParse(win) {
-      function P(v) { return { value: v, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {}, setTargetAtTime() {} }; }
+      function P(v) { return { value: v, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {}, setTargetAtTime(x) { this.value = x; } }; }
       function Ctx() { this.destination = {}; this.sampleRate = 44100; this.currentTime = 0; }
       Ctx.prototype.createGain = () => ({ gain: P(1), connect() {} });
       Ctx.prototype.resume = () => Promise.resolve();
@@ -181,7 +181,7 @@ const path = require('path');
   host.querySelector('[data-act="rvRefresh"]').click(); await tick(); await tick(); await tick();
   const boxTxt = host.querySelector('.vcv-review-box').textContent;
   check('relecture : remarques listées avec auteur, instant, version et nombre à traiter', boxTxt.includes('Drone trop fort') && boxTxt.includes('Camille') && boxTxt.includes('0:12') && boxTxt.includes('1 à traiter'));
-  check('relecture : drapeaux envoyés à la frise (instant, auteur, version, traité)', reviewMarks.length === 2 && reviewMarks.some(m => m.id === 'c1' && m.t === 12.5 && m.author === 'Camille' && !m.resolved && m.versionTitle) && reviewMarks.some(m => m.id === 'c2' && m.resolved && m.versionTitle === tr('versioningReviewOriginal')));
+  check('relecture : drapeaux envoyés à la frise (instant, auteur, version, traité)', reviewMarks.length === 2 && reviewMarks.some(m => m.id === 'c1' && m.t === 12.5 && m.author === 'Camille' && !m.resolved && m.versionTitle) && reviewMarks.some(m => m.id === 'c2' && m.resolved && m.versionTitle === 'Trailer'));
   host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvSeek"]').click();
   check('relecture : clic sur l\'instant -> la vidéo saute', Math.abs(ctx.videoEl.currentTime - 12.5) < 0.01 || ctx.videoEl.currentTime === 0 /* jsdom ne simule pas la lecture */);
   host.querySelector('.vcv-rcm[data-cid="c1"] [data-act="rvReply"]').click(); await tick();
@@ -242,11 +242,16 @@ const path = require('path');
   const dockEl = doc.createElement('div'); dockEl.className = 'video-capture-dock'; doc.body.appendChild(dockEl); dockEl.appendChild(ctx.videoEl);
   const sources = [], gainsMade = [];
   const AC = W.AudioContext.prototype;
-  AC.createBufferSource = function () { const n = { buffer: null, started: null, stopped: false, connect(g) { n.to = g; }, start(at, off) { n.started = [at, off]; }, stop() { n.stopped = true; } }; sources.push(n); return n; };
+  AC.createBufferSource = function () { const n = { buffer: null, started: null, stopped: false, playbackRate: { value: 1 }, connect(g) { n.to = g; }, disconnect() {}, start(at, off) { n.started = [at, off]; }, stop() { n.stopped = true; } }; sources.push(n); return n; };
   const origGain = AC.createGain;
   AC.createGain = function () { const g = origGain.call(this); g.connect = function (d) {}; gainsMade.push(g); return g; };
   W.LayerCaptureRender.render = async () => ({ duration: 30 });
-  ctx.videoEl.play = () => Promise.resolve(); ctx.videoEl.currentTime = 7;
+  let rolling = false;
+  Object.defineProperty(ctx.videoEl, 'paused', { configurable: true, get: () => !rolling });
+  Object.defineProperty(ctx.videoEl, 'readyState', { configurable: true, get: () => 4 });
+  ctx.videoEl.play = () => { rolling = true; return Promise.resolve(); };
+  ctx.videoEl.pause = () => { if (rolling) { rolling = false; ctx.videoEl.dispatchEvent(new W.Event('pause')); } };
+  ctx.videoEl.currentTime = 7;
   host.querySelectorAll('[data-role="pick"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new W.Event('change')); });
   check('barre des versions cochées : cachée quand plus rien n\'est coché', host.querySelector('[data-role="pickedBar"]').hidden);
   const nVersions = host.querySelectorAll('.vcv-version').length;
@@ -259,7 +264,7 @@ const path = require('path');
   const creation = [1].concat(Array.from({ length: nVersions + 1 }, (_, i) => i).filter(i => i !== 1));
   const gA = () => { const g = gainsMade.slice(-sources.length).map(x => x.gain.value), out = []; creation.forEach((idx, k) => { out[idx] = g[k]; }); return out; };
   check('écoute : rien à cocher -- le menu du dock liste l\'original + toutes les versions', !!dockEl.querySelector('.vcv-ab-dock:not([hidden])') && sel().options.length === nVersions + 1 && sel().options[0].textContent.includes(tr('versioningABOriginal')));
-  check('écoute : tous les sons sont préparés (en tâche de fond) et calés sur la vidéo', sources.length === nVersions + 1 && sources.every(x => x.started[1] === 7) && [...sel().options].every(o => !o.disabled));
+  check('écoute : tous les sons sont préparés (en tâche de fond) et calés sur la vidéo', sources.length === nVersions + 1 && sources.every(x => Math.abs(x.started[1] - 7.03) < 0.005) && [...sel().options].every(o => !o.disabled));
   check('écoute : on a démarré par la version cliquée, les autres sont muettes', sel().value === '1' && JSON.stringify(gA()) === JSON.stringify([0, 1].concat(new Array(nVersions - 1).fill(0))));
   check('écoute : une fois tout chargé, le dock l\'annonce', dockEl.querySelector('[data-role="abNote"]').textContent === tr('versioningAllReady'));
   sel().value = '0'; sel().dispatchEvent(new W.Event('change')); await tick();

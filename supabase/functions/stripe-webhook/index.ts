@@ -420,6 +420,7 @@ Deno.serve(async (req) => {
   // permet pas un seul endpoint pour les deux portées, mais les deux peuvent pointer vers cette
   // même URL.
   let event: Stripe.Event;
+  let viaConnectEndpoint = false;
   try {
     event = await stripe.webhooks.constructEventAsync(body, signature!, platformSecret);
   } catch (platformErr) {
@@ -428,9 +429,20 @@ Deno.serve(async (req) => {
     }
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature!, connectSecret);
+      viaConnectEndpoint = true;
     } catch (connectErr) {
       return new Response(`Signature invalide : ${String(connectErr && connectErr.message || connectErr)}`, { status: 400 });
     }
+  }
+
+  // Sécurité (audit 16/11, I2) : un événement venu du compte Stripe d'un compositeur (adresse « comptes connectés »,
+  // ou event.account renseigné) se passe sur SON compte, pas sur celui de LayerPitch. Un compositeur pourrait sinon
+  // créer chez lui une session de paiement portant nos métadonnées (abonnement, achat de pack…) et se faire créditer
+  // par ce webhook. Seul account.updated (état de son compte Connect) nous concerne ; tout le reste est ignoré. Nos
+  // propres ventes passent par des paiements « à destination » (create-checkout-session : transfer_data) et arrivent
+  // donc sur l'adresse principale, sans event.account.
+  if ((viaConnectEndpoint || event.account) && event.type !== 'account.updated') {
+    return new Response(JSON.stringify({ received: true, ignored: 'connected-account event' }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   const adminClient = createClient(

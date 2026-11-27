@@ -634,7 +634,7 @@ function loadVideoVersioningIndex(force) {
       const r = await client.rpc('list_video_capture_versions', { p_capture_id: c.id });
       if (r.error) return;
       // Le montage lui-même (sa musique d'origine, s'il a été déposé dans la bibliothèque : migration 20261021010000), puis ses versions.
-      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
+      const siblings = (c.lastExportVideoId ? [{ key: 'original', versionId: null, title: (c.title || '').trim() || tr('videoBlockVersionOriginal'), videoId: c.lastExportVideoId }] : [])
         .concat((r.data || []).filter(v => v.lastExportVideoId).map(v => ({ key: v.id, versionId: v.id, title: v.title || '', videoId: v.lastExportVideoId })));
       out.captures.push({ capture: c, siblings }); // liste des montages (menu « Un de mes montages » du bloc vidéo)
       siblings.forEach(sib => { out.byVideoId[sib.videoId] = { capture: c, siblings }; });

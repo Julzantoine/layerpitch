@@ -4,7 +4,9 @@ const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
 // onSubmit (facultatif, vitrines de Projet, 28/09) : la page fournit elle-même l'envoi ({ name, email, message } ->
 // { ok, error }) ; sans lui, comportement de l'AdReel (relais submit-contact-message vers l'e-mail du compositeur).
 function renderContactBlockItem(container, profile, onSubmit) {
-  const hasContactEmail = profile && profile.contactEmail && profile.contactEmail.trim();
+  // hasContact : drapeau public posé par la base (l'adresse elle-même est privée depuis le 18/11, audit sécurité I1) ;
+  // contactEmail : aperçu du Backstage et faux serveur du tutoriel, qui ont encore l'adresse sous la main.
+  const hasContactEmail = profile && (profile.hasContact === true || (profile.contactEmail && String(profile.contactEmail).trim()));
   if (!hasContactEmail && !onSubmit) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
   const el = section(tr('contactSection'), '');
   el.innerHTML += `
@@ -30,6 +32,8 @@ function renderContactBlockItem(container, profile, onSubmit) {
     statusEl.className = 'contact-form-status';
     try {
       const adReelId = (window.__lpTrackContext && window.__lpTrackContext.id) || 'main';
+      // Le même identifiant d'AdReel (« main ») existe chez chaque compositeur : on précise lequel.
+      const ownerId = (window.__lpTrackContext && window.__lpTrackContext.ownerId) || null;
       const formData = new FormData(form);
       if (onSubmit) {
         const r = await onSubmit({ name: formData.get('name'), email: formData.get('email'), message: formData.get('message') });
@@ -42,6 +46,7 @@ function renderContactBlockItem(container, profile, onSubmit) {
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
         body: JSON.stringify({
           adReelId,
+          ownerId,
           name: formData.get('name'),
           email: formData.get('email'),
           message: formData.get('message'),
@@ -70,12 +75,12 @@ function renderVideoBlockItem(container, block) {
     // Vidéo de la bibliothèque du compositeur (composer_videos, voir layerpitch-backstage.html) :
     // v.url pointe déjà vers un .mp4 hébergé sur R2 (résolu à la sélection côté Backstage, jamais une
     // page YouTube/Vimeo) -- lu directement avec <video>, pas d'iframe externe à charger.
-    if (v.source === 'library' && v.url) {
+    if (v.source === 'library' && (v.url || v.montageId)) {
       const wrap = document.createElement('div');
       wrap.className = 'video-card video-card-native';
       const video = document.createElement('video');
       video.className = 'video-embed-native';
-      video.src = v.url;
+      if (v.url) video.src = v.url; // montage versionné : sans URL, c'est le lecteur de versions qui pose la source
       video.controls = true;
       video.preload = 'metadata';
       if (v.thumbnail) video.poster = resolveImageUrl(v.thumbnail);
@@ -91,7 +96,7 @@ function renderVideoBlockItem(container, block) {
 
     const ytId = extractYouTubeId(v.url);
     const thumbUrl = v.thumbnail ? resolveImageUrl(v.thumbnail) : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
-    const bg = thumbUrl ? `background-image:url('${thumbUrl}'); background-size:cover; background-position:center;` : '';
+    const bg = thumbUrl ? `background-image:${reelCssUrl(thumbUrl)}; background-size:cover; background-position:center;` : '';
 
     if (ytId) {
       // Vignette cliquable : la vidéo YouTube ne se charge (iframe) qu'au clic — plus rapide et plus respectueux

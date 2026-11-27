@@ -57,10 +57,9 @@ function cloneTrackWithRemap(track) {
 }
 // Duplique un morceau de la bibliothèque : copie indépendante (nouvel id, ses propres fichiers copiés côté serveur par l'Edge
 // Function copy-track-files quand le morceau est déjà publié), insérée à `place` ({ folderId, anchorId, before }) ou juste après
-// l'original. Un morceau protégé n'est pas copié (voir la fonction). Renvoie la copie, ou null.
+// l'original. Un morceau protégé est copiable (12/11) : la copie naît publique, puis la publication la protège si le feu vert est ouvert. Renvoie la copie, ou null.
 async function duplicateLibraryTrack(src, place) {
   if (!src) return null;
-  if (src.protected) { window.LayerPitchNotify.error(tr('trackCopyProtected')); return null; }
   if (isExample(src)) { window.LayerPitchNotify.error(tr('exampleNoCopy')); return null; } // copy-track-files copierait audio/<id>/, vide pour un exemple
   const copy = cloneTrackWithRemap(src);
   copy.protected = false;
@@ -246,6 +245,14 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
       if (group) group.draggable = true;
       return;
     }
+    // Retour bêta 11/11 : « la zone pour attraper n'est pas toujours la même (un coin, parfois le bloc) ». Une ligne se saisit par son
+    // corps ; un dossier doit aussi se saisir par le corps de son en-tête (hors champ du nom et boutons), pas seulement par sa poignée.
+    const folderHeader = e.target.closest('.org-folder-header');
+    if (folderHeader && dragBodyArms(e)) {
+      const group = folderHeader.closest('.org-folder-group');
+      if (group) group.draggable = true;
+      return;
+    }
     const row = dragItemToArm(e, '.org-row');
     if (row) row.draggable = true;
   });
@@ -280,7 +287,7 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
   // recalculée au lâcher, où la souris peut se trouver dans un interstice) et, hors d'une ligne, on retient la ligne la plus
   // proche en hauteur au lieu de refuser le dépôt. dropTarget = { kind: 'row'|'group'|'zone', el, before }.
   let dropTarget = null;
-  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target'));
+  const clearIndicators = () => containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target, .org-drop-folder').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target', 'org-drop-folder'));
   function nearestBy(selector, y, exceptId) {
     let best = null, bestD = Infinity;
     containerEl.querySelectorAll(selector).forEach(el => {
@@ -302,6 +309,17 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (!draggedOrgItemId) return null;
     const zone = e.target.closest('.org-folder-dropzone, .org-root-dropzone');
     let row = e.target.closest('.org-row');
+    // Retour bêta 11/11 : impossible de ranger un morceau dans un dossier replié, ni de le sortir d'un dossier. Déposer sur l'EN-TÊTE d'un
+    // dossier (ouvert ou replié) le range dedans, en dernier ; déposer sur la zone « Hors dossier » le sort de son dossier.
+    if (!row) {
+      const header = e.target.closest('.org-folder-header');
+      const headerGroup = header && header.closest('.org-folder-group');
+      if (headerGroup) return { kind: 'folder', el: headerGroup, folderId: headerGroup.dataset.dragId };
+      const rootHint = e.target.closest('.org-root-hint');
+      if (rootHint) return { kind: 'zone', el: rootHint.closest('.org-root-dropzone') };
+      const collapsedGroup = e.target.closest('.org-folder-group');
+      if (collapsedGroup && !collapsedGroup.querySelector('.org-folder-dropzone')) return { kind: 'folder', el: collapsedGroup, folderId: collapsedGroup.dataset.dragId };
+    }
     // Une zone sans aucune ligne (dossier vide) reçoit le dépôt ; sinon la ligne visée, ou à défaut la plus proche.
     if (!row && zone && !zone.querySelector('.org-row')) return { kind: 'zone', el: zone };
     if (!row || row.dataset.dragId === draggedOrgItemId) row = nearestBy('.org-row', e.clientY, draggedOrgItemId);
@@ -317,8 +335,12 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (duplicateItem && draggedOrgItemId) { try { e.dataTransfer.dropEffect = isDuplicateDrag(e) ? 'copy' : 'move'; } catch (err) { /* non bloquant */ } }
     dropTarget = t;
     clearIndicators();
-    if (t.kind === 'zone') t.el.classList.add('org-drop-target');
-    else { t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before); }
+    if (t.kind === 'zone' || t.kind === 'folder') t.el.classList.add('org-drop-target');
+    else {
+      t.el.classList.toggle('drag-over-top', t.before); t.el.classList.toggle('drag-over-bottom', !t.before);
+      // Le dossier d'arrivée est teinté : la barre seule ne disait pas dans QUEL dossier la ligne atterrit.
+      if (t.kind === 'row' && draggedOrgItemId) { const z = t.el.closest('.org-folder-dropzone, .org-root-dropzone'); if (z) z.classList.add('org-drop-folder'); }
+    }
   });
   containerEl.addEventListener('dragleave', (e) => {
     if (!containerEl.contains(e.relatedTarget)) { dropTarget = null; clearIndicators(); } // sorti de la liste : plus de cible
@@ -354,7 +376,9 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (!it || !target) return;
     const fromIdx = items.indexOf(it);
     const targetRow = target.kind === 'row' ? target.el : null;
-    const zone = target.kind === 'zone' ? target.el : null;
+    // « zone » = un dossier visé sans ligne précise (zone vide, zone « Hors dossier » ou en-tête d'un dossier) : l'élément y entre en dernier.
+    const zone = (target.kind === 'zone' || target.kind === 'folder')
+      ? { dataset: { folderId: target.kind === 'folder' ? target.folderId : target.el.dataset.folderId } } : null;
     // Alt + glisser (6/10) : le morceau est COPIÉ à l'endroit visé au lieu d'être déplacé (liste qui le permet : duplicateItem).
     if (duplicateItem && isDuplicateDrag(e)) {
       if (targetRow) duplicateItem(it, { folderId: targetRow.dataset.folderId || null, anchorId: targetRow.dataset.dragId, before: target.before });
@@ -410,8 +434,8 @@ function wireOrgDragDrop(containerEl, getItems, getFolders, onDrop, duplicateIte
     if (row) { row.classList.remove('dragging'); row.draggable = false; }
     containerEl.querySelectorAll('.org-row.dragging').forEach(r => r.classList.remove('dragging'));
     containerEl.classList.remove('is-reordering');
-    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target');
+    containerEl.querySelectorAll('.drag-over-top, .drag-over-bottom, .org-drop-target, .org-drop-folder').forEach(el => {
+      el.classList.remove('drag-over-top', 'drag-over-bottom', 'org-drop-target', 'org-drop-folder');
     });
     draggedOrgItemId = null;
     draggedOrgFolderId = null;
@@ -486,6 +510,8 @@ function renderOrgMasterList(masterHost, items, folders, collapsedFolderIds, opt
   rootZone.className = 'org-root-dropzone';
   rootZone.dataset.folderId = ''; // racine, hors de tout dossier
   items.filter(it => !it.folderId).forEach(it => rootZone.appendChild(rowEl(it)));
+  // Zone « Hors dossier », visible seulement pendant un glisser (10 px de haut avant : on ne pouvait pas sortir un élément d'un dossier).
+  if (folders.length) rootZone.insertAdjacentHTML('beforeend', `<div class="org-root-hint">${tr('orgRootDropHint')}</div>`);
   masterHost.appendChild(rootZone);
 }
 // ---- Sélection multiple + « Créer un dossier avec la sélection » (05/11, demande de Jules-Antoine) ----

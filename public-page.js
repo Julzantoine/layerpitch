@@ -22,10 +22,16 @@ function lpVersioned(src) {
 // Charge une liste de scripts EN PARALLÈLE mais les exécute DANS L'ORDRE (async = false sur un script inséré
 // dynamiquement) : le SDK Supabase passe avant api/supabase-client.js, qui passe avant les autres api/*.js, sans
 // attendre la fin de chaque téléchargement pour lancer le suivant (avant : 11 allers-retours réseau en série).
+// Sécurité (audit 16/11, I3) : empreinte attendue des bibliothèques externes — si le CDN servait un autre fichier,
+// le navigateur refuserait de l'exécuter. À mettre à jour avec la version (test_cdn_integrity.js vérifie la cohérence).
+const LP_CDN_INTEGRITY = {
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js': 'sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O',
+};
 function lpLoadScriptsInOrder(srcs) {
   return Promise.all(srcs.map(src => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = lpVersioned(src);
+    if (LP_CDN_INTEGRITY[src]) { s.integrity = LP_CDN_INTEGRITY[src]; s.crossOrigin = 'anonymous'; }
     s.async = false;
     s.onload = resolve;
     // Event DOM sans .message : une vraie Error pour que le message d'erreur affiché nomme le script en cause.
@@ -43,7 +49,7 @@ function loadPostgresReadScripts() {
     // layerpitch-tuto.js (admins seulement tant que le tutoriel n'est pas ouvert au public). Sans ?tuto : rien ne change.
     const tuto = new URLSearchParams(location.search).has('tuto');
     postgresReadScriptsLoaded = lpLoadScriptsInOrder((tuto ? ['./layerpitch-tuto.js', './api/demo-client.js', './api/auth.js'] : []).concat([
-      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js',
       './api/supabase-client.js',
       './api/tracks.js',
       './api/packs.js',

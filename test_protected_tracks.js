@@ -42,10 +42,12 @@
   check('écoute libre : seulement les morceaux cochés (« prot » reste privé)', !(await hear(3, 'prot')));
   check('l\'invité de l\'album peut écouter les morceaux de l\'album', await hear(5, 'prot'));
   check('protégé mais dans un AdReel : écoute publique voulue (sans compte)', await hear(0, 'reel'));
-  check('protégé dans un pack pas en vente : refusé', !(await hear(3, 'paquet')));
+  // 12/11 (protection par défaut, retour bêta) : un pack, en vente ou non, s'écoute sur sa page publique (migration 20261112010000).
+  check('protégé dans un pack pas en vente : la page du pack l\'écoute (sans compte)', await hear(0, 'paquet'));
   await q(`update public.packs set buyable = true where id = 'pk'`);
   check('protégé dans un pack en vente : la page du pack l\'écoute (sans compte)', await hear(0, 'paquet'));
   await q(`update public.packs set buyable = false where id = 'pk'`);
+  check('protégé mais dans AUCUN pack, AdReel ou album : refusé (« prot » reste privé)', !(await hear(0, 'prot')));
   await q(`insert into public.pack_purchases (studio_id, pack_id, price_paid) values ($1, 'pk', 5)`, [U(4)]);
   check('protégé : le studio qui a acheté le pack peut l\'écouter', await hear(4, 'paquet'));
   // Écoute libre coupée : le morceau redevient privé

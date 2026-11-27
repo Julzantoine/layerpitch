@@ -28,6 +28,12 @@ function migrateBlocks(data) {
 }
 
 /* ---------------- Blocs ---------------- */
+// Sécurité (audit du 16/11, B1) : un nom d'image vient des données du compositeur, jamais d'une source sûre. Toute
+// adresse d'image collée dans du HTML passe par escapeHtml (sinon un nom contenant `"` sort de l'attribut src et
+// ajoute du code), toute adresse collée dans du CSS passe par reelCssUrl (sinon un `'` sort de url('…')).
+function reelCssUrl(u) {
+  return 'url("' + String(u == null ? '' : u).replace(/[\\"\n\r\f]/g, c => '\\' + c.charCodeAt(0).toString(16) + ' ') + '")';
+}
 function renderHeaderBlock(container, profile) {
   const el = document.createElement('div');
   el.className = 'header';
@@ -37,7 +43,7 @@ function renderHeaderBlock(container, profile) {
   const subtitle = (profile.subtitle != null && profile.subtitle !== '') ? profile.subtitle : (profile.tagline || '');
   const title = profile.title || (profile.logo ? '' : 'LayerPitch');
   el.innerHTML = `
-    ${profile.logo ? `<img class="logo-img" src="${resolveImageUrl(profile.logo)}" alt="${tr('logoAlt')}">` : ''}
+    ${profile.logo ? `<img class="logo-img" src="${escapeHtml(resolveImageUrl(profile.logo))}" alt="${tr('logoAlt')}">` : ''}
     ${title ? `<div class="header-title">${escapeHtml(title)}</div>` : ''}
     ${subtitle ? `<div class="header-subtitle">${escapeHtml(subtitle)}</div>` : ''}
   `;
@@ -47,7 +53,7 @@ function renderBioBlock(container, profile) {
   if (!profile.bio && !profile.photo) return;
   const textHtml = (profile.bio || '').split('\n\n').map(p => `<p>${linkify(p)}</p>`).join('');
   const photoHtml = profile.photo
-    ? `<div class="bio-photo"><img src="${resolveImageUrl(profile.photo)}" alt="${tr('photoAlt')}" loading="lazy"></div>`
+    ? `<div class="bio-photo"><img src="${escapeHtml(resolveImageUrl(profile.photo))}" alt="${tr('photoAlt')}" loading="lazy"></div>`
     : `<div class="bio-photo empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>`;
   const el = section(tr('aboutSection'), `<div class="bio">${photoHtml}<div class="bio-text">${textHtml}</div></div>`);
   container.appendChild(el);
@@ -60,7 +66,7 @@ function renderBioBlock(container, profile) {
 function renderTestimonialsBlock(container, list) {
   if (!list || list.length === 0) return;
   const inner = list.map(t => {
-    const avatarHtml = t.avatar ? `<img class="testimonial-avatar" src="${resolveImageUrl(t.avatar)}" alt="" loading="lazy">` : '';
+    const avatarHtml = t.avatar ? `<img class="testimonial-avatar" src="${escapeHtml(resolveImageUrl(t.avatar))}" alt="" loading="lazy">` : '';
     const roleHtml = t.role ? `<span class="testimonial-role">${escapeHtml(t.role)}</span>` : '';
     return `<div class="testimonial">${avatarHtml}<div class="testimonial-body"><p>« ${linkify(t.text)} »</p><cite>${escapeHtml(t.author)}</cite>${roleHtml}</div></div>`;
   }).join('');
@@ -84,9 +90,9 @@ function renderPhotoBlockItem(container, block) {
   const urls = block.images.map(g => resolveImageUrl(g.file));
   const captionHtml = block.caption ? `<div class="photo-block-caption">${escapeHtml(block.caption)}</div>` : '';
   if (block.images.length === 1) {
-    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${urls[0]}" alt="" loading="lazy"></div>${captionHtml}`;
+    el.innerHTML = `<div class="photo-block-single" style="justify-content:${align}"><img src="${escapeHtml(urls[0])}" alt="" loading="lazy"></div>${captionHtml}`;
   } else {
-    const imgs = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join('');
+    const imgs = urls.map(u => `<img src="${escapeHtml(u)}" alt="" loading="lazy">`).join('');
     el.innerHTML = `<div class="photo-grid">${imgs}</div>${captionHtml}`;
   }
   container.appendChild(el);
@@ -122,8 +128,9 @@ function renderPacksBlockItem(container, block, packsById) {
   selected.forEach(p => {
     const a = document.createElement('a');
     a.className = 'packs-list-item';
+    a.target = '_blank'; a.rel = 'noopener'; // un pack s'ouvre dans une nouvelle fenêtre : l'AdReel reste là où il est (et la musique continue)
     a.href = `./pack.html?id=${encodeURIComponent(p.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
-    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${p.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${p.illustration ? `<img class="packs-list-item-thumb" src="${escapeHtml(IMAGES_BASE + p.illustration)}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(p.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
@@ -144,7 +151,7 @@ function renderCollectionsBlockItem(container, block, collectionsById) {
     // 4 septembre en étendant le correctif "← Retour" aux collections -- sans elle, collection.html
     // ne savait jamais depuis quel AdReel elle avait été ouverte.
     a.href = `./collection.html?id=${encodeURIComponent(c.id)}&lang=${pageLang}${window.LayerPlayerCore.adReelFromParam()}`;
-    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${IMAGES_BASE}${c.illustration}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
+    a.innerHTML = `${c.illustration ? `<img class="packs-list-item-thumb" src="${escapeHtml(IMAGES_BASE + c.illustration)}" alt="" loading="lazy">` : `<div class="packs-list-item-thumb empty"></div>`}<span class="packs-list-item-title">${escapeHtml(c.title)}</span><span class="packs-list-item-arrow">→</span>`;
     list.appendChild(a);
   });
   el.appendChild(list);
@@ -262,7 +269,7 @@ function applyBlockAppearance(el, block, customFonts) {
     while (el.firstChild) inner.appendChild(el.firstChild);
     const bgLayer = document.createElement('div');
     const opacity = (ov.bgImageOpacity != null) ? ov.bgImageOpacity : 1;
-    bgLayer.style.cssText = `position:absolute;inset:0;background-image:url('${resolveImageUrl(ov.bgImage)}');background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
+    bgLayer.style.cssText = `position:absolute;inset:0;background-image:${reelCssUrl(resolveImageUrl(ov.bgImage))};background-size:cover;background-position:center;opacity:${opacity};border-radius:inherit;`;
     el.style.position = 'relative';
     el.style.overflow = 'hidden';
     if (!ov.bgColor) { el.style.borderRadius = '10px'; el.style.padding = '28px'; el.style.margin = '12px 0'; }
@@ -386,7 +393,9 @@ const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
 // onSubmit (facultatif, vitrines de Projet, 28/09) : la page fournit elle-même l'envoi ({ name, email, message } ->
 // { ok, error }) ; sans lui, comportement de l'AdReel (relais submit-contact-message vers l'e-mail du compositeur).
 function renderContactBlockItem(container, profile, onSubmit) {
-  const hasContactEmail = profile && profile.contactEmail && profile.contactEmail.trim();
+  // hasContact : drapeau public posé par la base (l'adresse elle-même est privée depuis le 18/11, audit sécurité I1) ;
+  // contactEmail : aperçu du Backstage et faux serveur du tutoriel, qui ont encore l'adresse sous la main.
+  const hasContactEmail = profile && (profile.hasContact === true || (profile.contactEmail && String(profile.contactEmail).trim()));
   if (!hasContactEmail && !onSubmit) return; // pas configuré côté backstage : ce bloc ne s'affiche simplement pas
   const el = section(tr('contactSection'), '');
   el.innerHTML += `
@@ -412,6 +421,8 @@ function renderContactBlockItem(container, profile, onSubmit) {
     statusEl.className = 'contact-form-status';
     try {
       const adReelId = (window.__lpTrackContext && window.__lpTrackContext.id) || 'main';
+      // Le même identifiant d'AdReel (« main ») existe chez chaque compositeur : on précise lequel.
+      const ownerId = (window.__lpTrackContext && window.__lpTrackContext.ownerId) || null;
       const formData = new FormData(form);
       if (onSubmit) {
         const r = await onSubmit({ name: formData.get('name'), email: formData.get('email'), message: formData.get('message') });
@@ -424,6 +435,7 @@ function renderContactBlockItem(container, profile, onSubmit) {
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
         body: JSON.stringify({
           adReelId,
+          ownerId,
           name: formData.get('name'),
           email: formData.get('email'),
           message: formData.get('message'),
@@ -452,12 +464,12 @@ function renderVideoBlockItem(container, block) {
     // Vidéo de la bibliothèque du compositeur (composer_videos, voir layerpitch-backstage.html) :
     // v.url pointe déjà vers un .mp4 hébergé sur R2 (résolu à la sélection côté Backstage, jamais une
     // page YouTube/Vimeo) -- lu directement avec <video>, pas d'iframe externe à charger.
-    if (v.source === 'library' && v.url) {
+    if (v.source === 'library' && (v.url || v.montageId)) {
       const wrap = document.createElement('div');
       wrap.className = 'video-card video-card-native';
       const video = document.createElement('video');
       video.className = 'video-embed-native';
-      video.src = v.url;
+      if (v.url) video.src = v.url; // montage versionné : sans URL, c'est le lecteur de versions qui pose la source
       video.controls = true;
       video.preload = 'metadata';
       if (v.thumbnail) video.poster = resolveImageUrl(v.thumbnail);
@@ -473,7 +485,7 @@ function renderVideoBlockItem(container, block) {
 
     const ytId = extractYouTubeId(v.url);
     const thumbUrl = v.thumbnail ? resolveImageUrl(v.thumbnail) : (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
-    const bg = thumbUrl ? `background-image:url('${thumbUrl}'); background-size:cover; background-position:center;` : '';
+    const bg = thumbUrl ? `background-image:${reelCssUrl(thumbUrl)}; background-size:cover; background-position:center;` : '';
 
     if (ytId) {
       // Vignette cliquable : la vidéo YouTube ne se charge (iframe) qu'au clic — plus rapide et plus respectueux
@@ -600,7 +612,7 @@ function reelApplyTheme(theme, separator, container, opts) {
   // du texte, qui n'est jamais affectée par ce réglage. N'existe pas côté preset Free.
   if (theme.bgImage) {
     const bgLayer = document.createElement('div');
-    bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:url('${resolveImageUrl(theme.bgImage)}');background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
+    bgLayer.style.cssText = `position:fixed;inset:0;z-index:-1;background-image:${reelCssUrl(resolveImageUrl(theme.bgImage))};background-size:cover;background-position:center;opacity:${theme.bgImageOpacity != null ? theme.bgImageOpacity : 1};`;
     document.body.appendChild(bgLayer);
   }
 }

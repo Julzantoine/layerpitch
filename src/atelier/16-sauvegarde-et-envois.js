@@ -85,10 +85,41 @@ function capturePackLibrary() {
   });
 }
 
+// Fichiers audio gardés en mémoire (12/11) : chaque écoute du montage, chaque version du Versioning et chaque export recalcule la musique et
+// retéléchargeait TOUS les fichiers des morceaux -- sans cache du navigateur pour les morceaux protégés (lien signé, différent à chaque
+// fois). Une écoute multi-versions à 5 versions téléchargeait 5 fois le pack. Gardés ici, compressés tels quels (le rendu en fait une copie
+// avant décodage), dans la limite de CACHE_BUDGET : les plus anciens sortent d'abord. Un échec n'est pas gardé (on réessaie la fois suivante).
+const AUDIO_BYTES_CACHE_BUDGET = 256 * 1048576;
+const audioBytesCache = new Map(); // url -> { p: Promise<Uint8Array>, size }, dans l'ordre d'usage (le plus récent à la fin)
+let audioBytesCacheSize = 0;
+// Les octets rendus sont PARTAGÉS : on ne les modifie ni ne les transfère jamais (ffmpeg.writeFile transfère : lui donner une copie).
 async function fetchAsUint8Array(url) {
-  const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
-  if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
-  return new Uint8Array(await res.arrayBuffer());
+  let entry = audioBytesCache.get(url);
+  if (entry) { audioBytesCache.delete(url); audioBytesCache.set(url, entry); return entry.p; }
+  entry = { p: null, size: 0 };
+  entry.p = (async () => {
+    const res = await window.LayerPlayerCore.fetchAudio(url); // audio des morceaux protégés : lien signé (player.js)
+    if (!res.ok) throw new Error(tr('captureFetchError').replace('{url}', url));
+    return new Uint8Array(await res.arrayBuffer());
+  })();
+  audioBytesCache.set(url, entry);
+  try {
+    const bytes = await entry.p;
+    if (audioBytesCache.get(url) === entry && !entry.size) {
+      entry.size = bytes.byteLength;
+      audioBytesCacheSize += entry.size;
+      for (const [k, v] of audioBytesCache) {
+        if (audioBytesCacheSize <= AUDIO_BYTES_CACHE_BUDGET) break;
+        if (k === url) continue;
+        audioBytesCache.delete(k);
+        audioBytesCacheSize -= v.size;
+      }
+    }
+    return bytes;
+  } catch (e) {
+    if (audioBytesCache.get(url) === entry) audioBytesCache.delete(url);
+    throw e;
+  }
 }
 
 // --- Bibliothèque vidéo (2026-09-16) -- déposer un export du moteur de capture dans composer_videos,
@@ -101,7 +132,7 @@ const MEDIA_BASE = 'https://media.layerpitch.com/';
 // Envois vidéo AU NOM D'UN STUDIO (asStudio) : ouverts depuis le redéploiement de create-media-signed-url par Jules-Antoine (21/10).
 async function r2SignedUrl(path, method, size) {
   const { data, error } = await window.LayerPitchSupabaseClient.getClient()
-    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && path.startsWith('video/') ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
+    .functions.invoke('create-media-signed-url', { body: window.__lpStudioBuyer && (path.startsWith('video/') || /^images\/[^/]+\/montage-/.test(path)) ? { path, method, size, asStudio: true } : { path, method, size } }); // vidéo d'un studio : à son nom
   if (error) throw new Error(await window.LayerPitchAuth.describeFunctionError(error));
   if (!data || !data.url) throw new Error((data && data.error) || 'Réponse inattendue.');
   return data;
@@ -170,7 +201,7 @@ async function makeSilentVideo(videoFile, onProgress) {
 async function encodeSoundForLibrary(wavBlob, onProgress) {
   const ffmpeg = await loadFfmpegWasm(onProgress);
   await ffmpeg.writeFile('mix.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '160k', 'sound.mp4']);
+  const code = await ffmpeg.exec(['-i', 'mix.wav', '-vn', '-c:a', 'aac', '-b:a', '256k', 'sound.mp4']);
   if (code !== 0) throw new Error('ffmpeg (son) a échoué');
   const out = await ffmpeg.readFile('sound.mp4');
   return new Blob([out.buffer], { type: 'video/mp4' });
@@ -184,6 +215,22 @@ async function r2DeleteRemovedVideos(removed) {
       if (data && data.url && !data.kept) await fetch(data.url, { method: 'DELETE' });
     } catch (e) { console.warn('Effacement du fichier ' + r.path + ' :', e.message || e); }
   }
+}
+// Vignette d'un montage (19/11, migration 20261119020000) : l'image est envoyée sous images/<dossier du propriétaire>/montage-<id>-<suffixe>.<ext>
+// (le serveur impose ce dossier : celui du compositeur, ou celui du studio), puis son adresse est rangée sur le montage. Le suffixe change à
+// chaque envoi : un navigateur qui a gardé l'ancienne image n'est pas servi par son cache.
+async function uploadMontageCover(captureId, blob, ext) {
+  const owner = videoAsStudio() ? (await window.LayerPitchAuth.getMyStudioId()).studioId : (await window.LayerPitchAuth.getMyComposerId()).composerId;
+  if (!owner) throw new Error(tr('captureCoverNoOwner'));
+  const path = `images/${owner}/montage-${captureId}-${Date.now().toString(36)}.${ext}`;
+  await r2PutFile(path, blob, blob.type || 'image/jpeg');
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_cover', withStudio({ p_capture_id: captureId, p_cover_url: MEDIA_BASE + path }));
+  if (error) throw error;
+  return MEDIA_BASE + path;
+}
+async function clearMontageCover(captureId) {
+  const { error } = await window.LayerPitchSupabaseClient.getClient().rpc('set_video_capture_cover', withStudio({ p_capture_id: captureId, p_cover_url: null }));
+  if (error) throw error;
 }
 // Envoie un export terminé (Blob mp4) dans la bibliothèque vidéo du compositeur -- kind:'capture_export'
 // pour le distinguer d'un simple import (voir composer_videos.kind), pack_id relie l'export à CE pack.

@@ -33,21 +33,24 @@
   const svg = (h, body) => `<svg class="tour-map-preview" viewBox="0 0 400 ${h}" role="img"><defs><marker id="lpvArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-dim)"/></marker></defs>${body}</svg>`;
   const T = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${CARD}" stroke="${WARM}"/>` + txt(x + w / 2, y + h / 2 + 3, 'T', { c: WARM, fs: 8, bold: true });
 
+  // Sections du projet d’exemple « Dernier Étage » (noms courts pour tenir dans les dessins des leçons Projet).
+  const SECTIONS = ['Direction artistique', 'Musique', 'Bruitages', 'Scènes clés'];
   const CITIES = ['Jazz City', 'Rock City', 'Disco City', 'Synth City'];
   // Carte de niveau de « Music City » : Jazz City (départ) → Rock City (carrefour) → Disco City (niveau 2) / Synth City.
   const mapSvg = (t, o) => {
-    const P = { jazz: [30, 66], rock: [160, 66], disco: [290, 24], synth: [290, 112] }, W = 84, H = 32;
+    // Carte du niveau 1 de « Dernier Étage » (18/11) : bureau → ascenseur → couloir → salle d'archives.
+    const P = { office: [20, 66], lift: [115, 66], hall: [210, 66], archives: [305, 66] }, W = 80, H = 32;
     const c = (k, side) => [P[k][0] + (side ? W : 0), P[k][1] + H / 2];
     const edge = (a, b, on) => { const [x1, y1] = c(a, 1), [x2, y2] = c(b, 0); return curve(x1, y1, x2, y2, { c: on ? 'var(--accent)' : 'var(--text-dim)', w: on ? 3 : 1.6 }); };
     let b = rect(10, 8, 380, 150, 'var(--accent-soft)', { r: 8 });
-    b += edge('jazz', 'rock', o.walk) + edge('rock', 'disco', o.walk) + edge('rock', 'synth', false);
-    [['jazz', 'Jazz City'], ['rock', 'Rock City'], ['disco', 'Disco City'], ['synth', 'Synth City']].forEach(([k, n]) => {
-      const here = o.walk && k === 'disco';
+    b += edge('office', 'lift', o.walk) + edge('lift', 'hall', o.walk) + edge('hall', 'archives', o.walk);
+    [['office', 'glMapOffice'], ['lift', 'glMapLift'], ['hall', 'glMapHall'], ['archives', 'glMapArchives']].forEach(([k, nk]) => {
+      const n = t(nk);
+      const here = o.walk && k === 'archives';
       b += box(P[k][0], P[k][1], W, H, (o.music ? '♪ ' : '') + n, '', { fs: 8.5, fill: here ? 'var(--accent)' : CARD, tc: here ? CARD : '', bold: here });
     });
-    b += txt(P.jazz[0] + W / 2, P.jazz[1] - 6, t('glMapStart'), { c: 'var(--accent)', bold: true });
-    if (o.note) b += txt(P.disco[0] + W / 2, P.disco[1] + H + 10, t('glMapLevel2'), { fs: 7 });
-    if (o.transition) b += T(232, 90, 22, 14);
+    b += txt(P.office[0] + W / 2, P.office[1] - 6, t('glMapStart'), { c: 'var(--accent)', bold: true });
+    if (o.transition) b += T(94, 75, 22, 14);
     b += txt(200, 172, t(o.walk ? 'glMapWalkLegend' : o.music ? 'glMapMusicLegend' : 'glTransLegendMap'));
     return svg(180, b);
   };
@@ -163,21 +166,21 @@
         + (i === 2 ? play(x + 34, 58) : `<path d="M${x + 10} 82 L${x + 28} 58 L${x + 40} 72 L${x + 48} 64 L${x + 60} 82 Z" fill="var(--accent)" opacity=".55"/><circle cx="${x + 50}" cy="40" r="6" fill="var(--accent)" opacity=".55"/>`)
         + txt(x + 34, 108, a, { c: 'var(--text)', fs: 9, bold: true }) + txt(x + 34, 121, b);
     }).join('') + txt(200, 150, t('glMediaWhere'))),
-    // Leçons Projet : le projet d’exemple « Music City » (api/demo-projects.js) — quatre villes en sections, carte Jazz → Rock → Disco / Synth.
+    // Leçons Projet : le projet d’exemple « Dernier Étage » (api/demo-projects.js) — quatre sections, carte Bureau → Ascenseur → Couloir → Archives.
     'pj-create': t => svg(170, `<rect x="100" y="10" width="200" height="150" rx="8" fill="${CARD}" stroke="var(--accent)" stroke-width="1.4"/>`
-      + txt(200, 32, 'Music City', { c: 'var(--text)', fs: 11, bold: true })
-      + ['J', 'L', 'M', 'D'].map((n, i) => `<circle cx="${170 + i * 15}" cy="48" r="7" fill="var(--accent)" opacity="${0.4 + i * 0.18}" stroke="${CARD}"/>` + txt(170 + i * 15, 51, n, { c: CARD, fs: 7, bold: true })).join('') + txt(234, 51, t('glTeam'), { a: 'start' })
-      + CITIES.map((s, i) => block(116, 64 + i * 23, 168, 19, s, { left: true })).join('')),
+      + txt(200, 32, t('glPjName'), { c: 'var(--text)', fs: 11, bold: true })
+      + ['I', 'K', 'D'].map((n, i) => `<circle cx="${170 + i * 15}" cy="48" r="7" fill="var(--accent)" opacity="${0.45 + i * 0.25}" stroke="${CARD}"/>` + txt(170 + i * 15, 51, n, { c: CARD, fs: 7, bold: true })).join('') + txt(234, 51, t('glTeam'), { a: 'start' })
+      + SECTIONS.map((s, i) => block(116, 64 + i * 23, 168, 19, s, { left: true })).join('')),
     'pj-chat': t => svg(170, rect(20, 10, 110, 150, 'var(--accent-soft)', { r: 6 })
-      + ['# ' + t('glChGeneral')].concat(CITIES.map(c => '# ' + c)).map((c, i) => txt(30, 32 + i * 24, c, { a: 'start', c: i === 1 ? 'var(--accent)' : 'var(--text)', bold: i === 1 })).join('')
-      + rect(140, 10, 240, 150, CARD, { r: 6, stroke: 'var(--border)' }) + txt(150, 26, '# Jazz City', { a: 'start', c: 'var(--accent)', bold: true })
+      + ['# ' + t('glChGeneral')].concat(SECTIONS.map(c => '# ' + c)).map((c, i) => txt(30, 32 + i * 24, c, { a: 'start', c: i === 2 ? 'var(--accent)' : 'var(--text)', bold: i === 2 })).join('')
+      + rect(140, 10, 240, 150, CARD, { r: 6, stroke: 'var(--border)' }) + txt(150, 26, '# ' + SECTIONS[1], { a: 'start', c: 'var(--accent)', bold: true })
       + [[148, t('glMsg1'), OFF], [182, t('glMsg2'), 'var(--accent-soft)'], [148, t('glMsg3'), OFF]].map(([x, m, c], i) => rect(x, 36 + i * 40, 190, 28, c, { r: 10 }) + txt(x + 95, 54 + i * 40, m, { c: 'var(--text)', fs: 7.5 })).join('')),
     'pj-moodboard': t => {
       // Post-it : deux lignes au plus (\n dans le texte).
       const note = (nx, ny, w, h, label) => `<rect x="${nx}" y="${ny}" width="${w}" height="${h}" rx="3" fill="#f3e3a1"/>`
         + String(label).split('\n').map((l, i, all) => txt(nx + w / 2, ny + h / 2 + 3 + (i - (all.length - 1) / 2) * 10, l, { c: '#3a3320', fs: 7.5 })).join('');
       const ref = (nx, ny, label) => rect(nx, ny, 76, 22, CARD, { stroke: 'var(--border)' }) + play(nx + 10, ny + 11) + txt(nx + 20, ny + 14, label, { a: 'start', c: 'var(--text)', fs: 7 });
-      return svg(170, [[t('glBoardGeneral'), 'glNoteTempo', 'Banjo-Kazooie', 'glNoteClub'], ['Jazz City', 'glNoteNeon', 'Cuphead', 'glNoteBar']].map(([s, n1, r, n2], k) => {
+      return svg(170, [[t('glBoardGeneral'), 'glNoteTempo', 'Silent Hill 2', 'glNoteClub'], [SECTIONS[0], 'glNoteNeon', 'Chernobyl', 'glNoteBar']].map(([s, n1, r, n2], k) => {
         const x = 14 + k * 194;
         return rect(x, 10, 180, 150, 'var(--accent-soft)', { r: 6 }) + txt(x + 10, 28, s, { a: 'start', c: 'var(--text)', fs: 9, bold: true })
           + (k ? rect(x + 10, 38, 76, 56, CARD, { stroke: 'var(--border)' }) + `<path d="M${x + 14} 90 L${x + 40} 60 L${x + 56} 76 L${x + 82} 90 Z" fill="var(--accent)" opacity=".5"/>` : note(x + 10, 38, 76, 56, t(n1)))
@@ -190,7 +193,7 @@
       + curve(120, 40, 200, 72, { arrow: true }) + curve(120, 120, 200, 88, { arrow: true })
       + rect(204, 40, 186, 84, CARD, { r: 6, stroke: 'var(--accent)' }) + txt(214, 58, t('glProjectMusic'), { a: 'start', c: 'var(--text)', fs: 9, bold: true })
       + [[t('glPmDaniel'), 'Daniel'], [t('glPmMine'), t('glYouCap')]].map(([m, who], i) => play(222, 76 + i * 22) + txt(234, 76 + i * 22, m, { a: 'start', c: 'var(--text)' }) + txt(234, 85 + i * 22, t('glSharedBy', { name: who }), { a: 'start', fs: 6.5 })).join('')),
-    'pj-map-build': t => mapSvg(t, { transition: true, note: true }),
+    'pj-map-build': t => mapSvg(t, { transition: true }),
     'pj-map-music': t => mapSvg(t, { music: true }),
     'pj-map-walk': t => mapSvg(t, { music: true, walk: true }),
   };

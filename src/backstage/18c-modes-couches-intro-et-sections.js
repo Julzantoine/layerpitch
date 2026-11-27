@@ -14,7 +14,7 @@
             </div>
             <div class="hint-inline">${tr('introSectionLabel')}</div>
             <div class="hint-inline">${tr('introTailHintVrs')}</div>
-            <div style="margin-top:8px">
+            <div style="margin-top:8px" data-adv>
               ${collapsibleBlockToggleHtml(`introDesc:${ti}`, tr('stageDescriptionToggleLabel'), 'vrsIntroDescToggle', 'stageDescription')}
               <div class="list-block-body${expandedAltPoolKeys.has(`introDesc:${ti}`) ? '' : ' collapsed'}" data-role="vrsIntroDescBody" style="margin-top:8px">
                 <div class="hint-inline">${tr('stageDescriptionHint')}</div>
@@ -68,8 +68,8 @@
             <label>${tr('nameFieldLabel')}</label><input type="text" placeholder="${tr('sectionNamePlaceholder')}" data-section-field="label" data-ti="${ti}" data-si="${sci}" value="${escapeAttr(section.label)}" style="margin-bottom:8px">
             <div class="actions"><button class="btn btn-small btn-danger" data-action="remove-section" data-ti="${ti}" data-si="${sci}">${tr('removeSectionBtn')}</button></div>
             ${!hasAnyFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
-            <label data-help="slotContentSource" style="margin-top:8px">${tr('slotContentSourceLabel')}</label>
-            <select data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
+            <label data-help="slotContentSource" style="margin-top:8px" data-adv>${tr('slotContentSourceLabel')}</label>
+            <select data-adv data-section-field="referencesSectionId" data-ti="${ti}" data-si="${sci}" ${isReferencedByOthers ? 'disabled' : ''}>
               <option value="">${tr('slotContentOwnOption')}</option>
               ${duplicatableOptions.map(other => `<option value="${other.id}" ${section.referencesSectionId === other.id ? 'selected' : ''}>${tr('slotContentDuplicateOption', { label: escapeAttr(other.label) || tr('untitledFallback') })}</option>`).join('')}
             </select>
@@ -125,7 +125,7 @@
                 <button class="btn btn-small btn-danger" data-action="remove-pool" data-ti="${ti}" data-si="${sci}" data-pi="${pi}">${tr('removePoolBtn')}</button>
               </div>
               ${!poolHasFile ? `<div class="hint-inline" style="color:#b45309">${tr('noAltFileWarning')}</div>` : ''}
-              <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:8px;margin-top:8px;" data-adv>
                 <input type="checkbox" data-pool-field="avoidImmediateRepeat" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" ${pool.avoidImmediateRepeat ? 'checked' : ''} style="width:auto;margin:0;">
                 <span style="color:var(--text-dim);font-size:12px;">${tr('avoidRepeatAltLabel')}</span>
               </label>
@@ -147,8 +147,8 @@
               altRow.innerHTML = `
                 <div data-role="poolAltFileCtrl"></div>
                 <label style="margin-top:8px">${tr('labelFieldLabel')}</label><input type="text" placeholder="${tr('altLabelPlaceholder')}" data-pool-alt-field="label" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${escapeAttr(alt.label)}">
-                <label style="margin-top:8px">${tr('altVolumeLabel')}</label><input type="number" step="0.5" min="-24" max="12" data-pool-alt-field="volumeDb" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${alt.volumeDb || 0}" style="max-width:120px">
-                <div class="hint-inline">${tr('altVolumeHint')}</div>
+                <label style="margin-top:8px" data-adv>${tr('altVolumeLabel')}</label><input data-adv type="number" step="0.5" min="-24" max="12" data-pool-alt-field="volumeDb" data-ti="${ti}" data-si="${sci}" data-pi="${pi}" data-ai="${ai}" value="${alt.volumeDb || 0}" style="max-width:120px">
+                <div class="hint-inline" data-adv>${tr('altVolumeHint')}</div>
               `;
               const altCtrlHost = altRow.querySelector('[data-role="poolAltFileCtrl"]');
               altCtrlHost.innerHTML = fileCtrlHtml(tr('chooseWavMp3'), deleteIconBtnHtml('remove-pool-alt', { ti, si: sci, pi, ai }, tr('removeAlternativeBtn')));

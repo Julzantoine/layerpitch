@@ -33,6 +33,7 @@
 
   // Icônes au trait (même esprit que la barre du Backstage).
   const ICONS = {
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h4v-6h4v6h4V10"/>',
     backstage: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     sales: '<path d="M17 5.5A7 7 0 1 0 17 18.5M3 10h10M3 14h10"/>',
     purchases: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>',
@@ -42,11 +43,13 @@
     team: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
     plan: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
     projects: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+    inviter: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/>',
     invitations: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6"/>',
     albums: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>',
     video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/>',
     account: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/>',
     appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
+    tutorials: '<circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/>',
     pricing: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01"/>',
   };
   const icon = k => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ''}</svg>`;
@@ -61,6 +64,9 @@
   .lp-nav a.lp-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; color: var(--text, #24262b); text-decoration: none; font-size: 13.5px; line-height: 1.25; }
   .lp-nav a.lp-item:hover { background: rgba(47, 128, 192, .08); }
   .lp-nav a.lp-item[aria-current="page"] { background: var(--bg-card, #ffffff); color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px var(--border, #e2e2e6); }
+  .lp-nav a.lp-item.lp-highlight { background: rgba(47, 128, 192, .12); color: var(--accent, #2f80c0); font-weight: 600; box-shadow: 0 0 0 1px rgba(47, 128, 192, .35); margin-bottom: 4px; }
+  .lp-nav a.lp-item.lp-highlight:hover { background: rgba(47, 128, 192, .2); }
+  .lp-nav a.lp-item.lp-highlight svg { opacity: 1; }
   .lp-nav a.lp-item svg { flex: 0 0 auto; opacity: .8; }
   .lp-nav a.lp-sub { padding: 5px 10px 5px 35px; font-size: 12.5px; color: var(--text-dim, #5f636b); }
   .lp-nav a.lp-sub[aria-current="page"] { box-shadow: none; background: transparent; }
@@ -175,6 +181,104 @@
     syncCollapseBtn(b);
     return b;
   }
+
+  // ---- Bouton « ? » : aide contextuelle allumée / éteinte (18/11, feu vert help_toggle) ----
+  // Même réglage que « Aide contextuelle » dans les Réglages rapides de l'Accueil (profiles.home_prefs.help_off, repli dans
+  // ce navigateur : lp_home_prefs_v1). Posé à côté du bouton de repli de la barre : visible sur toutes les pages qui ont la
+  // barre, Backstage compris (l'Atelier, dans son cadre du Backstage, suit par l'événement « storage » et par un message).
+  // Les bulles elles-mêmes : Backstage = son propre moteur (12-bulles-d-aide.js), autres pages = layerpitch-help-engine.js.
+  const HOME_PREFS_LOCAL = 'lp_home_prefs_v1';
+  function helpIsOff() {
+    try { return !!(JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}).help_off; } catch (e) { return false; }
+  }
+  function helpBroadcast() {
+    const off = helpIsOff();
+    document.querySelectorAll('.lp-help-btn').forEach(syncHelpBtn);
+    window.dispatchEvent(new CustomEvent('lp-help-change', { detail: { off } }));
+    document.querySelectorAll('iframe').forEach(f => { try { f.contentWindow.postMessage({ source: 'lp-shell', type: 'help', off }, '*'); } catch (e) { /* cadre fermé */ } });
+  }
+  function helpSetOff(off) {
+    try { const cur = JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}; cur.help_off = !!off; localStorage.setItem(HOME_PREFS_LOCAL, JSON.stringify(cur)); } catch (e) { /* stockage indisponible : le temps de la page */ }
+    helpBroadcast();
+    try {
+      const c = window.LayerPitchSupabaseClient && window.LayerPitchSupabaseClient.getClient();
+      if (c && !new URLSearchParams(location.search).has('tuto') && !new URLSearchParams(location.search).has('demo')) Promise.resolve(c.rpc('set_my_home_prefs', { p: { help_off: !!off } })).catch(() => { /* le choix reste dans ce navigateur */ });
+    } catch (e) { /* idem */ }
+  }
+  // Le compte fait foi : au chargement, on recopie son choix dans ce navigateur (les autres pages et l'Atelier le lisent ici).
+  let helpSynced = false;
+  async function helpSyncFromAccount() {
+    if (helpSynced) return; helpSynced = true;
+    try {
+      const c = window.LayerPitchSupabaseClient.getClient();
+      const { data, error } = await c.from('profiles').select('home_prefs').maybeSingle();
+      if (error || !data || !data.home_prefs || typeof data.home_prefs.help_off !== 'boolean') return;
+      if (data.home_prefs.help_off !== helpIsOff()) {
+        const cur = JSON.parse(localStorage.getItem(HOME_PREFS_LOCAL) || '{}') || {}; cur.help_off = data.home_prefs.help_off;
+        localStorage.setItem(HOME_PREFS_LOCAL, JSON.stringify(cur)); helpBroadcast();
+      }
+    } catch (e) { /* hors ligne ou migration pas encore appliquée */ }
+  }
+  // La barre du Backstage est posée avant que la session soit relue : on attend la session, et un échec n'est jamais retenu
+  // (on réessaie plutôt que de rester sans « ? » jusqu'au prochain chargement).
+  let helpFlagPromise = null;
+  function helpFlagAllowed(ctx) {
+    if (ctx && ctx.flags) return Promise.resolve(!!ctx.flags.help_toggle);
+    if (!helpFlagPromise) helpFlagPromise = (async () => {
+      try {
+        const { session } = await window.LayerPitchAuth.getSession();
+        if (!session) { helpFlagPromise = null; return null; }
+        const { data, error } = await window.LayerPitchSupabaseClient.getClient().rpc('my_feature_flags');
+        if (error || !data) { helpFlagPromise = null; return null; }
+        return !!data.find(f => f.key === 'help_toggle' && f.allowed);
+      } catch (e) { helpFlagPromise = null; return null; }
+    })();
+    return helpFlagPromise;
+  }
+  const HELP_CSS = `
+  .lp-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; flex: 0 0 auto;
+    border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-dim, #5f636b); cursor: pointer; }
+  .lp-help-btn[hidden] { display: none !important; }
+  .lp-help-btn:hover { background: rgba(47, 128, 192, .08); border-color: var(--border, #e2e2e6); color: var(--accent, #2f80c0); }
+  .lp-help-btn[aria-pressed="true"] { background: rgba(47, 128, 192, .14); border-color: var(--accent, #2f80c0); color: var(--accent, #2f80c0); }
+  .lp-nav-top .lp-help-btn { margin-left: auto; margin-right: 4px; }
+  .lp-help-btn-own { display: flex; margin: -6px -4px 8px auto; }
+  html.lp-sidebar-collapsed .lp-help-btn-own { margin: 0 auto 10px; }
+  html.lp-sidebar-collapsed .lp-nav-top .lp-help-btn { margin: 4px 0 0; }
+  html.lp-sidebar-collapsed .lp-nav-top { flex-wrap: wrap; }`;
+  function syncHelpBtn(b) {
+    const on = !helpIsOff(), label = tr(on ? 'helpOn' : 'helpOff');
+    b.setAttribute('aria-pressed', String(on)); b.title = label; b.setAttribute('aria-label', label);
+  }
+  function helpButton() {
+    if (!document.getElementById('lpHelpCss')) {
+      const st = document.createElement('style'); st.id = 'lpHelpCss'; st.textContent = HELP_CSS; document.head.appendChild(st);
+    }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lp-help-btn'; b.hidden = true;
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg>';
+    b.addEventListener('click', () => helpSetOff(!helpIsOff()));
+    syncHelpBtn(b);
+    return b;
+  }
+  // Pose le bouton dans `place(b)` quand le feu vert est ouvert pour cette personne ; sans session ou feu vert fermé : rien.
+  function mountHelpButton(place, ctx) {
+    const b = helpButton(); place(b);
+    const attempt = n => helpFlagAllowed(ctx).then(ok => {
+      if (ok) { b.hidden = false; helpSyncFromAccount(); }
+      else if (ok === null && n < 3 && !ctx) setTimeout(() => attempt(n + 1), 1500 * (n + 1)); // session pas encore prête : on réessaie
+      // sinon : le bouton reste caché (la page peut encore le montrer par setHelpAllowed, voir plus bas)
+    });
+    attempt(0);
+    return b;
+  }
+  window.addEventListener('storage', e => { if (e.key === HOME_PREFS_LOCAL) helpBroadcast(); });
+  // Le Backstage connaît déjà ses feux verts (14-connexion-abonnement-admin.js) : il le dit ici, sans attendre une 2e lecture.
+  function setHelpAllowed(ok) {
+    helpFlagPromise = Promise.resolve(!!ok);
+    document.querySelectorAll('.lp-help-btn').forEach(b => { b.hidden = !ok; });
+    if (ok) helpSyncFromAccount();
+  }
+
   // Barre repliée : le libellé caché d'une rubrique apparaît en infobulle au survol (calculé au moment du survol, pour
   // suivre la langue affichée ; une infobulle déjà prévue par la page n'est jamais remplacée).
   function wireCollapsedTooltips(nav, selector) {
@@ -191,6 +295,7 @@
     if (!nav || nav.querySelector(':scope > .lp-collapse-btn')) return;
     const b = collapseButton(); b.classList.add('lp-collapse-btn-own');
     nav.insertBefore(b, nav.firstChild);
+    mountHelpButton(hb => { hb.classList.add('lp-help-btn-own'); nav.insertBefore(hb, b.nextSibling); });
     wireCollapsedTooltips(nav, selector || 'a, button');
   }
 
@@ -231,6 +336,7 @@
     const parts = [];
     if (u.newMessages) parts.push(tr('inboxMessages', { n: u.newMessages }));
     if (u.addressedNotes) parts.push(tr('inboxNotes', { n: u.addressedNotes }));
+    if (u.assignedTasks) parts.push(tr('inboxTasks', { n: u.assignedTasks })); // tâches qui te sont assignées (4/11)
     if (u.changes) parts.push(tr('inboxChanges', { n: u.changes }));
     const c = (u.lastChanges || [])[0];
     const detail = u.lastMessage && (!c || u.lastMessage.createdAt >= c.createdAt)
@@ -441,6 +547,7 @@
     }
     if (ctx.studioId) {
       const studio = studioSpace ? [
+        ...(ctx.flags.studio_home ? [{ id: 'studio.home', icon: 'home', href: 'studio.html?tab=home' }] : []),
         { id: 'studio.library', icon: 'purchases', href: 'studio.html?tab=library' },
         { id: 'studio.custom', icon: 'custom', href: 'studio.html?tab=custom' },
         // Vidéos du studio (21/10) : montages, versions vidéo et bibliothèque vidéo de l'équipe (migration 20261021060000).
@@ -451,7 +558,7 @@
         { id: 'studio.library', icon: 'purchases', href: 'library.html' },
       ];
       // Vente d'OST par un studio (29/09) : même feu vert que la vente d'albums (admin seulement pendant la bêta).
-      if (studioSpace && ctx.flags.sell_albums) studio.splice(3, 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
+      if (studioSpace && ctx.flags.sell_albums) studio.splice(Math.max(0, studio.findIndex(i => i.id === 'studio.team')), 0, { id: 'studio.albums', icon: 'albums', href: 'studio.html?tab=albums' });
       if (!ctx.composerId) studio.push({ id: 'account.sales', icon: 'sales', href: 'mon-compte.html?section=sales', label: 'salesStudio' });
       sections.push({ label: 'sectionStudio', items: studio });
     }
@@ -461,6 +568,8 @@
     // Annuaire des compositeurs (23/10) : feu vert « composer_directory » (admin seulement pendant la bêta).
     if (ctx.flags.composer_directory) common.push({ id: 'directory', icon: 'directory', href: 'annuaire.html' });
     if (ctx.flags.projects) common.push({ id: 'projects', icon: 'projects', href: 'projets.html' });
+    // Page « Inviter » (17/11) : saisie d'e-mails + choix de la destination (Projet ou équipe studio) ; même feu vert que les Projets.
+    if (ctx.flags.projects) common.push({ id: 'inviter', icon: 'inviter', href: 'inviter.html' });
     common.push({ id: 'invitations', icon: 'invitations', href: 'invitation.html', badge: ctx.invitations });
     if (ctx.isAdmin && !(ctx.preview && ctx.preview.hideUnreleased)) common.push({ id: 'albums', icon: 'albums', href: 'mes-albums.html' });
     common.push({ id: 'account', icon: 'account', href: 'mon-compte.html', children: [
@@ -480,6 +589,8 @@
     const link = (it, sub) => `<a class="lp-item${sub ? ' lp-sub' : ''}" href="${esc(withLang(it.href))}"${state.active === it.id || (!sub && !it.children && isActive(it.id)) ? ' aria-current="page"' : ''}>
         ${sub ? '' : icon(it.icon)}<span>${esc(tr(it.label || 'item_' + it.id))}</span>${it.badge ? `<span class="lp-badge">${esc(it.badge)}</span>` : ''}</a>`;
     let html = `<div class="lp-nav-top"><a class="lp-nav-brand" href="${esc(withLang(ctx.composerId ? 'layerpitch-backstage.html' : 'mon-compte.html'))}">LayerPitch</a></div>`;
+    // Tutoriels (21/11) : lien mis en valeur en haut de la barre, pour les compositeurs comme pour les studios ; la page est publique.
+    html += `<a class="lp-item lp-highlight" href="${esc(withLang('tutoriels.html'))}">${icon('tutorials')}<span>${esc(tr('item_tutorials'))}</span></a>`;
     for (const s of items(ctx)) {
       html += `<div class="lp-nav-section">${esc(tr(s.label))}</div>`;
       for (const it of s.items) {
@@ -493,6 +604,7 @@
     html += `<div class="lp-nav-foot"><button type="button" id="lpSignOut">${esc(tr('signOut'))}</button></div>`;
     nav.innerHTML = html;
     nav.querySelector('.lp-nav-top').appendChild(collapseButton());
+    mountHelpButton(hb => nav.querySelector('.lp-nav-top').insertBefore(hb, nav.querySelector('.lp-collapse-btn')), state.ctx);
     nav.querySelectorAll('a.lp-item').forEach(a => a.addEventListener('click', e => {
       const url = new URL(a.href);
       if (state.navHandler && url.pathname === location.pathname && state.navHandler(url) === true) {
@@ -623,6 +735,10 @@
       try { sessionStorage.setItem(RESUME_FLAG, '1'); } catch (e) { /* stockage indisponible */ }
       const lastFile = last && last.url ? last.url.split('?')[0] : null;
       const plainEntry = ENTRY_PAGES.includes(file) && !Array.from(params.keys()).some(k => k !== 'lang');
+      // Compte studio sans profil compositeur arrivé sur le Backstage compositeur : renvoi vers l'espace Studio.
+      if (file === 'layerpitch-backstage.html' && plainEntry && window.LayerPitchAuth.getMyLandingSpace) {
+        window.LayerPitchAuth.getMyLandingSpace().then(sp => { if (sp === 'studio') location.replace('studio.html?tab=home' + (params.get('lang') ? '&lang=' + params.get('lang') : '')); }).catch(() => {});
+      }
       if (!done && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
         location.replace(last.url);
         return;
@@ -635,5 +751,5 @@
     if (window.LayerPitchAuth.onAuthStateChange) window.LayerPitchAuth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN') resumeTrack(session); });
   }
 
-  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
+  window.LayerPitchShell = { mount, update, onNavigate, tr, collapsible, isCollapsed, setCollapsed, helpIsOff, helpSetOff, setHelpAllowed, startInbox, onInbox, refreshInbox, markInboxSeen, relTime };
 })();

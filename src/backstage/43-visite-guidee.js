@@ -4,12 +4,21 @@
 // l'instant. Menu « Tutoriel » (leçons) dans la barre du haut, à côté de la cloche et du compte : feu vert séparé « in_app_lessons ».
 const TOUR_DONE_STORAGE = 'layerpitch_tour_done_v1';
 const LESSONS_DONE_STORAGE = 'layerpitch_lessons_done_v1';
+// Étapes de l'Accueil (14/11) : `home: true` = zone de la page d'Accueil ; l'étape ouvre l'onglet Accueil avant de s'afficher, et n'existe que
+// si l'Accueil est ouvert pour la personne (feu vert « home_dashboard », jamais en mode tutoriel). Ordre = celui du menu, de haut en bas.
+const openHomeForTour = () => { if (typeof openTab === 'function') openTab('home'); };
 const TOUR_STEPS = [
-  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText' },
-  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
+  { titleKey: 'tourWelcomeTitle', textKey: 'tourWelcomeText', enter: () => { if (homeOpen()) openHomeForTour(); } },
+  { selector: '.nav-item[data-tab="home"]', titleKey: 'tourHomeTitle', textKey: 'tourHomeText', home: true, enter: openHomeForTour },
+  { selector: '.home-question', titleKey: 'tourHomeQuestionTitle', textKey: 'tourHomeQuestionText', home: true, enter: openHomeForTour },
+  { selector: '#homeMail', titleKey: 'tourHomeMailTitle', textKey: 'tourHomeMailText', home: true, enter: openHomeForTour },
+  { selector: '.home-essentials', titleKey: 'tourHomeEssentialsTitle', textKey: 'tourHomeEssentialsText', home: true, enter: openHomeForTour },
+  { selector: '.home-activity', titleKey: 'tourHomeActivityTitle', textKey: 'tourHomeActivityText', home: true, enter: openHomeForTour },
+  { selector: '.home-quick', titleKey: 'tourHomeQuickTitle', textKey: 'tourHomeQuickText', home: true, enter: openHomeForTour },
   { selector: '.sidebar-adreel-group', titleKey: 'tourAdreelTitle', textKey: 'tourAdreelText' },
   { selector: '.nav-item[data-tab="content"]', titleKey: 'tourContentTitle', textKey: 'tourContentText' },
   { selector: '.nav-item[data-tab="appearance"]', titleKey: 'tourAppearanceTitle', textKey: 'tourAppearanceText' },
+  { selector: '.nav-item[data-tab="library"]', titleKey: 'tourLibraryTitle', textKey: 'tourLibraryText' },
   { selector: '.nav-item[data-tab="sfxLibrary"]', titleKey: 'tourSfxTitle', textKey: 'tourSfxText' },
   { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'tourVideoTitle', textKey: 'tourVideoText', hideIf: () => { const b = document.getElementById('navVideoLibraryBadge'); return !!b && !b.hidden; } },
   { selector: '.nav-item[data-tab="packs"]', titleKey: 'tourPacksTitle', textKey: 'tourPacksText' },
@@ -41,7 +50,7 @@ function lessonsAccessOpen() { return flagOpen('in_app_lessons'); }
 // avec la mention « le tuto complet nécessite un compte ». Un admin (tutoFullAccess) a tout.
 // Thèmes de leçons ouverts à tous les bêta-testeurs (23/10) : les autres restent grisés (« bientôt »), jouables par les admins seulement.
 // Pour débloquer un thème (par exemple « pitch », quand les leçons AdReel seront refaites) : l'ajouter à cette liste.
-const LESSON_THEMES_OPEN = ['engine', 'pitch'];
+const LESSON_THEMES_OPEN = ['engine', 'pitch']; // 'preprod' (leçons Projet sur « Dernier Étage ») refermé le 19/11 le temps que Jules-Antoine les vérifie ; accord Protocol Interactive reçu
 // `adminOnly` (sur une leçon) : réservée aux admins même dans un thème ouvert, le temps que sa fonction ait son feu vert (leçon « hybrid »).
 function lessonOpenToMe(lesson) { return !lesson || ((LESSON_THEMES_OPEN.includes(lesson.theme) && !lesson.adminOnly) || (isTutoMode() ? tutoFullAccess : currentUserIsAdmin)); }
 function lessonPlayable(lesson) { return lessonOpenToMe(lesson) && (!isTutoMode() || tutoFullAccess || lessonIsPublic(lesson)); }
@@ -72,6 +81,12 @@ const LESSON_SAMPLE_FOLDERS = {
 Object.keys(LESSON_SAMPLE_FOLDERS).forEach(dir => LESSON_SAMPLE_FOLDERS[dir].forEach(n => {
   LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(n);
 }));
+// Nom vu par l'apprenant -> fichier réel du dossier `tuto/` (le nom change, pas le fichier).
+const LESSON_SAMPLE_ALIASES = {
+  'Jazz 1 Lo_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Lo_Intro1M_9M_110bpm.wav'],
+  'Jazz 2 Hi_Intro1M_9M_110bpm.wav': ['Jazz Hi-Lo Vert. Branch.', 'Jazz Hi_Intro1M_9M_110bpm.wav'],
+};
+Object.keys(LESSON_SAMPLE_ALIASES).forEach(n => { const [dir, real] = LESSON_SAMPLE_ALIASES[n]; LESSON_SAMPLE_URLS[n] = 'https://media.layerpitch.com/tuto/' + encodeURIComponent(dir) + '/' + encodeURIComponent(real); });
 function lessonStepFileNames(step) {
   const names = LESSON_SAMPLE_NAMES[step.names || (guide && guide.lessonId)] || '';
   return names.split(',').map(x => x.trim()).filter(Boolean);
@@ -309,7 +324,9 @@ const LESSON_SAMPLE_NAMES = {
   transRock: 'Jazz Hi_Trans Rock City_1M.wav',
   transJazz: 'Jazz Hi_Trans Jazz City_1M.wav',
   transSynth: 'Jazz Hi_Trans Synth City_1M.wav',
-  embrLoops: 'Jazz Lo_Intro1M_9M_110bpm.wav, Jazz Hi_Intro1M_9M_110bpm.wav',
+  // Noms affichés avec un numéro : le dépôt de plusieurs fichiers les trie par ordre alphabétique, et « Hi » passerait avant « Lo »
+  // (boucle de référence inversée, retour d'un testeur 18/11). Les fichiers restent ceux du dossier (voir LESSON_SAMPLE_ALIASES).
+  embrLoops: 'Jazz 1 Lo_Intro1M_9M_110bpm.wav, Jazz 2 Hi_Intro1M_9M_110bpm.wav',
   embrDetour: 'detour_120bpm_4M.wav',
   import: 'Tuto séquentiel - raccourci',
 };
@@ -488,7 +505,19 @@ const LESSONS = [
     { selector: '#libraryDetail input[data-field="bpm"]', titleKey: 'lsVerifyTitle', textKey: 'lsVerifyText' },
     // Flèche sur la barre de la 31e mesure : le morceau d'exemple fait 30 mesures (+ résonances), la sortie se place à la fin.
     { selector: '#libraryDetail [data-role="loopTimelineHost"]', titleKey: 'lsPointsTitle', textKey: 'lsPointsText', arrow: { bar: 9, labelKey: 'lsArrowOut' } },
-    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listen: true, listenTarget: '#libraryDetail [data-role="previewHost"]' },
+    // Écoute imposée : pas de « Suivant ». L'étape n'avance que lorsqu'un rebouclage a réellement été entendu (la position de lecture
+    // revient en arrière depuis la fin de la boucle), pas seulement après un clic sur « Prévisualiser ».
+    { selector: '#libraryDetail [data-action="preview-track"]', titleKey: 'lsListenTitle', textKey: 'lsListenText', listenTarget: '#libraryDetail [data-role="previewHost"]', clickDone: true,
+      enter: (c) => { c.prevPos = null; c.wrapped = false; },
+      done: (c) => {
+        if (c.wrapped) return true;
+        const row = document.querySelector('#libraryDetail [data-role="previewHost"] .track-row-wrapper');
+        const lp = row && row.lpControl && row.lpControl.loopPosition && row.lpControl.loopPosition();
+        if (!lp) { c.prevPos = null; return false; }
+        if (c.prevPos != null && c.prevPos >= lp.out - 2 && lp.pos < c.prevPos - 0.5) c.wrapped = true;
+        c.prevPos = lp.pos;
+        return c.wrapped;
+      } },
     { selector: '#btnPublish', titleKey: 'lsSaveTitle', textKey: 'lsSaveText', clickDone: true },
     { titleKey: 'lsEndTitle', textKey: 'lsEndText', final: true },
   ] },
@@ -517,7 +546,8 @@ const LESSONS = [
     { selector: '#libraryDetail select[data-embr-loop-field="cutStyle"]', titleKey: 'leCutTitle', textKey: 'leCutText',
       done: () => { const t = lessonTrack(); const l = t && (t.loops || [])[1]; return !!l && l.cutStyle === 'custom'; } },
     { selector: '#libraryDetail input[data-embr-loop-field="customCutFadeSec"]', titleKey: 'leFadeTitle', textKey: 'leFadeText' },
-    { selector: '#libraryDetail input[data-embr-loop-field="hasTransition"]', titleKey: 'leTransTitle', textKey: 'leTransText' },
+    // Simple mention (rien à cocher) : volontairement sans zone en surbrillance, qui inciterait à cocher la case.
+    { titleKey: 'leTransTitle', textKey: 'leTransText' },
     // Boucle de détour : un fichier à part, joué ponctuellement au clic (mesures et tempo propres).
     { selector: '#libraryDetail [data-action="add-embr-loop"]', titleKey: 'ldAddTitle', textKey: 'ldAddText', skip: () => !lessonDetourReady(),
       done: () => { const t = lessonTrack(); return !!t && (t.loops || []).length >= 3; } },
@@ -1260,12 +1290,24 @@ const LESSONS = [
     { selector: '.block-editor-card[data-type="video"] [data-role="versionNew"]', titleKey: 'lvBlockNewTitle', textKey: 'lvBlockNewText' },
     { titleKey: 'lvaEndTitle', textKey: 'lvaEndText', final: true },
   ] },
+  // Leçon « Jouer des pas sur un montage » (14/11, ?tuto&lesson=versioning-pas) : le montage de Joris (leçon Versioning) est DÉJÀ PRÊT ; passe additive en direct (« Stone Walk » à la souris,
+  // au moins 10 pas), puis version qui ajoute le pack « Footsteps » et passe les pas en « Concrete Walk ». Même parcours que Versioning jusqu'à l'atelier (atelier-lecons.js fait le reste).
+  { id: 'versioning-pas', theme: 'preprod', public: true, adminOnly: true, reload: true, titleKey: 'lvpTitle', descKey: 'lvpDesc', steps: [
+    { titleKey: 'lvpWelcomeTitle', textKey: 'lvpWelcomeText' },
+    { selector: '.nav-item[data-tab="videoLibrary"]', titleKey: 'lvVideoTabTitle', textKey: 'lvVideoTabText',
+      done: () => !!document.querySelector('.backstage-panel[data-panel="videoLibrary"].active') },
+    { selector: '#panelVideoLibrary [data-video-subtab="capture"]:not([hidden])', titleKey: 'lvAtelierTabTitle', textKey: 'lvAtelierTabText',
+      done: () => !!document.querySelector('#panelVideoLibrary .video-subpanel[data-video-subpanel="capture"].active') },
+    { selector: '#videoAtelierFullBtn', titleKey: 'lvFullTitle', textKey: 'lvFullText', done: () => document.body.classList.contains('video-atelier-full') },
+    { selector: '#videoAtelierFrame', titleKey: 'lvpInAtelierTitle', textKey: 'lvpInAtelierText', done: () => atelierLessonFinished },
+    { titleKey: 'lvpEndTitle', textKey: 'lvpEndText', final: true },
+  ] },
   // « Annoter » (05/11) : ouverte avec les deux exports de « Music City » (music-city-gameplay-musique1/2.mp4, rendus depuis le montage de la leçon Versioning).
   { id: 'pj-annotate', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plAnnTitle', descKey: 'plAnnDesc', steps: preprodEntrySteps('pj-annotate', 'plEntryIntroText') },
-  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Réservées aux admins tant que les images
-  // de Music City (media.layerpitch.com/tuto/music-city/) ne sont pas en ligne et que les leçons n'ont pas été validées.
-  { id: 'pj-vitrine', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
-  { id: 'pj-vitrine-look', theme: 'preprod', public: true, adminOnly: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
+  // Vitrine (02/11), tout à la fin : la construire, puis son apparence (projet-lecons.js). Ouvertes à tous le 19/11 (accord de Protocol Interactive
+  // reçu pour les images de « Something Is Wrong » : media.layerpitch.com/tuto/, captures PNG).
+  { id: 'pj-vitrine', theme: 'preprod', public: true, page: 'projet', titleKey: 'plVitTitle', descKey: 'plVitDesc', steps: preprodEntrySteps('pj-vitrine', 'plEntryIntroText') },
+  { id: 'pj-vitrine-look', theme: 'preprod', public: true, page: 'projet', titleKey: 'plLookTitle', descKey: 'plLookDesc', steps: preprodEntrySteps('pj-vitrine-look', 'plEntryIntroText') },
 ];
 // 2e bulle de chaque leçon (02/11) : « Ce qu’on va construire », le schéma du résultat final (layerpitch-lesson-previews.js), juste après l’accueil.
 // Les leçons « Préproduction » l’ont sur la page du Projet (projet-lecons.js) ; la leçon hybride a déjà sa carte (lhMapPreviewHtml).
@@ -1275,7 +1317,7 @@ LESSONS.forEach(l => { if (l.steps && !l.page && window.LayerPitchLessonPreviews
 // layerpitch-guide.js. Ici ne reste que ce qui est propre au Backstage : les textes, les leçons, les vignettes de fichiers
 // d'exemple, la flèche de la timeline et la mémorisation de ce qui a été fait.
 function tourTargetVisible(el) { return window.LayerPitchGuide.targetVisible(el); }
-function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } }
+function tourMarkDone() { try { localStorage.setItem(TOUR_DONE_STORAGE, '1'); } catch (e) { /* stockage indisponible */ } if (typeof homeTourDone === 'function') homeTourDone(); /* sur le compte aussi (Accueil, 48-accueil.js) */ }
 function tourAlreadyDone() { try { return localStorage.getItem(TOUR_DONE_STORAGE) === '1'; } catch (e) { return false; } }
 function lessonsDone() { try { return JSON.parse(localStorage.getItem(LESSONS_DONE_STORAGE) || '{}') || {}; } catch (e) { return {}; } }
 // Leçons à faire (23/10) : celles ouvertes à tous, disponibles, pas encore terminées dans ce navigateur. Tant qu'il en reste, la pastille
@@ -1313,8 +1355,9 @@ const GUIDE = window.LayerPitchGuide.create({
   // Choix de fin de visite : dans le vrai compte, la leçon s'ouvre dans une nouvelle fenêtre (compte fictif), comme depuis le menu « Tutoriel ».
   startChoice: id => { const l = LESSONS.find(x => x.id === id); if (!isTutoMode() && l && !l.soon) window.open(lessonTutoUrl(l, id), '_blank', 'noopener'); else startLesson(id); },
   onLessonDone: lessonMarkDone,
-  onTourDone: tourMarkDone,
-  onClose: () => { hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
+  onTourDone: () => { if (!sectionTourOpen) tourMarkDone(); }, // une mini-visite de section (43a-visites-de-section.js) ne vaut pas « visite générale faite »
+  choiceAction: action => { if (action.startsWith('example:')) sectionTourRunExample(action.slice(8)); },
+  onClose: () => { sectionTourOpen = false; hideDirectoryBackdrop(); profileQuizClosed(); renderTutorialMenu(); },
   onOpen: () => { const helpTip = document.getElementById('helpTooltip'); if (helpTip) helpTip.classList.remove('visible'); },
   // Vignettes d'exemple : lot à télécharger, bouton « Utiliser » (étapes useSample dont les URL sont connues), et « bientôt
   // disponible » seulement sur les étapes qui annoncent un lot (sampleKey).
@@ -1388,7 +1431,7 @@ function startBackstageTour() {
   // Questions de profil (4/11) : leur présence en fin de visite dépend des réponses déjà enregistrées, lues une fois.
   if (profileQuizOpen() && myOnboardingProfile === undefined && !tourProfileWaited) { tourProfileWaited = true; loadMyOnboardingProfile().then(startBackstageTour); return; }
   // Seules les zones réellement présentes à l'écran sont visitées (onglets réservés aux admins, bouton « Tutoriel » encore fermé, menu replié sur téléphone…).
-  const steps = TOUR_STEPS.filter(s => !s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf())));
+  const steps = TOUR_STEPS.filter(s => s.home ? homeOpen() && (!s.selector || document.querySelector(s.selector)) : (!s.selector || (tourTargetVisible(document.querySelector(s.selector)) && !(s.hideIf && s.hideIf()))));
   const choice = tourFinalStep(); // questions de profil / tes essentiels, ou le double choix d'avant (46-questions-de-profil.js)
   openGuide('tour', choice ? steps.concat(choice) : steps);
 }
@@ -1554,9 +1597,12 @@ function syncBackstageTour() {
   // Mode tutoriel sans leçon demandée (adresse publique layerpitch-backstage.html?tuto, 27/10) : la visite guidée part directement, à chaque
   // ouverture (le compte fictif repart de zéro), même si le feu vert in_app_tour du faux serveur est fermé ; elle finit sur le double choix.
   if (isTutoMode() && !wanted) { if (!guide && !window.__tutoTourAutoStarted) { window.__tutoTourAutoStarted = true; setTimeout(startBackstageTour, 600); } return; }
-  if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
+  // Accueil ouvert (13/11) : plus de fenêtre ni de bulle à l'arrivée ; la visite et le profil sont rappelés, discrètement, sur l'Accueil (48-accueil.js).
+  if (homeOpen()) { /* rappels de l'Accueil */ }
+  else if (open && !tourAlreadyDone() && !guide) offerBackstageTour();
   else offerProfileQuizIfNeeded(); // comptes déjà inscrits : les questions de profil seules, une fois (46-questions-de-profil.js)
   if (profileQuizOpen() && myOnboardingProfile === undefined) loadMyOnboardingProfile().then(() => { if (lessonsOpen) renderTutorialMenu(); });
+  syncHome();
 }
 // Accueil tant que la bibliothèque est vide (30/10, retours de bêta : tuto interactif pas vu, pas de morceau prêt pour essayer). Attend un
 // chargement réussi pour ne pas clignoter à l'ouverture, jamais en mode tutoriel. « Plus tard » vaut pour ce navigateur.

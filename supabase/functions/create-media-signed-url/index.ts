@@ -195,6 +195,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Vignette d'un montage vidéo de STUDIO (19/11) : images/<id du studio>/montage-<id>.<ext>, au nom du studio du compte connecté
+    // (propriétaire ou membre de l'équipe, comme la bibliothèque vidéo). Pour un compositeur, le dossier images/<son id>/ suffit déjà.
+    if (!studioFolderId && asStudio === true && typeof path === 'string' && /^images\/[^/]+\/montage-[^/]+\.[^./]+$/.test(path)) {
+      const { data: userData } = await callerClient.auth.getUser(jwt);
+      if (userData?.user) {
+        const { data: sid } = await adminClient.rpc('account_studio_id', { p_profile_id: userData.user.id });
+        if (sid && path.startsWith(`images/${sid}/`)) studioFolderId = sid as string;
+      }
+    }
+
     let composerId: unknown = studioFolderId;
     if (!studioFolderId && !videoStudioId) {
       const { data, error: composerError } = await callerClient.rpc('ensure_composer_profile');

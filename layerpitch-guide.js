@@ -28,7 +28,7 @@
  * écrite ; autre zone -> un vrai événement « drop » (text/plain + text/uri-list) lui est envoyé, que la page traite comme
  * un dépôt de lien ou de texte ordinaire. `host.onDrop(step, drop, target)` (facultatif) reprend la main à la place.
  * `selector` peut être une fonction qui renvoie l'élément visé (cible calculée à chaque instant).
- * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson }]` — un gros bouton par choix ; un clic termine la
+ * Bulle à CHOIX (27/10) : une étape peut porter `choices: [{ labelKey, lesson } ou { labelKey, action }]` — un gros bouton par choix (`action` : host.choiceAction(action)) ; un clic termine la
  * bulle en cours puis lance la leçon `lesson` (host.startLesson). Sert à la fin de la visite guidée (host.startChoice(id) si la page le fournit, sinon host.startLesson).
  * Étapes : { selector, titleKey, textKey, done(ctx), clickDone, listen, listenTarget, enter(ctx), skip(ctx), final,
  *            keepTrack, arrow: {bar, labelKey?, point?} } — voir les leçons du Backstage pour des exemples.
@@ -156,6 +156,8 @@
       window.removeEventListener('resize', render);
       document.removeEventListener('keydown', onKeydown, true);
       document.removeEventListener('click', onClickCapture, true);
+      LOCK_EVENTS.forEach(ev => document.removeEventListener(ev, lockHandler, true));
+      clearTimeout(guide.nudgeTimer);
       const kind = guide.kind;
       // Fermée avant la fin (Quitter, Échap, changement de leçon) : on note jusqu'où la personne est allée.
       if (!guide.finished) track(kind === 'lesson' ? 'lesson_quit' : 'tour_quit', { lesson: guide.lessonId || undefined, step: guide.maxIndex + 1, steps: guide.steps.length });
@@ -164,6 +166,62 @@
       if (host.onClose) host.onClose();
     }
     function onKeydown(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+
+    // ---- Verrou des leçons (18/11, retour d'un testeur) ----
+    // Pendant une leçon, tout geste réel HORS de la zone en surbrillance (et de la bulle) est refusé : sinon la personne clique
+    // partout et dérègle le déroulé. Aussi DANS la zone : sur une étape de dépôt de fichiers (useSample), les boutons d'ajout / de
+    // suppression / de duplication sont refusés (un testeur avait créé des boucles à la main, puis déposé les fichiers : ordre inversé).
+    // Une étape peut préciser `allow` (sélecteurs en plus) et `block` (sélecteurs refusés même dans la zone), ou `free: true`.
+    // Jamais verrouillé : visite guidée (kind 'tour'), étape finale (jeu libre), outils admin, cible introuvable, étape à geste sans cible,
+    // fenêtres modales ouvertes (ex. « Appliquer le tempo »), gestes non réels (isTrusted faux : « Auto » de l'admin, essais).
+    const LOCK_EVENTS = ['pointerdown', 'mousedown', 'click', 'dblclick', 'contextmenu', 'dragstart', 'dragenter', 'dragover', 'drop', 'keydown'];
+    const LOCK_DROP_BLOCK = '[data-action^="add-"], [data-action^="remove-"], [data-action^="duplicate-"], [data-action^="del"]';
+    function lockVerdict(e) { // true = geste refusé
+      if (!guide || guide.kind !== 'lesson' || !(e.isTrusted || window.__lpGuideTrustAll) || guide.autoRunning) return false; // __lpGuideTrustAll : réservé aux tests (jsdom ne sait pas fabriquer d'événement « réel »)
+      if (host.adminTools && host.adminTools()) return false;
+      const step = guide.steps[guide.index];
+      if (!step || step.free || step.final) return false;
+      const t = e.target;
+      const el = t && (t.nodeType === 1 ? t : t.parentElement);
+      if (!el || !el.closest) return false;
+      if (guide.root.contains(el)) return false;
+      if (el.closest('dialog[open], [aria-modal="true"], .vrs-batch-overlay')) return false;
+      if (e.type === 'keydown' && (e.key === 'Escape' || e.key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key))) return false;
+      const target = stepTarget(step);
+      const hasSel = !!step.selector;
+      if (hasSel && (!target || !targetVisible(target))) return false; // cible introuvable : on ne piège pas la personne
+      if (!hasSel && step.done) return false; // étape à geste sans zone désignée : on ne sait pas où se fera le geste
+      let inside = !!(target && target.contains(el));
+      if (!inside && step.allow) inside = [].concat(step.allow).some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } });
+      if (!inside) return true;
+      // Dans la zone : exclusions explicites, et celles des étapes de dépôt de fichiers.
+      const blocks = [].concat(step.block || []);
+      if (step.useSample) {
+        if (blocks.some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } })) return true;
+        if (e.type === 'dragstart') return true; // pas de réorganisation par glisser pendant un dépôt
+        const hit = el.closest(LOCK_DROP_BLOCK);
+        if (hit && hit !== target && !(target && hit.contains(target))) return true;
+        return false;
+      }
+      return blocks.some(sel => { try { return !!el.closest(sel); } catch (x) { return false; } });
+    }
+    function lockHandler(e) {
+      if (!lockVerdict(e)) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (e.type === 'click' || e.type === 'drop' || e.type === 'keydown') lockNudge();
+    }
+    function lockNudge() {
+      if (!guide) return;
+      const card = guide.root.querySelector('.tour-card');
+      if (!card) return;
+      let note = card.querySelector('.tour-locknote');
+      if (!note) { note = document.createElement('div'); note.className = 'tour-locknote'; card.appendChild(note); }
+      note.textContent = tr(guide.steps[guide.index].selector ? 'lessonLocked' : 'lessonLockedNoZone'); // étape sans zone désignée (accueil…) : on renvoie vers la bulle
+      card.classList.remove('is-nudged'); void card.offsetWidth; card.classList.add('is-nudged');
+      clearTimeout(guide.nudgeTimer);
+      guide.nudgeTimer = setTimeout(() => { if (note.parentNode) note.remove(); card.classList.remove('is-nudged'); }, 3000);
+    }
     function onClickCapture(e) {
       if (!guide) return;
       const step = guide.steps[guide.index];
@@ -367,10 +425,10 @@
       ${extras}
       ${guide.kind === 'lesson' && guide.index === 0 ? `<div class="tour-desktop">${esc(tr('lessonDesktopNote'))}</div>` : ''}
       ${guide.kind === 'lesson' && step.final ? `<div class="tour-free">${esc(tr('lessonFreePlay'))}</div>` : ''}
-      ${guide.kind === 'lesson' && step.final ? `<div class="tour-ps">${esc(tr('lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr('lessonBetaLink'))}</a></div>` : ''}
+      ${(guide.kind === 'lesson' && step.final) || step.beta ? `<div class="tour-ps">${esc(tr(step.betaPsKey || 'lessonBetaPs'))} <a href="#" data-tour="beta">${esc(tr(step.betaLinkKey || 'lessonBetaLink'))}</a></div>` : ''}
       ${auto || (listening && !guide.clicked && !revisiting) ? `<div class="tour-waiting">${esc(tr('lessonDoIt'))}</div>` : ''}
       ${listening && guide.clicked ? `<div class="tour-waiting">${esc(tr('lessonListening'))}</div>` : ''}
-      ${step.choices && step.choices.length ? `<div class="tour-choices">${step.choices.map(c => `<button class="btn btn-primary" type="button" data-tour="choice" data-lesson="${esc(c.lesson)}">${esc(tr(c.labelKey))}</button>`).join('')}</div>` : ''}
+      ${step.choices && step.choices.length ? `<div class="tour-choices">${step.choices.map(c => `<button class="btn btn-primary" type="button" data-tour="choice" data-lesson="${esc(c.lesson || '')}" data-action="${esc(c.action || '')}">${esc(tr(c.labelKey))}</button>`).join('')}</div>` : ''}
       ${adminHtml}
       <div class="tour-actions">
         <button class="btn btn-small" type="button" data-tour="skip">${esc(tr(last ? 'tourClose' : (guide.kind === 'lesson' ? 'lessonQuit' : 'tourSkip')))}</button>
@@ -400,7 +458,7 @@
           card.querySelector('[data-tour="adm-jump"]').onclick = () => { guide.autoRunning = false; go(parseInt(tsel.value, 10) - guide.index); };
           card.querySelector('[data-tour="adm-auto"]').onclick = () => autoTo(parseInt(tsel.value, 10));
         }
-        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; finish(); const go = host.startChoice || host.startLesson; if (go) go(id); }; });
+        card.querySelectorAll('[data-tour="choice"]').forEach(b => { b.onclick = () => { const id = b.dataset.lesson; const action = b.dataset.action; finish(); if (action) { if (host.choiceAction) host.choiceAction(action); return; } const go = host.startChoice || host.startLesson; if (go) go(id); }; });
         const nlBtn = card.querySelector('[data-tour="nextlesson"]');
         if (nlBtn) nlBtn.onclick = goToNextLesson;
         wireDrops(card, step);
@@ -509,6 +567,7 @@
       if (steps[0].enter) steps[0].enter(guide.ctx);
       window.addEventListener('resize', render);
       document.addEventListener('keydown', onKeydown, true);
+      LOCK_EVENTS.forEach(ev => document.addEventListener(ev, lockHandler, true)); // AVANT onClickCapture : un clic refusé ne compte pas
       document.addEventListener('click', onClickCapture, true);
       render();
       if (kind === 'lesson') guide.timer = setInterval(tick, 250);

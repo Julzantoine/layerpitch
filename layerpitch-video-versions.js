@@ -27,6 +27,10 @@
       + '.lp-video-cue small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;line-height:1.2}'
       + '.lp-video-cue-flash{color:#ffbd7a;font-weight:600}.lp-video-cue-credit{position:absolute;right:12px;top:12px;font-size:12px}.lp-video-cue[hidden]{display:none}'
       + '.lp-video-versions{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.lp-video-versions select{font:inherit;padding:4px 8px;border-radius:6px;max-width:100%}.lp-video-ab{font:inherit;padding:4px 10px;border-radius:6px;cursor:pointer}.lp-video-ab:disabled{opacity:.45;cursor:default}';
+    st.textContent += '.lp-video-fsbtn{font:inherit;padding:4px 10px;border-radius:6px;cursor:pointer}'
+      + '.lp-video-versions.lp-in-fs{position:absolute;top:12px;left:12px;z-index:5;margin:0;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.65);color:#fff}'
+      + '.lp-video-fs:fullscreen{background:#000;display:flex;align-items:center;justify-content:center;width:100%;height:100%}'
+      + '.lp-video-fs:fullscreen video{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain;aspect-ratio:auto!important}';
     document.head.appendChild(st);
   }
   async function client() {
@@ -48,11 +52,14 @@
     const montage = await (opts.load || loadMontage)(opts.montageId);
     if (!montage || !Array.isArray(montage.versions) || !montage.versions.length) return null;
     const hidden = new Set(opts.hidden || []);
-    const versions = montage.versions.filter(v => v.url && !hidden.has(v.key));
+    // La version d'origine porte le nom du montage (renommer le montage la renomme partout).
+    const versions = montage.versions.filter(v => v.url && !hidden.has(v.key)).map(v => (v.key === 'original' && montage.title) ? Object.assign({}, v, { title: montage.title }) : v);
     if (!versions.length) return null;
     // Vidéo muette une fois + un son par version (migration 20261021040000) : une version 'audio' se joue sur l'image muette du
     // montage, son et image synchronisés ; une ancienne version 'video' (export complet) se lit telle quelle.
     const base = montage.baseUrl || null;
+    // Vignette du montage (choisie dans l'atelier, migration 20261119020000) : l'affiche du lecteur avant la lecture, quelle que soit la version.
+    if (montage.coverUrl && /^https:\/\//.test(montage.coverUrl)) video.poster = montage.coverUrl;
     const isSound = v => v.kind === 'audio' && !!base;
     // Deux pistes son : l'active, et une de rechange déjà chargée avec « l'autre » version (bascule A/B instantanée, sans attente de chargement).
     let audio = document.createElement('audio');
@@ -63,17 +70,59 @@
     let current = versions.find(v => v.key === opts.defaultKey) || versions[0];
     let previous = null; // la version écoutée juste avant : l'autre moitié de la bascule A/B
     const srcFor = v => (isSound(v) ? base : v.url);
+    // La piste son reprend toujours le volume, la sourdine et la vitesse de l'image (12/11 : au départ, une vidéo muette en lecture
+    // automatique laissait son son... audible ; une piste de rechange échangée gardait l'ancienne vitesse).
+    const matchVideo = el => { el.volume = video.volume; el.muted = video.muted; el.playbackRate = video.playbackRate || 1; };
+    matchVideo(audio); matchVideo(spare);
     if (video.getAttribute('src') !== srcFor(current)) video.src = srcFor(current);
     if (isSound(current)) audio.src = current.url;
-    // Le son suit l'image : lecture, pause, déplacement, vitesse, volume ; petit recalage si l'écart dépasse un dixième de seconde.
+    // Le son suit l'image : lecture, pause, déplacement, vitesse, volume.
+    let startFix = false; // le prochain « playing » de la piste son doit la recaler une fois
+    let nudge = 0; // correction de dérive en cours : -1 (ralentie), 0 (vitesse normale), +1 (accélérée)
     const follow = () => isSound(current);
-    video.addEventListener('play', () => { if (follow()) { audio.currentTime = video.currentTime; safePlay(audio); } });
-    video.addEventListener('playing', () => { if (follow() && audio.paused) { audio.currentTime = video.currentTime; safePlay(audio); } });
-    ['pause', 'waiting', 'ended'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
-    video.addEventListener('seeking', () => { if (follow()) audio.currentTime = video.currentTime; });
-    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; });
-    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; });
-    const resync = () => { if (follow() && !video.paused && Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime; };
+    const videoRolling = () => !video.paused && !video.ended && !video.seeking && video.readyState >= 3;
+    // 13/11 : on ne replace la piste son que si elle est vraiment ailleurs (> 0,12 s) -- la replacer à chaque « playing » / « seeked »
+    // la faisait recharger (micro-arrêts de quelques ms) alors qu'elle était déjà au bon endroit.
+    const startAudio = () => {
+      if (!(follow() && videoRolling())) return;
+      if (audio.paused || Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.12) audio.currentTime = video.currentTime;
+      audio.playbackRate = video.playbackRate || 1; nudge = 0; startFix = true;
+      safePlay(audio);
+    };
+    // La piste son met 50 à 300 ms à démarrer vraiment (décodage du conteneur) : elle est donc en retard sur l'image au départ. Avant, ce
+    // retard était rattrapé en l'accélérant de 5 % pendant plusieurs secondes -> musique « pitchée » et dégradée (étirement du temps).
+    // Maintenant : UN seul saut juste après le vrai démarrage, puis la vitesse reste normale.
+    audio.addEventListener('playing', fixStart); spare.addEventListener('playing', fixStart);
+    function fixStart(ev) {
+      if (!startFix || ev.target !== audio || !videoRolling()) return;
+      startFix = false;
+      if (Math.abs((audio.currentTime || 0) - (video.currentTime || 0)) > 0.04) audio.currentTime = video.currentTime + 0.02;
+    }
+    video.addEventListener('playing', startAudio);
+    video.addEventListener('seeked', startAudio);
+    ['pause', 'waiting', 'ended', 'seeking'].forEach(ev => video.addEventListener(ev, () => { if (follow()) audio.pause(); }));
+    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate || 1; nudge = 0; });
+    // Le son coupé puis remis pendant la lecture (lecture automatique muette, puis clic sur le haut-parleur) : la piste son, que le navigateur
+    // avait peut-être refusé de lancer sans geste, repart ici (12/11 : avant, elle restait muette jusqu'à la prochaine pause).
+    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; if (!video.muted && audio.paused) startAudio(); });
+    // Dérive son / image (deux horloges distinctes) : petit écart -> on presse ou on retient légèrement la piste son (vitesse ± 5 % au plus,
+    // hauteur préservée par le navigateur), sans coupure ; grand écart -> on la replace, puis on la laisse se stabiliser une seconde et demie
+    // (avant le 12/11 : replacée dès 120 ms d'écart, ce qui la faisait recharger, prendre du retard, être replacée… -- son haché).
+    let settleUntil = 0;
+    const resync = () => {
+      if (!follow() || !videoRolling() || audio.paused) return;
+      const rate = video.playbackRate || 1;
+      const now = performance.now();
+      if (now < settleUntil) return;
+      const d = (audio.currentTime || 0) - (video.currentTime || 0);
+      if (Math.abs(d) > 0.25) { audio.currentTime = video.currentTime; audio.playbackRate = rate; nudge = 0; settleUntil = now + 1500; return; }
+      // 13/11 : avant, la vitesse de la piste son était recalculée à CHAQUE image (valeur différente chaque fois) : le navigateur
+      // relançait son étireur de temps en permanence -> craquements. Maintenant : deux paliers fixes (± 1 %) avec hystérésis
+      // (on entre à 100 ms d'écart, on sort à 30 ms), donc la vitesse ne change que quelques fois par minute.
+      const ad = Math.abs(d);
+      const next = nudge === 0 ? (ad > 0.1 ? (d > 0 ? -1 : 1) : 0) : (ad < 0.03 ? 0 : nudge);
+      if (next !== nudge) { nudge = next; audio.playbackRate = rate * (1 + 0.01 * nudge); }
+    };
 
     // Musique et Sfx au même endroit (bas à droite), chacun sous un petit libellé.
     const stack = document.createElement('div');
@@ -92,11 +141,13 @@
     const credit = document.createElement('div');
     credit.className = 'lp-video-cue lp-video-cue-credit';
     wrap.appendChild(stack); wrap.appendChild(credit);
+    // N'écrit dans la page que ce qui change (avant : réécriture des textes à chaque image, 60 fois par seconde).
+    const put = (box, el, text) => { if (el.textContent !== text) el.textContent = text; if (box.hidden !== !text) box.hidden = !text; };
     const refresh = () => {
       const txt = cueTextAt(current.cues, video.currentTime || 0);
-      label.txt.textContent = txt.state; label.box.hidden = !txt.state;
-      flash.txt.textContent = txt.flash; flash.box.hidden = !txt.flash;
-      credit.textContent = txt.credit ? '\u266A ' + txt.credit : ''; credit.hidden = !txt.credit;
+      put(label.box, label.txt, txt.state);
+      put(flash.box, flash.txt, txt.flash);
+      put(credit, credit, txt.credit ? '\u266A ' + txt.credit : '');
     };
     let raf = 0;
     const loop = () => { refresh(); resync(); raf = video.paused ? 0 : requestAnimationFrame(loop); };
@@ -105,15 +156,18 @@
     video.addEventListener('seeked', refresh);
 
     let select = null, abBtn = null;
+    let switchSeq = 0; // deux changements rapprochés : seul le dernier termine (l'autre attendait encore sa vidéo)
     // Change de version : même instant, la lecture continue si elle était en cours. Renvoie false si la version est inconnue ou déjà active.
     function switchTo(key) {
       const next = versions.find(v => v.key === key);
       if (!next || next === current) return false;
+      const seq = ++switchSeq;
       const t = video.currentTime || 0, playing = !video.paused;
       previous = current; current = next;
       if (select) select.value = next.key;
       const target0 = t;
       const finish = () => {
+        if (seq !== switchSeq) return;
         const d = video.duration;
         const target = isFinite(d) && d > 0 ? Math.min(target0, d - 0.05) : target0; // durée inconnue : on garde l'instant tel quel
         if (Math.abs((video.currentTime || 0) - target) > 0.01) { try { video.currentTime = target; } catch (e) { /* ancien navigateur */ } }
@@ -125,9 +179,9 @@
         // La piste de rechange est déjà chargée avec cette version : on l'échange avec l'active, sans attente.
         const old = audio; old.pause(); audio = spare; spare = old;
         spare.removeAttribute('src');
-        audio.playbackRate = video.playbackRate; audio.volume = video.volume; audio.muted = video.muted;
-      } else if (isSound(next)) { audio.src = next.url; }
-      else { audio.pause(); audio.removeAttribute('src'); }
+        matchVideo(audio);
+      } else if (isSound(next)) { audio.pause(); audio.src = next.url; matchVideo(audio); }
+      else { audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) { /* rien à arrêter */ } }
       // Même image (deux sons sur la vidéo muette) : seul le son change, sans recharger la vidéo.
       if (video.getAttribute('src') === srcFor(next)) finish();
       else { video.src = srcFor(next); video.addEventListener('loadedmetadata', finish, { once: true }); }
@@ -146,7 +200,7 @@
       select = bar.querySelector('select');
       versions.forEach(v => {
         const o = document.createElement('option');
-        o.value = v.key; o.textContent = v.key === 'original' ? tr('videoVersionOriginal') : (v.title || tr('videoVersionUntitled'));
+        o.value = v.key; o.textContent = v.key === 'original' ? (v.title || tr('videoVersionOriginal')) : (v.title || tr('videoVersionUntitled'));
         if (v === current) o.selected = true;
         select.appendChild(o);
       });
@@ -160,6 +214,28 @@
         bar.appendChild(abBtn);
       }
       wrap.parentNode.insertBefore(bar, wrap.nextSibling);
+      // Plein écran : celui de la vidéo seule (bouton natif) ne montre ni ce menu ni les étiquettes Music/SFX. On met tout le bloc
+      // en plein écran et on y rentre le menu pendant ce temps (iPhone : pas de plein écran d'élément, on garde le natif).
+      if (wrap.requestFullscreen || wrap.webkitRequestFullscreen) {
+        video.setAttribute('controlslist', 'nofullscreen');
+        wrap.classList.add('lp-video-fs');
+        const fsBtn = document.createElement('button');
+        fsBtn.type = 'button'; fsBtn.className = 'lp-video-fsbtn';
+        fsBtn.textContent = '\u26F6'; fsBtn.title = tr('videoFullscreen') === 'videoFullscreen' ? 'Fullscreen' : tr('videoFullscreen');
+        const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+        fsBtn.addEventListener('click', () => {
+          if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+          const r = (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
+          if (r && r.catch) r.catch(() => { /* refusé : on reste en page */ });
+        });
+        bar.appendChild(fsBtn);
+        const syncFs = () => {
+          if (fsEl() === wrap) { bar.classList.add('lp-in-fs'); wrap.appendChild(bar); }
+          else if (bar.parentNode === wrap) { bar.classList.remove('lp-in-fs'); wrap.parentNode.insertBefore(bar, wrap.nextSibling); }
+        };
+        document.addEventListener('fullscreenchange', syncFs);
+        document.addEventListener('webkitfullscreenchange', syncFs);
+      }
     }
     refresh();
     return { versions, select, refresh, get audio() { return audio; }, current: () => current, switchTo, toggleAB, previous: () => previous };

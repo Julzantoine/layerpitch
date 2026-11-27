@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BROUILLON PRIVÉ (29 septembre) : page « Studios » du nouveau site, bâtie sur la trame de compositeurs.html.
-     À la bascule : retirer noindex ; la balise google-site-verification reste sur la page RACINE (index.html), pas ici. -->
-<meta name="robots" content="noindex, nofollow">
 <!-- Aperçu des liens (LinkedIn, WhatsApp...) : titre et description de la page ; image provisoire = la carte des chemins (à valider). -->
 <link rel="canonical" href="https://www.layerpitch.com/studios">
 <link rel="alternate" hreflang="fr" href="https://www.layerpitch.com/studios">
@@ -15,14 +12,14 @@
 <meta property="og:locale" content="fr_FR">
 <meta property="og:url" content="https://www.layerpitch.com/studios">
 <meta property="og:title" content="LayerPitch — Studios : une musique qui immerge, un travail qui se fluidifie">
-<meta property="og:description" content="Le son façonne l'immersion du joueur. LayerPitch réunit studio et compositeur dans un même espace pour imaginer, tester et valider la musique du jeu sans allers-retours.">
+<meta property="og:description" content="LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble : écoutez les propositions, testez-les dans vos niveaux et validez tout avant l’implémentation.">
 <meta property="og:image" content="https://www.layerpitch.com/assets/og-carte.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="LayerPitch — Studios : une musique qui immerge, un travail qui se fluidifie">
-<meta name="twitter:description" content="Le son façonne l'immersion du joueur. LayerPitch réunit studio et compositeur dans un même espace pour imaginer, tester et valider la musique du jeu sans allers-retours.">
+<meta name="twitter:description" content="LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble : écoutez les propositions, testez-les dans vos niveaux et validez tout avant l’implémentation.">
 <meta name="twitter:image" content="https://www.layerpitch.com/assets/og-carte.png">
 <title>LayerPitch — Studios : une musique qui immerge, un travail qui se fluidifie</title>
-<meta name="description" content="Le son façonne l'immersion du joueur. LayerPitch réunit studio et compositeur dans un même espace pour imaginer, tester et valider la musique du jeu sans allers-retours.">
+<meta name="description" content="LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble : écoutez les propositions, testez-les dans vos niveaux et validez tout avant l’implémentation.">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
@@ -64,6 +61,12 @@
   }
   .nav-logo { font-family: var(--font-title); font-weight: 700; font-size: 18px; font-style: italic; color: var(--text-title); }
   .nav-account { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; transition: border-color 0.15s ease, color 0.15s ease; }
+  .nav-tuto { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: #fff; background: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(47,111,224,0.35); transition: background 0.15s ease, transform 0.15s ease; }
+  .nav-tuto:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  .hero .demo { padding: 28px 24px 32px; }
+  .hero-tuto { margin-top: 28px; text-align: center; position: relative; }
+  .hero-tuto .lead-in { display: block; max-width: 520px; margin: 0 auto 16px; color: var(--text-dim); font-size: 14.5px; line-height: 1.6; }
+  .hero-tuto .note { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dimmer); }
   .nav-account:hover { border-color: var(--accent); color: var(--accent); }
   .nav-right { display: flex; align-items: center; gap: 14px; }
   .nav-lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-dimmer); }
@@ -86,6 +89,7 @@
   }
   .hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 700; font-style: italic; line-height: 1.22; position: relative; }
   .hero .sub { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-dim); margin-top: 20px; position: relative; }
+  .hero .promise { font-family: var(--font-title); font-size: clamp(19px, 3.2vw, 28px); font-weight: 600; line-height: 1.3; color: var(--accent-dark); max-width: 30ch; margin: 28px auto 0; position: relative; }
 
   /* ---- Carte des chemins (remplace l'ancienne forme d'onde) -- reproduction compacte, en
        HTML/SVG plutôt qu'une image, de la carte des chemins du backstage (mode séquentiel à
@@ -139,7 +143,7 @@
     .backstory-photo { width: 96px; height: 96px; }
   }
 
-  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
   ul.features li { display: flex; align-items: flex-start; gap: 14px; font-size: 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .feature-icon {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft);
@@ -149,6 +153,13 @@
   .feature-icon svg { width: 16px; height: 16px; }
   ul.features strong { font-family: var(--font-title); display: block; margin-bottom: 2px; }
   ul.features span.desc { color: var(--text-dim); font-size: 14px; }
+  /* Cartes compactes : le titre seul au repos, le détail se déploie au survol ou au clavier ; sur écran tactile (pas de survol), tout reste affiché. */
+  ul.features li { transition: border-color .15s, box-shadow .15s; }
+  ul.features li span.desc { display: block; max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .2s ease; }
+  ul.features li:hover span.desc, ul.features li:focus-within span.desc, ul.features li:focus span.desc { max-height: 260px; opacity: 1; margin-top: 4px; }
+  ul.features li:hover, ul.features li:focus-within, ul.features li:focus { border-color: var(--accent); box-shadow: var(--shadow-card); outline: none; }
+  @media (hover: none) { ul.features li span.desc { max-height: none; opacity: 1; margin-top: 4px; } }
+  @media (prefers-reduced-motion: reduce) { ul.features li, ul.features li span.desc { transition: none; } }
 
   .tracking-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow-card); }
   .tracking-box ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
@@ -198,13 +209,19 @@
   </div>
   <div class="nav-right">
     <span class="nav-lang"><a class="active" href="./studios">FR</a> / <a href="./en/studios">EN</a></span>
+    <a class="nav-tuto" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Tutoriels</a>
     <a class="nav-account" href="https://beta.layerpitch.com/bienvenue.html">Se connecter</a>
   </div>
 </nav>
 
 <header class="hero wrap">
   <h1>Une musique qui immerge,<br>un travail qui se fluidifie.</h1>
-  <div class="sub">Le son façonne l'émotion et le sentiment de présence du joueur. LayerPitch réunit studio et compositeur dans le même espace pour l'imaginer, le tester et le valider ensemble, sans allers-retours.</div>
+  <p class="promise">Écoutez la musique réagir dans vos niveaux avant de l’implémenter.</p>
+  <div class="sub">LayerPitch est l’espace où votre studio et vos compositeurs travaillent la musique ensemble. Grâce à une suite d’outils pensés pour fluidifier le workflow, écoutez les propositions musicales, jouez avec, testez-les dans vos niveaux et validez tout avant l’implémentation. Vous avez déjà beaucoup à faire… Gagnez du temps.</div>
+  <section class="demo">
+    <p>Et puisqu'une image vaut mieux que mille mots, voici un projet de démo, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
+    <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a>
+  </section>
   <div class="path-map" aria-hidden="true">
     <div class="path-map-title">Carte des chemins — mode séquentiel à embranchement</div>
     <svg viewBox="0 0 630 224" xmlns="http://www.w3.org/2000/svg">
@@ -254,63 +271,56 @@
       <div class="path-legend-item"><span class="path-legend-swatch" style="background:#eab308"></span>Embranchement en attente de choix</div>
     </div>
   </div>
+  <p class="hero-tuto"><span class="lead-in">Vous êtes du genre à vouloir savoir comment tout fonctionne ? Allez donc jeter un œil aux tutoriels !</span><a class="btn btn-primary" href="https://beta.layerpitch.com/tutoriels.html" target="_blank" rel="noopener">Essayer les tutoriels →</a><span class="note">Sans compte, avec des morceaux d’exemple.</span></p>
 </header>
-
-<section class="demo wrap">
-  <p>Un projet de démonstration, en lecture seule : parcourez le Moodboard, les vidéos, la musique et la vitrine, comme votre équipe le ferait. Pas de compte nécessaire.</p>
-  <!-- DÉMO PAS ENCORE PRÊTE : bouton grisé. Le jour où le Projet « Alone in the Barque » est marqué comme démo publique (interrupteur
-       « Démo publique » sur sa page), remplacer ce <span> par :
-       <a class="btn btn-primary" href="https://beta.layerpitch.com/projet.html?demo" target="_blank" rel="noopener" onclick="window.umami && window.umami.track('landing_studio_demo_click')">Manipulez un projet vous-même →</a> -->
-  <span class="btn btn-primary" aria-disabled="true" title="Bientôt" style="opacity:.45;cursor:default;pointer-events:none">Manipulez un projet vous-même · Bientôt</span>
-</section>
-
-<section class="proof wrap">
-  <div class="proof-grid">
-    <div class="testimonial">
-      <p>"The branching music system really has the ability to wow someone!"</p>
-      <cite>Michael W.</cite> <span class="role">— compositeur de jeu vidéo / enseignant en MA Composition for Video Game</span>
-    </div>
-    <div class="testimonial">
-      <p>"That's genuinely cool for game composers' reel!"</p>
-      <cite>Giorgio V.</cite> <span class="role">— Audio Director / enseignant en MA Sound Design for Video Games</span>
-    </div>
-    <div class="testimonial">
-      <p>"C'est la première fois que je vois un outil de présentation de musique interactive comme ça."</p>
-      <cite>William R.</cite> <span class="role">— doctorant en ludomusicologie</span>
-    </div>
-  </div>
-</section>
 
 <section class="block wrap">
   <span class="eyebrow">Notre approche</span>
-  <p>Chaque échange autour de la musique ou des SFX coûte du temps : on décrit, on propose, on implémente, on teste, on recommence. Avec LayerPitch, studio et compositeur ou sound designer travaillent dans le même espace, avec des outils pensés pour valider plus tôt, et donc dépenser moins. La musique est déjà interactive, le versionning n'a jamais été aussi simple, et les SFX ont leur propre section.</p>
+  <p>Chaque échange autour de la musique ou des SFX coûte du temps : on décrit, on propose, on implémente, on teste, on recommence. Avec LayerPitch, studio et compositeur ou sound designer travaillent dans le même espace, avec des outils pensés pour valider plus tôt, et donc dépenser moins.<br><br>Plus besoin de builds successifs, plus de « Explo#1.8_LayerOne_Final_FINAL_more reverb#2 »… Le lecteur audio intègre la musique sous tous ses états et le versioning n'a jamais été aussi simple.<br><br><strong>Droppez un lien et explorez toute la musique et toutes les vidéos sous toutes leurs formes automatiquement mises à jour.</strong></p>
 </section>
 
 <section class="block wrap">
   <span class="eyebrow">Ce que ça change</span>
   <ul class="features">
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
       <span><strong>Un Moodboard partagé</strong><span class="desc">Réunissez références, images, vidéos, notes et morceaux, et construisez la direction sonore avec votre compositeur ou sound designer avant la production. Une ligne claire dès le début, c'est autant de retours évités plus tard.</span></span>
     </li>
-    <li>
-      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>
-      <span><strong>Des vitrines</strong><span class="desc">Présentez la musique de votre jeu sur une page publique pour les joueurs, ou dans une vitrine à lien secret pour un éditeur, avec vos visuels et vos couleurs, et sachez qui l'a ouverte.</span></span>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
+      <span><strong>Une map musicale interactive</strong><span class="desc">En quelques clics, construisez votre niveau, glissez de la musique dans chaque élément et baladez-vous. Le parcours musical du joueur n'a jamais été aussi simple à concevoir.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>
+      <span><strong>Des vitrines</strong><span class="desc">Créez autant de vitrines que vous voulez pour votre jeu. Personnalisez-les selon les éditeurs ou les types de publics. Ajoutez-y de la musique interactive, mais aussi des vidéos, de l'artwork et, bien sûr… votre lien Steam !</span></span>
+    </li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6M21 19c0-2-1.5-3.6-4-4.5"/></svg></span>
       <span><strong>Des collaborateurs, au même endroit</strong><span class="desc">Invitez compositeurs, sound designers et membres de l'équipe dans le Projet : discussion, notes sur les morceaux et les vidéos, fichiers centralisés. Fini de chercher qui a la dernière version.</span></span>
     </li>
-    <li>
+    <li tabindex="0">
       <span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></span>
       <span><strong>Testez sans sortir un build</strong><span class="desc">Le versionning vidéo permet d'essayer rapidement quelle musique, quels triggers et quels SFX fonctionnent sur le niveau qui vient d'être construit. Plus besoin de partager un build à chaque test.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12h11L21 7H6"/></svg></span>
+      <span><strong>Pas de budget ? Achetez la musique du jeu</strong><span class="desc">Achetez des packs d’assets audio et de musique interactive, et échangez directement avec le compositeur.</span></span>
+    </li>
+    <li tabindex="0">
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3"/></svg></span>
+      <span><strong>Valorisez votre OST</strong><span class="desc">Vous avez travaillé avec un compositeur sur une OST originale ? Valorisez-la et vendez-la sous forme adaptative.</span></span>
     </li>
   </ul>
 </section>
 
 <section class="block wrap">
   <span class="eyebrow">Et bientôt</span>
-  <p>Accédez à des packs d'assets audio, SFX et musique interactive, à intégrer à votre jeu. Une fois le jeu sorti, vendez son Adaptive OST à vos joueurs.</p>
+  <ul class="features">
+    <li>
+      <span class="feature-icon alt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14M3 14l4 4 4-4M17 20V6M13 10l4-4 4 4"/></svg></span>
+      <span><strong>Import et export de projets Wwise / FMOD</strong></span>
+    </li>
+  </ul>
 </section>
 
 <section class="block wrap">
@@ -328,21 +338,34 @@
 
 <div class="cta-band">
   <section class="cta wrap">
-    <h2>La bêta studios est sur invitation.</h2>
+    <h2>LayerPitch est en bêta fermée, les studios et game developers y sont accueillis sur invitation.</h2>
     <form class="cta-form" id="studioForm">
       <input type="email" name="email" placeholder="vous@studio.com" required>
-      <textarea name="message" maxlength="450" rows="4" placeholder="Votre studio, votre jeu en cours, ce que vous cherchez pour le son… (facultatif)"></textarea>
+      <textarea name="message" maxlength="450" rows="8" placeholder="Bonjour, merci de votre intérêt pour LayerPitch… Pour demander une invitation, il suffit de rentrer votre email, mais ça m'intéresse d'en savoir un peu plus sur les studios qui atterrissent ici 🙂 N'hésitez pas à me parler de votre studio, de votre jeu en cours et de ce que vous cherchez pour le son. Une fois dans la bêta, amusez-vous, tordez l'appli et faites-moi des retours ! — Jules-Antoine"></textarea>
       <div class="cta-buttons"><button type="submit" class="btn btn-primary">Demander une invitation</button></div>
       <p class="cta-legal">En envoyant ce formulaire, vous acceptez que LayerPitch utilise votre adresse pour vous répondre. Détails dans la <a href="./confidentialite">politique de confidentialité</a>.</p>
       <div class="cta-msg" id="ctaMsg"></div>
     </form>
     <div class="cta-note">Pas de spam, pas d'engagement.</div>
   </section>
-  <footer>LayerPitch — musique et sound design interactifs pour le jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
+  <footer>LayerPitch, une suite d'outils autour de la musique adaptative pour les compositeurs et les studios de développement de jeu vidéo · <a href="./mentions-legales">Mentions légales</a> · <a href="./confidentialite">Confidentialité</a></footer>
 </div>
 
 <script defer src="https://cloud.umami.is/script.js" data-website-id="2dd3435c-f5c8-45c0-ab07-3b0e9fa09d2f"></script>
 <script>
+  // Origine du lien (utm_source / utm_medium / utm_campaign) : retenue pour la visite (sessionStorage),
+  // envoyée avec le formulaire pour savoir quel clip ou quel post amène l'inscription.
+  function lpOrigin() {
+    const out = {};
+    try {
+      const p = new URLSearchParams(location.search);
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach((k) => { const v = p.get(k); if (v) out[k] = v.slice(0, 80); });
+      if (Object.keys(out).length) sessionStorage.setItem('lp_origin', JSON.stringify(out));
+      else Object.assign(out, JSON.parse(sessionStorage.getItem('lp_origin') || '{}'));
+    } catch (e) {}
+    return out;
+  }
+  lpOrigin();
   // Même point d'entrée que la landing actuelle (clé « publishable », pas un secret). La demande part avec l'intention « studio ».
   const LAYERPITCH_SUPABASE_URL = 'https://ypygllyjfynrnvapufow.supabase.co';
   const LAYERPITCH_ANON_KEY = 'sb_publishable_bpjR1M-no9BaxD6QjwcNlQ_og_IgcRb';
@@ -355,7 +378,7 @@
       const res = await fetch(`${LAYERPITCH_SUPABASE_URL}/functions/v1/submit-access-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: LAYERPITCH_ANON_KEY, Authorization: `Bearer ${LAYERPITCH_ANON_KEY}` },
-        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'studio', lang: 'fr', message: form.message.value.trim() }),
+        body: JSON.stringify({ email: form.email.value.trim(), source: 'landing', intent: 'studio', lang: 'fr', message: form.message.value.trim(), ...lpOrigin() }),
       });
       if (res.ok) {
         window.umami && window.umami.track('landing_signup', { intent: 'studio' });

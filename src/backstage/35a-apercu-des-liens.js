@@ -46,14 +46,19 @@ async function sharePreviewFit(file, mode, color) {
     return new File([blob], 'share-preview.' + (jpeg ? 'jpg' : 'png'), { type: blob.type });
   } finally { URL.revokeObjectURL(url); }
 }
+// HTML de la carte d'aperçu (maquette) pour un état { title, description, image, autoFit, fitMode, fitColor } ; pendingUrl = image choisie
+// mais pas encore publiée. Partagée par la carte du compte (rubrique Réseaux sociaux) et par le bloc invisible « Aperçu du lien » d'un AdReel.
+function sharePreviewMockHtml(state, pendingUrl) {
+  const src = pendingUrl || (state.image ? MEDIA_BASE + 'images/' + state.image : '');
+  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${state.autoFit !== false && state.fitMode !== 'contain' ? 'cover' : 'contain'};background:${state.autoFit !== false && state.fitMode === 'contain' ? escapeAttr(state.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
+  const title = (state.title || '').trim() || tr('sharePreviewMockTitleFallback');
+  const desc = (state.description || '').trim();
+  return `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+}
 function renderSharePreviewMock() {
   const mock = document.getElementById('sharePreviewMock');
   if (!mock) return;
-  const src = sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : (sharePreview.image ? MEDIA_BASE + 'images/' + sharePreview.image : '');
-  const img = src ? `<img src="${escapeAttr(src)}" alt="" style="display:block;width:100%;aspect-ratio:1200/630;object-fit:${sharePreview.autoFit !== false && sharePreview.fitMode !== 'contain' ? 'cover' : 'contain'};background:${sharePreview.autoFit !== false && sharePreview.fitMode === 'contain' ? escapeAttr(sharePreview.fitColor || '#ffffff') : '#14181d'}">` : `<div style="aspect-ratio:1200/630;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dimmer)">${tr('sharePreviewDefaultImage')}</div>`;
-  const title = (sharePreview.title || '').trim() || tr('sharePreviewMockTitleFallback');
-  const desc = (sharePreview.description || '').trim();
-  mock.innerHTML = `${img}<div style="padding:10px 12px"><div style="font-size:11px;color:var(--text-dimmer)">beta.layerpitch.com</div><div style="font-weight:600;font-size:13px;margin-top:2px">${escapeHtml(title)}</div>${desc ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${escapeHtml(desc)}</div>` : ''}</div>`;
+  mock.innerHTML = sharePreviewMockHtml(sharePreview, sharePreviewPendingFile ? (sharePreviewPendingFileUrl || '') : '');
 }
 let sharePreviewPendingFileUrl = null;
 function fillSharePreviewFields() {

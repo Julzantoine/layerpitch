@@ -31,7 +31,7 @@
   // ---------------------------------------------------------------- Modèle (fonctions pures)
   let idSeq = 0;
   const newId = prefix => prefix + Date.now().toString(36) + (idSeq++).toString(36) + Math.random().toString(36).slice(2, 5);
-  const emptyMap = () => ({ nodes: [], edges: [], zones: [], modes: [], background: null, roomTone: null, roomToneDb: DEFAULT_ROOM_DB, defaults: { transition: Object.assign({}, DEFAULT_TRANSITION) } });
+  const emptyMap = () => ({ nodes: [], edges: [], zones: [], modes: [], background: null, roomTone: null, roomToneDb: DEFAULT_ROOM_DB, roomDuckDb: 0, defaults: { transition: Object.assign({}, DEFAULT_TRANSITION) } });
   const nodeById = (map, id) => map.nodes.find(n => n.id === id) || null;
   const edgeById = (map, id) => map.edges.find(e => e.id === id) || null;
   const zoneById = (map, id) => (map.zones || []).find(z => z.id === id) || null;
@@ -249,6 +249,16 @@
   function zonesAt(map, x, y) {
     return (map.zones || []).filter(z => zoneContains(z, x, y)).map(z => ({ z, a: zoneArea(z) })).sort((a, b) => a.a - b.a).map(o => o.z);
   }
+  // « Rester dans les zones » (carte à zones, option cochée) : le personnage ne peut pas quitter l'ensemble des zones. Un pas qui sortirait
+  // est ramené en glissant le long du bord (un axe à la fois), sinon le personnage reste où il est. Sans l'option, ou si le personnage est
+  // déjà hors de toute zone (carte modifiée sous ses pieds), rien n'est bloqué.
+  const inAnyZone = (map, x, y) => (map.zones || []).some(z => zoneContains(z, x, y));
+  function constrainToZones(map, from, to) {
+    if (!map || !map.stayInZones || !hasZones(map) || inAnyZone(map, to.x, to.y) || !inAnyZone(map, from.x, from.y)) return { x: to.x, y: to.y, blocked: false };
+    if (inAnyZone(map, to.x, from.y)) return { x: to.x, y: from.y, blocked: true };
+    if (inAnyZone(map, from.x, to.y)) return { x: from.x, y: to.y, blocked: true };
+    return { x: from.x, y: from.y, blocked: true };
+  }
   function moveZone(z, dx, dy) {
     if (z.shape === 'poly') z.points.forEach(p => { p.x = Math.round(p.x + dx); p.y = Math.round(p.y + dy); });
     else { z.x = Math.round(z.x + dx); z.y = Math.round(z.y + dy); }
@@ -381,6 +391,9 @@
     const out = {}, name = String((o && o.altName) || '').trim().slice(0, 60), tr0 = cleanRef(o && o.altTransition);
     if (name) out.altName = name;
     if (tr0) out.altTransition = tr0;
+    // Couche du morceau à couches entendue ici (1, 2, 3…) : la musique continue, seule la couche change. Absent = automatique.
+    const layer = Math.round(Number(o && o.layer));
+    if (layer >= 1 && layer <= 16) out.layer = layer;
     return out;
   }
   // Sous-carte (link) et rayon du cercle de proximité (radius, éléments seulement) : gardés seulement s'ils existent.
@@ -428,6 +441,8 @@
     });
     map.roomTone = cleanRef(raw && raw.roomTone);
     if (raw && Number.isFinite(Number(raw.roomToneDb))) map.roomToneDb = Math.max(-60, Math.min(0, Number(raw.roomToneDb)));
+    if (raw && raw.stayInZones === true) map.stayInZones = true; // absent = la balade peut sortir des zones (cartes d'avant)
+    map.roomDuckDb = raw && Number.isFinite(Number(raw.roomDuckDb)) ? Math.max(0, Math.min(40, Number(raw.roomDuckDb))) : 0; // baisse du fond quand une musique joue (0 = aucune)
     const dt = cleanTransition(raw && raw.defaults && raw.defaults.transition) || {};
     delete dt.stinger;
     map.defaults.transition = Object.assign({}, DEFAULT_TRANSITION, dt);
@@ -506,7 +521,7 @@
     // Monde ouvert et sous-cartes (27/10)
     ZONE_SHAPES, ZONE_COLORS, MODE_PRESETS, DEFAULT_RADIUS, DEFAULT_SPEED, targetOf, zoneById, modeById, addZone, addPolyZone, removeZone, zoneArea, zoneBounds, zoneCenter, zoneContains, zonesAt,
     moveZone, resizeZone, moveZonePoint, insertZonePoint, removeZonePoint, hasZones, hasCircle, radiusOf, setRadius, circlesAt, modesOf, addMode, nextModePreset, removeMode, speedOf,
-    governorAt, roomAt, setLink, linkAt, trailEnter };
+    governorAt, roomAt, setLink, linkAt, trailEnter, constrainToZones };
 
   // ---------------------------------------------------------------- Éditeur
   const STYLE_ID = 'lpLevelMapStyle';
@@ -549,6 +564,8 @@
       .lm-now .btn.pending { outline: 2px dashed var(--accent); outline-offset: 1px; }
       .lm-slot { border: 1px dashed var(--border); border-radius: 8px; padding: 8px; margin: 6px 0; } .lm-slot.drop { border-color: var(--accent); background: var(--accent-soft); }
       .lm-slot h4 { margin: 0 0 4px; font-size: 12px; color: var(--text-dim); font-weight: 600; }
+      .lm-folder-head { display: flex; align-items: center; gap: 4px; width: 100%; background: none; border: 0; padding: 5px 2px; margin-top: 4px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text); cursor: pointer; text-align: left; } .lm-folder-head .meta { margin-left: auto; font-weight: 400; }
+      .lm-folder-body { margin-left: 10px; }
       .lm-tabs { display: flex; gap: 4px; margin: 6px 0; } .lm-tabs button { flex: 1; font-size: 11.5px; padding: 4px 6px; }
       .lm-node.here .lm-shape { stroke: var(--accent); stroke-width: 5; } .lm-edge.here .lm-line { stroke: var(--accent); stroke-width: 4.5; }
       .lm-canvas.playing { cursor: pointer; } .lm-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -631,10 +648,12 @@
     const confirmDlg = ctx.confirm || (m => window.LayerPitchNotify.confirm(m, { okLabel: tr('map_delete'), danger: true }));
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const st = { maps: ctx.maps.map(m => ({ id: m.id, title: m.title, data: normalize(m.data) })), current: null, sel: null, view: { x: 0, y: 0, k: 1 }, connecting: false, linkFrom: null,
-      libTab: 'track', libQuery: '', status: '', dirty: false, play: false, now: null,
+      libTab: (ctx.libUi && ctx.libUi.tab) || 'track', libQuery: (ctx.libUi && ctx.libUi.query) || '', libOpen: (ctx.libUi && ctx.libUi.open) || new Set(), status: '', dirty: false, play: false, now: null,
       // Monde ouvert (27/10) : fil d'Ariane des sous-cartes, forme libre en cours de dessin, réglage de l'image de fond, balade libre.
       trail: [], drawing: null, bgEdit: false, avatar: null, dest: null, modeId: null, freeCombat: false, gov: null };
     st.current = st.maps.length ? (st.maps.some(m => m.id === ctx.openId) ? ctx.openId : st.maps[0].id) : null; // openId : carte à ouvrir d'emblée (lien depuis une section)
+    // openNode : point à sélectionner d'emblée sur cette carte (lien depuis une tâche, 4/11)
+    if (ctx.openNode && st.current === ctx.openId && (st.maps.find(m => m.id === st.current).data.nodes || []).some(n => n.id === ctx.openNode)) st.sel = { kind: 'node', id: ctx.openNode };
     let saveTimer = null, saving = false;
     // Lecture (Écouter) : seulement si la page fournit le moteur audio (ctx.audio = { voiceFactory, now, schedule }).
     const audio = ctx.audio && window.LayerPitchLevelMapAudio ? window.LayerPitchLevelMapAudio.createPlayer(Object.assign({}, ctx.audio, { onChange: s => { st.now = s; refreshNow(); drawCanvas(); } })) : null;
@@ -706,9 +725,9 @@
         <div class="lm-toolbar">
           <select id="lmPick" style="max-width:240px">${st.maps.map(m => `<option value="${esc(m.id)}"${m.id === st.current ? ' selected' : ''}>${esc(m.title || tr('map_untitled'))}</option>`).join('')}</select>
           ${ctx.canEdit ? `<button class="btn" id="lmNew" type="button">${esc(tr('map_new'))}</button>` : ''}
-          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}${ctx.linkSections ? `<button class="btn" id="lmLinkSec" type="button" title="${esc(tr('map_linkSectionsHint'))}">🗂 ${esc(tr('map_linkSections'))}${ctx.linkedNames && ctx.linkedNames(cur()) ? ' · ' + esc(ctx.linkedNames(cur())) : ''}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
+          ${cur() && ctx.canEdit ? `<button class="btn" id="lmRename" type="button">${esc(tr('map_rename'))}</button>${ctx.downloadFiles ? `<button class="btn" id="lmDownload" type="button" title="${esc(tr('map_downloadHint'))}">⬇ ${esc(tr('map_download'))}</button>` : ''}${ctx.linkSections ? `<button class="btn" data-adv id="lmLinkSec" type="button" title="${esc(tr('map_linkSectionsHint'))}">🗂 ${esc(tr('map_linkSections'))}${ctx.linkedNames && ctx.linkedNames(cur()) ? ' · ' + esc(ctx.linkedNames(cur())) : ''}</button>` : ''}<button class="btn danger" id="lmDelete" type="button">${esc(tr('map_delete'))}</button>` : ''}
           <span class="lm-status">${esc(st.status)}</span>
-          <span class="lm-viewbtns">${cur() ? `<button class="btn${st.maximized ? ' primary' : ''}" id="lmMax" type="button" title="${esc(tr(st.maximized ? 'map_fullscreenExitHint' : 'map_fullscreenHint'))}">${st.maximized ? '🗗' : '⛶'} ${esc(tr(st.maximized ? 'map_fullscreenExit' : 'map_fullscreen'))}</button>` : ''}${cur() && ctx.detach ? `<button class="btn" id="lmDetach" type="button" title="${esc(tr('map_detachHint'))}">⧉ ${esc(tr('map_detach'))}</button>` : ''}${ctx.attach ? `<button class="btn" id="lmAttach" type="button" title="${esc(tr('map_attachHint'))}">↩ ${esc(tr('map_attach'))}</button>` : ''}</span>
+          <span class="lm-viewbtns">${cur() ? `<button class="btn${st.maximized ? ' primary' : ''}" id="lmMax" type="button" title="${esc(tr(st.maximized ? 'map_fullscreenExitHint' : 'map_fullscreenHint'))}">${st.maximized ? '🗗' : '⛶'} ${esc(tr(st.maximized ? 'map_fullscreenExit' : 'map_fullscreen'))}</button>` : ''}${cur() && ctx.detach ? `<button class="btn" data-adv id="lmDetach" type="button" title="${esc(tr('map_detachHint'))}">⧉ ${esc(tr('map_detach'))}</button>` : ''}${ctx.attach ? `<button class="btn" id="lmAttach" type="button" title="${esc(tr('map_attachHint'))}">↩ ${esc(tr('map_attach'))}</button>` : ''}</span>
         </div></div>
         ${map ? editorHtml(map) : `<div class="card"><div class="empty">${esc(tr('map_none'))}</div></div>`}`;
       wireHeader();
@@ -720,7 +739,7 @@
     const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
     function setMaximized(on) {
       if (!!on === !!st.maximized) return;
-      st.maximized = !!on;
+      st.maximized = !!on; st.fsEntered = false;
       host.classList.toggle('lm-max', st.maximized);
       if (st.maximized) {
         const req = host.requestFullscreen || host.webkitRequestFullscreen;
@@ -730,7 +749,12 @@
       const c = host.querySelector('#lmCanvas'); if (c) c.focus();
     }
     // Échap (ou le bouton du navigateur) fait sortir du plein écran : la carte revient à sa place dans la page.
-    const onFsChange = () => { if (st.maximized && fsEl() !== host && !st.leavingFs) { st.maximized = false; host.classList.remove('lm-max'); render(); fit(); } };
+    // Sortie du plein écran = on l'a VU entrer puis disparaître. Un événement « fullscreenchange » qui arrive avant que le navigateur
+    // (Firefox surtout) ait fini d'entrer en plein écran n'est pas une sortie : il refermait la carte aussitôt après le clic.
+    const onFsChange = () => {
+      if (fsEl() === host) { st.fsEntered = true; return; }
+      if (st.maximized && st.fsEntered && !st.leavingFs) { st.fsEntered = false; st.maximized = false; host.classList.remove('lm-max'); render(); fit(); }
+    };
     document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
     function sizeCanvas() {
       const c = host.querySelector('#lmCanvas'); if (!c) return;
@@ -1225,6 +1249,7 @@
           ${ctx.canEdit ? `<button class="btn" type="button" id="lmAltRemove">${esc(tr('map_altRemove'))}</button>` : ''}</div>`;
       } else if (ctx.canEdit) html += `<button class="btn" type="button" id="lmAltAdd" style="margin:6px 0;font-size:12px;padding:4px 10px;width:auto;border-style:dashed">＋ ${esc(tr('map_altAdd'))}</button>`;
       if (!isTrans) html += slotBox('room', tr('map_slot_room'), 'map_slotEmpty');
+      if (!isTrans) html += `<label>${esc(tr('map_layerLabel'))}</label><select id="lmLayer"${dis}><option value="">${esc(tr('map_layerAuto'))}</option>${Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}"${item.layer === i + 1 ? ' selected' : ''}>${esc(tr('map_layerN', { n: i + 1 }))}</option>`).join('')}</select><p class="hint" style="margin:2px 0 8px">${esc(tr('map_layerHint'))}</p>`;
       html += transitionHtml(map, item);
       if (ctx.canEdit) html += `<div class="bar" style="margin-top:10px"><button class="btn danger" id="lmDeleteSel" type="button">${esc(tr(isEdge ? 'map_deleteEdge' : isZone ? 'map_deleteZone' : 'map_deleteNode'))}</button></div>`;
       box.innerHTML = html;
@@ -1232,6 +1257,7 @@
       on('#lmLabel', 'input', e => { item.label = e.target.value; touch(); drawCanvas(); });
       on('#lmNote', 'input', e => { item.note = e.target.value; touch(); });
       box.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { item.color = b.dataset.color; touch(); drawCanvas(); renderInspector(); });
+      on('#lmLayer', 'change', e => { const v = Math.round(Number(e.target.value)); if (v >= 1) item.layer = v; else delete item.layer; touch(); soundsChanged(null); });
       on('#lmKeep', 'change', e => { item.keepMusic = e.target.checked; touch(); drawCanvas(); });
       on('#lmRadius', 'input', e => { setRadius(map, item.id, e.target.value); e.target.previousElementSibling.textContent = tr('map_radius', { r: radiusOf(item) }); drawCanvas(); });
       on('#lmRadius', 'change', () => touch());
@@ -1343,11 +1369,14 @@
         <div><label>${esc(tr('map_roomTone'))}</label>
           <div class="lm-slot" id="lmRoomZone">${room ? `<div class="lm-sound"><span>${room.kind === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(room.title)}">${esc(room.title || room.id)}</span>${ctx.canEdit ? `<button class="icon-btn" type="button" id="lmRoomRm" aria-label="${esc(tr('map_removeSound'))}">✕</button>` : ''}</div>` : `<p class="hint" style="margin:0">${esc(tr('map_roomToneEmpty'))}</p>`}</div>
           <label>${esc(tr('map_roomToneDb', { db: map.roomToneDb }))}</label><input type="range" id="lmRoomDb" min="-40" max="0" step="1" value="${map.roomToneDb}"${dis}>
-          <p class="hint">${esc(tr('map_roomToneHint'))}</p></div>
+          <p class="hint">${esc(tr('map_roomToneHint'))}</p>
+          <label>${esc(tr('map_roomDuckDb', { db: map.roomDuckDb }))}</label><input type="range" id="lmRoomDuck" min="0" max="30" step="1" value="${map.roomDuckDb}"${dis}>
+          <p class="hint">${esc(tr('map_roomDuckHint'))}</p></div>
         <div><label>${esc(tr('map_defaultTransition'))}</label>
           <div class="lm-row"><select id="lmDefStyle"${dis}>${optionsHtml(TRANSITION_STYLES, d.style, 'map_style_')}</select><input type="number" id="lmDefSec" min="0" max="30" step="0.5" value="${d.sec}"${dis} aria-label="${esc(tr('map_seconds'))}"> <span class="meta">${esc(tr('map_seconds'))}</span></div>
           <div class="lm-row" style="margin-top:6px"><select id="lmDefSync"${dis} aria-label="${esc(tr('map_sync'))}">${optionsHtml(SYNCS, d.sync, 'map_sync_')}</select></div>
           <p class="hint" style="margin-top:6px">${esc(tr('map_syncHint'))}</p></div></div>
+        ${hasZones(map) ? `<label class="choice" style="display:flex;gap:6px;align-items:flex-start;margin-top:12px"><input type="checkbox" id="lmStay" ${map.stayInZones ? 'checked' : ''}${dis} style="width:auto;margin-top:3px"> <span>${esc(tr('map_stayInZones'))}<span class="hint" style="display:block;margin:2px 0 0">${esc(tr('map_stayInZonesHint'))}</span></span></label>` : ''}
         <div class="lm-set" style="margin-top:12px">${backgroundSettingsHtml(map)}${modesSettingsHtml(map)}</div>`;
       wireOpenWorldSettings(box, map);
       if (!ctx.canEdit) return;
@@ -1365,6 +1394,10 @@
       b.onclick = () => { if (st.picked) setRoom(st.picked); }; zone.appendChild(b);
       const db = box.querySelector('#lmRoomDb');
       db.oninput = () => { map.roomToneDb = Number(db.value); box.querySelector('#lmRoomDb').previousElementSibling.textContent = tr('map_roomToneDb', { db: map.roomToneDb }); if (audio) audio.refreshRoomLevel(); touch(); };
+      const duck = box.querySelector('#lmRoomDuck');
+      duck.oninput = () => { map.roomDuckDb = Number(duck.value); duck.previousElementSibling.textContent = tr('map_roomDuckDb', { db: map.roomDuckDb }); if (audio) audio.refreshRoomLevel(); touch(); };
+      const stay = box.querySelector('#lmStay');
+      if (stay) stay.onchange = () => { if (stay.checked) map.stayInZones = true; else delete map.stayInZones; touch(); };
       const setDef = (k, v) => { map.defaults.transition = Object.assign({}, map.defaults.transition, { [k]: v }); touch(); renderInspector(); };
       box.querySelector('#lmDefStyle').onchange = e => setDef('style', e.target.value);
       box.querySelector('#lmDefSec').onchange = e => setDef('sec', Math.max(0, Math.min(30, Number(e.target.value) || 0)));
@@ -1374,7 +1407,7 @@
     // ---- Réglages du monde ouvert : image de fond et modes de déplacement
     function backgroundSettingsHtml(map) {
       const dis = ctx.canEdit ? '' : ' disabled', bg = map.background, imgs = (ctx.images || []);
-      return `<div><label>${esc(tr('map_bg'))}</label>
+      return `<div data-adv><label>${esc(tr('map_bg'))}</label>
         <div class="lm-row"><select id="lmBgPick"${dis}><option value="">${esc(tr('map_bgNone'))}</option>${imgs.map(i => `<option value="${esc(i.id)}"${bg && bg.id === i.id ? ' selected' : ''}>${esc(i.title)}</option>`).join('')}${bg && !imgs.some(i => i.id === bg.id) ? `<option value="${esc(bg.id)}" selected>${esc(bg.title || bg.id)}</option>` : ''}</select>
           ${ctx.uploadImage && ctx.canEdit ? `<label class="btn" style="margin:0;cursor:pointer">${esc(tr('map_bgUpload'))}<input type="file" id="lmBgFile" accept="image/*" hidden></label>` : ''}</div>
         ${bg ? `<label>${esc(tr('map_bgOpacity', { n: Math.round(bg.opacity * 100) }))}</label><input type="range" id="lmBgOpacity" min="10" max="100" step="5" value="${Math.round(bg.opacity * 100)}"${dis}>
@@ -1572,7 +1605,11 @@
         if (walkKeys.size) { if (walkKeys.has('up')) dy--; if (walkKeys.has('down')) dy++; if (walkKeys.has('left')) dx--; if (walkKeys.has('right')) dx++; }
         else if (st.dest) { dx = st.dest.x - a.x; dy = st.dest.y - a.y; const d = Math.hypot(dx, dy); if (d <= step) { a.x = st.dest.x; a.y = st.dest.y; st.dest = null; dx = dy = 0; drawCanvas(); } }
         const len = Math.hypot(dx, dy);
-        if (len) { a.x += (dx / len) * step; a.y += (dy / len) * step; }
+        if (len) {
+          const r = constrainToZones(map, a, { x: a.x + (dx / len) * step, y: a.y + (dy / len) * step });
+          a.x = r.x; a.y = r.y;
+          if (r.blocked && st.dest && Math.hypot(st.dest.x - a.x, st.dest.y - a.y) > 1) { const r2 = constrainToZones(map, a, { x: st.dest.x, y: st.dest.y }); if (r2.blocked && r2.x === a.x && r2.y === a.y) { st.dest = null; drawCanvas(); } }
+        }
         const el = host.querySelector('#lmAvatar'); if (el) el.setAttribute('transform', `translate(${a.x} ${a.y}) scale(${1 / st.view.k})`);
         if (keepAvatarVisible(false)) drawCanvas();
         followHere(false);
@@ -1647,14 +1684,27 @@
       if (!box) return;
       const libs = ctx.libraries || {};
       const kinds = ['track', 'sfx', 'asset'].filter(k => (libs[k] || []).length || k === st.libTab);
-      const list = (libs[st.libTab] || []).filter(x => !st.libQuery || (x.title || '').toLowerCase().includes(st.libQuery.toLowerCase()));
+      const q = (st.libQuery || '').toLowerCase();
+      const folders = ((libs.folders || {})[st.libTab]) || [];
+      const all = libs[st.libTab] || [];
+      const known = new Set(folders.map(f => f.id));
+      const matches = (x, label) => !q || (x.title || '').toLowerCase().includes(q) || (label || '').toLowerCase().includes(q);
+      // Dossiers repliables (comme dans le Backstage) : un dossier est ouvert si on le déplie, ou si la recherche y trouve quelque chose.
+      st.libOpen = st.libOpen || new Set();
+      const row = x => `<div class="lm-sound" draggable="${ctx.canEdit}" data-ref="${esc(JSON.stringify({ kind: x.kind || st.libTab, id: x.id, title: x.title }))}"><span>${(x.kind || st.libTab) === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(x.title)}">${esc(x.title)}</span>${x.hint ? `<span class="meta">${esc(x.hint)}</span>` : ''}</div>`;
+      const groups = folders.map(f => ({ f, items: all.filter(x => x.folderId === f.id && matches(x, f.label)) })).filter(g => g.items.length);
+      const loose = all.filter(x => (!x.folderId || !known.has(x.folderId)) && matches(x));
+      const total = groups.reduce((n, g) => n + g.items.length, 0) + loose.length;
+      const body = groups.map(g => `<div class="lm-folder"><button type="button" class="lm-folder-head" data-lf="${esc(g.f.id)}"><span>${(q || st.libOpen.has(g.f.id)) ? '▾' : '▸'}</span> 📁 ${esc(g.f.label || '')} <span class="meta">${g.items.length}</span></button>${(q || st.libOpen.has(g.f.id)) ? `<div class="lm-folder-body">${g.items.slice(0, 200).map(row).join('')}</div>` : ''}</div>`).join('')
+        + loose.slice(0, 200).map(row).join('');
       box.innerHTML = `<h2>${esc(tr('map_library'))}</h2><p class="hint">${esc(tr('map_libraryHint'))}</p>
         <div class="lm-tabs">${['track', 'sfx', 'asset'].map(k => `<button class="btn${st.libTab === k ? ' primary' : ''}" type="button" data-lt="${k}">${esc(tr('map_lib_' + k))}</button>`).join('')}</div>
         <input type="search" id="lmSearch" placeholder="${esc(tr('map_search'))}" value="${esc(st.libQuery)}">
-        ${list.length ? list.slice(0, 200).map(x => `<div class="lm-sound" draggable="${ctx.canEdit}" data-ref="${esc(JSON.stringify({ kind: st.libTab, id: x.id, title: x.title }))}"><span>${st.libTab === 'sfx' ? '🔔' : '♪'}</span><span class="lm-t" title="${esc(x.title)}">${esc(x.title)}</span>${x.hint ? `<span class="meta">${esc(x.hint)}</span>` : ''}</div>`).join('') : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
-      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; renderLibrary(); });
+        ${total ? body : `<p class="hint">${esc(tr(kinds.length ? 'map_libEmpty' : 'map_libNone'))}</p>`}`;
+      box.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { st.libTab = b.dataset.lt; if (ctx.libUi) ctx.libUi.tab = st.libTab; renderLibrary(); });
+      box.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { const id = b.dataset.lf; if (st.libOpen.has(id)) st.libOpen.delete(id); else st.libOpen.add(id); renderLibrary(); }); // st.libOpen est le Set de ctx.libUi : l'état survit à un remontage de la carte
       const search = box.querySelector('#lmSearch');
-      search.oninput = () => { st.libQuery = search.value; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
+      search.oninput = () => { st.libQuery = search.value; if (ctx.libUi) ctx.libUi.query = st.libQuery; const pos = search.selectionStart; renderLibrary(); const s2 = host.querySelector('#lmSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
       box.querySelectorAll('[data-ref]').forEach(el => {
         el.addEventListener('dragstart', ev => { ev.dataTransfer.setData('application/x-lp-sound', el.dataset.ref); ev.dataTransfer.effectAllowed = 'copy'; });
         el.addEventListener('click', () => { st.picked = JSON.parse(el.dataset.ref); box.querySelectorAll('.lm-sound').forEach(x => { x.style.outline = x === el ? '2px solid var(--accent)' : ''; }); renderInspector(); renderSettings(); });
@@ -1663,7 +1713,7 @@
 
     render();
     fit();
-    return { flush, state: st, render, audio, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
+    return { flush, state: st, render, audio, setLibraries(libs) { ctx.libraries = libs; renderLibrary(); }, destroy() { clearTimeout(saveTimer); stopWalk(); host.onkeydown = null; host.onkeyup = null; host.classList.remove('lm-fill'); if (audio) audio.stop(0.2);
       window.removeEventListener('resize', onResize); document.removeEventListener('fullscreenchange', onFsChange); document.removeEventListener('webkitfullscreenchange', onFsChange);
       if (st.maximized) { st.leavingFs = true; host.classList.remove('lm-max'); if (fsEl() === host && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } } };
   }
