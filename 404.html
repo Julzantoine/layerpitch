@@ -34,7 +34,8 @@
     const p = new URLSearchParams(location.search);
     p.set('s', decodeURIComponent(segments[1]));
     p.set('__pretty', path + location.search);
-    location.replace('/vitrine.html?' + p.toString());
+    // location.hash : le lien secret d'une vitrine éditeur est après # (audit sécurité 16/11, M3) -- à garder.
+    location.replace('/vitrine.html?' + p.toString() + location.hash);
     return;
   }
   // /shop (29/09, page Shop) : « shop » est un nom réservé.

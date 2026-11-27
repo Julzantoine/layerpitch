@@ -16,7 +16,15 @@ let src = edge.slice(a, b)
   .replace(/\(adminClient: [^,]+, path: string, composerId: string\): Promise<boolean>/, '(adminClient, path, composerId)')
   .replace(/const checks: Array<\{ pattern: RegExp; table: string \}> =/, 'const checks =');
 check('verifyOwnership extrait', a > 0 && !/: string|Promise</.test(src));
-const verifyOwnership = new Function(src + '\nreturn verifyOwnership;')();
+// Réservation d'un identifiant neuf (audit sécurité 16/11, M5) : claimPrefix() appelle claim_media_prefix ; simulée ici
+// par un registre en mémoire (premier compte = propriétaire de la réservation).
+const claims = {};
+const claimPrefix = async (_db, kind, id, composerId, studioId) => {
+  const key = kind + '/' + id, who = composerId || 'studio:' + studioId;
+  if (!claims[key]) claims[key] = who;
+  return claims[key] === who;
+};
+const verifyOwnership = new Function('claimPrefix', src + '\nreturn verifyOwnership;')(claimPrefix);
 
 // Base simulée : { table: { id: owner_id } } ; failTables = tables dont la lecture renvoie une erreur.
 function fakeDb(rows, failTables = []) {
@@ -50,6 +58,8 @@ const db = fakeDb({ tracks: { tB: B, tA: A }, sfx_library: { sB: B }, composer_v
   check('Sfx d’un autre : refusé', !(await verifyOwnership(db, 'audio/sfx-sB/0-x.ogg', A)));
   check('vidéo d’un autre : refusée', !(await verifyOwnership(db, 'video/vB/source.mp4', A)));
   check('nouveau morceau (pas encore en base) : autorisé', await verifyOwnership(db, 'audio/tNew/0-piste.ogg', A));
+  check('nouveau morceau déjà réservé par un autre compte : refusé (M5)', !(await verifyOwnership(db, 'audio/tNew/1-piste.ogg', B)));
+  check('le compte qui l\'a réservé continue d\'envoyer', await verifyOwnership(db, 'audio/tNew/1-piste.ogg', A));
   check('erreur de lecture en base : refusé (jamais autorisé par défaut)',
     !(await verifyOwnership(fakeDb({}, ['tracks']), 'audio/tNew/0-piste.ogg', A)));
   check('chemin inconnu : refusé', !(await verifyOwnership(db, 'invoices/x/LP-1.pdf', A)));
