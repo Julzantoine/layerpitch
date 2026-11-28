@@ -6,8 +6,8 @@
 <title data-i18n="pageTitle">LayerPitch — Projet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="layerpitch-guide.css?v=1795887590689">
-<link rel="stylesheet" href="player.css?v=1795887590689">
+<link rel="stylesheet" href="layerpitch-guide.css?v=1795890395459">
+<link rel="stylesheet" href="player.css?v=1795890395459">
 <style>
   :root {
     --bg: #f5f6f8; --bg-card: #ffffff; --border: #e2e2e6;
@@ -31,6 +31,9 @@
   .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 16px; }
   .tab { border: 1px solid var(--border); background: var(--bg-card); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
   .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  /* Sous le bandeau « LayerPitch — Projet » : les éléments collants s'arrêtent sous lui. */
+  @media (min-width: 821px) { html.lp-framed .chat:not(.phone-open) { top: 84px; height: calc(100vh - 100px); }
+    html.lp-framed .sec-nav { top: 84px; max-height: calc(100vh - 100px); } html.lp-framed .sel-bar { top: 80px; } }
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
   /* Image de fond (apparence du Projet) : l'image reste intacte, le texte posé directement dessus
      repose sur une bande translucide floutée (verre dépoli) pour rester lisible. */
@@ -288,32 +291,32 @@ body.lp-ui-simple [data-adv] { display: none !important; }
 </div>
 <script src="https://unpkg.com/@wasm-audio-decoders/ogg-vorbis@0.1.20/dist/ogg-vorbis-decoder.min.js" integrity="sha384-sdxz6qCuF82t3WXLw64JQQQV+ZWn2xEeS4QBBwtjTnDoexf2ik71oUbw7gwlYjAi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
-<script src="layerpitch-i18n.js?v=1795887590689"></script>
-<script src="layerpitch-notify.js?v=1795887590689"></script>
-<script src="player.js?v=1795887590689"></script>
-<script src="api/supabase-client.js?v=1795887590689"></script>
-<script src="api/auth.js?v=1795887590689"></script>
-<script src="layerpitch-appearance.js?v=1795887590689"></script>
-<script src="layerpitch-font-picker.js?v=1795887590689"></script>
-<script src="layerpitch-help.js?v=1795887590689"></script>
-<script src="layerpitch-help-engine.js?v=1795887590689"></script>
-<script src="layerpitch-shell.js?v=1795887590689"></script>
-<script src="api/tracks.js?v=1795887590689"></script>
-<script src="api/packs.js?v=1795887590689"></script>
-<script src="api/albums.js?v=1795887590689"></script>
-<script src="api/studio.js?v=1795887590689"></script>
-<script src="api/adreels.js?v=1795887590689"></script>
-<script src="api/demo-client.js?v=1795887590689"></script>
-<script src="api/demo-projects.js?v=1795887590689"></script>
-<script src="layerpitch-tuto.js?v=1795887590689"></script>
-<script src="layerpitch-guide.js?v=1795887590689"></script>
-<script src="layerpitch-lesson-previews.js?v=1795887590689"></script>
-<script src="projet-lecons.js?v=1795887590689"></script>
-<script src="layerpitch-video-versions.js?v=1795887590689"></script>
-<script src="api/projects.js?v=1795887590689"></script>
-<script src="api/sfx.js?v=1795887590689"></script>
-<script src="projet-carte-audio.js?v=1795887590689"></script>
-<script src="projet-carte.js?v=1795887590689"></script>
+<script src="layerpitch-i18n.js?v=1795890395459"></script>
+<script src="layerpitch-notify.js?v=1795890395459"></script>
+<script src="player.js?v=1795890395459"></script>
+<script src="api/supabase-client.js?v=1795890395459"></script>
+<script src="api/auth.js?v=1795890395459"></script>
+<script src="layerpitch-appearance.js?v=1795890395459"></script>
+<script src="layerpitch-font-picker.js?v=1795890395459"></script>
+<script src="layerpitch-help.js?v=1795890395459"></script>
+<script src="layerpitch-help-engine.js?v=1795890395459"></script>
+<script src="layerpitch-shell.js?v=1795890395459"></script>
+<script src="api/tracks.js?v=1795890395459"></script>
+<script src="api/packs.js?v=1795890395459"></script>
+<script src="api/albums.js?v=1795890395459"></script>
+<script src="api/studio.js?v=1795890395459"></script>
+<script src="api/adreels.js?v=1795890395459"></script>
+<script src="api/demo-client.js?v=1795890395459"></script>
+<script src="api/demo-projects.js?v=1795890395459"></script>
+<script src="layerpitch-tuto.js?v=1795890395459"></script>
+<script src="layerpitch-guide.js?v=1795890395459"></script>
+<script src="layerpitch-lesson-previews.js?v=1795890395459"></script>
+<script src="projet-lecons.js?v=1795890395459"></script>
+<script src="layerpitch-video-versions.js?v=1795890395459"></script>
+<script src="api/projects.js?v=1795890395459"></script>
+<script src="api/sfx.js?v=1795890395459"></script>
+<script src="projet-carte-audio.js?v=1795890395459"></script>
+<script src="projet-carte.js?v=1795890395459"></script>
 <script>
 const shellTr = k => (window.LayerPitchShell ? window.LayerPitchShell.tr(k) : k); // libellés de la barre commune
 // projet.html — espace de travail d'un Projet (chantier profils et permissions, étape 5, 28/09 ; cadrage du 11/09 et D35-D39).

@@ -137,13 +137,11 @@
   .lp-bell-item-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .lp-bell-item-time { font-size: 11px; color: var(--text-dimmer, #9a9ea6); margin-top: 4px; }
   .lp-bell-empty { padding: 18px 14px; font-size: 13px; color: var(--text-dim, #5f636b); text-align: center; }
-  .lp-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400;
-    max-width: var(--lp-page-width, 1040px); margin: -4px auto 14px; padding: 8px 12px; box-sizing: border-box; border-radius: 12px; box-shadow: 0 1px 3px rgba(20,22,28,.08);
-    background: color-mix(in srgb, var(--bg-card, #ffffff) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
-  .lp-header-title { font-size: 19px; font-weight: 700; color: var(--text, #24262b); }
   .lp-header-actions { display: flex; gap: 8px; align-items: center; }
-  .lp-header-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 32px; padding: 0 10px; box-sizing: border-box; border-radius: 8px;
-    border: 1px solid var(--border, #e2e2e6); background: var(--bg-card, #fff); color: var(--text-dim, #5f636b); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+  .lp-header-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 27px; min-width: 32px; padding: 0 9px; box-sizing: border-box; border-radius: 4px;
+    border: 1px solid var(--border, #d0d0d5); background: var(--bg-card, #fff); color: var(--text-dim, #5f636b); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+  .lp-header .lp-bell { height: 27px; border-radius: 4px; }
+  .lp-header-btn svg { width: 14px; height: 14px; }
   .lp-header-btn:hover, .lp-header-btn[aria-expanded="true"] { color: var(--accent, #2f80c0); border-color: var(--accent, #2f80c0); }
   .lp-header-menu { position: relative; }
   .lp-header-pop { position: absolute; right: 0; top: 40px; min-width: 190px; padding: 6px; background: var(--bg-card, #fff); border: 1px solid var(--border, #e2e2e6);
@@ -152,6 +150,36 @@
     font: inherit; font-size: 13px; color: var(--text, #24262b); text-decoration: none; cursor: pointer; }
   .lp-header-pop a:hover, .lp-header-pop button:hover { background: rgba(47, 128, 192, .08); }
   .lp-header-pop[hidden] { display: none; }
+  /* Disposition « Backstage » (28/11, mode Projet) : bandeau sur toute la largeur, puis barre de gauche en bloc et contenu,
+     mêmes dimensions et mêmes couleurs que layerpitch-backstage.html (src/backstage/02-styles.css). */
+  :where(html.lp-framed) { --backstage-bg: #f7f6f3; --bg-sidebar: #efeee9; }
+  html.lp-framed body.lp-shell-on { background: var(--backstage-bg); }
+  .lp-header, .lp-framed .lp-nav { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .lp-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 900; box-sizing: border-box;
+    padding: 8px 12px; border-radius: 12px; box-shadow: 0 1px 3px rgba(20,22,28,.08);
+    background: color-mix(in srgb, var(--backstage-bg, #f7f6f3) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+  .lp-header-title { font-size: 18px; font-weight: 700; color: var(--text, #24262b); }
+  .lp-framed .lp-crumbs, .lp-framed .lp-main .page { max-width: none; }
+  @media (min-width: 821px) {
+    .lp-shell.lp-framed { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr; align-content: start; gap: 20px 28px;
+      width: min(1400px, 92vw); margin: 0 auto; padding: 28px 0 0; }
+    .lp-framed .lp-header { grid-column: 1 / -1; }
+    .lp-framed .lp-nav { width: 196px; flex: none; align-self: start; top: 84px; height: auto; max-height: calc(100vh - 104px); border: 0; border-radius: 10px; padding: 16px 14px; scrollbar-width: thin; }
+    .lp-framed .lp-main { padding: 0 0 80px; }
+    .lp-framed .lp-nav-brand { display: none; }
+    .lp-framed .lp-nav-top { justify-content: flex-end; margin: -6px -4px 8px 0; }
+    .lp-framed .lp-nav-section { margin: 20px 0 8px; font-size: 10px; letter-spacing: .08em; }
+    .lp-framed .lp-nav a.lp-item, .lp-framed .lp-ap-btn { border: 1px solid var(--border, #e2e2e6); border-radius: 6px; margin-bottom: 6px; padding: 9px 10px; font-size: 13px; box-sizing: border-box; }
+    .lp-framed .lp-nav a.lp-item:hover { background: var(--bg-card, #fff); }
+    .lp-framed .lp-nav a.lp-item[aria-current="page"] { background: #24262b; border-color: #262521; color: #fff; box-shadow: none; }
+    .lp-framed .lp-nav a.lp-item.lp-highlight { background: var(--accent-soft, #e6eef8); border-color: var(--accent, #2f80c0); box-shadow: none; margin-bottom: 8px; }
+    .lp-framed .lp-nav a.lp-sub { border: 0; padding: 5px 10px 5px 35px; font-size: 12.5px; }
+    .lp-framed .lp-nav a.lp-sub[aria-current="page"] { background: transparent; color: var(--text, #24262b); }
+    .lp-framed .lp-ap-pop { left: calc(4vw + 208px); }
+    html.lp-sidebar-collapsed .lp-framed .lp-nav { width: 48px; padding: 12px 6px; }
+    html.lp-sidebar-collapsed .lp-framed .lp-nav-top { justify-content: center; margin: 0 0 10px; flex-direction: column; align-items: center; }
+    html.lp-sidebar-collapsed .lp-framed .lp-nav a.lp-item { padding: 8px 0; }
+  }
   .lp-shell.lp-bare .lp-main { padding: 0; }
   .lp-shell.lp-bare .lp-crumbs { display: none; }
   @media (max-width: 820px) {
@@ -160,8 +188,8 @@
     .lp-shell.lp-open .lp-nav { transform: none; }
     .lp-main { padding: 14px 16px 50px; }
     .lp-menu-btn { display: inline-block; }
-    .lp-header { position: static; }
-    .lp-header-title { font-size: 17px; }
+    .lp-shell.lp-framed { flex-direction: column; }
+    .lp-framed .lp-header { position: static; margin: 14px 16px 0; }
   }`;
 
   // Barre repliée (28/09, demande de Jules-Antoine) : un seul réglage pour toutes les pages, Backstage compris. La classe
@@ -533,8 +561,8 @@
   function unwrap() {
     const shell = document.querySelector('.lp-shell'); if (!shell) return;
     const main = shell.querySelector('.lp-main');
-    [...main.childNodes].forEach(n => { if (!n.classList || !(n.classList.contains('lp-crumbs') || n.classList.contains('lp-header'))) document.body.insertBefore(n, shell); });
-    shell.remove(); document.body.classList.remove('lp-shell-on');
+    [...main.childNodes].forEach(n => { if (!n.classList || !n.classList.contains('lp-crumbs')) document.body.insertBefore(n, shell); });
+    shell.remove(); document.body.classList.remove('lp-shell-on'); document.documentElement.classList.remove('lp-framed');
   }
 
   async function loadContext() {
@@ -678,14 +706,16 @@
   // Bandeau « LayerPitch — Projet » (28/11) : même en-tête que le Backstage (titre à gauche ; cloche, Tutoriel et réglages à
   // droite), identique sur toutes les pages qui le demandent. Posé au-dessus du fil d'Ariane ; la cloche y loge.
   const GEAR_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M19.4 13.6c.06-.53.06-1.07 0-1.6l1.9-1.3-1.5-2.6-2.2.7a7.4 7.4 0 0 0-1.4-.8L15.8 5.8h-3l-.4 2.2a7.4 7.4 0 0 0-1.4.8l-2.2-.7-1.5 2.6 1.9 1.3c-.06.53-.06 1.07 0 1.6l-1.9 1.3 1.5 2.6 2.2-.7c.43.34.9.62 1.4.8l.4 2.2h3l.4-2.2c.5-.18.97-.46 1.4-.8l2.2.7 1.5-2.6-1.9-1.3z"/></svg>';
+  const CAP_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9.5 12 5l9.5 4.5L12 14z"/><path d="M6.5 11.5v4.2c0 1.2 2.5 2.8 5.5 2.8s5.5-1.6 5.5-2.8v-4.2"/><path d="M21.5 9.5v5"/></svg>';
   function renderHeader() {
-    const main = document.querySelector('.lp-main'); if (!main || !state.header || state.bare) return;
-    let bar = main.querySelector(':scope > .lp-header');
-    if (!bar) { bar = document.createElement('header'); bar.className = 'lp-header'; main.insertBefore(bar, main.firstChild); }
+    const shell = document.querySelector('.lp-shell'); if (!shell || !state.header || state.bare) return;
+    shell.classList.add('lp-framed'); document.documentElement.classList.add('lp-framed');
+    let bar = shell.querySelector(':scope > .lp-header');
+    if (!bar) { bar = document.createElement('header'); bar.className = 'lp-header'; shell.insertBefore(bar, shell.firstChild); }
     bar.innerHTML = `<div class="lp-header-title">${esc(tr(state.header))}</div>
       <div class="lp-header-actions">
         <span class="lp-bell-host" id="lpBellHost"></span>
-        <a class="lp-header-btn" href="${esc(withLang('tutoriels.html'))}">${icon('tutorials')}<span>${esc(tr('headerTutorial'))}</span></a>
+        <a class="lp-header-btn" href="${esc(withLang('tutoriels.html'))}">${CAP_ICON}<span>${esc(tr('headerTutorial'))}</span></a>
         <div class="lp-header-menu">
           <button type="button" class="lp-header-btn" id="lpGear" aria-haspopup="true" aria-expanded="false" title="${esc(tr('headerSettings'))}" aria-label="${esc(tr('headerSettings'))}">${GEAR_ICON}</button>
           <div class="lp-header-pop" id="lpGearPop" hidden>
