@@ -739,7 +739,15 @@
       if (file === 'layerpitch-backstage.html' && plainEntry && window.LayerPitchAuth.getMyLandingSpace) {
         window.LayerPitchAuth.getMyLandingSpace().then(sp => { if (sp === 'studio') location.replace('studio.html?tab=home' + (params.get('lang') ? '&lang=' + params.get('lang') : '')); }).catch(() => {});
       }
-      if (!done && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
+      // Clic volontaire depuis une page d'espace (ex. « Mon compte » du Backstage, ouvert dans un nouvel onglet, donc sans le
+      // repère « déjà fait ») : ce n'est pas une arrivée, on reste sur la page demandée (28/11).
+      let fromApp = false;
+      try {
+        const ref = document.referrer ? new URL(document.referrer) : null;
+        const refFile = ref ? ref.pathname.split('/').pop() : '';
+        fromApp = !!ref && ref.origin === location.origin && refFile !== file && RESUMABLE.includes(refFile);
+      } catch (e) { /* provenance illisible */ }
+      if (!done && !fromApp && plainEntry && last && last.user === session.user.id && lastFile && lastFile !== file && RESUMABLE.includes(lastFile)) {
         location.replace(last.url);
         return;
       }
