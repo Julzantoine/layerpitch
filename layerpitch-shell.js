@@ -13,6 +13,7 @@
 // Utilisation (après supabase-js, layerpitch-i18n.js, api/supabase-client.js, api/auth.js) :
 //   LayerPitchShell.mount({ active: 'studio.team', crumbs: [{ label, href }, { label }] });
 //   LayerPitchShell.mount({ active, crumbs, bare: true })  // page plein écran (lecteur) : ni marge ni fil d'Ariane
+//   LayerPitchShell.mount({ active, crumbs, header: 'headerProject' }) // bandeau « LayerPitch — … » façon Backstage (28/11)
 //   LayerPitchShell.update({ active, crumbs })        // changement d'onglet sans rechargement
 //   LayerPitchShell.onNavigate(url => true|false)     // la page gère elle-même un lien de la barre (même page)
 (function () {
@@ -136,6 +137,21 @@
   .lp-bell-item-text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
   .lp-bell-item-time { font-size: 11px; color: var(--text-dimmer, #9a9ea6); margin-top: 4px; }
   .lp-bell-empty { padding: 18px 14px; font-size: 13px; color: var(--text-dim, #5f636b); text-align: center; }
+  .lp-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; position: sticky; top: 12px; z-index: 400;
+    max-width: var(--lp-page-width, 1040px); margin: -4px auto 14px; padding: 8px 12px; box-sizing: border-box; border-radius: 12px; box-shadow: 0 1px 3px rgba(20,22,28,.08);
+    background: color-mix(in srgb, var(--bg-card, #ffffff) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+  .lp-header-title { font-size: 19px; font-weight: 700; color: var(--text, #24262b); }
+  .lp-header-actions { display: flex; gap: 8px; align-items: center; }
+  .lp-header-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 32px; padding: 0 10px; box-sizing: border-box; border-radius: 8px;
+    border: 1px solid var(--border, #e2e2e6); background: var(--bg-card, #fff); color: var(--text-dim, #5f636b); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+  .lp-header-btn:hover, .lp-header-btn[aria-expanded="true"] { color: var(--accent, #2f80c0); border-color: var(--accent, #2f80c0); }
+  .lp-header-menu { position: relative; }
+  .lp-header-pop { position: absolute; right: 0; top: 40px; min-width: 190px; padding: 6px; background: var(--bg-card, #fff); border: 1px solid var(--border, #e2e2e6);
+    border-radius: 12px; box-shadow: 0 12px 32px rgba(20, 22, 30, .16); z-index: 1200; }
+  .lp-header-pop a, .lp-header-pop button { display: block; width: 100%; padding: 8px 10px; box-sizing: border-box; border: 0; border-radius: 7px; background: transparent; text-align: left;
+    font: inherit; font-size: 13px; color: var(--text, #24262b); text-decoration: none; cursor: pointer; }
+  .lp-header-pop a:hover, .lp-header-pop button:hover { background: rgba(47, 128, 192, .08); }
+  .lp-header-pop[hidden] { display: none; }
   .lp-shell.lp-bare .lp-main { padding: 0; }
   .lp-shell.lp-bare .lp-crumbs { display: none; }
   @media (max-width: 820px) {
@@ -144,6 +160,8 @@
     .lp-shell.lp-open .lp-nav { transform: none; }
     .lp-main { padding: 14px 16px 50px; }
     .lp-menu-btn { display: inline-block; }
+    .lp-header { position: static; }
+    .lp-header-title { font-size: 17px; }
   }`;
 
   // Barre repliée (28/09, demande de Jules-Antoine) : un seul réglage pour toutes les pages, Backstage compris. La classe
@@ -515,7 +533,7 @@
   function unwrap() {
     const shell = document.querySelector('.lp-shell'); if (!shell) return;
     const main = shell.querySelector('.lp-main');
-    [...main.childNodes].forEach(n => { if (!n.classList || !n.classList.contains('lp-crumbs')) document.body.insertBefore(n, shell); });
+    [...main.childNodes].forEach(n => { if (!n.classList || !(n.classList.contains('lp-crumbs') || n.classList.contains('lp-header'))) document.body.insertBefore(n, shell); });
     shell.remove(); document.body.classList.remove('lp-shell-on');
   }
 
@@ -657,6 +675,36 @@
     return parts.length ? tr('previewBanner', { what: parts.join(' · ') }) : '';
   }
 
+  // Bandeau « LayerPitch — Projet » (28/11) : même en-tête que le Backstage (titre à gauche ; cloche, Tutoriel et réglages à
+  // droite), identique sur toutes les pages qui le demandent. Posé au-dessus du fil d'Ariane ; la cloche y loge.
+  const GEAR_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M19.4 13.6c.06-.53.06-1.07 0-1.6l1.9-1.3-1.5-2.6-2.2.7a7.4 7.4 0 0 0-1.4-.8L15.8 5.8h-3l-.4 2.2a7.4 7.4 0 0 0-1.4.8l-2.2-.7-1.5 2.6 1.9 1.3c-.06.53-.06 1.07 0 1.6l-1.9 1.3 1.5 2.6 2.2-.7c.43.34.9.62 1.4.8l.4 2.2h3l.4-2.2c.5-.18.97-.46 1.4-.8l2.2.7 1.5-2.6-1.9-1.3z"/></svg>';
+  function renderHeader() {
+    const main = document.querySelector('.lp-main'); if (!main || !state.header || state.bare) return;
+    let bar = main.querySelector(':scope > .lp-header');
+    if (!bar) { bar = document.createElement('header'); bar.className = 'lp-header'; main.insertBefore(bar, main.firstChild); }
+    bar.innerHTML = `<div class="lp-header-title">${esc(tr(state.header))}</div>
+      <div class="lp-header-actions">
+        <span class="lp-bell-host" id="lpBellHost"></span>
+        <a class="lp-header-btn" href="${esc(withLang('tutoriels.html'))}">${icon('tutorials')}<span>${esc(tr('headerTutorial'))}</span></a>
+        <div class="lp-header-menu">
+          <button type="button" class="lp-header-btn" id="lpGear" aria-haspopup="true" aria-expanded="false" title="${esc(tr('headerSettings'))}" aria-label="${esc(tr('headerSettings'))}">${GEAR_ICON}</button>
+          <div class="lp-header-pop" id="lpGearPop" hidden>
+            <a href="${esc(withLang('mon-compte.html'))}">${esc(tr('item_account'))}</a>
+            <button type="button" id="lpGearSignOut">${esc(tr('signOut'))}</button>
+          </div>
+        </div>
+      </div>`;
+    const gear = bar.querySelector('#lpGear');
+    gear.onclick = () => { const pop = bar.querySelector('#lpGearPop'); pop.hidden = !pop.hidden; gear.setAttribute('aria-expanded', String(!pop.hidden)); };
+    bar.querySelector('#lpGearSignOut').onclick = async () => { await window.LayerPitchAuth.signOut(); location.href = withLang('mon-compte.html'); };
+  }
+  function closeGear() {
+    const pop = document.getElementById('lpGearPop'); if (!pop || pop.hidden) return;
+    pop.hidden = true; document.getElementById('lpGear').setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('click', e => { if (!e.target.closest || !e.target.closest('.lp-header-menu')) closeGear(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGear(); });
+
   function renderCrumbs() {
     const bar = document.querySelector('.lp-crumbs'); if (!bar) return;
     // Un lien (ou la flèche de retour) qui ramènerait sur la page affichée n'est pas proposé : il ne ferait rien.
@@ -671,7 +719,7 @@
       + (back ? `<a class="lp-back" href="${esc(withLang(back))}" aria-label="${esc(tr('back'))}">←</a>` : '')
       + c.map((x, i) => (i ? '<span class="lp-crumb-sep">›</span>' : '') + (x.href && i < c.length - 1 ? `<a href="${esc(withLang(x.href))}">${esc(x.label)}</a>` : `<span>${esc(x.label)}</span>`)).join('')
       + (state.ctx && state.ctx.isAdmin && previewLabel(state.ctx.preview) ? `<span class="lp-preview-banner">${esc(previewLabel(state.ctx.preview))}</span>` : '')
-      + (state.bare ? '' : '<span class="lp-bell-host" id="lpBellHost"></span>');
+      + (state.bare || state.header ? '' : '<span class="lp-bell-host" id="lpBellHost"></span>');
     bar.querySelector('#lpMenuBtn').onclick = () => document.querySelector('.lp-shell').classList.toggle('lp-open');
     // Page plein écran (lecteur) : pas de fil d'Ariane sur ordinateur, la cloche flotte en haut à droite.
     if (state.bare && state.ctx && !document.getElementById('lpBellHost')) {
@@ -698,12 +746,13 @@
     }
   }
 
-  async function mount({ active, crumbs, bare } = {}) {
-    state.active = active || null; state.crumbs = crumbs || []; state.bare = !!bare;
-    if (hasStoredSession()) { wrap(); renderCrumbs(); }
+  async function mount({ active, crumbs, bare, header } = {}) {
+    state.active = active || null; state.crumbs = crumbs || []; state.bare = !!bare; state.header = header || null;
+    if (hasStoredSession()) { wrap(); renderHeader(); renderCrumbs(); }
     const { session } = await window.LayerPitchAuth.getSession();
     if (!session) { unwrap(); return null; }
     wrap();
+    renderHeader();
     state.ctx = await loadContext();
     renderNav(); renderCrumbs();
     onInbox(renderBell); startInbox();
