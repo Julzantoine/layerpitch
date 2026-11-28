@@ -71,6 +71,9 @@ const imp = [{ id: 'imp1', title: 'Monte en l\'air', plan: { mode: 'embranchemen
   await e.w.refreshPendingImports();
   e.d.querySelector('[data-pi-btn="discard"]').click(); await tick(); await tick(); await tick();
   check('écarter : confirmation puis finish discarded', e.calls.invoke[0][1].action === 'finish' && e.calls.invoke[0][1].outcome === 'discarded');
+  e = env(true, [Object.assign({}, imp[0], { status: 'uploading' })]);
+  await e.w.refreshPendingImports();
+  check('envoi incomplet : signalé, pas de « Construire », « Écarter » disponible', /Envoi incomplet/.test(e.d.getElementById('pendingImports').textContent) && !e.d.querySelector('[data-pi-btn="open"]') && !!e.d.querySelector('[data-pi-btn="discard"]'));
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
 })();

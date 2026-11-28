@@ -43,10 +43,13 @@ const TARGETS = {
       const engineSrc = fs.readFileSync(path.join(root, 'layerpitch-import-engine.js'), 'utf8');
       const req = "const engine = require('../layerpitch-import-engine.js');";
       if (!src.includes(req)) throw new Error('cli/layerpitch.js : ligne require du moteur introuvable');
+      const guidesLine = src.split('\n').find((l) => l.startsWith('const GUIDES = '));
+      if (!guidesLine) throw new Error('cli/layerpitch.js : ligne des guides introuvable');
+      const guides = Object.fromEntries(['fr', 'en'].map((l) => [l, fs.readFileSync(path.join(root, 'cli/guide.' + l + '.md'), 'utf8')]));
       const lines = src.split('\n');
       const shebang = lines[0].startsWith('#!') ? lines.shift() + '\n' : '';
-      return shebang + '// FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de cli/layerpitch.js + layerpitch-import-engine.js — ne pas le modifier ici : modifier les sources, puis `npm run build`.\n'
-        + lines.join('\n').replace(req, 'const engine = (() => {\nconst module = { exports: {} };\n' + engineSrc + '\nreturn module.exports;\n})();');
+      return shebang + '// FICHIER GÉNÉRÉ par scripts/build-sources.js à partir de cli/layerpitch.js + cli/guide.*.md + layerpitch-import-engine.js — ne pas le modifier ici : modifier les sources, puis `npm run build`.\n'
+        + lines.join('\n').replace(guidesLine, () => 'const GUIDES = ' + JSON.stringify(guides) + ';').replace(req, 'const engine = (() => {\nconst module = { exports: {} };\n' + engineSrc + '\nreturn module.exports;\n})();');
     },
   },
 };

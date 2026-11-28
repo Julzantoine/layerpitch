@@ -137,7 +137,7 @@
   // ---- Côté Backstage ----
   await as(1);
   const mine = await one(`select public.list_my_pending_imports()`);
-  check('Backstage : seul l\'import prêt apparaît, avec ses fichiers mais sans chemin R2', mine.length === 1 && mine[0].id === imp.import_id && mine[0].files.length === 2 && !JSON.stringify(mine).includes('incoming/'));
+  check('Backstage : l\'import prêt apparaît, avec son état et ses fichiers, mais sans chemin R2', mine.length === 1 && mine[0].id === imp.import_id && mine[0].status === 'ready' && mine[0].files.length === 2 && !JSON.stringify(mine).includes('incoming/'));
   await as(2);
   check('Backstage : un autre compte ne voit rien', (await one(`select jsonb_array_length(public.list_my_pending_imports())`)) === 0);
   check('Backstage : un autre compte ne peut ni ajouter ni écarter mon import', (await one(`select public.mark_pending_import_added($1)`, [imp.import_id])) === false && (await one(`select public.discard_pending_import($1)`, [imp.import_id])) === false);
@@ -158,6 +158,26 @@
   await q(`select public.assistant_mark_purged($1)`, [imp.import_id]);
   check('purge : un import marqué purgé ne revient plus', !(await toPurge()).some(r => r.import_id === imp.import_id));
 
+  // ---- Envoi interrompu : visible, annulable, et il libère sa place ----
+  await q(`delete from public.pending_imports where composer_id = $1`, [c1]);
+  const half = [];
+  for (let i = 0; i < 5; i++) half.push(await begin(c1, 'moitié' + i, plan, [{ name: 'a.wav', size: MB }]));
+  await as(1);
+  const shown = await one(`select public.list_my_pending_imports()`);
+  check('envoi incomplet : visible dans le Backstage, marqué comme tel', shown.length === 5 && shown.every(p => p.status === 'uploading'));
+  const cancel = (comp, id) => one(`select public.assistant_cancel_import($1, $2)`, [comp, id]);
+  check('annulation : impossible depuis un autre compte', (await cancel(c2, half[0].import_id)) === null);
+  const paths = await cancel(c1, half[0].import_id);
+  check('annulation : rend les chemins à effacer, une seule fois', paths.length === 1 && paths[0].path.startsWith(`incoming/${c1}/`) && (await cancel(c1, half[0].import_id)) === null);
+  check('annulation : la place est libérée', !!(await begin(c1, 'nouveau', plan, [{ name: 'a.wav', size: MB }])));
+  check('annulation : les fichiers restent à purger (une adresse d\'envoi peut encore servir)', (await q(`select * from public.assistant_files_to_purge(100)`)).some(r => r.import_id === half[0].import_id));
+  await q(`update public.pending_imports set status = 'ready' where id = $1`, [half[1].import_id]);
+  check('annulation : un import complet n\'est jamais annulé par le programme', (await cancel(c1, half[1].import_id)) === null);
+  const forDiscard = (comp, id) => one(`select jsonb_array_length(public.assistant_import_files_for_discard($1, $2))`, [comp, id]);
+  check('écarter : chemins d\'un import complet ou incomplet, pour son propriétaire seulement', (await forDiscard(c1, half[1].import_id)) === 1 && (await forDiscard(c1, half[2].import_id)) === 1 && (await forDiscard(c2, half[2].import_id)) === 0);
+  check('écarter un envoi incomplet : accepté', (await one(`select public.discard_pending_import($1)`, [half[2].import_id])) === true);
+  await q(`delete from public.pending_imports where composer_id = $1`, [c1]);
+
   // ---- Journal : jamais de secret ----
   await q(`select public.assistant_log($1, null, 'begin_import', true, '{"files":2}'::jsonb)`, [c1]);
   const logs = JSON.stringify(await q(`select * from public.assistant_audit_log`));
@@ -171,6 +191,7 @@
     [`select public.assistant_import_status(null, null)`], [`select public.assistant_import_files_for_download(null, null)`],
     [`select * from public.assistant_files_to_purge(1)`], [`select public.assistant_mark_purged(null)`], [`select public.assistant_housekeeping()`],
     [`select public.assistant_log(null, null, 'x', true, '{}'::jsonb)`],
+    [`select public.assistant_cancel_import(null, null)`], [`select public.assistant_import_files_for_discard(null, null)`],
   ];
   for (const role of ['authenticated', 'anon']) {
     let all = true; for (const [sql] of doorCalls) all = all && await asRole(role, sql);

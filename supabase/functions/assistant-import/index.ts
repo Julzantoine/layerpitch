@@ -100,6 +100,16 @@ Deno.serve(async (req) => {
         return json({ ok: true, import_status: status });
       }
 
+      case 'cancel_import': {
+        // Le programme renonce à un envoi incomplet : il ne compte plus dans les imports en attente. Un import complet n'est pas touché.
+        if (!isUuid(body.import_id)) return json({ error: 'Identifiant invalide.' }, 400);
+        const { data: files } = await admin.rpc('assistant_cancel_import', { p_composer: composer, p_import: body.import_id });
+        if (!files) return json({ error: 'Aucun envoi incomplet à annuler.' }, 404);
+        for (const f of files as Array<{ path: string }>) await r2.fetch(objectUrl(f.path), { method: 'DELETE' });
+        await log('cancel_import', true, { import_id: body.import_id });
+        return json({ ok: true });
+      }
+
       case 'import_status': {
         if (!isUuid(body.import_id)) return json({ error: 'Identifiant invalide.' }, 400);
         const { data } = await admin.rpc('assistant_import_status', { p_composer: composer, p_import: body.import_id });

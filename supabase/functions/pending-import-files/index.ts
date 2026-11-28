@@ -2,6 +2,7 @@
 // Appelée par le navigateur du compositeur CONNECTÉ (JWT Supabase vérifié ici) ; deux actions :
 //   download_urls { import_id } -> liens de lecture R2 valables 15 min, un par fichier de l'import prêt (seau privé)
 //   finish { import_id, outcome: 'added' | 'discarded' } -> marque l'import (en tant que lui) puis EFFACE tout de suite ses fichiers R2
+//     (« discarded » vaut aussi pour un envoi incomplet ; la purge repasse alors, une adresse d'envoi pouvant encore être valable)
 // Jamais plus que ce que fait déjà le compositeur depuis son compte : la clé de service ne sert qu'à .rpc (comme la porte).
 // Filet de sécurité : la tâche purge-assistant-imports efface de toute façon ce qui resterait.
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
@@ -39,7 +40,10 @@ Deno.serve(async (req) => {
     const bucket = Deno.env.get('R2_PROJECTS_BUCKET')!;
     const r2 = new AwsClient({ accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID')!, secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY')!, service: 's3', region: 'auto' });
     const objectUrl = (path: string, query = '') => `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}${query}`;
-    const { data: files } = await admin.rpc('assistant_import_files_for_download', { p_composer: composer, p_import: body.import_id });
+    // Lecture : un import prêt seulement. Écarter : aussi un envoi incomplet ou échoué.
+    const discarding = body.action === 'finish' && body.outcome === 'discarded';
+    const { data: files } = await admin.rpc(discarding ? 'assistant_import_files_for_discard' : 'assistant_import_files_for_download', { p_composer: composer, p_import: body.import_id });
+    const { data: current } = await admin.rpc('assistant_import_status', { p_composer: composer, p_import: body.import_id });
     const list = (files || []) as Array<{ id: string; name: string; size: number; path: string }>;
 
     if (body.action === 'download_urls') {
@@ -64,7 +68,7 @@ Deno.serve(async (req) => {
         const res = await r2.fetch(objectUrl(f.path), { method: 'DELETE' });
         if (!(res.ok || res.status === 404)) failed++;
       }
-      if (list.length && !failed) await admin.rpc('assistant_mark_purged', { p_import: body.import_id });
+      if (list.length && !failed && current?.status !== 'uploading') await admin.rpc('assistant_mark_purged', { p_import: body.import_id });
       return json({ ok: true, deleted: !failed });
     }
     return json({ error: 'Action inconnue.' }, 400);

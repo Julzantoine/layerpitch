@@ -30,11 +30,12 @@ function renderPendingImports() {
   host.innerHTML = `<div class="hint-inline" style="font-weight:600;margin-bottom:6px">${tr('pendingImportsTitle', { n: pendingImportsList.length })}</div>` + pendingImportsList.map(p => {
     const bytes = (p.files || []).reduce((a, f) => a + (f.size || 0), 0);
     const busy = pendingImportDownload && pendingImportDownload.id === p.id;
+    const incomplete = p.status === 'uploading'; // envoi interrompu (ou encore en cours) : rien à construire, on peut seulement écarter
     return `<div class="pending-import-row" data-pi="${escapeAttr(p.id)}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border)">
-      <span style="flex:1;min-width:180px"><strong>${escapeHtml(p.title || '…')}</strong> — ${tr('pendingImportsSummary', { files: (p.files || []).length, mb: mb(bytes), date: new Date(p.expires_at).toLocaleDateString(currentLang()) })}</span>
+      <span style="flex:1;min-width:180px"><strong>${escapeHtml(p.title || '…')}</strong> — ${tr('pendingImportsSummary', { files: (p.files || []).length, mb: mb(bytes), date: new Date(p.expires_at).toLocaleDateString(currentLang()) })}${incomplete ? ` <em>${tr('pendingImportsIncomplete')}</em>` : ''}</span>
       <span data-pi-status></span>
       ${busy ? `<button class="btn btn-small" type="button" data-pi-btn="cancel">${tr('cancel')}</button>`
-        : `<button class="btn btn-small btn-primary" type="button" data-pi-btn="open">${tr('pendingImportsBuild')}</button>
+        : `${incomplete ? '' : `<button class="btn btn-small btn-primary" type="button" data-pi-btn="open">${tr('pendingImportsBuild')}</button>`}
            <button class="btn btn-small" type="button" data-pi-btn="discard">${tr('pendingImportsDiscard')}</button>`}
     </div>`;
   }).join('');
