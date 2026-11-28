@@ -125,24 +125,32 @@ async function verifyOwnership(adminClient: ReturnType<typeof createClient>, pat
       console.error('create-media-signed-url: verifyOwnership', table, error);
       return false;
     }
-    // Entité pas encore créée : autorisé -- publishAll() (layerpitch-backstage.html) uploade tout
-    // le média AVANT d'appeler les RPC upsert_* qui créent réellement la ligne Postgres. Rejeter
-    // ici casserait la toute première publication de tout nouveau contenu, pas seulement un cas
-    // limite. Seul un vrai conflit (entité existante appartenant à quelqu'un d'autre) est bloqué.
-    if (!data) return true;
+    // Entité pas encore créée : publishAll() (layerpitch-backstage.html) uploade tout le média AVANT d'appeler les
+    // RPC upsert_* qui créent réellement la ligne Postgres, donc « introuvable » doit rester possible. Mais plus
+    // « introuvable = autorisé pour tout le monde » (audit sécurité 16/11, M5) : le premier compte qui envoie sous cet
+    // identifiant le réserve (claim_media_prefix), les autres sont refusés.
+    if (!data) return await claimPrefix(adminClient, table, m[1], composerId, null);
     return data.owner_id === composerId;
   }
   // Tout le reste : refusé par défaut plutôt qu'autorisé (durci 11 septembre).
   return false;
 }
 
-// Vidéo d'un studio : l'entité visée (composer_videos) doit appartenir à ce studio, ou ne pas encore exister.
+// Réservation d'un identifiant pas encore en base (M5) : vrai si ce compte la détient ou vient de l'obtenir.
+async function claimPrefix(adminClient: ReturnType<typeof createClient>, kind: string, entityId: string, composerId: string | null, studioId: string | null): Promise<boolean> {
+  const { data, error } = await adminClient.rpc('claim_media_prefix', { p_kind: kind, p_entity_id: entityId, p_composer_id: composerId, p_studio_id: studioId });
+  if (error) { console.error('create-media-signed-url: claim_media_prefix', error); return false; }
+  return data === true;
+}
+
+// Vidéo d'un studio : l'entité visée (composer_videos) doit appartenir à ce studio, ou ne pas encore exister (réservée alors à ce studio).
 async function verifyStudioVideo(adminClient: ReturnType<typeof createClient>, path: string, studioId: string): Promise<boolean> {
   const m = path.match(/^video\/([^/]+)\/[^/]+$/);
   if (!m) return false;
   const { data, error } = await adminClient.from('composer_videos').select('owner_studio_id').eq('id', m[1]).maybeSingle();
   if (error) { console.error('create-media-signed-url: verifyStudioVideo', error); return false; }
-  return !data || data.owner_studio_id === studioId;
+  if (!data) return await claimPrefix(adminClient, 'composer_videos', m[1], null, studioId);
+  return data.owner_studio_id === studioId;
 }
 
 Deno.serve(async (req) => {
@@ -209,7 +217,8 @@ Deno.serve(async (req) => {
     if (!studioFolderId && !videoStudioId) {
       const { data, error: composerError } = await callerClient.rpc('ensure_composer_profile');
       if (composerError || !data) {
-        return new Response(JSON.stringify({ error: composerError?.message || 'Impossible de provisionner le profil compositeur.' }), {
+        if (composerError) console.error('create-media-signed-url: ensure_my_composer_profile', composerError); // M7 : détail en journal seulement
+        return new Response(JSON.stringify({ error: 'Impossible de provisionner le profil compositeur.' }), {
           status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
